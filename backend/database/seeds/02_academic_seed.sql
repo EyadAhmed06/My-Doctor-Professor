@@ -15,9 +15,9 @@
 
 BEGIN;
 
----------------------------------------------------------
--- SEMESTERS
----------------------------------------------------------
+-- =====================================================
+-- Semesters
+-- =====================================================
 
 INSERT INTO semesters
 (
@@ -26,292 +26,271 @@ INSERT INTO semesters
     description
 )
 VALUES
-
-(1, 'Semester 1', 'First Academic Semester'),
-(2, 'Semester 2', 'Second Academic Semester'),
-(3, 'Semester 3', 'Third Academic Semester'),
-(4, 'Semester 4', 'Fourth Academic Semester'),
-(5, 'Semester 5', 'Fifth Academic Semester');
-
----------------------------------------------------------
--- COURSES
----------------------------------------------------------
-
-INSERT INTO courses
 (
-    semester_id,
-    course_code,
-    course_name,
-    slug,
-    description,
-    credit_hours,
-    is_active
-)
-SELECT
-    id,
-    'MED101',
-    'Physiology',
-    'physiology',
-    'Introduction to Human Physiology',
-    4,
-    TRUE
-FROM semesters
-WHERE semester_number = 1;
-
-INSERT INTO courses
-(
-    semester_id,
-    course_code,
-    course_name,
-    slug,
-    description,
-    credit_hours,
-    is_active
-)
-SELECT
-    id,
-    'MED102',
-    'Anatomy',
-    'anatomy',
-    'Introduction to Human Anatomy',
-    4,
-    TRUE
-FROM semesters
-WHERE semester_number = 1;
-
-INSERT INTO courses
-(
-    semester_id,
-    course_code,
-    course_name,
-    slug,
-    description,
-    credit_hours,
-    is_active
-)
-SELECT
-    id,
-    'MED103',
-    'Histology',
-    'histology',
-    'Introduction to Histology',
-    3,
-    TRUE
-FROM semesters
-WHERE semester_number = 1;
-
----------------------------------------------------------
--- WEEKS
----------------------------------------------------------
-
-INSERT INTO weeks
-(
-    course_id,
-    week_number,
-    title,
-    description
-)
-SELECT
-    id,
     1,
-    'Week 1',
-    'Introduction'
-FROM courses
-WHERE slug = 'physiology';
-
-INSERT INTO weeks
+    'Semester 1',
+    'Foundation medical sciences.'
+),
 (
-    course_id,
-    week_number,
-    title,
-    description
-)
-SELECT
-    id,
     2,
-    'Week 2',
-    'Cell Physiology'
-FROM courses
-WHERE slug = 'physiology';
+    'Semester 2',
+    'Pre-clinical medical sciences.'
+);
+
+-- =====================================================
+-- Courses
+-- =====================================================
+
+INSERT INTO courses
+(
+    semester_id,
+    course_code,
+    course_name,
+    slug,
+    description,
+    credit_hours,
+    display_order
+)
+SELECT
+    s.id,
+    c.course_code,
+    c.course_name,
+    c.slug,
+    c.description,
+    c.credit_hours,
+    c.display_order
+FROM semesters s
+JOIN
+(
+    VALUES
+    (
+        1,
+        'ANAT101',
+        'Human Anatomy',
+        'human-anatomy',
+        'Introduction to Human Anatomy.',
+        5,
+        1
+    ),
+    (
+        1,
+        'PHYS101',
+        'Human Physiology',
+        'human-physiology',
+        'Introduction to Human Physiology.',
+        5,
+        2
+    ),
+    (
+        2,
+        'PATH201',
+        'General Pathology',
+        'general-pathology',
+        'Introduction to General Pathology.',
+        4,
+        1
+    ),
+    (
+        2,
+        'PHAR201',
+        'Pharmacology',
+        'pharmacology',
+        'Introduction to Pharmacology.',
+        4,
+        2
+    )
+) AS c
+(
+    semester_number,
+    course_code,
+    course_name,
+    slug,
+    description,
+    credit_hours,
+    display_order
+)
+ON s.semester_number = c.semester_number;
+
+-- =====================================================
+-- Weeks
+-- =====================================================
 
 INSERT INTO weeks
 (
     course_id,
     week_number,
     title,
+    description,
+    display_order
+)
+SELECT
+    c.id,
+    w.week_number,
+    w.title,
+    w.description,
+    w.display_order
+FROM courses c
+CROSS JOIN
+(
+    VALUES
+    (
+        1,
+        'Week 1',
+        'Introduction',
+        1
+    ),
+    (
+        2,
+        'Week 2',
+        'Core Concepts',
+        2
+    )
+) AS w
+(
+    week_number,
+    title,
+    description,
+    display_order
+);
+
+-- =====================================================
+-- Lectures
+-- =====================================================
+
+INSERT INTO lectures
+(
+    week_id,
+    lecture_number,
+    title,
+    description,
+    estimated_duration_minutes,
+    is_published,
+    display_order
+)
+SELECT
+    w.id,
+    l.lecture_number,
+    l.title,
+    l.description,
+    l.estimated_duration_minutes,
+    TRUE,
+    l.display_order
+FROM weeks w
+CROSS JOIN
+(
+    VALUES
+    (
+        1,
+        'Lecture 1',
+        'Introduction',
+        90,
+        1
+    ),
+    (
+        2,
+        'Lecture 2',
+        'Detailed Concepts',
+        120,
+        2
+    )
+) AS l
+(
+    lecture_number,
+    title,
+    description,
+    estimated_duration_minutes,
+    display_order
+);
+
+-- =====================================================
+-- Topics
+-- =====================================================
+
+INSERT INTO topics
+(
+    lecture_id,
+    topic_name,
+    description,
+    display_order
+)
+SELECT
+    l.id,
+    t.topic_name,
+    t.description,
+    t.display_order
+FROM lectures l
+CROSS JOIN
+(
+    VALUES
+    (
+        'Overview',
+        'General overview of the lecture.',
+        1
+    ),
+    (
+        'Key Concepts',
+        'Main concepts discussed.',
+        2
+    ),
+    (
+        'Clinical Applications',
+        'Clinical relevance.',
+        3
+    )
+) AS t
+(
+    topic_name,
+    description,
+    display_order
+);
+
+-- =====================================================
+-- Resources
+-- =====================================================
+
+INSERT INTO resources
+(
+    lecture_id,
+    resource_name,
+    resource_type,
+    upload_status,
+    file_url,
+    file_size,
     description
 )
 SELECT
-    id,
-    1,
-    'Week 1',
-    'Introduction'
-FROM courses
-WHERE slug = 'anatomy';
-
----------------------------------------------------------
--- LECTURES
----------------------------------------------------------
-
-INSERT INTO lectures
+    l.id,
+    r.resource_name,
+    r.resource_type::resource_type,
+    'UPLOADED'::upload_status,
+    r.file_url,
+    r.file_size,
+    r.description
+FROM lectures l
+CROSS JOIN
 (
-    week_id,
-    lecture_number,
-    title,
-    description,
-    estimated_duration_minutes
-)
-SELECT
-    id,
-    1,
-    'Introduction to Physiology',
-    'Overview of physiology',
-    90
-FROM weeks
-WHERE title = 'Week 1'
-AND course_id = (
-    SELECT id
-    FROM courses
-    WHERE slug = 'physiology'
+    VALUES
+    (
+        'Lecture Slides',
+        'PDF',
+        'https://example.com/resources/slides.pdf',
+        2500000,
+        'Lecture presentation slides.'
+    ),
+    (
+        'Lecture Recording',
+        'VIDEO',
+        'https://example.com/resources/video.mp4',
+        150000000,
+        'Recorded lecture.'
+    )
+) AS r
+(
+    resource_name,
+    resource_type,
+    file_url,
+    file_size,
+    description
 );
-
-INSERT INTO lectures
-(
-    week_id,
-    lecture_number,
-    title,
-    description,
-    estimated_duration_minutes
-)
-SELECT
-    id,
-    1,
-    'Cell Physiology',
-    'Structure and function of cells',
-    120
-FROM weeks
-WHERE title = 'Week 2'
-AND course_id = (
-    SELECT id
-    FROM courses
-    WHERE slug = 'physiology'
-);
-
----------------------------------------------------------
--- TOPICS
----------------------------------------------------------
-
-INSERT INTO topics
-(
-    lecture_id,
-    topic_name,
-    display_order
-)
-SELECT
-    id,
-    'Homeostasis',
-    1
-FROM lectures
-WHERE title = 'Introduction to Physiology';
-
-INSERT INTO topics
-(
-    lecture_id,
-    topic_name,
-    display_order
-)
-SELECT
-    id,
-    'Feedback Mechanisms',
-    2
-FROM lectures
-WHERE title = 'Introduction to Physiology';
-
-INSERT INTO topics
-(
-    lecture_id,
-    topic_name,
-    display_order
-)
-SELECT
-    id,
-    'Cell Membrane',
-    1
-FROM lectures
-WHERE title = 'Cell Physiology';
-
-INSERT INTO topics
-(
-    lecture_id,
-    topic_name,
-    display_order
-)
-SELECT
-    id,
-    'Membrane Transport',
-    2
-FROM lectures
-WHERE title = 'Cell Physiology';
-
----------------------------------------------------------
--- RESOURCES
----------------------------------------------------------
-
-INSERT INTO resources
-(
-    lecture_id,
-    title,
-    description,
-    resource_type,
-    resource_url,
-    display_order
-)
-SELECT
-    id,
-    'Lecture Slides',
-    'Introduction to Physiology Slides',
-    'PDF',
-    'https://example.com/physiology/week1/slides.pdf',
-    1
-FROM lectures
-WHERE title = 'Introduction to Physiology';
-
-INSERT INTO resources
-(
-    lecture_id,
-    title,
-    description,
-    resource_type,
-    resource_url,
-    display_order
-)
-SELECT
-    id,
-    'Lecture Recording',
-    'Recorded lecture',
-    'VIDEO',
-    'https://example.com/physiology/week1/video',
-    2
-FROM lectures
-WHERE title = 'Introduction to Physiology';
-
-INSERT INTO resources
-(
-    lecture_id,
-    title,
-    description,
-    resource_type,
-    resource_url,
-    display_order
-)
-SELECT
-    id,
-    'Lecture Notes',
-    'Cell Physiology Notes',
-    'DOCUMENT',
-    'https://example.com/physiology/week2/notes.pdf',
-    1
-FROM lectures
-WHERE title = 'Cell Physiology';
 
 COMMIT;

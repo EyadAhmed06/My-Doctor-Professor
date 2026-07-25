@@ -14,11 +14,13 @@ CREATE TABLE flashcard_decks (
 
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-    course_id UUID NOT NULL,
+    course_id UUID,
 
     topic_id UUID,
 
     lecture_id UUID,
+
+    created_by UUID NOT NULL,
 
     title VARCHAR(200) NOT NULL,
 
@@ -42,7 +44,19 @@ CREATE TABLE flashcard_decks (
 
     FOREIGN KEY (lecture_id)
         REFERENCES lectures(id)
-        ON DELETE SET NULL
+        ON DELETE SET NULL,
+
+    FOREIGN KEY (created_by)
+        REFERENCES instructors(user_id)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT chk_flashcard_deck_parent
+        CHECK (
+            course_id IS NOT NULL
+            OR topic_id IS NOT NULL
+            OR lecture_id IS NOT NULL
+        )
+
 );
 
 CREATE TABLE flashcards (
@@ -63,7 +77,7 @@ CREATE TABLE flashcards (
 
     hint TEXT,
 
-    estimated_review_seconds INTEGER
+    estimated_review_seconds INTEGER,
 
     display_order INTEGER NOT NULL DEFAULT 1,
 
@@ -162,3 +176,5 @@ ON student_flashcard_progress(student_id);
 CREATE INDEX idx_student_flashcards_flashcard
 ON student_flashcard_progress(flashcard_id);
 
+CREATE INDEX idx_flashcard_decks_created_by
+ON flashcard_decks(created_by);

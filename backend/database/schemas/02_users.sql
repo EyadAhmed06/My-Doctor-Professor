@@ -61,3 +61,89 @@ CREATE TABLE users (
         )
 
 );
+
+CREATE TABLE students (
+
+    user_id UUID PRIMARY KEY,
+
+    student_number VARCHAR(30) NOT NULL UNIQUE,
+
+    current_semester INTEGER NOT NULL,
+
+    FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT chk_current_semester
+        CHECK (current_semester >= 1)
+
+);
+
+CREATE TABLE instructors (
+
+    user_id UUID PRIMARY KEY,
+
+    specialization VARCHAR(150),
+
+    office_location VARCHAR(100),
+
+    biography TEXT,
+
+    FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+
+);
+
+CREATE TABLE instructor_availability (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    instructor_id UUID NOT NULL,
+
+    day_of_week SMALLINT NOT NULL,
+
+    start_time TIME NOT NULL,
+
+    end_time TIME NOT NULL,
+
+    FOREIGN KEY (instructor_id)
+        REFERENCES instructors(user_id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT chk_day_of_week
+        CHECK (day_of_week BETWEEN 1 AND 7),
+
+    CONSTRAINT chk_time_range
+        CHECK (start_time < end_time)
+
+);
+
+CREATE TABLE system_admins (
+
+    user_id UUID PRIMARY KEY,
+
+    employee_number VARCHAR(30) UNIQUE,
+
+    is_super_admin BOOLEAN NOT NULL DEFAULT FALSE,
+
+    FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+
+);
+
+CREATE INDEX idx_users_role
+ON users(role);
+
+CREATE INDEX idx_users_status
+ON users(status);
+
+CREATE INDEX idx_students_semester
+ON students(current_semester);
+
+CREATE INDEX idx_instructors_specialization
+ON instructors(specialization);
+
+CREATE INDEX idx_instructor_availability
+ON instructor_availability(instructor_id);

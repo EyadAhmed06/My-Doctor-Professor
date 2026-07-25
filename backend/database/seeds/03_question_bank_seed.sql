@@ -4,43 +4,40 @@
 -- =====================================================
 --
 -- Contains:
--- • Question Tags
--- • MCQ Questions
--- • Essay Questions
+-- • Questions
 -- • MCQ Options
 -- • Essay Configurations
--- • Question Tags Mapping
+-- • Tags
+-- • Question Tags
 --
 -- =====================================================
 
 BEGIN;
 
 ---------------------------------------------------------
--- QUESTION TAGS
+-- Tags
 ---------------------------------------------------------
 
-INSERT INTO question_tags (name)
+INSERT INTO tags (tag_name)
 VALUES
 ('Easy'),
 ('Medium'),
 ('Hard'),
-('Important'),
-('Revision'),
-('Midterm'),
-('Final'),
+('Exam'),
 ('Clinical'),
-('Homeostasis'),
-('Cell Membrane'),
-('Membrane Transport');
+('Revision'),
+('Anatomy'),
+('Physiology'),
+('Pathology'),
+('Pharmacology');
 
 ---------------------------------------------------------
--- MCQ QUESTIONS
+-- Questions
 ---------------------------------------------------------
 
 INSERT INTO questions
 (
     topic_id,
-    created_by,
     question_type,
     title,
     question_text,
@@ -51,106 +48,41 @@ INSERT INTO questions
     estimated_time_seconds,
     marks,
     is_question_bank,
-    is_active
+    version,
+    is_active,
+    created_by
 )
 
+---------------------------------------------------------
+-- MCQ 1
+---------------------------------------------------------
 SELECT
-
     t.id,
-
-    (
-        SELECT user_id
-        FROM instructors
-        LIMIT 1
-    ),
-
-    'MCQ',
-
-    'Homeostasis MCQ',
-
-    'Which of the following best defines homeostasis?',
-
-    'Homeostasis is the maintenance of a relatively stable internal environment despite changes in external conditions.',
-
-    'Think about internal balance.',
-
-    'Guyton & Hall Textbook of Medical Physiology',
-
-    'EASY',
-
-    60,
-
+    'MCQ'::question_type,
+    'Human Heart',
+    'How many chambers does the human heart have?',
+    'The human heart consists of two atria and two ventricles.',
+    'Think about atria and ventricles.',
+    'Anatomy Textbook',
+    'EASY'::question_difficulty,
+    30,
     1,
-
     TRUE,
-
-    TRUE
-
-FROM topics t
-WHERE topic_name='Homeostasis';
-
----------------------------------------------------------
-
-INSERT INTO questions
-(
-    topic_id,
-    created_by,
-    question_type,
-    title,
-    question_text,
-    explanation,
-    hint,
-    reference,
-    difficulty,
-    estimated_time_seconds,
-    marks,
-    is_question_bank,
-    is_active
-)
-
-SELECT
-
-    t.id,
-
-    (
-        SELECT user_id
-        FROM instructors
-        LIMIT 1
-    ),
-
-    'MCQ',
-
-    'Membrane Transport',
-
-    'Which transport mechanism requires ATP?',
-
-    'Active transport requires ATP because substances move against their concentration gradient.',
-
-    'Think about concentration gradients.',
-
-    'Guyton & Hall',
-
-    'MEDIUM',
-
-    75,
-
     1,
-
     TRUE,
-
-    TRUE
-
+    i.user_id
 FROM topics t
-WHERE topic_name='Membrane Transport';
+CROSS JOIN instructors i
+WHERE t.topic_name='Overview'
+LIMIT 1;
 
 ---------------------------------------------------------
--- ESSAY QUESTION
+-- MCQ 2
 ---------------------------------------------------------
 
 INSERT INTO questions
 (
     topic_id,
-    created_by,
     question_type,
     title,
     question_text,
@@ -161,257 +93,214 @@ INSERT INTO questions
     estimated_time_seconds,
     marks,
     is_question_bank,
-    is_active
+    version,
+    is_active,
+    created_by
 )
-
 SELECT
-
     t.id,
+    'MCQ'::question_type,
+    'Normal Body Temperature',
+    'What is the normal human body temperature?',
+    '37°C is considered the normal average body temperature.',
+    'Measured in Celsius.',
+    'Physiology Textbook',
+    'EASY'::question_difficulty,
+    30,
+    1,
+    TRUE,
+    1,
+    TRUE,
+    i.user_id
+FROM topics t
+CROSS JOIN instructors i
+WHERE t.topic_name='Key Concepts'
+LIMIT 1;
 
-    (
-        SELECT user_id
-        FROM instructors
-        LIMIT 1
-    ),
+---------------------------------------------------------
+-- Essay Question
+---------------------------------------------------------
 
-    'ESSAY',
-
-    'Explain Homeostasis',
-
-    'Explain the concept of homeostasis with suitable examples.',
-
-    'A good answer should define homeostasis, explain positive and negative feedback mechanisms, and provide examples such as body temperature regulation.',
-
-    'Mention feedback mechanisms.',
-
-    'Guyton & Hall',
-
-    'MEDIUM',
-
+INSERT INTO questions
+(
+    topic_id,
+    question_type,
+    title,
+    question_text,
+    explanation,
+    hint,
+    reference,
+    difficulty,
+    estimated_time_seconds,
+    marks,
+    is_question_bank,
+    version,
+    is_active,
+    created_by
+)
+SELECT
+    t.id,
+    'ESSAY'::question_type,
+    'Describe Blood Circulation',
+    'Explain the complete pathway of blood circulation through the human body.',
+    NULL,
+    'Think about pulmonary and systemic circulation.',
+    'Guyton Physiology',
+    'MEDIUM'::question_difficulty,
     600,
-
     10,
-
     TRUE,
-
-    TRUE
-
+    1,
+    TRUE,
+    i.user_id
 FROM topics t
-WHERE topic_name='Homeostasis';
+CROSS JOIN instructors i
+WHERE t.topic_name='Clinical Applications'
+LIMIT 1;
 
 ---------------------------------------------------------
--- MCQ OPTIONS
+-- MCQ Options
 ---------------------------------------------------------
 
 INSERT INTO mcq_options
-(
-    question_id,
-    option_text,
-    is_correct,
-    display_order
-)
+(question_id, option_text, is_correct, display_order)
 
 SELECT
-
-    q.id,
-
-    'Maintaining a stable internal environment',
-
-    TRUE,
-
-    1
+q.id,
+v.option_text,
+v.is_correct,
+v.display_order
 
 FROM questions q
-WHERE q.title='Homeostasis MCQ';
 
-INSERT INTO mcq_options
+JOIN
 (
-    question_id,
-    option_text,
-    is_correct,
-    display_order
+VALUES
+(
+'Human Heart',
+'2',
+FALSE,
+1
+),
+
+(
+'Human Heart',
+'3',
+FALSE,
+2
+),
+
+(
+'Human Heart',
+'4',
+TRUE,
+3
+),
+
+(
+'Human Heart',
+'5',
+FALSE,
+4
+),
+
+(
+'Normal Body Temperature',
+'35°C',
+FALSE,
+1
+),
+
+(
+'Normal Body Temperature',
+'36°C',
+FALSE,
+2
+),
+
+(
+'Normal Body Temperature',
+'37°C',
+TRUE,
+3
+),
+
+(
+'Normal Body Temperature',
+'38°C',
+FALSE,
+4
 )
 
-SELECT q.id,'Increasing body temperature',FALSE,2
-FROM questions q
-WHERE q.title='Homeostasis MCQ';
-
-INSERT INTO mcq_options
+) v
 (
-    question_id,
-    option_text,
-    is_correct,
-    display_order
+question_title,
+option_text,
+is_correct,
+display_order
 )
 
-SELECT q.id,'Producing ATP',FALSE,3
-FROM questions q
-WHERE q.title='Homeostasis MCQ';
-
-INSERT INTO mcq_options
-(
-    question_id,
-    option_text,
-    is_correct,
-    display_order
-)
-
-SELECT q.id,'Cell division',FALSE,4
-FROM questions q
-WHERE q.title='Homeostasis MCQ';
+ON q.title=v.question_title;
 
 ---------------------------------------------------------
-
-INSERT INTO mcq_options
-(
-    question_id,
-    option_text,
-    is_correct,
-    display_order
-)
-
-SELECT q.id,'Passive diffusion',FALSE,1
-FROM questions q
-WHERE q.title='Membrane Transport';
-
-INSERT INTO mcq_options
-(
-    question_id,
-    option_text,
-    is_correct,
-    display_order
-)
-
-SELECT q.id,'Facilitated diffusion',FALSE,2
-FROM questions q
-WHERE q.title='Membrane Transport';
-
-INSERT INTO mcq_options
-(
-    question_id,
-    option_text,
-    is_correct,
-    display_order
-)
-
-SELECT q.id,'Active transport',TRUE,3
-FROM questions q
-WHERE q.title='Membrane Transport';
-
-INSERT INTO mcq_options
-(
-    question_id,
-    option_text,
-    is_correct,
-    display_order
-)
-
-SELECT q.id,'Osmosis',FALSE,4
-FROM questions q
-WHERE q.title='Membrane Transport';
-
----------------------------------------------------------
--- ESSAY CONFIGURATION
+-- Essay Configuration
 ---------------------------------------------------------
 
 INSERT INTO essay_configurations
 (
-    question_id,
-    recommended_word_count,
-    maximum_score
+question_id,
+minimum_word_count,
+maximum_word_count,
+model_answer,
+grading_rubric
 )
 
 SELECT
 
-    id,
-
-    300,
-
-    10
+id,
+150,
+500,
+'Students should describe pulmonary and systemic circulation in the correct order.',
+'Correct sequence, terminology, completeness and clarity.'
 
 FROM questions
-WHERE title='Explain Homeostasis';
+
+WHERE question_type='ESSAY';
 
 ---------------------------------------------------------
--- QUESTION TAG RELATIONSHIPS
+-- Question Tags
 ---------------------------------------------------------
 
-INSERT INTO question_tag_mapping
+INSERT INTO question_tags
 (
-    question_id,
-    tag_id
+question_id,
+tag_id
 )
 
 SELECT
-
-    q.id,
-
-    t.id
+q.id,
+t.id
 
 FROM questions q
-JOIN question_tags t
-ON t.name='Easy'
 
-WHERE q.title='Homeostasis MCQ';
+JOIN tags t
 
----------------------------------------------------------
-
-INSERT INTO question_tag_mapping
+ON
 (
-    question_id,
-    tag_id
+q.title='Human Heart'
+AND t.tag_name='Anatomy'
 )
 
-SELECT
-
-    q.id,
-
-    t.id
-
-FROM questions q
-JOIN question_tags t
-ON t.name='Homeostasis'
-
-WHERE q.title='Homeostasis MCQ';
-
----------------------------------------------------------
-
-INSERT INTO question_tag_mapping
+OR
 (
-    question_id,
-    tag_id
+q.title='Normal Body Temperature'
+AND t.tag_name='Physiology'
 )
 
-SELECT
-
-    q.id,
-
-    t.id
-
-FROM questions q
-JOIN question_tags t
-ON t.name='Medium'
-
-WHERE q.title='Explain Homeostasis';
-
----------------------------------------------------------
-
-INSERT INTO question_tag_mapping
+OR
 (
-    question_id,
-    tag_id
-)
-
-SELECT
-
-    q.id,
-
-    t.id
-
-FROM questions q
-JOIN question_tags t
-ON t.name='Homeostasis'
-
-WHERE q.title='Explain Homeostasis';
+q.title='Describe Blood Circulation'
+AND t.tag_name='Clinical'
+);
 
 COMMIT;

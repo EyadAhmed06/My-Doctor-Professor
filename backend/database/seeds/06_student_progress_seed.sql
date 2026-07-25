@@ -7,13 +7,14 @@
 -- • Course Progress
 -- • Lecture Progress
 -- • Topic Progress
+-- • Question Progress
 --
 -- =====================================================
 
 BEGIN;
 
 ---------------------------------------------------------
--- COURSE PROGRESS
+-- Student Course Progress
 ---------------------------------------------------------
 
 INSERT INTO student_course_progress
@@ -21,9 +22,9 @@ INSERT INTO student_course_progress
     student_id,
     course_id,
     completion_percentage,
-    status,
-    started_at,
-    completed_at,
+    lectures_completed,
+    total_lectures,
+    average_score,
     last_accessed_at
 )
 
@@ -33,80 +34,35 @@ SELECT
 
     c.id,
 
-    65,
+    65.50,
 
-    'IN_PROGRESS',
+    5,
 
-    CURRENT_TIMESTAMP - INTERVAL '20 days',
+    8,
 
-    NULL,
+    84.25,
 
-    CURRENT_TIMESTAMP - INTERVAL '1 day'
+    CURRENT_TIMESTAMP
 
-FROM
+FROM students s
 
-(
-    SELECT user_id
-    FROM students
-    LIMIT 1
-) s
+CROSS JOIN courses c
 
-JOIN courses c
-ON c.slug='physiology';
+LIMIT 10;
 
 ---------------------------------------------------------
-
-INSERT INTO student_course_progress
-(
-    student_id,
-    course_id,
-    completion_percentage,
-    status,
-    started_at,
-    completed_at,
-    last_accessed_at
-)
-
-SELECT
-
-    s.user_id,
-
-    c.id,
-
-    100,
-
-    'COMPLETED',
-
-    CURRENT_TIMESTAMP - INTERVAL '60 days',
-
-    CURRENT_TIMESTAMP - INTERVAL '10 days',
-
-    CURRENT_TIMESTAMP - INTERVAL '10 days'
-
-FROM
-
-(
-    SELECT user_id
-    FROM students
-    LIMIT 1
-) s
-
-JOIN courses c
-ON c.slug='anatomy';
-
----------------------------------------------------------
--- LECTURE PROGRESS
+-- Student Lecture Progress
 ---------------------------------------------------------
 
 INSERT INTO student_lecture_progress
 (
     student_id,
     lecture_id,
+    is_completed,
     completion_percentage,
-    status,
-    started_at,
-    completed_at,
-    last_accessed_at
+    time_spent_minutes,
+    last_accessed_at,
+    completed_at
 )
 
 SELECT
@@ -115,160 +71,37 @@ SELECT
 
     l.id,
 
-    100,
-
-    'COMPLETED',
-
-    CURRENT_TIMESTAMP - INTERVAL '18 days',
-
-    CURRENT_TIMESTAMP - INTERVAL '17 days',
-
-    CURRENT_TIMESTAMP - INTERVAL '17 days'
-
-FROM
-
-(
-    SELECT user_id
-    FROM students
-    LIMIT 1
-) s
-
-JOIN lectures l
-ON l.title='Introduction to Physiology';
-
----------------------------------------------------------
-
-INSERT INTO student_lecture_progress
-(
-    student_id,
-    lecture_id,
-    completion_percentage,
-    status,
-    started_at,
-    completed_at,
-    last_accessed_at
-)
-
-SELECT
-
-    s.user_id,
-
-    l.id,
-
-    40,
-
-    'IN_PROGRESS',
-
-    CURRENT_TIMESTAMP - INTERVAL '2 days',
-
-    NULL,
-
-    CURRENT_TIMESTAMP - INTERVAL '4 hours'
-
-FROM
-
-(
-    SELECT user_id
-    FROM students
-    LIMIT 1
-) s
-
-JOIN lectures l
-ON l.title='Cell Physiology';
-
----------------------------------------------------------
--- TOPIC PROGRESS
----------------------------------------------------------
-
-INSERT INTO student_topic_progress
-(
-    student_id,
-    topic_id,
-    completion_percentage,
-    status,
-    started_at,
-    completed_at,
-    last_accessed_at
-)
-
-SELECT
-
-    s.user_id,
-
-    t.id,
+    TRUE,
 
     100,
 
-    'COMPLETED',
+    95,
 
-    CURRENT_TIMESTAMP - INTERVAL '18 days',
+    CURRENT_TIMESTAMP,
 
-    CURRENT_TIMESTAMP - INTERVAL '17 days',
+    CURRENT_TIMESTAMP
 
-    CURRENT_TIMESTAMP - INTERVAL '17 days'
+FROM students s
 
-FROM
+CROSS JOIN lectures l
 
-(
-    SELECT user_id
-    FROM students
-    LIMIT 1
-) s
+LIMIT 10;
 
-JOIN topics t
-ON t.topic_name='Homeostasis';
-
+---------------------------------------------------------
+-- Student Topic Progress
 ---------------------------------------------------------
 
 INSERT INTO student_topic_progress
 (
     student_id,
     topic_id,
-    completion_percentage,
-    status,
-    started_at,
-    completed_at,
-    last_accessed_at
-)
-
-SELECT
-
-    s.user_id,
-
-    t.id,
-
-    80,
-
-    'IN_PROGRESS',
-
-    CURRENT_TIMESTAMP - INTERVAL '2 days',
-
-    NULL,
-
-    CURRENT_TIMESTAMP - INTERVAL '4 hours'
-
-FROM
-
-(
-    SELECT user_id
-    FROM students
-    LIMIT 1
-) s
-
-JOIN topics t
-ON t.topic_name='Feedback Mechanisms';
-
----------------------------------------------------------
-
-INSERT INTO student_topic_progress
-(
-    student_id,
-    topic_id,
-    completion_percentage,
-    status,
-    started_at,
-    completed_at,
-    last_accessed_at
+    questions_attempted,
+    questions_correct,
+    questions_incorrect,
+    confidence_level,
+    average_score,
+    mastery_percentage,
+    last_practiced_at
 )
 
 SELECT
@@ -279,188 +112,122 @@ SELECT
 
     20,
 
-    'IN_PROGRESS',
+    16,
 
-    CURRENT_TIMESTAMP - INTERVAL '1 day',
+    4,
 
-    NULL,
+    82.50,
 
-    CURRENT_TIMESTAMP - INTERVAL '30 minutes'
+    80,
 
-FROM
+    80,
 
+    CURRENT_TIMESTAMP
+
+FROM students s
+
+CROSS JOIN topics t
+
+LIMIT 10;
+
+---------------------------------------------------------
+-- Student Question Progress
+---------------------------------------------------------
+
+INSERT INTO student_question_progress
 (
-    SELECT user_id
-    FROM students
-    LIMIT 1
-) s
+    student_id,
+    question_id,
+    attempts,
+    correct_attempts,
+    incorrect_attempts,
+    last_answer_correct,
+    bookmarked,
+    last_attempted_at
+)
 
-JOIN topics t
-ON t.topic_name='Membrane Transport';
+SELECT
+
+    s.user_id,
+
+    q.id,
+
+    3,
+
+    2,
+
+    1,
+
+    TRUE,
+
+    FALSE,
+
+    CURRENT_TIMESTAMP
+
+FROM students s
+
+CROSS JOIN questions q
+
+LIMIT 15;
+
+---------------------------------------------------------
+-- Simulate Some Bookmarks
+---------------------------------------------------------
+
+UPDATE student_question_progress
+
+SET bookmarked = TRUE
+
+WHERE id IN
+(
+    SELECT id
+    FROM student_question_progress
+    ORDER BY created_at
+    LIMIT 5
+);
+
+---------------------------------------------------------
+-- Completed Courses
+---------------------------------------------------------
+
+UPDATE student_course_progress
+
+SET
+
+    completion_percentage = 100,
+
+    lectures_completed = total_lectures,
+
+    completed_at = CURRENT_TIMESTAMP
+
+WHERE id IN
+(
+    SELECT id
+    FROM student_course_progress
+    ORDER BY created_at
+    LIMIT 2
+);
+
+---------------------------------------------------------
+-- Mastered Topics
+---------------------------------------------------------
+
+UPDATE student_topic_progress
+
+SET
+
+    mastery_percentage = 100,
+
+    confidence_level = 100,
+
+    average_score = 98
+
+WHERE id IN
+(
+    SELECT id
+    FROM student_topic_progress
+    ORDER BY created_at
+    LIMIT 3
+);
 
 COMMIT;
-
----------------------------------------------------------
--- COURSE PROGRESS (NOT STARTED)
----------------------------------------------------------
-
-INSERT INTO student_course_progress
-(
-    student_id,
-    course_id,
-    completion_percentage,
-    status,
-    started_at,
-    completed_at,
-    last_accessed_at
-)
-
-SELECT
-
-    s.user_id,
-
-    c.id,
-
-    0,
-
-    'NOT_STARTED',
-
-    NULL,
-
-    NULL,
-
-    NULL
-
-FROM
-(
-    SELECT user_id
-    FROM students
-    OFFSET 1
-    LIMIT 1
-) s
-
-JOIN courses c
-ON c.slug = 'physiology';
-
-INSERT INTO student_course_progress
-(
-    student_id,
-    course_id,
-    completion_percentage,
-    status,
-    started_at,
-    completed_at,
-    last_accessed_at
-)
-
-SELECT
-
-    s.user_id,
-
-    c.id,
-
-    0,
-
-    'NOT_STARTED',
-
-    NULL,
-
-    NULL,
-
-    NULL
-
-FROM
-(
-    SELECT user_id
-    FROM students
-    OFFSET 1
-    LIMIT 1
-) s
-
-JOIN courses c
-ON c.slug = 'anatomy';
-
----------------------------------------------------------
--- LECTURE PROGRESS (NOT STARTED)
----------------------------------------------------------
-
-INSERT INTO student_lecture_progress
-(
-    student_id,
-    lecture_id,
-    completion_percentage,
-    status,
-    started_at,
-    completed_at,
-    last_accessed_at
-)
-
-SELECT
-
-    s.user_id,
-
-    l.id,
-
-    0,
-
-    'NOT_STARTED',
-
-    NULL,
-
-    NULL,
-
-    NULL
-
-FROM
-(
-    SELECT user_id
-    FROM students
-    OFFSET 1
-    LIMIT 1
-) s
-
-JOIN lectures l
-ON l.title = 'Introduction to Physiology';
-
----------------------------------------------------------
--- TOPIC PROGRESS (NOT STARTED)
----------------------------------------------------------
-
-INSERT INTO student_topic_progress
-(
-    student_id,
-    topic_id,
-    completion_percentage,
-    status,
-    started_at,
-    completed_at,
-    last_accessed_at
-)
-
-SELECT
-
-    s.user_id,
-
-    t.id,
-
-    0,
-
-    'NOT_STARTED',
-
-    NULL,
-
-    NULL,
-
-    NULL
-
-FROM
-(
-    SELECT user_id
-    FROM students
-    OFFSET 1
-    LIMIT 1
-) 
-
-JOIN topics t
-ON t.topic_name = 'Homeostasis';
-

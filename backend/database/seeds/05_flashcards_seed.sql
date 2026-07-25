@@ -13,396 +13,197 @@
 BEGIN;
 
 ---------------------------------------------------------
--- FLASHCARD DECKS
+-- Flashcard Deck 1
 ---------------------------------------------------------
 
 INSERT INTO flashcard_decks
 (
     course_id,
-    topic_id,
     lecture_id,
     created_by,
     title,
     description,
-    is_published
+    is_published,
+    display_order
 )
-
 SELECT
-
     c.id,
-
-    t.id,
-
     l.id,
-
-    (SELECT user_id FROM instructors LIMIT 1),
-
-    'Homeostasis Flashcards',
-
-    'Essential flashcards covering the fundamentals of homeostasis.',
-
-    TRUE
-
+    i.user_id,
+    'Anatomy Essentials',
+    'Important anatomy flashcards.',
+    TRUE,
+    1
 FROM courses c
 JOIN weeks w
 ON w.course_id = c.id
 JOIN lectures l
 ON l.week_id = w.id
-JOIN topics t
-ON t.lecture_id = l.id
-
-WHERE c.slug='physiology'
-AND t.topic_name='Homeostasis';
-
----------------------------------------------------------
-
-INSERT INTO flashcard_decks
-(
-    course_id,
-    topic_id,
-    lecture_id,
-    created_by,
-    title,
-    description,
-    is_published
-)
-
-SELECT
-
-    c.id,
-
-    t.id,
-
-    l.id,
-
-    (SELECT user_id FROM instructors LIMIT 1),
-
-    'Membrane Transport Flashcards',
-
-    'Review of membrane transport mechanisms.',
-
-    TRUE
-
-FROM courses c
-JOIN weeks w
-ON w.course_id=c.id
-JOIN lectures l
-ON l.week_id=w.id
-JOIN topics t
-ON t.lecture_id=l.id
-
-WHERE c.slug='physiology'
-AND t.topic_name='Membrane Transport';
-
----------------------------------------------------------
--- FLASHCARDS
----------------------------------------------------------
-
-INSERT INTO flashcards
-(
-    deck_id,
-    front_text,
-    back_text,
-    display_order
-)
-
-SELECT
-
-    id,
-
-    'What is homeostasis?',
-
-    'The maintenance of a relatively stable internal environment despite external changes.',
-
-    1
-
-FROM flashcard_decks
-WHERE title='Homeostasis Flashcards';
-
----------------------------------------------------------
-
-INSERT INTO flashcards
-(
-    deck_id,
-    front_text,
-    back_text,
-    display_order
-)
-
-SELECT
-
-    id,
-
-    'What is negative feedback?',
-
-    'A control mechanism that reverses the initial stimulus to maintain stability.',
-
-    2
-
-FROM flashcard_decks
-WHERE title='Homeostasis Flashcards';
-
----------------------------------------------------------
-
-INSERT INTO flashcards
-(
-    deck_id,
-    front_text,
-    back_text,
-    display_order
-)
-
-SELECT
-
-    id,
-
-    'Which transport mechanism requires ATP?',
-
-    'Active transport.',
-
-    1
-
-FROM flashcard_decks
-WHERE title='Membrane Transport Flashcards';
-
----------------------------------------------------------
-
-INSERT INTO flashcards
-(
-    deck_id,
-    front_text,
-    back_text,
-    display_order
-)
-
-SELECT
-
-    id,
-
-    'What is osmosis?',
-
-    'The movement of water across a selectively permeable membrane from lower solute concentration to higher solute concentration.',
-
-    2
-
-FROM flashcard_decks
-WHERE title='Membrane Transport Flashcards';
-
----------------------------------------------------------
--- STUDENT FLASHCARD PROGRESS
----------------------------------------------------------
-
-INSERT INTO student_flashcard_progress
-(
-    student_id,
-    flashcard_id,
-    times_reviewed,
-    mastery_level,
-    last_reviewed_at
-)
-
-SELECT
-
-    s.user_id,
-
-    f.id,
-
-    8,
-
-    'MASTERED',
-
-    CURRENT_TIMESTAMP - INTERVAL '1 day'
-
-FROM
-
-(
-    SELECT user_id
-    FROM students
-    LIMIT 1
-) s
-
-JOIN flashcards f
-ON f.front_text='What is homeostasis?';
-
----------------------------------------------------------
-
-INSERT INTO student_flashcard_progress
-(
-    student_id,
-    flashcard_id,
-    times_reviewed,
-    mastery_level,
-    last_reviewed_at
-)
-
-SELECT
-
-    s.user_id,
-
-    f.id,
-
-    5,
-
-    'LEARNING',
-
-    CURRENT_TIMESTAMP - INTERVAL '2 days'
-
-FROM
-
-(
-    SELECT user_id
-    FROM students
-    LIMIT 1
-) s
-
-JOIN flashcards f
-ON f.front_text='What is negative feedback?';
-
----------------------------------------------------------
-
-INSERT INTO student_flashcard_progress
-(
-    student_id,
-    flashcard_id,
-    times_reviewed,
-    mastery_level,
-    last_reviewed_at
-)
-
-SELECT
-
-    s.user_id,
-
-    f.id,
-
-    2,
-
-    'NEW',
-
-    CURRENT_TIMESTAMP - INTERVAL '7 days'
-
-FROM
-
-(
-    SELECT user_id
-    FROM students
-    LIMIT 1
-) s
-
-JOIN flashcards f
-ON f.front_text='Which transport mechanism requires ATP?';
-
-COMMIT;
-
----------------------------------------------------------
--- FLASHCARD DECK (NOT STARTED)
----------------------------------------------------------
-
-INSERT INTO flashcard_decks
-(
-    course_id,
-    topic_id,
-    lecture_id,
-    created_by,
-    title,
-    description,
-    is_published
-)
-
-SELECT
-
-    c.id,
-
-    t.id,
-
-    l.id,
-
-    (SELECT user_id FROM instructors LIMIT 1),
-
-    'Cardiac Muscle Flashcards',
-
-    'Flashcards covering the basic physiology of cardiac muscle.',
-
-    TRUE
-
-FROM courses c
-JOIN weeks w
-ON w.course_id = c.id
-JOIN lectures l
-ON l.week_id = w.id
-JOIN topics t
-ON t.lecture_id = l.id
-
-WHERE c.slug = 'physiology'
+CROSS JOIN instructors i
+ORDER BY c.created_at, l.created_at
 LIMIT 1;
 
 ---------------------------------------------------------
--- FLASHCARDS
+-- Flashcard Deck 2
 ---------------------------------------------------------
 
-INSERT INTO flashcards
+INSERT INTO flashcard_decks
 (
-    deck_id,
-    front_text,
-    back_text,
+    topic_id,
+    created_by,
+    title,
+    description,
+    is_published,
     display_order
 )
-
 SELECT
-
-    id,
-
-    'What is cardiac muscle?',
-
-    'A specialized involuntary striated muscle found only in the heart.',
-
-    1
-
-FROM flashcard_decks
-WHERE title = 'Cardiac Muscle Flashcards';
-
----------------------------------------------------------
-
-INSERT INTO flashcards
-(
-    deck_id,
-    front_text,
-    back_text,
-    display_order
-)
-
-SELECT
-
-    id,
-
-    'What is the function of intercalated discs?',
-
-    'They electrically and mechanically connect cardiac muscle cells, allowing synchronized contraction.',
-
+    t.id,
+    i.user_id,
+    'Clinical Concepts',
+    'Clinical revision flashcards.',
+    TRUE,
     2
+FROM topics t
+CROSS JOIN instructors i
+ORDER BY t.created_at
+LIMIT 1;
 
-FROM flashcard_decks
-WHERE title = 'Cardiac Muscle Flashcards';
-
+---------------------------------------------------------
+-- Flashcards
 ---------------------------------------------------------
 
 INSERT INTO flashcards
 (
     deck_id,
-    front_text,
-    back_text,
+    title,
+    front_content,
+    back_content,
+    difficulty,
+    explanation,
+    hint,
+    estimated_review_seconds,
+    display_order,
+    is_active
+)
+
+SELECT
+    d.id,
+    f.title,
+    f.front_content,
+    f.back_content,
+    f.difficulty::question_difficulty,
+    f.explanation,
+    f.hint,
+    f.review_seconds,
+    f.display_order,
+    TRUE
+
+FROM flashcard_decks d
+
+CROSS JOIN
+(
+    VALUES
+
+    (
+        'Heart Chambers',
+        'How many chambers does the human heart have?',
+        'Four chambers.',
+        'EASY',
+        'Two atria and two ventricles.',
+        'Think about atria.',
+        20,
+        1
+    ),
+
+    (
+        'Normal Temperature',
+        'Normal human body temperature?',
+        '37°C',
+        'EASY',
+        'Average normal body temperature.',
+        'Measured in Celsius.',
+        15,
+        2
+    ),
+
+    (
+        'Blood Circulation',
+        'What is pulmonary circulation?',
+        'Blood flow between the heart and lungs.',
+        'MEDIUM',
+        'Pulmonary circulation oxygenates blood.',
+        'Starts at the right ventricle.',
+        30,
+        3
+    )
+
+) AS f
+(
+    title,
+    front_content,
+    back_content,
+    difficulty,
+    explanation,
+    hint,
+    review_seconds,
     display_order
+);
+
+---------------------------------------------------------
+-- Student Flashcard Progress
+---------------------------------------------------------
+
+INSERT INTO student_flashcard_progress
+(
+    student_id,
+    flashcard_id,
+    times_reviewed,
+    times_correct,
+    times_incorrect,
+    review_streak,
+    last_reviewed_at,
+    next_review_at,
+    is_mastered,
+    mastered_at,
+    ease_factor,
+    interval_days,
+    created_by
 )
 
 SELECT
 
-    id,
+    s.user_id,
 
-    'Why is cardiac muscle resistant to fatigue?',
+    fc.id,
 
-    'Because it has abundant mitochondria and a continuous blood supply that supports aerobic metabolism.',
+    5,
 
-    3
+    4,
 
-FROM flashcard_decks
-WHERE title = 'Cardiac Muscle Flashcards';
+    1,
+
+    3,
+
+    CURRENT_TIMESTAMP - INTERVAL '1 day',
+
+    CURRENT_TIMESTAMP + INTERVAL '3 days',
+
+    FALSE,
+
+    NULL,
+
+    2.50,
+
+    3,
+
+    i.user_id
+
+FROM students s
+
+CROSS JOIN flashcards fc
+
+CROSS JOIN instructors i
+
+LIMIT 5;
+
+COMMIT;

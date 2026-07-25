@@ -122,7 +122,7 @@ CREATE TABLE student_topic_progress (
     questions_incorrect INTEGER
         NOT NULL DEFAULT 0,
 
-    confidence_level NUMERIC(5,2)
+    confidence_level NUMERIC(5,2),
 
     average_score NUMERIC(5,2),
 
