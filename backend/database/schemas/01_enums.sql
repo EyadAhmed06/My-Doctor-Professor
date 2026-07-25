@@ -91,10 +91,15 @@ CREATE TYPE test_attempt_status AS ENUM (
 -- =====================================================
 
 CREATE TYPE notification_type AS ENUM (
-    'GENERAL',
-    'ANNOUNCEMENT',
+    'SYSTEM',
+    'COURSE',
+    'LECTURE',
+    'FLASHCARD',
+    'TEST',
     'REMINDER',
-    'SYSTEM'
+    'GRADE',
+    'ANNOUNCEMENT',
+    'ACHIEVEMENT'
 );
 
 CREATE TYPE notification_status AS ENUM (

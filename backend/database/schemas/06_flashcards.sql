@@ -106,6 +106,8 @@ CREATE TABLE student_flashcard_progress (
 
     interval_days INTEGER,
 
+    created_by UUID NOT NULL,
+
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -117,6 +119,10 @@ CREATE TABLE student_flashcard_progress (
     FOREIGN KEY (flashcard_id)
         REFERENCES flashcards(id)
         ON DELETE CASCADE,
+
+    FOREIGN KEY (created_by)
+        REFERENCES instructors(user_id)
+        ON DELETE RESTRICT,
 
     CONSTRAINT uq_student_flashcard
         UNIQUE(student_id, flashcard_id),
