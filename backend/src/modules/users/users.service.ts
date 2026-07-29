@@ -8,7 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import * as argon2 from 'argon2';
 import * as bcrypt from 'bcrypt';
-import { DataSource, QueryFailedError, Repository } from 'typeorm';
+import { DataSource, Not, QueryFailedError, Repository } from 'typeorm';
 import { AuthSession } from './entities/auth-session.entity';
 import { Instructor } from './entities/instructor.entity';
 import { Student } from './entities/student.entity';
@@ -189,6 +189,41 @@ export class UsersService {
     await this.sessionsRepository.createQueryBuilder().update(AuthSession)
       .set({revokedAt:new Date()})
       .where('user_id = :userId AND revoked_at IS NULL',{userId}).execute();
+  }
+
+  async updateProfile(userId:string,input:{
+    fullName?:string;phoneNumber?:string;dateOfBirth?:Date;
+    gender?:Gender;profilePictureUrl?:string;
+  }) {
+    const user=await this.findById(userId);
+    if(!user) throw new NotFoundException('User not found');
+    if(input.phoneNumber!==undefined&&input.phoneNumber!==user.phoneNumber) {
+      const duplicate=await this.usersRepository.findOne({
+        where:{phoneNumber:input.phoneNumber,id:Not(userId)},
+      });
+      if(duplicate) throw new ConflictException('Phone number is already registered');
+      user.phoneNumber=input.phoneNumber;
+    }
+    if(input.fullName!==undefined) user.fullName=input.fullName.trim();
+    if(input.dateOfBirth!==undefined) user.dateOfBirth=input.dateOfBirth;
+    if(input.gender!==undefined) user.gender=input.gender;
+    if(input.profilePictureUrl!==undefined) user.profilePictureUrl=input.profilePictureUrl.trim()||null;
+    return this.safeUser(await this.usersRepository.save(user));
+  }
+
+  async changePassword(userId:string,currentPassword:string,newPassword:string) {
+    const user=await this.findById(userId);
+    if(!user) throw new NotFoundException('User not found');
+    if(!(await this.validatePassword(currentPassword,user.passwordHash))) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+    if(await this.validatePassword(newPassword,user.passwordHash)) {
+      throw new BadRequestException('New password must be different from the current password');
+    }
+    user.passwordHash=await this.hashPassword(newPassword);
+    user.failedLoginAttempts=0;user.lockedUntil=null;
+    await this.usersRepository.save(user);
+    await this.revokeAllSessions(userId);
   }
 
   safeUser(user:User) {
