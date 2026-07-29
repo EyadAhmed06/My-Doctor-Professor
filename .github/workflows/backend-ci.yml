@@ -41,7 +41,7 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
 
   postgres:
-    name: PostgreSQL bootstrap, migrations, drift
+    name: PostgreSQL bootstrap, upgrade, drift, integration
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -49,11 +49,11 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres-ci-password
-          POSTGRES_DB: my_doctor_professor
+          POSTGRES_DB: postgres
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d my_doctor_professor"
+          --health-cmd "pg_isready -U postgres -d postgres"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
@@ -63,7 +63,7 @@ jobs:
       DB_PORT: 5432
       DB_USERNAME: postgres
       DB_PASSWORD: postgres-ci-password
-      DB_NAME: my_doctor_professor
+      DB_NAME: clean_test
       JWT_SECRET: ci-access-secret-at-least-thirty-two-characters
       JWT_REFRESH_SECRET: ci-refresh-secret-at-least-thirty-two-characters
       FRONTEND_URL: http://localhost:3001
@@ -80,33 +80,59 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
-      - name: Bootstrap clean database
+      - name: Create validation databases
+        run: |
+          createdb -h localhost -U postgres clean_test
+          createdb -h localhost -U postgres upgrade_test
+      - name: Bootstrap current schema from zero
         run: |
           set -euo pipefail
           while IFS= read -r schema; do
-            echo "Applying ${schema}"
-            psql -h localhost -U postgres -d my_doctor_professor -v ON_ERROR_STOP=1 -f "${schema}"
+            echo "Applying current ${schema}"
+            psql -h localhost -U postgres -d clean_test -v ON_ERROR_STOP=1 -f "${schema}"
           done < <(find database/schemas -maxdepth 1 -type f -name '*.sql' | sort)
-      - name: Apply TypeORM forward migrations
-        run: npm run migration:run
-      - name: Require zero schema drift
+      - name: Require zero drift after clean bootstrap
         run: |
           set -euo pipefail
-          npm run schema:log 2>&1 | tee /tmp/schema-log.txt
-          grep -qi "schema is up to date" /tmp/schema-log.txt
+          DB_NAME=clean_test npm run schema:log 2>&1 | tee /tmp/clean-schema-log.txt
+          grep -qi "schema is up to date" /tmp/clean-schema-log.txt
+      - name: Bootstrap deployment baseline from Eyad
+        run: |
+          set -euo pipefail
+          git fetch origin Eyad
+          while IFS= read -r schema; do
+            echo "Applying baseline ${schema}"
+            git show "origin/Eyad:backend/${schema}" |
+              psql -h localhost -U postgres -d upgrade_test -v ON_ERROR_STOP=1
+          done < <(find database/schemas -maxdepth 1 -type f -name '*.sql' | sort)
+      - name: Apply forward SQL and TypeORM migrations
+        run: |
+          set -euo pipefail
+          while IFS= read -r migration; do
+            echo "Applying ${migration}"
+            psql -h localhost -U postgres -d upgrade_test -v ON_ERROR_STOP=1 -f "${migration}"
+          done < <(find database/migrations -maxdepth 1 -type f -name '*.sql' | sort)
+          DB_NAME=upgrade_test npm run migration:run
+      - name: Require zero drift after upgrade
+        run: |
+          set -euo pipefail
+          DB_NAME=upgrade_test npm run schema:log 2>&1 | tee /tmp/upgrade-schema-log.txt
+          grep -qi "schema is up to date" /tmp/upgrade-schema-log.txt
       - name: Run PostgreSQL integration and concurrency tests
-        run: npm run test:e2e -- --runInBand
+        run: DB_NAME=clean_test npm run test:e2e -- --runInBand
       - name: Run readiness load smoke
         run: |
           set -euo pipefail
           npm run build
-          npm run start:prod >/tmp/backend.log 2>&1 &
+          DB_NAME=clean_test npm run start:prod >/tmp/backend.log 2>&1 &
           backend_pid=$!
           trap 'kill "${backend_pid}" 2>/dev/null || true; cat /tmp/backend.log' EXIT
           for attempt in {1..30}; do
@@ -115,4 +141,4 @@ jobs:
             fi
             sleep 1
           done
-          LOAD_TEST_REQUESTS=500 LOAD_TEST_CONCURRENCY=20 LOAD_TEST_MAX_P95_MS=500             node scripts/load-smoke.mjs
+          LOAD_TEST_REQUESTS=500 LOAD_TEST_CONCURRENCY=20 LOAD_TEST_MAX_P95_MS=500 node scripts/load-smoke.mjs
