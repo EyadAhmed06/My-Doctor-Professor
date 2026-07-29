@@ -1,4 +1,4 @@
-import { User, Gender, UserRole, UserStatus } from '../../users/entities/user.entity';
+import { Gender, UserRole, UserStatus } from '../../users/entities/user.entity';
 
 export class AuthResponseDto {
   access_token: string;
@@ -7,8 +7,8 @@ export class AuthResponseDto {
     id: string;
     email: string;
     full_name: string;
-    role: string;
-    status: string;
+    role: UserRole;
+    status: UserStatus;
   };
 }
 
@@ -26,6 +26,3 @@ export class UserProfileDto {
   createdAt: Date;
   updatedAt: Date;
 }
-
-
-
