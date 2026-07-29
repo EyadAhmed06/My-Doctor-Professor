@@ -9,6 +9,7 @@ import { Topic } from '../../common/entities/topic.entity';
 import { Week } from '../../common/entities/week.entity';
 import { AcademicController } from './academic.controller';
 import { AcademicService } from './academic.service';
+import { ResourceStorageService } from './resource-storage.service';
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import { AcademicService } from './academic.service';
     ]),
   ],
   controllers: [AcademicController],
-  providers: [AcademicService],
+  providers: [AcademicService, ResourceStorageService],
   exports: [AcademicService, TypeOrmModule],
 })
 export class AcademicModule {}
