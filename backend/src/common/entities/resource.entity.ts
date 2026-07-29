@@ -11,8 +11,8 @@ export class Resource {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column('uuid', { name: 'lecture_id' }) lectureId: string;
   @Column({ type: 'varchar', length: 200, name: 'resource_name' }) resourceName: string;
-  @Column({ type: 'enum', enum: ResourceType, name: 'resource_type' }) resourceType: ResourceType;
-  @Column({ type: 'enum', enum: UploadStatus, default: UploadStatus.UPLOADED, name: 'upload_status' }) uploadStatus: UploadStatus;
+  @Column({ type: 'enum', enum: ResourceType, enumName: 'resource_type', name: 'resource_type' }) resourceType: ResourceType;
+  @Column({ type: 'enum', enum: UploadStatus, enumName: 'upload_status', default: UploadStatus.UPLOADED, name: 'upload_status' }) uploadStatus: UploadStatus;
   @Column({ type: 'text', name: 'file_url' }) fileUrl: string;
   @Column({ type: 'bigint', nullable: true, name: 'file_size' }) fileSize: string | null;
   @Column({ type: 'text', nullable: true }) description: string | null;
