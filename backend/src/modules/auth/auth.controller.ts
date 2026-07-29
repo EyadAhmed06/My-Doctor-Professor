@@ -1,63 +1,74 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Body,
-  UseGuards,
-  ValidationPipe,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { LoginDto } from './dtos/login.dto';
-import { SignupDto } from './dtos/signup.dto';
-import { AuthResponseDto, UserProfileDto } from './dtos/auth-response.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { CurrentUser } from './decorators/current-user.decorator';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
+import { AuthService } from './auth.service';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { AuthResponseDto, UserProfileDto } from './dtos/auth-response.dto';
+import { ConfirmEmailVerificationDto, RequestEmailVerificationDto } from './dtos/email-verification.dto';
+import { LoginDto } from './dtos/login.dto';
+import { ForgotPasswordDto, ResetPasswordDto } from './dtos/password-reset.dto';
+import { RefreshTokenDto } from './dtos/refresh-token.dto';
+import { SignupDto } from './dtos/signup.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AuthenticatedUser } from './strategies/jwt.strategy';
+
+interface MessageResponse { message: string }
 
 @Controller('auth')
 export class AuthController {
   constructor(
-    private authService: AuthService,
-    private usersService: UsersService,
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
   ) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body(ValidationPipe) loginDto: LoginDto): Promise<AuthResponseDto> {
-    return this.authService.login(loginDto);
+  login(@Body() dto: LoginDto): Promise<AuthResponseDto> {
+    return this.authService.login(dto);
   }
 
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
-  async signup(@Body(ValidationPipe) signupDto: SignupDto): Promise<AuthResponseDto> {
-    return this.authService.signup(signupDto);
+  signup(@Body() dto: SignupDto): Promise<MessageResponse> {
+    return this.authService.signup(dto);
+  }
+
+  @Post('email-verification/request')
+  @HttpCode(HttpStatus.ACCEPTED)
+  requestEmailVerification(@Body() dto: RequestEmailVerificationDto): Promise<MessageResponse> {
+    return this.authService.requestEmailVerification(dto.email);
+  }
+
+  @Post('email-verification/confirm')
+  confirmEmailVerification(@Body() dto: ConfirmEmailVerificationDto): Promise<MessageResponse> {
+    return this.authService.confirmEmailVerification(dto.token);
+  }
+
+  @Post('password/forgot')
+  @HttpCode(HttpStatus.ACCEPTED)
+  forgotPassword(@Body() dto: ForgotPasswordDto): Promise<MessageResponse> {
+    return this.authService.requestPasswordReset(dto.email);
+  }
+
+  @Post('password/reset')
+  resetPassword(@Body() dto: ResetPasswordDto): Promise<MessageResponse> {
+    return this.authService.resetPassword(dto.token, dto.new_password);
   }
 
   @Post('refresh')
-  @HttpCode(HttpStatus.OK)
-  async refreshToken(
-    @Body('refresh_token') refreshToken: string,
-  ): Promise<AuthResponseDto> {
-    return this.authService.refreshAccessToken(refreshToken);
+  refreshToken(@Body() dto: RefreshTokenDto): Promise<AuthResponseDto> {
+    return this.authService.refreshAccessToken(dto.refresh_token);
   }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async getCurrentUser(
-    @CurrentUser() user: any,
-  ): Promise<UserProfileDto> {
+  getCurrentUser(@CurrentUser() user: AuthenticatedUser): Promise<UserProfileDto> {
     return this.usersService.getUserProfile(user.userId);
   }
 
   @Post('logout')
   @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.OK)
-  async logout(@CurrentUser() user: any): Promise<{ message: string }> {
-    // In a real application, you might want to invalidate the token
-    // by storing it in a blacklist (e.g., Redis)
-    return { message: 'Logged out successfully' };
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async logout(@CurrentUser() user: AuthenticatedUser): Promise<void> {
+    await this.authService.revokeSession(user.sessionId);
   }
 }
-
