@@ -53,7 +53,7 @@ CREATE TABLE questions (
         ON DELETE CASCADE,
 
     FOREIGN KEY (created_by)
-        REFERENCES instructors(user_id)
+        REFERENCES users(id)
         ON DELETE RESTRICT,
 
     CONSTRAINT chk_estimated_time
