@@ -83,7 +83,7 @@ The active backend rebuild is performed on `agent/backend-foundation-rebuild`.
 - [x] Phase 5 — academic workflows
 - [x] Phase 6 — question-bank workflows
 - [x] Phase 7 — assessment and grading workflows
-- [ ] Phase 8 — flashcard workflows
+- [x] Phase 8 — flashcard workflows
 - [ ] Phase 9 — progress, notifications, audit, and administration
 
 A backend phase is complete only when its code, database behavior, authorization rules, workflows, and edge cases are implemented consistently.
