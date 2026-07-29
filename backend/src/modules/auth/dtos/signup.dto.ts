@@ -1,60 +1,14 @@
-import {
-  IsEmail,
-  IsNotEmpty,
-  IsString,
-  MinLength,
-  IsPhoneNumber,
-  IsEnum,
-  IsOptional,
-  IsDateString,
-} from 'class-validator';
-import { UserRole, Gender } from '../../users/entities/user.entity';
+import { Equals, IsDateString, IsEmail, IsEnum, IsInt, IsNotEmpty, IsOptional, IsPhoneNumber, IsString, Min, MinLength } from 'class-validator';
+import { Gender, UserRole } from '../../users/entities/user.entity';
 
 export class SignupDto {
-  @IsString()
-  @IsNotEmpty()
-  full_name: string;
-
-  @IsEmail()
-  @IsNotEmpty()
-  email: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(8)
-  password: string;
-
-  @IsPhoneNumber()
-  @IsNotEmpty()
-  phone_number: string;
-
-  @IsEnum(UserRole)
-  @IsNotEmpty()
-  role: UserRole;
-
-  @IsOptional()
-  @IsDateString()
-  date_of_birth?: string;
-
-  @IsOptional()
-  @IsEnum(Gender)
-  gender?: Gender;
-
-  // For students
-  @IsOptional()
-  @IsString()
-  student_number?: string;
-
-  @IsOptional()
-  current_semester?: number;
-
-  // For instructors
-  @IsOptional()
-  @IsString()
-  specialization?: string;
-
-  @IsOptional()
-  @IsString()
-  office_location?: string;
+  @IsString() @IsNotEmpty() full_name: string;
+  @IsEmail() email: string;
+  @IsString() @MinLength(8) password: string;
+  @IsPhoneNumber() phone_number: string;
+  @IsEnum(UserRole) @Equals(UserRole.STUDENT) role: UserRole.STUDENT;
+  @IsString() @IsNotEmpty() student_number: string;
+  @IsInt() @Min(1) current_semester: number;
+  @IsOptional() @IsDateString() date_of_birth?: string;
+  @IsOptional() @IsEnum(Gender) gender?: Gender;
 }
-
