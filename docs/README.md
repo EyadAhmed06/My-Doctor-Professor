@@ -5,6 +5,9 @@ This folder is the canonical home for project documentation.
 ## Start here
 
 - [Backend implementation status](backend-implementation-status.md)
+- [Backend setup](backend-setup.md)
+- [Frontend setup](frontend-setup.md)
+- [Legacy user stories](user-stories-legacy.md)
 - [Repository overview](../README.md)
 
 ## Documentation rules
