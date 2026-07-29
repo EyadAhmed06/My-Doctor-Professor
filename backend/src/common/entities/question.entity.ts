@@ -15,13 +15,13 @@ export enum QuestionDifficulty { EASY = 'EASY', MEDIUM = 'MEDIUM', HARD = 'HARD'
 export class Question {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column('uuid', { name: 'topic_id' }) topicId: string;
-  @Column({ type: 'enum', enum: QuestionType, name: 'question_type' }) questionType: QuestionType;
+  @Column({ type: 'enum', enum: QuestionType, enumName: 'question_type', name: 'question_type' }) questionType: QuestionType;
   @Column({ type: 'varchar', length: 200, nullable: true }) title: string | null;
   @Column({ type: 'text', name: 'question_text' }) questionText: string;
   @Column({ type: 'text', nullable: true }) explanation: string | null;
   @Column({ type: 'text', nullable: true }) hint: string | null;
   @Column({ type: 'text', nullable: true }) reference: string | null;
-  @Column({ type: 'enum', enum: QuestionDifficulty, default: QuestionDifficulty.MEDIUM }) difficulty: QuestionDifficulty;
+  @Column({ type: 'enum', enum: QuestionDifficulty, enumName: 'question_difficulty', default: QuestionDifficulty.MEDIUM }) difficulty: QuestionDifficulty;
   @Column({ type: 'int', nullable: true, name: 'estimated_time_seconds' }) estimatedTimeSeconds: number | null;
   @Column({ type: 'numeric', precision: 5, scale: 2, default: 1 }) marks: string;
   @Column({ type: 'boolean', default: true, name: 'is_question_bank' }) isQuestionBank: boolean;
