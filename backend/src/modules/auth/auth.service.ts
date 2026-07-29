@@ -87,7 +87,8 @@ export class AuthService {
     return { message: 'If the account is eligible, a verification email has been sent.' };
   }
 
-  async confirmEmailVerification(rawToken: string): Promise<MessageResponse> {
+  async confirmEmailVerification(rawToken: string, ip: string): Promise<MessageResponse> {
+    await this.rateLimits.enforce(ip, rawToken, 'verify-email-confirm');
     const digest = this.digestToken(rawToken);
     await this.dataSource.transaction(async (manager) => {
       const token = await manager.findOne(AccountActionToken, {
@@ -140,13 +141,13 @@ export class AuthService {
     rawToken: string,
     newPassword: string,
     confirmation: string,
+    ip: string,
   ): Promise<MessageResponse> {
+    await this.rateLimits.enforce(ip, rawToken, 'password-reset-confirm');
     if (newPassword !== confirmation) {
       throw new BadRequestException('Password confirmation does not match');
     }
     const digest = this.digestToken(rawToken);
-    const passwordHash = await this.usersService.hashPassword(newPassword);
-
     await this.dataSource.transaction(async (manager) => {
       const token = await manager.findOne(AccountActionToken, {
         where: {
@@ -168,7 +169,7 @@ export class AuthService {
         throw new BadRequestException('New password must be different from the current password');
       }
 
-      user.passwordHash = passwordHash;
+      user.passwordHash = await this.usersService.hashPassword(newPassword);
       user.failedLoginAttempts = 0;
       user.lockedUntil = null;
       token.consumedAt = new Date();
