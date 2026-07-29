@@ -78,11 +78,15 @@ export class HardenAssessmentWorkflow1760000000000 implements MigrationInterface
       ALTER TABLE student_answers
         ADD CONSTRAINT fk_student_answers_graded_by
         FOREIGN KEY (graded_by) REFERENCES users(id) ON DELETE SET NULL;
-      DELETE FROM student_answers duplicate
-      USING student_answers keeper
-      WHERE duplicate.attempt_id = keeper.attempt_id
-        AND duplicate.question_id = keeper.question_id
-        AND (duplicate.answered_at, duplicate.id) < (keeper.answered_at, keeper.id);
+      WITH ranked_answers AS (
+        SELECT id, row_number() OVER (
+          PARTITION BY attempt_id, question_id
+          ORDER BY answered_at DESC NULLS LAST, id DESC
+        ) AS position
+        FROM student_answers
+      )
+      DELETE FROM student_answers
+      WHERE id IN (SELECT id FROM ranked_answers WHERE position > 1);
       ALTER TABLE student_answers
         ADD CONSTRAINT uq_attempt_question_answer UNIQUE (attempt_id, question_id);
 
@@ -105,6 +109,15 @@ export class HardenAssessmentWorkflow1760000000000 implements MigrationInterface
       DROP INDEX IF EXISTS uq_active_student_test_attempt;
       ALTER TABLE student_answers DROP CONSTRAINT IF EXISTS uq_attempt_question_answer;
       ALTER TABLE student_answers DROP CONSTRAINT IF EXISTS fk_student_answers_graded_by;
+      ALTER TABLE student_answers DROP CONSTRAINT IF EXISTS fk_student_answers_question_restrict;
+      ALTER TABLE student_answers ADD CONSTRAINT fk_student_answers_question
+        FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE;
+      ALTER TABLE question_flags DROP CONSTRAINT IF EXISTS fk_question_flags_question_restrict;
+      ALTER TABLE question_flags ADD CONSTRAINT fk_question_flags_question
+        FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE;
+      ALTER TABLE question_notes DROP CONSTRAINT IF EXISTS fk_question_notes_question_restrict;
+      ALTER TABLE question_notes ADD CONSTRAINT fk_question_notes_question
+        FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE;
       ALTER TABLE student_answers DROP COLUMN IF EXISTS graded_at;
       ALTER TABLE student_answers DROP COLUMN IF EXISTS graded_by;
       ALTER TABLE student_answers DROP COLUMN IF EXISTS feedback;
