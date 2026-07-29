@@ -47,10 +47,16 @@ export class AuthService {
   ) {
     this.accessSecret = this.config.getOrThrow<string>('JWT_SECRET');
     this.refreshSecret = this.config.getOrThrow<string>('JWT_REFRESH_SECRET');
-    this.accessLifetimeSeconds = this.config.get<number>('JWT_ACCESS_TTL_SECONDS', 900);
-    this.refreshLifetimeSeconds = this.config.get<number>('JWT_REFRESH_TTL_SECONDS', 604800);
-    this.verificationLifetimeSeconds = this.config.get<number>('EMAIL_VERIFICATION_TTL_SECONDS', 86400);
-    this.resetLifetimeSeconds = this.config.get<number>('PASSWORD_RESET_TTL_SECONDS', 1800);
+    if (this.accessSecret.length < 32 || this.refreshSecret.length < 32) {
+      throw new Error('JWT secrets must each contain at least 32 characters');
+    }
+    if (this.accessSecret === this.refreshSecret) {
+      throw new Error('JWT_SECRET and JWT_REFRESH_SECRET must be different');
+    }
+    this.accessLifetimeSeconds = this.readPositiveInteger('JWT_ACCESS_TTL_SECONDS', 900);
+    this.refreshLifetimeSeconds = this.readPositiveInteger('JWT_REFRESH_TTL_SECONDS', 604800);
+    this.verificationLifetimeSeconds = this.readPositiveInteger('EMAIL_VERIFICATION_TTL_SECONDS', 86400);
+    this.resetLifetimeSeconds = this.readPositiveInteger('PASSWORD_RESET_TTL_SECONDS', 1800);
   }
 
   async signup(dto: SignupDto): Promise<MessageResponse> {
@@ -381,6 +387,14 @@ export class AuthService {
     if (remaining > 0) {
       await new Promise<void>((resolve) => setTimeout(resolve, remaining));
     }
+  }
+
+  private readPositiveInteger(key: string, fallback: number): number {
+    const value = Number(this.config.get<string | number>(key) ?? fallback);
+    if (!Number.isSafeInteger(value) || value <= 0) {
+      throw new Error(`${key} must be a positive integer`);
+    }
+    return value;
   }
 
   private assertAccountEnabled(user: User): void {
