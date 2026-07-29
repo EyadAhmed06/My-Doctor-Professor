@@ -37,9 +37,23 @@
 - Version increments
 - Student-safe response projection
 
+### Assessments and grading
+
+- Instructor-owned and administrator-managed test definitions
+- Course, week, and lecture scope validation
+- Draft, publish, immutability, and availability rules
+- Question assignment with synchronized total marks
+- Single-active-attempt enforcement
+- Timed and availability-window auto-expiry
+- Student-owned answers, flags, and notes
+- Tutor-mode feedback without timed-mode answer leakage
+- Automatic MCQ grading and manual essay grading with feedback
+- Transactional, idempotent attempt finalization
+- PostgreSQL constraints and migration-safe schema alignment
+
 ## Next domain
 
-Assessments, attempts, answer submission, automatic MCQ grading, manual essay grading, and attempt finalization.
+Flashcard decks, cards, per-student review state, and spaced-repetition scheduling.
 
 ## Scope constraints
 
