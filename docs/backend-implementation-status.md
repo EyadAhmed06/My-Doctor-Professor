@@ -64,9 +64,22 @@
 - Recall streaks, correctness counts, mastery, and mastery revocation
 - PostgreSQL constraints, indexes, and migration-safe schema alignment
 
+### Student progress and analytics
+
+- Student-owned lecture completion and time tracking
+- Monotonic course and lecture completion
+- Question bookmarks
+- Question metrics synchronized from finalized assessment answers
+- Topic accuracy, coverage, confidence, and mastery calculations
+- Course completion and normalized assessment averages
+- Student, instructor, and administrator dashboards
+- Question, test, and student-performance analytics
+- Instructor ownership boundaries and administrator-wide reporting
+- PostgreSQL retention constraints and migration-safe entity alignment
+
 ## Next domain
 
-Student progress and analytics, followed by notifications, audit, and administration.
+Notifications, followed by audit and administration.
 
 ## Scope constraints
 
