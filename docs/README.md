@@ -12,6 +12,7 @@ This folder is the canonical home for project documentation.
 - [Implementation roadmap](IMPLEMENTATION_ROADMAP.md)
 - [Action plan](ACTION_PLAN.md)
 - [Backend validation plan](BACKEND_VALIDATION_PLAN.md)
+- [Full backend audit and release gate](FULL_BACKEND_AUDIT.md)
 
 ### Setup and navigation
 
@@ -49,4 +50,5 @@ This folder is the canonical home for project documentation.
 5. Question Bank workflows — implemented.
 6. Assessments and grading — implemented.
 7. Flashcards and spaced repetition — implemented.
-8. Progress, notifications, audit, and administration — next.
+8. Progress, notifications, audit, and administration — implemented.
+9. Cross-module runtime validation and release gates — required; see the full backend audit.
