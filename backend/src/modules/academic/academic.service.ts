@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   Brackets,
@@ -57,6 +58,7 @@ export class AcademicService {
     private readonly topics: Repository<Topic>,
     @InjectRepository(Resource)
     private readonly resources: Repository<Resource>,
+    private readonly config: ConfigService,
   ) {}
 
   async createSemester(dto: CreateSemesterDto): Promise<Semester> {
@@ -107,7 +109,7 @@ export class AcademicService {
     if (semester.courses.length > 0) {
       throw new ConflictException('Semester cannot be deleted while it contains courses');
     }
-    await this.semesters.remove(semester);
+    await this.removeProtected(() => this.semesters.remove(semester));
   }
 
   async createCourse(semesterId: string, dto: CreateCourseDto): Promise<Course> {
@@ -228,7 +230,7 @@ export class AcademicService {
     if (course.weeks.length > 0) {
       throw new ConflictException('Course cannot be deleted while it contains weeks');
     }
-    await this.courses.remove(course);
+    await this.removeProtected(() => this.courses.remove(course));
   }
 
   async createWeek(courseId: string, dto: CreateWeekDto): Promise<Week> {
@@ -308,7 +310,7 @@ export class AcademicService {
     if (week.lectures.length > 0) {
       throw new ConflictException('Week cannot be deleted while it contains lectures');
     }
-    await this.weeks.remove(week);
+    await this.removeProtected(() => this.weeks.remove(week));
   }
 
   async createLecture(weekId: string, dto: CreateLectureDto): Promise<Lecture> {
@@ -406,11 +408,15 @@ export class AcademicService {
         'Lecture cannot be deleted while it contains topics or resources',
       );
     }
-    await this.lectures.remove(lecture);
+    await this.removeProtected(() => this.lectures.remove(lecture));
   }
 
   async createTopic(lectureId: string, dto: CreateTopicDto): Promise<Topic> {
     const lecture = await this.requireLecture(lectureId);
+    const maximumFileSize = this.config.get<number>('MAX_FILE_SIZE', 52_428_800);
+    if (dto.file_size !== undefined && dto.file_size > maximumFileSize) {
+      throw new ConflictException('Resource exceeds the configured maximum file size');
+    }
     if (lecture.isPublished) {
       throw new ConflictException('Unpublish the lecture before changing its topics');
     }
@@ -474,7 +480,7 @@ export class AcademicService {
     if (topic.questions.length > 0) {
       throw new ConflictException('Topic cannot be deleted while questions reference it');
     }
-    await this.topics.remove(topic);
+    await this.removeProtected(() => this.topics.remove(topic));
   }
 
   async createResource(
@@ -482,6 +488,10 @@ export class AcademicService {
     dto: CreateResourceDto,
   ): Promise<Resource> {
     const lecture = await this.requireLecture(lectureId);
+    const maximumFileSize = this.config.get<number>('MAX_FILE_SIZE', 52_428_800);
+    if (dto.file_size !== undefined && dto.file_size > maximumFileSize) {
+      throw new ConflictException('Resource exceeds the configured maximum file size');
+    }
     if (lecture.isPublished) {
       throw new ConflictException('Unpublish the lecture before changing its resources');
     }
@@ -513,7 +523,7 @@ export class AcademicService {
     if (resource.lecture.isPublished) {
       throw new ConflictException('Unpublish the lecture before deleting its resources');
     }
-    await this.resources.remove(resource);
+    await this.removeProtected(() => this.resources.remove(resource));
   }
 
   private async requireSemester(id: string): Promise<Semester> {
@@ -542,6 +552,21 @@ export class AcademicService {
 
   private normalizeSlug(value: string): string {
     return value.trim().toLowerCase();
+  }
+
+  private async removeProtected(operation: () => Promise<unknown>): Promise<void> {
+    try {
+      await operation();
+    } catch (error) {
+      if (
+        error instanceof QueryFailedError &&
+        (error as QueryFailedError & { driverError?: { code?: string } })
+          .driverError?.code === '23503'
+      ) {
+        throw new ConflictException('Academic record is referenced by another workflow');
+      }
+      throw error;
+    }
   }
 
   private async saveUnique<T>(
