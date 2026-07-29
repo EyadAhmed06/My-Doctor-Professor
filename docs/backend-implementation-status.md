@@ -102,9 +102,23 @@
 - Date-bounded CSV export with spreadsheet-injection protection
 - Best-effort audit writes that do not reverse completed business operations
 
-## Next domain
+### Administration
 
-Administration and final cross-module consistency review.
+- Administrator user listing, filtering, search, and safe profile views
+- Secure managed student, instructor, and administrator provisioning
+- Super-administrator authorization boundaries
+- Concurrent last-super-administrator protection
+- Role-specific profile validation and updates
+- Account suspension, reactivation, and soft deactivation
+- Immediate session revocation for disabled accounts
+- Email-delivered password-reset administration
+- Bounded bulk import with per-row outcomes
+- Platform statistics
+- Repaired canonical user service and completed self-service profile/password endpoints
+
+## Next phase
+
+Final cross-module consistency review and deployment-readiness documentation. Runtime test execution and frontend implementation remain outside the agreed scope.
 
 ## Scope constraints
 
