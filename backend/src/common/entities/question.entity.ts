@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-import { Instructor } from '../../modules/users/entities/instructor.entity';
+import { User } from '../../modules/users/entities/user.entity';
 import { EssayConfiguration } from './essay-configuration.entity';
 import { McqOption } from './mcq-option.entity';
 import { QuestionTag } from './question-tag.entity';
@@ -31,7 +31,7 @@ export class Question {
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
   @ManyToOne(() => Topic, (topic) => topic.questions, { onDelete: 'CASCADE' }) @JoinColumn({ name: 'topic_id' }) topic: Topic;
-  @ManyToOne(() => Instructor, { onDelete: 'RESTRICT' }) @JoinColumn({ name: 'created_by' }) creator: Instructor;
+  @ManyToOne(() => User, { onDelete: 'RESTRICT' }) @JoinColumn({ name: 'created_by' }) creator: User;
   @OneToMany(() => McqOption, (option) => option.question) options: McqOption[];
   @OneToMany(() => QuestionTag, (questionTag) => questionTag.question) questionTags: QuestionTag[];
   @OneToOne(() => EssayConfiguration, (config) => config.question) essayConfiguration: EssayConfiguration | null;
