@@ -413,10 +413,6 @@ export class AcademicService {
 
   async createTopic(lectureId: string, dto: CreateTopicDto): Promise<Topic> {
     const lecture = await this.requireLecture(lectureId);
-    const maximumFileSize = this.config.get<number>('MAX_FILE_SIZE', 52_428_800);
-    if (dto.file_size !== undefined && dto.file_size > maximumFileSize) {
-      throw new ConflictException('Resource exceeds the configured maximum file size');
-    }
     if (lecture.isPublished) {
       throw new ConflictException('Unpublish the lecture before changing its topics');
     }
