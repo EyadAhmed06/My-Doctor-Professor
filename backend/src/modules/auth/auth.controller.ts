@@ -45,8 +45,11 @@ export class AuthController {
   @Post('email-verification/confirm')
   @Header('Cache-Control', 'no-store')
   @Header('Referrer-Policy', 'no-referrer')
-  confirmEmailVerification(@Body() dto: ConfirmEmailVerificationDto): Promise<MessageResponse> {
-    return this.authService.confirmEmailVerification(dto.token);
+  confirmEmailVerification(
+    @Body() dto: ConfirmEmailVerificationDto,
+    @Req() request: Request,
+  ): Promise<MessageResponse> {
+    return this.authService.confirmEmailVerification(dto.token, request.ip);
   }
 
   @Post('password/forgot')
@@ -61,8 +64,16 @@ export class AuthController {
   @Post('password/reset')
   @Header('Cache-Control', 'no-store')
   @Header('Referrer-Policy', 'no-referrer')
-  resetPassword(@Body() dto: ResetPasswordDto): Promise<MessageResponse> {
-    return this.authService.resetPassword(dto.token, dto.new_password, dto.confirm_password);
+  resetPassword(
+    @Body() dto: ResetPasswordDto,
+    @Req() request: Request,
+  ): Promise<MessageResponse> {
+    return this.authService.resetPassword(
+      dto.token,
+      dto.new_password,
+      dto.confirm_password,
+      request.ip,
+    );
   }
 
   @Post('refresh')
