@@ -1,0 +1,576 @@
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, In, Repository } from 'typeorm';
+import { Course } from '../../common/entities/course.entity';
+import { Lecture } from '../../common/entities/lecture.entity';
+import { McqOption } from '../../common/entities/mcq-option.entity';
+import { QuestionFlag } from '../../common/entities/question-flag.entity';
+import { QuestionNote } from '../../common/entities/question-note.entity';
+import { Question, QuestionType } from '../../common/entities/question.entity';
+import { StudentAnswer } from '../../common/entities/student-answer.entity';
+import {
+  TestAttempt,
+  TestAttemptStatus,
+  TestMode,
+} from '../../common/entities/test-attempt.entity';
+import { TestQuestion } from '../../common/entities/test-question.entity';
+import { Test, TestType } from '../../common/entities/test.entity';
+import { Week } from '../../common/entities/week.entity';
+import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { Student } from '../users/entities/student.entity';
+import { UserRole } from '../users/entities/user.entity';
+import {
+  AddTestQuestionDto,
+  CreateTestDto,
+  GradeEssayDto,
+  QuestionNoteDto,
+  SaveAnswerDto,
+  StartTestAttemptDto,
+  TestQueryDto,
+  UpdateTestDto,
+} from './dtos/tests.dto';
+
+@Injectable()
+export class TestsService {
+  constructor(
+    @InjectRepository(Test) private readonly tests: Repository<Test>,
+    @InjectRepository(TestQuestion) private readonly testQuestions: Repository<TestQuestion>,
+    @InjectRepository(TestAttempt) private readonly attempts: Repository<TestAttempt>,
+    @InjectRepository(StudentAnswer) private readonly answers: Repository<StudentAnswer>,
+    @InjectRepository(QuestionFlag) private readonly flags: Repository<QuestionFlag>,
+    @InjectRepository(QuestionNote) private readonly notes: Repository<QuestionNote>,
+    @InjectRepository(Question) private readonly questions: Repository<Question>,
+    @InjectRepository(McqOption) private readonly options: Repository<McqOption>,
+    @InjectRepository(Course) private readonly courses: Repository<Course>,
+    @InjectRepository(Week) private readonly weeks: Repository<Week>,
+    @InjectRepository(Lecture) private readonly lectures: Repository<Lecture>,
+    @InjectRepository(Student) private readonly students: Repository<Student>,
+    private readonly dataSource: DataSource,
+  ) {}
+
+  async create(dto: CreateTestDto, actor: AuthenticatedUser) {
+    const scope = await this.resolveScope(dto.test_type, dto.course_id, dto.week_id, dto.lecture_id);
+    this.assertWindow(dto.available_from, dto.available_until);
+    return this.tests.save(this.tests.create({
+      title: dto.title.trim(),
+      description: dto.description?.trim() || null,
+      testType: dto.test_type,
+      ...scope,
+      durationMinutes: dto.duration_minutes ?? null,
+      totalMarks: null,
+      passingMarks: dto.passing_marks === undefined ? null : dto.passing_marks.toFixed(2),
+      isPublished: false,
+      availableFrom: dto.available_from ? new Date(dto.available_from) : null,
+      availableUntil: dto.available_until ? new Date(dto.available_until) : null,
+      createdBy: actor.userId,
+    }));
+  }
+
+  async list(query: TestQueryDto, actor: AuthenticatedUser) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const builder = this.tests.createQueryBuilder('test')
+      .leftJoinAndSelect('test.course', 'course')
+      .leftJoinAndSelect('test.week', 'week')
+      .leftJoinAndSelect('test.lecture', 'lecture')
+      .orderBy('test.created_at', 'DESC')
+      .skip((page - 1) * limit).take(limit);
+    if (actor.role === UserRole.STUDENT) {
+      const now = new Date();
+      builder.andWhere('test.is_published = TRUE')
+        .andWhere('(test.available_from IS NULL OR test.available_from <= :now)', { now })
+        .andWhere('(test.available_until IS NULL OR test.available_until > :now)', { now });
+    } else if (actor.role === UserRole.INSTRUCTOR) {
+      builder.andWhere('test.created_by = :actorId', { actorId: actor.userId });
+    }
+    if (query.test_type) builder.andWhere('test.test_type = :type', { type: query.test_type });
+    if (query.course_id) builder.andWhere('test.course_id = :courseId', { courseId: query.course_id });
+    if (query.is_published !== undefined && actor.role !== UserRole.STUDENT) {
+      builder.andWhere('test.is_published = :published', { published: query.is_published });
+    }
+    const [data, total] = await builder.getManyAndCount();
+    return { data, page, limit, total, total_pages: Math.ceil(total / limit) };
+  }
+
+  async getOne(id: string, actor: AuthenticatedUser) {
+    const test = await this.requireTest(id);
+    this.assertCanViewTest(test, actor);
+    if (actor.role === UserRole.STUDENT) this.assertAvailable(test);
+    return test;
+  }
+
+  async update(id: string, dto: UpdateTestDto, actor: AuthenticatedUser) {
+    const test = await this.requireOwnedTest(id, actor);
+    if (Object.keys(dto).length === 0) throw new BadRequestException('At least one test field must be provided');
+    const attemptCount = await this.attempts.count({ where: { testId: id } });
+    const changesDefinition = Object.keys(dto).some((key) => key !== 'is_published');
+    if (test.isPublished && changesDefinition && dto.is_published !== false) {
+      throw new ConflictException('Unpublish the test before changing its definition');
+    }
+    if (attemptCount > 0 && (changesDefinition || dto.is_published === false)) {
+      throw new ConflictException('A test cannot be changed or unpublished after attempts exist');
+    }
+    const from = dto.available_from !== undefined ? dto.available_from : test.availableFrom?.toISOString();
+    const until = dto.available_until !== undefined ? dto.available_until : test.availableUntil?.toISOString();
+    this.assertWindow(from, until);
+    if (dto.title !== undefined) test.title = dto.title.trim();
+    if (dto.description !== undefined) test.description = dto.description.trim() || null;
+    if (dto.duration_minutes !== undefined) test.durationMinutes = dto.duration_minutes;
+    if (dto.passing_marks !== undefined) test.passingMarks = dto.passing_marks.toFixed(2);
+    if (dto.available_from !== undefined) test.availableFrom = new Date(dto.available_from);
+    if (dto.available_until !== undefined) test.availableUntil = new Date(dto.available_until);
+    if (dto.is_published !== undefined) {
+      if (dto.is_published) await this.assertPublishable(test);
+      test.isPublished = dto.is_published;
+    }
+    return this.tests.save(test);
+  }
+
+  async remove(id: string, actor: AuthenticatedUser): Promise<void> {
+    const test = await this.requireOwnedTest(id, actor);
+    if (test.isPublished) throw new ConflictException('Unpublish the test before deleting it');
+    if (await this.attempts.exist({ where: { testId: id } })) {
+      throw new ConflictException('A test with attempts cannot be deleted');
+    }
+    await this.tests.remove(test);
+  }
+
+  async addQuestion(testId: string, dto: AddTestQuestionDto, actor: AuthenticatedUser) {
+    const test = await this.requireMutableTest(testId, actor);
+    const question = await this.questions.findOne({
+      where: { id: dto.question_id },
+      relations: { topic: { lecture: { week: { course: true } } } },
+    });
+    if (!question || !question.isActive) throw new NotFoundException('Active question not found');
+    this.assertQuestionScope(test, question);
+    return this.dataSource.transaction(async (manager) => {
+      const item = await manager.save(TestQuestion, manager.create(TestQuestion, {
+        testId, questionId: question.id, displayOrder: dto.display_order,
+        marks: dto.marks.toFixed(2), timeLimitSeconds: dto.time_limit_seconds ?? null,
+      }));
+      await this.recalculateTotal(testId, manager.getRepository(TestQuestion), manager.getRepository(Test));
+      return item;
+    });
+  }
+
+  async listQuestions(testId: string, actor: AuthenticatedUser) {
+    const test = await this.requireTest(testId);
+    this.assertCanViewTest(test, actor);
+    if (actor.role === UserRole.STUDENT) this.assertAvailable(test);
+    const items = await this.testQuestions.find({
+      where: { testId },
+      relations: { question: { options: true, essayConfiguration: true } },
+      order: { displayOrder: 'ASC' },
+    });
+    return items.map((item) => ({
+      ...item,
+      question: this.questionView(item.question, actor.role !== UserRole.STUDENT),
+    }));
+  }
+
+  async removeQuestion(testId: string, questionId: string, actor: AuthenticatedUser): Promise<void> {
+    await this.requireMutableTest(testId, actor);
+    const item = await this.testQuestions.findOne({ where: { testId, questionId } });
+    if (!item) throw new NotFoundException('Question is not assigned to this test');
+    await this.dataSource.transaction(async (manager) => {
+      await manager.remove(item);
+      await this.recalculateTotal(testId, manager.getRepository(TestQuestion), manager.getRepository(Test));
+    });
+  }
+
+  async listAttempts(testId: string, actor: AuthenticatedUser) {
+    await this.requireOwnedTest(testId, actor);
+    return this.attempts.find({ where: { testId }, order: { createdAt: 'DESC' } });
+  }
+
+  async startAttempt(testId: string, dto: StartTestAttemptDto, actor: AuthenticatedUser) {
+    const test = await this.requireTest(testId);
+    this.assertAvailable(test);
+    if (!(await this.students.exist({ where: { userId: actor.userId } }))) {
+      throw new ForbiddenException('Student profile is required to start an attempt');
+    }
+    const questionCount = await this.testQuestions.count({ where: { testId } });
+    if (questionCount === 0) throw new ConflictException('Test has no questions');
+    if (dto.test_mode === TestMode.TIMED && !test.durationMinutes) {
+      throw new ConflictException('Timed mode is unavailable because this test has no duration');
+    }
+    const active = await this.attempts.findOne({
+      where: { testId, studentId: actor.userId, status: TestAttemptStatus.IN_PROGRESS },
+    });
+    if (active) {
+      await this.expireIfNeeded(active, test);
+      if (active.status === TestAttemptStatus.IN_PROGRESS) {
+        throw new ConflictException('An active attempt already exists for this test');
+      }
+    }
+    const now = new Date();
+    return this.attempts.save(this.attempts.create({
+      studentId: actor.userId, testId, testMode: dto.test_mode,
+      status: TestAttemptStatus.IN_PROGRESS, score: null,
+      startedAt: now, submittedAt: null, lastActivityAt: now, autoSubmitted: false,
+    }));
+  }
+
+  async getAttempt(id: string, actor: AuthenticatedUser) {
+    const attempt = await this.requireAttempt(id);
+    await this.assertAttemptAccess(attempt, actor);
+    await this.expireIfNeeded(attempt, attempt.test);
+    return this.attemptView(attempt);
+  }
+
+  async saveAnswer(attemptId: string, questionId: string, dto: SaveAnswerDto, actor: AuthenticatedUser) {
+    const attempt = await this.requireStudentOpenAttempt(attemptId, actor);
+    const assignment = await this.testQuestions.findOne({
+      where: { testId: attempt.testId, questionId },
+      relations: { question: { essayConfiguration: true } },
+    });
+    if (!assignment) throw new NotFoundException('Question is not assigned to this attempt');
+    const question = assignment.question;
+    let selectedOption: McqOption | null = null;
+    let essayAnswer: string | null = null;
+    if (question.questionType === QuestionType.MCQ) {
+      if (!dto.selected_option_id || dto.essay_answer !== undefined) {
+        throw new BadRequestException('MCQ answers require selected_option_id only');
+      }
+      selectedOption = await this.options.findOne({ where: { id: dto.selected_option_id, questionId } });
+      if (!selectedOption) throw new BadRequestException('Selected option does not belong to this question');
+    } else {
+      if (dto.selected_option_id !== undefined || !dto.essay_answer?.trim()) {
+        throw new BadRequestException('Essay answers require a non-empty essay_answer only');
+      }
+      essayAnswer = dto.essay_answer.trim();
+      const words = essayAnswer.split(/\s+/).length;
+      const config = question.essayConfiguration;
+      if (config?.minimumWordCount && words < config.minimumWordCount) {
+        throw new BadRequestException(`Essay requires at least ${config.minimumWordCount} words`);
+      }
+      if (config?.maximumWordCount && words > config.maximumWordCount) {
+        throw new BadRequestException(`Essay cannot exceed ${config.maximumWordCount} words`);
+      }
+    }
+    let answer = await this.answers.findOne({ where: { attemptId, questionId } });
+    answer ??= this.answers.create({ attemptId, questionId });
+    answer.selectedOptionId = selectedOption?.id ?? null;
+    answer.essayAnswer = essayAnswer;
+    answer.answeredAt = new Date();
+    answer.feedback = null; answer.gradedBy = null; answer.gradedAt = null;
+    if (question.questionType === QuestionType.MCQ && attempt.testMode === TestMode.TUTOR) {
+      answer.isCorrect = selectedOption!.isCorrect;
+      answer.awardedMarks = selectedOption!.isCorrect ? assignment.marks : '0.00';
+    } else {
+      answer.isCorrect = null; answer.awardedMarks = null;
+    }
+    attempt.lastActivityAt = new Date();
+    await this.attempts.save(attempt);
+    const saved = await this.answers.save(answer);
+    return attempt.testMode === TestMode.TUTOR && question.questionType === QuestionType.MCQ
+      ? { ...saved, explanation: question.explanation } : this.hideGrade(saved);
+  }
+
+  async submit(id: string, actor: AuthenticatedUser) {
+    const attempt = await this.requireStudentOpenAttempt(id, actor);
+    await this.finalizeAttempt(attempt, false);
+    return this.attemptView(attempt);
+  }
+
+  async getAnswers(id: string, actor: AuthenticatedUser) {
+    const attempt = await this.requireAttempt(id);
+    await this.assertAttemptAccess(attempt, actor);
+    await this.expireIfNeeded(attempt, attempt.test);
+    const answers = await this.answers.find({ where: { attemptId: id }, order: { answeredAt: 'ASC' } });
+    return actor.role === UserRole.STUDENT && attempt.status === TestAttemptStatus.IN_PROGRESS
+      ? answers.map((answer) => this.hideGrade(answer)) : answers;
+  }
+
+  async getReview(id: string, actor: AuthenticatedUser) {
+    const attempt = await this.requireAttempt(id);
+    await this.assertAttemptAccess(attempt, actor);
+    await this.expireIfNeeded(attempt, attempt.test);
+    if (attempt.status === TestAttemptStatus.IN_PROGRESS) {
+      throw new ConflictException('Review is available only after submission or expiry');
+    }
+    const assignments = await this.testQuestions.find({
+      where: { testId: attempt.testId },
+      relations: { question: { options: true, essayConfiguration: true } },
+      order: { displayOrder: 'ASC' },
+    });
+    const answers = await this.answers.find({ where: { attemptId: id } });
+    const byQuestion = new Map(answers.map((answer) => [answer.questionId, answer]));
+    return {
+      attempt: this.attemptView(attempt),
+      grading_pending: answers.some((answer) => answer.essayAnswer !== null && answer.awardedMarks === null),
+      questions: assignments.map((item) => ({
+        ...item,
+        question: this.questionView(item.question, true),
+        answer: byQuestion.get(item.questionId) ?? null,
+      })),
+    };
+  }
+
+  async flag(attemptId: string, questionId: string, actor: AuthenticatedUser) {
+    const attempt = await this.requireStudentOpenAttempt(attemptId, actor);
+    await this.requireAssignedQuestion(attempt.testId, questionId);
+    const existing = await this.flags.findOne({ where: { attemptId, questionId } });
+    return existing ?? this.flags.save(this.flags.create({ attemptId, questionId }));
+  }
+
+  async unflag(attemptId: string, questionId: string, actor: AuthenticatedUser): Promise<void> {
+    const attempt = await this.requireStudentOpenAttempt(attemptId, actor);
+    const flag = await this.flags.findOne({ where: { attemptId, questionId } });
+    if (!flag) throw new NotFoundException('Question flag not found');
+    await this.flags.remove(flag);
+  }
+
+  async setNote(attemptId: string, questionId: string, dto: QuestionNoteDto, actor: AuthenticatedUser) {
+    const attempt = await this.requireStudentOpenAttempt(attemptId, actor);
+    await this.requireAssignedQuestion(attempt.testId, questionId);
+    let note = await this.notes.findOne({ where: { attemptId, questionId } });
+    note ??= this.notes.create({ attemptId, questionId });
+    note.note = dto.note.trim();
+    return this.notes.save(note);
+  }
+
+  async removeNote(attemptId: string, questionId: string, actor: AuthenticatedUser): Promise<void> {
+    await this.requireStudentOpenAttempt(attemptId, actor);
+    const note = await this.notes.findOne({ where: { attemptId, questionId } });
+    if (!note) throw new NotFoundException('Question note not found');
+    await this.notes.remove(note);
+  }
+
+  async gradeEssay(attemptId: string, answerId: string, dto: GradeEssayDto, actor: AuthenticatedUser) {
+    const attempt = await this.requireAttempt(attemptId);
+    this.assertOwner(attempt.test, actor);
+    if (attempt.status === TestAttemptStatus.IN_PROGRESS) {
+      throw new ConflictException('Essay answers can be graded only after the attempt closes');
+    }
+    const answer = await this.answers.findOne({
+      where: { id: answerId, attemptId },
+      relations: { question: true },
+    });
+    if (!answer) throw new NotFoundException('Answer not found in this attempt');
+    if (answer.question.questionType !== QuestionType.ESSAY || !answer.essayAnswer) {
+      throw new ConflictException('Only submitted essay answers can be manually graded');
+    }
+    const assignment = await this.requireAssignedQuestion(attempt.testId, answer.questionId);
+    if (dto.awarded_marks > Number(assignment.marks)) {
+      throw new BadRequestException('Awarded marks cannot exceed the question marks');
+    }
+    answer.awardedMarks = dto.awarded_marks.toFixed(2);
+    answer.isCorrect = dto.awarded_marks === Number(assignment.marks);
+    answer.feedback = dto.feedback?.trim() || null;
+    answer.gradedBy = actor.userId;
+    answer.gradedAt = new Date();
+    await this.answers.save(answer);
+    await this.recalculateScore(attempt);
+    return answer;
+  }
+
+  private async requireTest(id: string): Promise<Test> {
+    const test = await this.tests.findOne({
+      where: { id }, relations: { course: true, week: true, lecture: true },
+    });
+    if (!test) throw new NotFoundException('Test not found');
+    return test;
+  }
+
+  private async requireOwnedTest(id: string, actor: AuthenticatedUser): Promise<Test> {
+    const test = await this.requireTest(id);
+    this.assertOwner(test, actor);
+    return test;
+  }
+
+  private assertOwner(test: Test, actor: AuthenticatedUser): void {
+    if (actor.role !== UserRole.SYSTEM_ADMIN && test.createdBy !== actor.userId) {
+      throw new ForbiddenException('You can manage only tests you created');
+    }
+  }
+
+  private assertCanViewTest(test: Test, actor: AuthenticatedUser): void {
+    if (actor.role === UserRole.STUDENT && !test.isPublished) throw new NotFoundException('Test not found');
+    if (actor.role === UserRole.INSTRUCTOR) this.assertOwner(test, actor);
+  }
+
+  private assertAvailable(test: Test): void {
+    const now = new Date();
+    if (!test.isPublished) throw new NotFoundException('Test not found');
+    if (test.availableFrom && test.availableFrom > now) throw new ConflictException('Test is not available yet');
+    if (test.availableUntil && test.availableUntil <= now) throw new ConflictException('Test availability has ended');
+  }
+
+  private async requireMutableTest(id: string, actor: AuthenticatedUser): Promise<Test> {
+    const test = await this.requireOwnedTest(id, actor);
+    if (test.isPublished) throw new ConflictException('Unpublish the test before changing its questions');
+    if (await this.attempts.exist({ where: { testId: id } })) {
+      throw new ConflictException('Test questions cannot change after attempts exist');
+    }
+    return test;
+  }
+
+  private async requireAttempt(id: string): Promise<TestAttempt> {
+    const attempt = await this.attempts.findOne({ where: { id }, relations: { test: true } });
+    if (!attempt) throw new NotFoundException('Test attempt not found');
+    return attempt;
+  }
+
+  private async assertAttemptAccess(attempt: TestAttempt, actor: AuthenticatedUser): Promise<void> {
+    if (actor.role === UserRole.STUDENT) {
+      if (attempt.studentId !== actor.userId) throw new ForbiddenException('You can access only your attempts');
+    } else this.assertOwner(attempt.test, actor);
+  }
+
+  private async requireStudentOpenAttempt(id: string, actor: AuthenticatedUser): Promise<TestAttempt> {
+    const attempt = await this.requireAttempt(id);
+    if (attempt.studentId !== actor.userId) throw new ForbiddenException('You can modify only your attempts');
+    await this.expireIfNeeded(attempt, attempt.test);
+    if (attempt.status !== TestAttemptStatus.IN_PROGRESS) {
+      throw new ConflictException('Attempt is no longer open');
+    }
+    return attempt;
+  }
+
+  private async expireIfNeeded(attempt: TestAttempt, test: Test): Promise<void> {
+    if (attempt.status !== TestAttemptStatus.IN_PROGRESS || !attempt.startedAt) return;
+    const deadlines: number[] = [];
+    if (attempt.testMode === TestMode.TIMED && test.durationMinutes) {
+      deadlines.push(attempt.startedAt.getTime() + test.durationMinutes * 60_000);
+    }
+    if (test.availableUntil) deadlines.push(test.availableUntil.getTime());
+    if (deadlines.length && Date.now() >= Math.min(...deadlines)) await this.finalizeAttempt(attempt, true);
+  }
+
+  private async finalizeAttempt(attempt: TestAttempt, expired: boolean): Promise<void> {
+    const assignments = await this.testQuestions.find({
+      where: { testId: attempt.testId }, relations: { question: true },
+    });
+    const answers = await this.answers.find({
+      where: { attemptId: attempt.id },
+      relations: { selectedOption: true, question: true },
+    });
+    const marks = new Map(assignments.map((item) => [item.questionId, item.marks]));
+    for (const answer of answers) {
+      if (answer.question.questionType === QuestionType.MCQ) {
+        answer.isCorrect = answer.selectedOption?.isCorrect ?? false;
+        answer.awardedMarks = answer.isCorrect ? marks.get(answer.questionId)! : '0.00';
+      }
+    }
+    await this.answers.save(answers);
+    attempt.status = expired ? TestAttemptStatus.EXPIRED : TestAttemptStatus.SUBMITTED;
+    attempt.autoSubmitted = expired;
+    attempt.submittedAt = new Date();
+    attempt.lastActivityAt = new Date();
+    await this.recalculateScore(attempt);
+  }
+
+  private async recalculateScore(attempt: TestAttempt): Promise<void> {
+    const result = await this.answers.createQueryBuilder('answer')
+      .select('COALESCE(SUM(answer.awarded_marks), 0)', 'score')
+      .where('answer.attempt_id = :attemptId', { attemptId: attempt.id })
+      .getRawOne<{ score: string }>();
+    attempt.score = Number(result?.score ?? 0).toFixed(2);
+    await this.attempts.save(attempt);
+  }
+
+  private async requireAssignedQuestion(testId: string, questionId: string): Promise<TestQuestion> {
+    const item = await this.testQuestions.findOne({ where: { testId, questionId } });
+    if (!item) throw new NotFoundException('Question is not assigned to this test');
+    return item;
+  }
+
+  private async assertPublishable(test: Test): Promise<void> {
+    const items = await this.testQuestions.find({ where: { testId: test.id }, relations: { question: true } });
+    if (items.length === 0) throw new ConflictException('Add at least one question before publishing');
+    if (items.some((item) => !item.question.isActive)) {
+      throw new ConflictException('All test questions must be active before publishing');
+    }
+    const total = items.reduce((sum, item) => sum + Number(item.marks), 0);
+    if (test.passingMarks !== null && Number(test.passingMarks) > total) {
+      throw new ConflictException('Passing marks cannot exceed total marks');
+    }
+    this.assertWindow(test.availableFrom?.toISOString(), test.availableUntil?.toISOString());
+    test.totalMarks = total.toFixed(2);
+  }
+
+  private assertWindow(from?: string, until?: string): void {
+    if (from && until && new Date(until) <= new Date(from)) {
+      throw new BadRequestException('available_until must be later than available_from');
+    }
+  }
+
+  private async resolveScope(type: TestType, courseId?: string, weekId?: string, lectureId?: string) {
+    let course: Course | null = null;
+    let week: Week | null = null;
+    let lecture: Lecture | null = null;
+    if (lectureId) {
+      lecture = await this.lectures.findOne({ where: { id: lectureId }, relations: { week: { course: true } } });
+      if (!lecture) throw new NotFoundException('Lecture not found');
+      week = lecture.week; course = lecture.week.course;
+    } else if (weekId) {
+      week = await this.weeks.findOne({ where: { id: weekId }, relations: { course: true } });
+      if (!week) throw new NotFoundException('Week not found');
+      course = week.course;
+    } else if (courseId) {
+      course = await this.courses.findOne({ where: { id: courseId } });
+      if (!course) throw new NotFoundException('Course not found');
+    }
+    if (courseId && course?.id !== courseId) throw new BadRequestException('Course does not match the selected hierarchy');
+    if (weekId && week?.id !== weekId) throw new BadRequestException('Week does not match the selected lecture');
+    if (type === TestType.LECTURE && !lecture) throw new BadRequestException('LECTURE tests require lecture_id');
+    if (type === TestType.WEEK && (!week || lecture)) throw new BadRequestException('WEEK tests require week_id and cannot use lecture_id');
+    if (type === TestType.COURSE && (!course || week || lecture)) throw new BadRequestException('COURSE tests require course_id only');
+    return { courseId: course?.id ?? null, weekId: week?.id ?? null, lectureId: lecture?.id ?? null };
+  }
+
+  private assertQuestionScope(test: Test, question: Question): void {
+    const lecture = question.topic.lecture;
+    if (test.courseId && lecture.week.courseId !== test.courseId) {
+      throw new BadRequestException('Question is outside the test course');
+    }
+    if (test.weekId && lecture.weekId !== test.weekId) {
+      throw new BadRequestException('Question is outside the test week');
+    }
+    if (test.lectureId && lecture.id !== test.lectureId) {
+      throw new BadRequestException('Question is outside the test lecture');
+    }
+  }
+
+  private async recalculateTotal(testId: string, assignments: Repository<TestQuestion>, tests: Repository<Test>) {
+    const result = await assignments.createQueryBuilder('item')
+      .select('COALESCE(SUM(item.marks), 0)', 'total')
+      .where('item.test_id = :testId', { testId }).getRawOne<{ total: string }>();
+    const total = Number(result?.total ?? 0);
+    await tests.update(testId, { totalMarks: total > 0 ? total.toFixed(2) : null });
+  }
+
+  private questionView(question: Question, revealAnswers: boolean) {
+    const options = question.options?.map((option) => revealAnswers ? option : ({
+      id: option.id, questionId: option.questionId, optionText: option.optionText,
+      displayOrder: option.displayOrder, createdAt: option.createdAt,
+    }));
+    const essayConfiguration = question.essayConfiguration && revealAnswers
+      ? question.essayConfiguration
+      : question.essayConfiguration ? {
+          questionId: question.essayConfiguration.questionId,
+          minimumWordCount: question.essayConfiguration.minimumWordCount,
+          maximumWordCount: question.essayConfiguration.maximumWordCount,
+        } : null;
+    return { ...question, options, essayConfiguration };
+  }
+
+  private hideGrade(answer: StudentAnswer) {
+    const { awardedMarks: _marks, isCorrect: _correct, feedback: _feedback,
+      gradedBy: _grader, gradedAt: _gradedAt, ...safe } = answer;
+    return safe;
+  }
+
+  private attemptView(attempt: TestAttempt) {
+    const deadline = attempt.startedAt && attempt.testMode === TestMode.TIMED && attempt.test.durationMinutes
+      ? new Date(attempt.startedAt.getTime() + attempt.test.durationMinutes * 60_000) : null;
+    return { ...attempt, deadline };
+  }
+}
