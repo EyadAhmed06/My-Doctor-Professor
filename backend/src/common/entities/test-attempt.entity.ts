@@ -11,8 +11,8 @@ export class TestAttempt {
  @PrimaryGeneratedColumn('uuid') id:string;
  @Column('uuid',{name:'student_id'}) studentId:string;
  @Column('uuid',{name:'test_id'}) testId:string;
- @Column({type:'enum',enum:TestMode,name:'test_mode'}) testMode:TestMode;
- @Column({type:'enum',enum:TestAttemptStatus,default:TestAttemptStatus.NOT_STARTED}) status:TestAttemptStatus;
+ @Column({type:'enum',enum:TestMode,enumName:'test_mode',name:'test_mode'}) testMode:TestMode;
+ @Column({type:'enum',enum:TestAttemptStatus,enumName:'test_attempt_status',default:TestAttemptStatus.NOT_STARTED}) status:TestAttemptStatus;
  @Column({type:'numeric',precision:6,scale:2,nullable:true}) score:string|null;
  @Column({type:'timestamp',name:'started_at',nullable:true}) startedAt:Date|null;
  @Column({type:'timestamp',name:'submitted_at',nullable:true}) submittedAt:Date|null;
