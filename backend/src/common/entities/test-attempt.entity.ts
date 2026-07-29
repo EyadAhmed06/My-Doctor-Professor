@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, Unique } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Student } from '../../modules/users/entities/student.entity';
 import { StudentAnswer } from './student-answer.entity';
 import { Test } from './test.entity';
@@ -20,6 +20,6 @@ export class TestAttempt {
  @Column({type:'boolean',name:'auto_submitted',default:false}) autoSubmitted:boolean;
  @CreateDateColumn({name:'created_at'}) createdAt:Date;
  @ManyToOne(()=>Student,{onDelete:'CASCADE'}) @JoinColumn({name:'student_id'}) student:Student;
- @ManyToOne(()=>Test,(test)=>test.attempts,{onDelete:'CASCADE'}) @JoinColumn({name:'test_id'}) test:Test;
+ @ManyToOne(()=>Test,(test)=>test.attempts,{onDelete:'RESTRICT'}) @JoinColumn({name:'test_id'}) test:Test;
  @OneToMany(()=>StudentAnswer,(answer)=>answer.attempt) answers:StudentAnswer[];
 }
