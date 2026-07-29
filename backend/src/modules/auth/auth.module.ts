@@ -5,9 +5,12 @@ import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
+import { AuthRateLimitService } from './auth-rate-limit.service';
 import { AuthService } from './auth.service';
 import { EmailService } from './email.service';
 import { AccountActionToken } from './entities/account-action-token.entity';
+import { AuthRateLimit } from './entities/auth-rate-limit.entity';
+import { EmailOutbox } from './entities/email-outbox.entity';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -15,7 +18,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 @Module({
   imports: [
     UsersModule,
-    TypeOrmModule.forFeature([AccountActionToken]),
+    TypeOrmModule.forFeature([AccountActionToken, AuthRateLimit, EmailOutbox]),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -26,7 +29,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       }),
     }),
   ],
-  providers: [AuthService, EmailService, JwtStrategy, JwtAuthGuard, RolesGuard],
+  providers: [AuthService, AuthRateLimitService, EmailService, JwtStrategy, JwtAuthGuard, RolesGuard],
   controllers: [AuthController],
   exports: [AuthService, JwtAuthGuard, RolesGuard],
 })
