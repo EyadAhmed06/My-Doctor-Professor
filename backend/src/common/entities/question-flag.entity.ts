@@ -10,5 +10,5 @@ export class QuestionFlag {
  @Column('uuid',{name:'question_id'}) questionId:string;
  @CreateDateColumn({name:'created_at'}) createdAt:Date;
  @ManyToOne(()=>TestAttempt,{onDelete:'CASCADE'}) @JoinColumn({name:'attempt_id'}) attempt:TestAttempt;
- @ManyToOne(()=>Question,{onDelete:'CASCADE'}) @JoinColumn({name:'question_id'}) question:Question;
+ @ManyToOne(()=>Question,{onDelete:'RESTRICT'}) @JoinColumn({name:'question_id'}) question:Question;
 }
