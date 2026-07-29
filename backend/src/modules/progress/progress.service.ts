@@ -81,6 +81,9 @@ export class ProgressService {
     await this.requireStudent(studentId);
     const lecture=await this.requireVisibleLecture(lectureId);
     if(!Object.keys(dto).length) throw new BadRequestException('At least one progress field must be provided');
+    if(dto.is_completed===false) {
+      throw new BadRequestException('Lecture completion is monotonic and cannot be reversed');
+    }
     return this.dataSource.transaction(async(manager)=>{
       await manager.query(
         'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
@@ -239,11 +242,11 @@ export class ProgressService {
     const {clauses,params}=this.analyticsFilters(actor,query,'test','question');
     const rows=await this.dataSource.query(`
       SELECT question.id,question.title,question.question_type,question.difficulty,
-        COUNT(answer.id)::int AS answers,
-        COUNT(answer.id) FILTER (WHERE answer.is_correct=TRUE)::int AS correct,
-        COUNT(answer.id) FILTER (WHERE answer.is_correct=FALSE)::int AS incorrect,
-        COALESCE(ROUND(100.0*COUNT(answer.id) FILTER (WHERE answer.is_correct=TRUE)
-          /NULLIF(COUNT(answer.id) FILTER (WHERE answer.is_correct IS NOT NULL),0),2),0) AS accuracy
+        COUNT(attempt.id)::int AS answers,
+        COUNT(attempt.id) FILTER (WHERE answer.is_correct=TRUE)::int AS correct,
+        COUNT(attempt.id) FILTER (WHERE answer.is_correct=FALSE)::int AS incorrect,
+        COALESCE(ROUND(100.0*COUNT(attempt.id) FILTER (WHERE answer.is_correct=TRUE)
+          /NULLIF(COUNT(attempt.id) FILTER (WHERE answer.is_correct IS NOT NULL),0),2),0) AS accuracy
       FROM questions question
       LEFT JOIN student_answers answer ON answer.question_id=question.id
       LEFT JOIN test_attempts attempt ON attempt.id=answer.attempt_id
@@ -337,22 +340,29 @@ export class ProgressService {
           id,student_id,topic_id,questions_attempted,questions_correct,questions_incorrect,
           confidence_level,average_score,mastery_percentage,last_practiced_at,created_at,updated_at
         )
-        SELECT gen_random_uuid(),$1,question.topic_id,
-          SUM(progress.attempts)::int,SUM(progress.correct_attempts)::int,
-          SUM(progress.incorrect_attempts)::int,
-          LEAST(100,ROUND(SQRT(SUM(progress.attempts))*20,2)),
-          ROUND(100.0*SUM(progress.correct_attempts)/NULLIF(SUM(progress.attempts),0),2),
+        SELECT gen_random_uuid(),$1,aggregated.topic_id,
+          aggregated.attempts,aggregated.correct,aggregated.incorrect,
+          LEAST(100,ROUND(SQRT(aggregated.attempts)*20,2)),
+          ROUND(100.0*aggregated.correct/NULLIF(aggregated.attempts,0),2),
           ROUND(
-            0.7*(100.0*SUM(progress.correct_attempts)/NULLIF(SUM(progress.attempts),0))
-            +0.3*(100.0*COUNT(DISTINCT progress.question_id)
-              /NULLIF(COUNT(DISTINCT all_questions.id),0)),2
-          ),MAX(progress.last_attempted_at),CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
-        FROM student_question_progress progress
-        JOIN questions question ON question.id=progress.question_id
-        JOIN questions all_questions ON all_questions.topic_id=question.topic_id
-          AND all_questions.is_active=TRUE
-        WHERE progress.student_id=$1
-        GROUP BY question.topic_id
+            0.7*(100.0*aggregated.correct/NULLIF(aggregated.attempts,0))
+            +0.3*(100.0*aggregated.questions_seen/NULLIF(totals.total_questions,0)),2
+          ),aggregated.last_practiced,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+        FROM (
+          SELECT question.topic_id,SUM(progress.attempts)::int AS attempts,
+            SUM(progress.correct_attempts)::int AS correct,
+            SUM(progress.incorrect_attempts)::int AS incorrect,
+            COUNT(DISTINCT progress.question_id)::int AS questions_seen,
+            MAX(progress.last_attempted_at) AS last_practiced
+          FROM student_question_progress progress
+          JOIN questions question ON question.id=progress.question_id
+          WHERE progress.student_id=$1
+          GROUP BY question.topic_id
+        ) aggregated
+        JOIN (
+          SELECT topic_id,COUNT(*)::int AS total_questions
+          FROM questions WHERE is_active=TRUE GROUP BY topic_id
+        ) totals ON totals.topic_id=aggregated.topic_id
         ON CONFLICT(student_id,topic_id) DO UPDATE SET
           questions_attempted=EXCLUDED.questions_attempted,
           questions_correct=EXCLUDED.questions_correct,
@@ -416,6 +426,9 @@ export class ProgressService {
   }
 
   private addDateFilters(query:AnalyticsQueryDto,params:any[],clauses:string[],column:string) {
+    if(query.date_from&&query.date_until&&new Date(query.date_until)<new Date(query.date_from)) {
+      throw new BadRequestException('date_until must not be earlier than date_from');
+    }
     if(query.date_from){params.push(query.date_from);clauses.push(`${column}>=$${params.length}::timestamp`);}
     if(query.date_until){params.push(query.date_until);clauses.push(`${column}<=$${params.length}::timestamp`);}
   }
