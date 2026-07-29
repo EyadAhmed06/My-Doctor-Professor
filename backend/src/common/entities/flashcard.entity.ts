@@ -1,6 +1,9 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Unique, UpdateDateColumn } from 'typeorm';
 import { QuestionDifficulty } from './question.entity'; import { FlashcardDeck } from './flashcard-deck.entity';
 @Entity('flashcards')
+@Index('idx_flashcards_deck',['deckId'])
+@Index('idx_flashcards_difficulty',['difficulty'])
+@Unique('uq_flashcard_deck_order',['deckId','displayOrder'])
 export class Flashcard {
  @PrimaryGeneratedColumn('uuid') id:string; @Column('uuid',{name:'deck_id'}) deckId:string;
  @Column({type:'varchar',length:200}) title:string; @Column({type:'text',name:'front_content'}) frontContent:string; @Column({type:'text',name:'back_content'}) backContent:string;
