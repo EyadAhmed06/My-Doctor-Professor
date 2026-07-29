@@ -1,3 +1,4 @@
+import { isAbsolute } from 'path';
 const POSITIVE_INTEGER_KEYS = [
   'PORT',
   'DB_PORT',
@@ -24,6 +25,8 @@ const PRODUCTION_REQUIRED_KEYS = [
   'SMTP_PASSWORD',
   'SMTP_FROM',
   'EMAIL_OUTBOX_ENCRYPTION_KEY',
+  'FILE_UPLOAD_PATH',
+  'MAX_FILE_SIZE',
 ] as const;
 
 export function validateEnvironment(input: Record<string, unknown>): Record<string, unknown> {
@@ -53,6 +56,13 @@ export function validateEnvironment(input: Record<string, unknown>): Record<stri
     if (String(environment.DB_PASSWORD) === 'postgres') {
       throw new Error('DB_PASSWORD must not use the development default in production');
     }
+  }
+
+  if (
+    nodeEnvironment === 'production' &&
+    !isAbsolute(String(environment.FILE_UPLOAD_PATH))
+  ) {
+    throw new Error('FILE_UPLOAD_PATH must be absolute in production');
   }
 
   const accessSecret = environment.JWT_SECRET === undefined ? undefined : String(environment.JWT_SECRET);
