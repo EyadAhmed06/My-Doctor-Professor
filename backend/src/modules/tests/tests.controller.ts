@@ -1,14 +1,65 @@
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
-import { Body, Controller, Delete, Get, NotImplementedException, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
-import { Roles } from '../auth/decorators/roles.decorator'; import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'; import { RolesGuard } from '../auth/guards/roles.guard';
-@Controller('tests') @UseGuards(JwtAuthGuard,RolesGuard)
-export class TestsController { private pending():never{throw new NotImplementedException('Assessment workflow will be implemented after DTO contracts');}
- @Post() @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) create(@Body() _body:unknown){return this.pending();} @Get() list(@Query() _query:Record<string,string>){return this.pending();} @Get(':testId') getOne(@Param('testId') _id:string){return this.pending();} @Put(':testId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) update(@Param('testId') _id:string,@Body() _body:unknown){return this.pending();} @Delete(':testId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) remove(@Param('testId') _id:string){return this.pending();}
- @Post(':testId/questions') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) addQuestion(@Param('testId') _id:string,@Body() _body:unknown){return this.pending();} @Get(':testId/questions') listQuestions(@Param('testId') _id:string){return this.pending();} @Delete(':testId/questions/:questionId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) removeQuestion(@Param('testId') _testId:string,@Param('questionId') _questionId:string){return this.pending();}
- @Get(':testId/attempts') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) listAttempts(@Param('testId') _id:string){return this.pending();} @Post(':testId/attempts') @Roles(UserRole.STUDENT) startAttempt(@Param('testId') _id:string,@Body() _body:unknown){return this.pending();}
- @Get('attempts/:attemptId') getAttempt(@Param('attemptId') _id:string){return this.pending();} @Put('attempts/:attemptId/answers/:questionId') @Roles(UserRole.STUDENT) saveAnswer(@Param('attemptId') _attemptId:string,@Param('questionId') _questionId:string,@Body() _body:unknown){return this.pending();} @Post('attempts/:attemptId/submit') @Roles(UserRole.STUDENT) submit(@Param('attemptId') _id:string){return this.pending();}
- @Get('attempts/:attemptId/answers') getAnswers(@Param('attemptId') _id:string){return this.pending();} @Get('attempts/:attemptId/review') getReview(@Param('attemptId') _id:string){return this.pending();}
- @Post('attempts/:attemptId/flags/:questionId') @Roles(UserRole.STUDENT) flag(@Param('attemptId') _attemptId:string,@Param('questionId') _questionId:string){return this.pending();} @Delete('attempts/:attemptId/flags/:questionId') @Roles(UserRole.STUDENT) unflag(@Param('attemptId') _attemptId:string,@Param('questionId') _questionId:string){return this.pending();}
- @Post('attempts/:attemptId/notes/:questionId') @Roles(UserRole.STUDENT) addNote(@Param('attemptId') _attemptId:string,@Param('questionId') _questionId:string,@Body() _body:unknown){return this.pending();} @Put('attempts/:attemptId/notes/:questionId') @Roles(UserRole.STUDENT) updateNote(@Param('attemptId') _attemptId:string,@Param('questionId') _questionId:string,@Body() _body:unknown){return this.pending();} @Delete('attempts/:attemptId/notes/:questionId') @Roles(UserRole.STUDENT) removeNote(@Param('attemptId') _attemptId:string,@Param('questionId') _questionId:string){return this.pending();}
- @Put('attempts/:attemptId/answers/:answerId/grade') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) gradeEssay(@Param('attemptId') _attemptId:string,@Param('answerId') _answerId:string,@Body() _body:unknown){return this.pending();}
+import { AddTestQuestionDto, CreateTestDto, GradeEssayDto, QuestionNoteDto, SaveAnswerDto, StartTestAttemptDto, TestQueryDto, UpdateTestDto } from './dtos/tests.dto';
+import { TestsService } from './tests.service';
+const uuid = new ParseUUIDPipe({version:'4'});
+
+@Controller('tests')
+@UseGuards(JwtAuthGuard,RolesGuard)
+export class TestsController {
+ constructor(private readonly tests:TestsService){}
+
+ @Post() @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
+ create(@Body() dto:CreateTestDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.create(dto,actor);}
+ @Get()
+ list(@Query() query:TestQueryDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.list(query,actor);}
+ @Get(':testId')
+ getOne(@Param('testId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.getOne(id,actor);}
+ @Put(':testId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
+ update(@Param('testId',uuid) id:string,@Body() dto:UpdateTestDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.update(id,dto,actor);}
+ @Delete(':testId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) @HttpCode(HttpStatus.NO_CONTENT)
+ async remove(@Param('testId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){await this.tests.remove(id,actor);}
+
+ @Post(':testId/questions') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
+ addQuestion(@Param('testId',uuid) id:string,@Body() dto:AddTestQuestionDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.addQuestion(id,dto,actor);}
+ @Get(':testId/questions')
+ listQuestions(@Param('testId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.listQuestions(id,actor);}
+ @Delete(':testId/questions/:questionId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) @HttpCode(HttpStatus.NO_CONTENT)
+ async removeQuestion(@Param('testId',uuid) testId:string,@Param('questionId',uuid) questionId:string,@CurrentUser() actor:AuthenticatedUser){await this.tests.removeQuestion(testId,questionId,actor);}
+
+ @Get(':testId/attempts') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
+ listAttempts(@Param('testId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.listAttempts(id,actor);}
+ @Post(':testId/attempts') @Roles(UserRole.STUDENT)
+ startAttempt(@Param('testId',uuid) id:string,@Body() dto:StartTestAttemptDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.startAttempt(id,dto,actor);}
+
+ @Get('attempts/:attemptId')
+ getAttempt(@Param('attemptId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.getAttempt(id,actor);}
+ @Put('attempts/:attemptId/answers/:questionId') @Roles(UserRole.STUDENT)
+ saveAnswer(@Param('attemptId',uuid) attemptId:string,@Param('questionId',uuid) questionId:string,@Body() dto:SaveAnswerDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.saveAnswer(attemptId,questionId,dto,actor);}
+ @Post('attempts/:attemptId/submit') @Roles(UserRole.STUDENT)
+ submit(@Param('attemptId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.submit(id,actor);}
+ @Get('attempts/:attemptId/answers')
+ getAnswers(@Param('attemptId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.getAnswers(id,actor);}
+ @Get('attempts/:attemptId/review')
+ getReview(@Param('attemptId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.getReview(id,actor);}
+
+ @Post('attempts/:attemptId/flags/:questionId') @Roles(UserRole.STUDENT)
+ flag(@Param('attemptId',uuid) attemptId:string,@Param('questionId',uuid) questionId:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.flag(attemptId,questionId,actor);}
+ @Delete('attempts/:attemptId/flags/:questionId') @Roles(UserRole.STUDENT) @HttpCode(HttpStatus.NO_CONTENT)
+ async unflag(@Param('attemptId',uuid) attemptId:string,@Param('questionId',uuid) questionId:string,@CurrentUser() actor:AuthenticatedUser){await this.tests.unflag(attemptId,questionId,actor);}
+
+ @Post('attempts/:attemptId/notes/:questionId') @Roles(UserRole.STUDENT)
+ addNote(@Param('attemptId',uuid) attemptId:string,@Param('questionId',uuid) questionId:string,@Body() dto:QuestionNoteDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.setNote(attemptId,questionId,dto,actor);}
+ @Put('attempts/:attemptId/notes/:questionId') @Roles(UserRole.STUDENT)
+ updateNote(@Param('attemptId',uuid) attemptId:string,@Param('questionId',uuid) questionId:string,@Body() dto:QuestionNoteDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.setNote(attemptId,questionId,dto,actor);}
+ @Delete('attempts/:attemptId/notes/:questionId') @Roles(UserRole.STUDENT) @HttpCode(HttpStatus.NO_CONTENT)
+ async removeNote(@Param('attemptId',uuid) attemptId:string,@Param('questionId',uuid) questionId:string,@CurrentUser() actor:AuthenticatedUser){await this.tests.removeNote(attemptId,questionId,actor);}
+
+ @Put('attempts/:attemptId/answers/:answerId/grade') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
+ gradeEssay(@Param('attemptId',uuid) attemptId:string,@Param('answerId',uuid) answerId:string,@Body() dto:GradeEssayDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.gradeEssay(attemptId,answerId,dto,actor);}
 }
