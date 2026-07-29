@@ -10,8 +10,12 @@ import {
   Post,
   Put,
   Query,
+  StreamableFile,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -32,7 +36,9 @@ import {
   UpdateSemesterDto,
   UpdateTopicDto,
   UpdateWeekDto,
+  UploadResourceDto,
 } from './dtos/academic.dto';
+import { UploadedResourceFile } from './resource-storage.service';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
 
@@ -293,6 +299,33 @@ export class AcademicController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.academic.createResource(lectureId, dto, user);
+  }
+
+  @Post('lectures/:lectureId/resources/upload')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  @UseInterceptors(FileInterceptor('file', {
+    limits: { fileSize: 52_428_800, files: 1 },
+  }))
+  uploadResource(
+    @Param('lectureId', uuid) lectureId: string,
+    @Body() dto: UploadResourceDto,
+    @UploadedFile() file: UploadedResourceFile | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.academic.uploadResource(lectureId, dto, file, user);
+  }
+
+  @Get('resources/:resourceId/file')
+  async downloadResource(
+    @Param('resourceId', uuid) resourceId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<StreamableFile> {
+    const file = await this.academic.openResourceFile(resourceId, user.role);
+    return new StreamableFile(file.stream, {
+      type: file.mimeType,
+      disposition: `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+      length: file.size === null ? undefined : Number(file.size),
+    });
   }
 
   @Get('lectures/:lectureId/resources')
