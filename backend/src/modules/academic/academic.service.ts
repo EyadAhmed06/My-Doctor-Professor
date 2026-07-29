@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -7,9 +8,11 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   Brackets,
+  DataSource,
   QueryFailedError,
   Repository,
 } from 'typeorm';
+import { CourseInstructor } from '../../common/entities/course-instructor.entity';
 import { Course } from '../../common/entities/course.entity';
 import { Lecture } from '../../common/entities/lecture.entity';
 import {
@@ -19,6 +22,8 @@ import {
 import { Semester } from '../../common/entities/semester.entity';
 import { Topic } from '../../common/entities/topic.entity';
 import { Week } from '../../common/entities/week.entity';
+import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { Instructor } from '../users/entities/instructor.entity';
 import { UserRole } from '../users/entities/user.entity';
 import {
   CourseQueryDto,
@@ -50,6 +55,8 @@ export class AcademicService {
     private readonly semesters: Repository<Semester>,
     @InjectRepository(Course)
     private readonly courses: Repository<Course>,
+    @InjectRepository(CourseInstructor)
+    private readonly courseInstructors: Repository<CourseInstructor>,
     @InjectRepository(Week)
     private readonly weeks: Repository<Week>,
     @InjectRepository(Lecture)
@@ -59,6 +66,7 @@ export class AcademicService {
     @InjectRepository(Resource)
     private readonly resources: Repository<Resource>,
     private readonly config: ConfigService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async createSemester(dto: CreateSemesterDto): Promise<Semester> {
@@ -112,10 +120,15 @@ export class AcademicService {
     await this.removeProtected(() => this.semesters.remove(semester));
   }
 
-  async createCourse(semesterId: string, dto: CreateCourseDto): Promise<Course> {
+  async createCourse(
+    semesterId: string,
+    dto: CreateCourseDto,
+    actor: AuthenticatedUser,
+  ): Promise<Course> {
     await this.requireSemester(semesterId);
     return this.saveUnique(
-      () => this.courses.save(this.courses.create({
+      () => this.dataSource.transaction(async (manager) => {
+        const course = await manager.save(Course, manager.create(Course, {
         semesterId,
         courseCode: dto.course_code.trim().toUpperCase(),
         courseName: dto.course_name.trim(),
@@ -124,8 +137,16 @@ export class AcademicService {
         creditHours: dto.credit_hours ?? null,
         displayOrder: dto.display_order ?? 1,
         isActive: true,
-      })),
-      'Course code or slug already exists',
+      }));
+        if (actor.role === UserRole.INSTRUCTOR) {
+          await manager.save(CourseInstructor, manager.create(CourseInstructor, {
+            courseId: course.id,
+            instructorId: actor.userId,
+          }));
+        }
+        return course;
+      }),
+      'Course code or slug already exists'
     );
   }
 
@@ -205,7 +226,8 @@ export class AcademicService {
     return course;
   }
 
-  async updateCourse(id: string, dto: UpdateCourseDto): Promise<Course> {
+  async updateCourse(id: string, dto: UpdateCourseDto, actor: AuthenticatedUser): Promise<Course> {
+    await this.assertCourseManager(id, actor);
     const course = await this.requireCourse(id);
     if (dto.course_name !== undefined) course.courseName = dto.course_name.trim();
     if (dto.slug !== undefined) course.slug = this.normalizeSlug(dto.slug);
@@ -221,7 +243,8 @@ export class AcademicService {
     );
   }
 
-  async deleteCourse(id: string): Promise<void> {
+  async deleteCourse(id: string, actor: AuthenticatedUser): Promise<void> {
+    await this.assertCourseManager(id, actor);
     const course = await this.courses.findOne({
       where: { id },
       relations: { weeks: true },
@@ -233,7 +256,8 @@ export class AcademicService {
     await this.removeProtected(() => this.courses.remove(course));
   }
 
-  async createWeek(courseId: string, dto: CreateWeekDto): Promise<Week> {
+  async createWeek(courseId: string, dto: CreateWeekDto, actor: AuthenticatedUser): Promise<Week> {
+    await this.assertCourseManager(courseId, actor);
     await this.requireCourse(courseId);
     return this.saveUnique(
       () => this.weeks.save(this.weeks.create({
@@ -291,7 +315,8 @@ export class AcademicService {
     return week;
   }
 
-  async updateWeek(id: string, dto: UpdateWeekDto): Promise<Week> {
+  async updateWeek(id: string, dto: UpdateWeekDto, actor: AuthenticatedUser): Promise<Week> {
+    await this.assertWeekManager(id, actor);
     const week = await this.requireWeek(id);
     if (dto.title !== undefined) week.title = dto.title.trim() || null;
     if (dto.description !== undefined) {
@@ -301,7 +326,8 @@ export class AcademicService {
     return this.weeks.save(week);
   }
 
-  async deleteWeek(id: string): Promise<void> {
+  async deleteWeek(id: string, actor: AuthenticatedUser): Promise<void> {
+    await this.assertWeekManager(id, actor);
     const week = await this.weeks.findOne({
       where: { id },
       relations: { lectures: true },
@@ -313,7 +339,8 @@ export class AcademicService {
     await this.removeProtected(() => this.weeks.remove(week));
   }
 
-  async createLecture(weekId: string, dto: CreateLectureDto): Promise<Lecture> {
+  async createLecture(weekId: string, dto: CreateLectureDto, actor: AuthenticatedUser): Promise<Lecture> {
+    await this.assertWeekManager(weekId, actor);
     await this.requireWeek(weekId);
     return this.saveUnique(
       () => this.lectures.save(this.lectures.create({
@@ -370,7 +397,8 @@ export class AcademicService {
     return lecture;
   }
 
-  async updateLecture(id: string, dto: UpdateLectureDto): Promise<Lecture> {
+  async updateLecture(id: string, dto: UpdateLectureDto, actor: AuthenticatedUser): Promise<Lecture> {
+    await this.assertLectureManager(id, actor);
     const lecture = await this.requireLecture(id);
     if (dto.title !== undefined) lecture.title = dto.title.trim();
     if (dto.description !== undefined) {
@@ -397,7 +425,8 @@ export class AcademicService {
     return this.lectures.save(lecture);
   }
 
-  async deleteLecture(id: string): Promise<void> {
+  async deleteLecture(id: string, actor: AuthenticatedUser): Promise<void> {
+    await this.assertLectureManager(id, actor);
     const lecture = await this.lectures.findOne({
       where: { id },
       relations: { topics: true, resources: true },
@@ -411,7 +440,8 @@ export class AcademicService {
     await this.removeProtected(() => this.lectures.remove(lecture));
   }
 
-  async createTopic(lectureId: string, dto: CreateTopicDto): Promise<Topic> {
+  async createTopic(lectureId: string, dto: CreateTopicDto, actor: AuthenticatedUser): Promise<Topic> {
+    await this.assertLectureManager(lectureId, actor);
     const lecture = await this.requireLecture(lectureId);
     if (lecture.isPublished) {
       throw new ConflictException('Unpublish the lecture before changing its topics');
@@ -447,7 +477,8 @@ export class AcademicService {
     return topic;
   }
 
-  async updateTopic(id: string, dto: UpdateTopicDto): Promise<Topic> {
+  async updateTopic(id: string, dto: UpdateTopicDto, actor: AuthenticatedUser): Promise<Topic> {
+    await this.assertTopicManager(id, actor);
     const topic = await this.topics.findOne({
       where: { id },
       relations: { lecture: true },
@@ -464,7 +495,8 @@ export class AcademicService {
     return this.topics.save(topic);
   }
 
-  async deleteTopic(id: string): Promise<void> {
+  async deleteTopic(id: string, actor: AuthenticatedUser): Promise<void> {
+    await this.assertTopicManager(id, actor);
     const topic = await this.topics.findOne({
       where: { id },
       relations: { lecture: true, questions: true },
@@ -482,7 +514,9 @@ export class AcademicService {
   async createResource(
     lectureId: string,
     dto: CreateResourceDto,
+    actor: AuthenticatedUser,
   ): Promise<Resource> {
+    await this.assertLectureManager(lectureId, actor);
     const lecture = await this.requireLecture(lectureId);
     const maximumFileSize = this.config.get<number>('MAX_FILE_SIZE', 52_428_800);
     if (dto.file_size !== undefined && dto.file_size > maximumFileSize) {
@@ -510,7 +544,8 @@ export class AcademicService {
     });
   }
 
-  async deleteResource(id: string): Promise<void> {
+  async deleteResource(id: string, actor: AuthenticatedUser): Promise<void> {
+    await this.assertResourceManager(id, actor);
     const resource = await this.resources.findOne({
       where: { id },
       relations: { lecture: true },
@@ -520,6 +555,78 @@ export class AcademicService {
       throw new ConflictException('Unpublish the lecture before deleting its resources');
     }
     await this.removeProtected(() => this.resources.remove(resource));
+  }
+
+  async listCourseInstructors(courseId: string): Promise<CourseInstructor[]> {
+    await this.requireCourse(courseId);
+    return this.courseInstructors.find({
+      where: { courseId },
+      relations: { instructor: { user: true } },
+      order: { assignedAt: 'ASC' },
+    });
+  }
+
+  async assignCourseInstructor(courseId: string, instructorId: string): Promise<CourseInstructor> {
+    await this.requireCourse(courseId);
+    const instructor = await this.dataSource.getRepository(Instructor).findOne({
+      where: { userId: instructorId },
+    });
+    if (!instructor) throw new NotFoundException('Instructor not found');
+    const existing = await this.courseInstructors.findOne({
+      where: { courseId, instructorId },
+    });
+    return existing ?? this.courseInstructors.save(
+      this.courseInstructors.create({ courseId, instructorId }),
+    );
+  }
+
+  async removeCourseInstructor(courseId: string, instructorId: string): Promise<void> {
+    const assignment = await this.courseInstructors.findOne({
+      where: { courseId, instructorId },
+    });
+    if (!assignment) throw new NotFoundException('Course instructor assignment not found');
+    await this.courseInstructors.remove(assignment);
+  }
+
+  private async assertCourseManager(courseId: string, actor: AuthenticatedUser): Promise<void> {
+    if (actor.role === UserRole.SYSTEM_ADMIN) return;
+    if (
+      actor.role === UserRole.INSTRUCTOR &&
+      await this.courseInstructors.exist({ where: { courseId, instructorId: actor.userId } })
+    ) return;
+    throw new ForbiddenException('You are not assigned to manage this course');
+  }
+
+  private async assertWeekManager(weekId: string, actor: AuthenticatedUser): Promise<void> {
+    const week = await this.requireWeek(weekId);
+    await this.assertCourseManager(week.courseId, actor);
+  }
+
+  private async assertLectureManager(lectureId: string, actor: AuthenticatedUser): Promise<void> {
+    const lecture = await this.lectures.findOne({
+      where: { id: lectureId },
+      relations: { week: true },
+    });
+    if (!lecture) throw new NotFoundException('Lecture not found');
+    await this.assertCourseManager(lecture.week.courseId, actor);
+  }
+
+  private async assertTopicManager(topicId: string, actor: AuthenticatedUser): Promise<void> {
+    const topic = await this.topics.findOne({
+      where: { id: topicId },
+      relations: { lecture: { week: true } },
+    });
+    if (!topic) throw new NotFoundException('Topic not found');
+    await this.assertCourseManager(topic.lecture.week.courseId, actor);
+  }
+
+  private async assertResourceManager(resourceId: string, actor: AuthenticatedUser): Promise<void> {
+    const resource = await this.resources.findOne({
+      where: { id: resourceId },
+      relations: { lecture: { week: true } },
+    });
+    if (!resource) throw new NotFoundException('Resource not found');
+    await this.assertCourseManager(resource.lecture.week.courseId, actor);
   }
 
   private async requireSemester(id: string): Promise<Semester> {
