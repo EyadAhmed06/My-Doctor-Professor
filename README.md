@@ -82,7 +82,7 @@ The active backend rebuild is performed on `agent/backend-foundation-rebuild`.
 - [ ] Phase 4 — all DTO contracts
 - [x] Phase 5 — academic workflows
 - [x] Phase 6 — question-bank workflows
-- [ ] Phase 7 — assessment and grading workflows
+- [x] Phase 7 — assessment and grading workflows
 - [ ] Phase 8 — flashcard workflows
 - [ ] Phase 9 — progress, notifications, audit, and administration
 
