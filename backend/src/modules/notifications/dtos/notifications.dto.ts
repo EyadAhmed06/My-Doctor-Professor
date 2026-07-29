@@ -1,0 +1,2 @@
+import { IsArray, IsEnum, IsNotEmpty, IsOptional, IsString, IsUrl, IsUUID, MaxLength } from 'class-validator'; import { NotificationType } from '../../../common/entities/notification.entity';
+export class CreateNotificationDto { @IsString() @IsNotEmpty() @MaxLength(200) title:string; @IsString() @IsNotEmpty() message:string; @IsOptional() @IsUrl({require_tld:false}) target_url?:string; @IsEnum(NotificationType) notification_type:NotificationType; @IsArray() @IsUUID('4',{each:true}) user_ids:string[]; }
