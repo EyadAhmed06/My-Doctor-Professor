@@ -434,7 +434,7 @@ export class ProgressService {
   }
 
   private async requireStudent(id:string) {
-    if(!(await this.students.exist({where:{userId:id}}))) throw new ForbiddenException('Student profile is required');
+    if(!(await this.students.exists({where:{userId:id}}))) throw new ForbiddenException('Student profile is required');
   }
   private async requireActiveCourse(id:string) {
     const course=await this.courses.findOne({where:{id,isActive:true}});
