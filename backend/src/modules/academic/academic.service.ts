@@ -76,13 +76,16 @@ export class AcademicService {
     });
   }
 
-  async getSemester(id: string): Promise<Semester> {
+  async getSemester(id: string, role: UserRole): Promise<Semester> {
     const semester = await this.semesters.findOne({
       where: { id },
       relations: { courses: true },
       order: { courses: { displayOrder: 'ASC' } },
     });
     if (!semester) throw new NotFoundException('Semester not found');
+    if (role === UserRole.STUDENT) {
+      semester.courses = semester.courses.filter((course) => course.isActive);
+    }
     return semester;
   }
 
