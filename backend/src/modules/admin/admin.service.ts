@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -159,7 +160,7 @@ export class AdminService {
     await this.dataSource.transaction(async manager=>{
       const locked=await manager.findOne(User,{where:{id},lock:{mode:'pessimistic_write'}});
       if(!locked) throw new NotFoundException('User not found');
-      if(target.role===UserRole.SYSTEM_ADMIN&&dto.status!==UserStatus.ACTIVE) {
+      if(target.role===UserRole.SYSTEM_ADMIN&&locked.status===UserStatus.ACTIVE&&dto.status!==UserStatus.ACTIVE) {
         await manager.query("SELECT pg_advisory_xact_lock(hashtext('super-admin-invariant'))");
         const profile=await manager.findOne(SystemAdmin,{where:{userId:id}});
         if(profile?.isSuperAdmin) await this.assertAnotherActiveSuperAdmin(id,manager);
@@ -184,8 +185,8 @@ export class AdminService {
     if(target.status!==UserStatus.ACTIVE||!target.emailVerified) {
       throw new ConflictException('Password reset requires an active verified account');
     }
-    await this.usersService.revokeAllSessions(id);
     await this.authService.requestPasswordReset(target.email,ip);
+    await this.usersService.revokeAllSessions(id);
     return {message:'Password reset instructions were queued and active sessions were revoked.'};
   }
 
@@ -201,7 +202,7 @@ export class AdminService {
       } catch(error) {
         errors.push({
           index,email:dto.users[index].email,
-          error:error instanceof Error?error.message:'Unable to create user',
+          error:error instanceof HttpException?error.message:'Unable to create user',
         });
       }
     }
