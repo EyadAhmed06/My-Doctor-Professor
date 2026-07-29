@@ -7,10 +7,12 @@ export class AuthRateLimitService {
   constructor(private readonly dataSource: DataSource) {}
 
   async enforce(ip: string, email: string, action: string): Promise<void> {
-    await Promise.all([
-      this.consume(`ip:${action}:${ip}`, 10, 15 * 60),
-      this.consume(`account:${action}:${email.trim().toLowerCase()}`, 3, 60 * 60),
-    ]);
+    await this.consume(`ip:${action}:${ip}`, 10, 15 * 60);
+    await this.consume(
+      `account:${action}:${email.trim().toLowerCase()}`,
+      3,
+      60 * 60,
+    );
   }
 
   private async consume(rawKey: string, maximum: number, windowSeconds: number): Promise<void> {
