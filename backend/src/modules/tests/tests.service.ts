@@ -148,7 +148,7 @@ export class TestsService {
   async remove(id: string, actor: AuthenticatedUser): Promise<void> {
     const test = await this.requireOwnedTest(id, actor);
     if (test.isPublished) throw new ConflictException('Unpublish the test before deleting it');
-    if (await this.attempts.exist({ where: { testId: id } })) {
+    if (await this.attempts.exists({ where: { testId: id } })) {
       throw new ConflictException('A test with attempts cannot be deleted');
     }
     await this.tests.remove(test);
@@ -215,7 +215,7 @@ export class TestsService {
   async startAttempt(testId: string, dto: StartTestAttemptDto, actor: AuthenticatedUser) {
     const test = await this.requireTest(testId);
     this.assertAvailable(test);
-    if (!(await this.students.exist({ where: { userId: actor.userId } }))) {
+    if (!(await this.students.exists({ where: { userId: actor.userId } }))) {
       throw new ForbiddenException('Student profile is required to start an attempt');
     }
     const questionCount = await this.testQuestions.count({ where: { testId } });
@@ -435,7 +435,7 @@ export class TestsService {
   private async requireMutableTest(id: string, actor: AuthenticatedUser): Promise<Test> {
     const test = await this.requireOwnedTest(id, actor);
     if (test.isPublished) throw new ConflictException('Unpublish the test before changing its questions');
-    if (await this.attempts.exist({ where: { testId: id } })) {
+    if (await this.attempts.exists({ where: { testId: id } })) {
       throw new ConflictException('Test questions cannot change after attempts exist');
     }
     return test;
