@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   Brackets,
@@ -38,7 +39,12 @@ import {
   UpdateSemesterDto,
   UpdateTopicDto,
   UpdateWeekDto,
+  UploadResourceDto,
 } from './dtos/academic.dto';
+import {
+  ResourceStorageService,
+  UploadedResourceFile,
+} from './resource-storage.service';
 
 interface Paginated<T> {
   data: T[];
@@ -67,6 +73,7 @@ export class AcademicService {
     private readonly resources: Repository<Resource>,
     private readonly config: ConfigService,
     private readonly dataSource: DataSource,
+    private readonly resourceStorage: ResourceStorageService,
   ) {}
 
   async createSemester(dto: CreateSemesterDto): Promise<Semester> {
@@ -532,6 +539,10 @@ export class AcademicService {
       uploadStatus: UploadStatus.UPLOADED,
       fileUrl: dto.file_url,
       fileSize: dto.file_size !== undefined ? String(dto.file_size) : null,
+      storageKey: null,
+      originalFilename: null,
+      mimeType: null,
+      checksumSha256: null,
       description: dto.description?.trim() || null,
     }));
   }
@@ -555,6 +566,60 @@ export class AcademicService {
       throw new ConflictException('Unpublish the lecture before deleting its resources');
     }
     await this.removeProtected(() => this.resources.remove(resource));
+    await this.resourceStorage.remove(resource.storageKey);
+  }
+
+  async uploadResource(
+    lectureId: string,
+    dto: UploadResourceDto,
+    file: UploadedResourceFile | undefined,
+    actor: AuthenticatedUser,
+  ): Promise<Resource> {
+    await this.assertLectureManager(lectureId, actor);
+    const lecture = await this.requireLecture(lectureId);
+    if (lecture.isPublished) {
+      throw new ConflictException('Unpublish the lecture before changing its resources');
+    }
+    const id = randomUUID();
+    const stored = await this.resourceStorage.store(id, dto.resource_type, file);
+    try {
+      return await this.resources.save(this.resources.create({
+        id,
+        lectureId,
+        resourceName: dto.resource_name.trim(),
+        resourceType: dto.resource_type,
+        uploadStatus: UploadStatus.COMPLETED,
+        fileUrl: `/api/v1/academic/resources/${id}/file`,
+        fileSize: String(stored.size),
+        storageKey: stored.storageKey,
+        originalFilename: stored.originalFilename,
+        mimeType: stored.mimeType,
+        checksumSha256: stored.checksum,
+        description: dto.description?.trim() || null,
+      }));
+    } catch (error) {
+      await this.resourceStorage.remove(stored.storageKey);
+      throw error;
+    }
+  }
+
+  async openResourceFile(id: string, role: UserRole) {
+    const resource = await this.resources.findOne({
+      where: { id },
+      relations: { lecture: true },
+    });
+    if (!resource) throw new NotFoundException('Resource not found');
+    await this.getLecture(resource.lectureId, role);
+    if (!resource.storageKey || !resource.mimeType || !resource.originalFilename) {
+      throw new NotFoundException('This resource has no managed file');
+    }
+    return {
+      stream: await this.resourceStorage.open(resource.storageKey),
+      mimeType: resource.mimeType,
+      filename: resource.originalFilename,
+      size: resource.fileSize,
+      checksum: resource.checksumSha256,
+    };
   }
 
   async listCourseInstructors(courseId: string): Promise<CourseInstructor[]> {
