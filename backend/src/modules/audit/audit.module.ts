@@ -1,2 +1,18 @@
-import { Module } from '@nestjs/common'; import { TypeOrmModule } from '@nestjs/typeorm'; import { AuditLog } from '../../common/entities/audit-log.entity'; import { AuditController } from './audit.controller';
-@Module({imports:[TypeOrmModule.forFeature([AuditLog])],controllers:[AuditController],exports:[TypeOrmModule]}) export class AuditModule {}
+import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuditLog } from '../../common/entities/audit-log.entity';
+import { AuditController } from './audit.controller';
+import { AuditInterceptor } from './audit.interceptor';
+import { AuditService } from './audit.service';
+
+@Module({
+ imports:[TypeOrmModule.forFeature([AuditLog])],
+ controllers:[AuditController],
+ providers:[
+  AuditService,
+  {provide:APP_INTERCEPTOR,useClass:AuditInterceptor},
+ ],
+ exports:[AuditService,TypeOrmModule],
+})
+export class AuditModule {}
