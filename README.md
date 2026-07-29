@@ -2,7 +2,7 @@
 
 My Doctor Professor is a medical-learning platform for students, instructors, and system administrators.
 
-This README is the authoritative implementation index. Detailed product and technical documents remain supporting references, but code must not be considered complete merely because a status document says so.
+This README is the repository entry point. Detailed project documentation is organized under [`docs/`](docs/README.md), but code must not be considered complete merely because a status document says so.
 
 ## Product output
 
@@ -81,7 +81,7 @@ The active backend rebuild is performed on `agent/backend-foundation-rebuild`.
 - [ ] Phase 3 — all modules and controller endpoint scaffolds
 - [ ] Phase 4 — all DTO contracts
 - [x] Phase 5 — academic workflows
-- [ ] Phase 6 — question-bank workflows
+- [x] Phase 6 — question-bank workflows
 - [ ] Phase 7 — assessment and grading workflows
 - [ ] Phase 8 — flashcard workflows
 - [ ] Phase 9 — progress, notifications, audit, and administration
