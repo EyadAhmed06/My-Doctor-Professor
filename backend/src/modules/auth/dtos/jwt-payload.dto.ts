@@ -5,6 +5,7 @@ export type TokenType = 'access' | 'refresh';
 export class JwtPayload {
   sub: string;
   sid: string;
+  jti: string;
   email: string;
   role: UserRole;
   tokenType: TokenType;
