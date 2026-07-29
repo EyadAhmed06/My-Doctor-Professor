@@ -15,6 +15,10 @@ export class Resource {
   @Column({ type: 'enum', enum: UploadStatus, enumName: 'upload_status', default: UploadStatus.UPLOADED, name: 'upload_status' }) uploadStatus: UploadStatus;
   @Column({ type: 'text', name: 'file_url' }) fileUrl: string;
   @Column({ type: 'bigint', nullable: true, name: 'file_size' }) fileSize: string | null;
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'storage_key' }) storageKey: string | null;
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'original_filename' }) originalFilename: string | null;
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'mime_type' }) mimeType: string | null;
+  @Column({ type: 'char', length: 64, nullable: true, name: 'checksum_sha256' }) checksumSha256: string | null;
   @Column({ type: 'text', nullable: true }) description: string | null;
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
