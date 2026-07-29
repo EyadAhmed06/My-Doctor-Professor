@@ -73,6 +73,7 @@ export class AuthService {
   }
 
   async requestEmailVerification(email: string, ip: string): Promise<MessageResponse> {
+    const startedAt = Date.now();
     await this.rateLimits.enforce(ip, email, 'verify-email');
     const user = await this.usersService.findByEmail(email);
     if (user && !user.emailVerified && user.status === UserStatus.PENDING_VERIFICATION) {
@@ -82,6 +83,7 @@ export class AuthService {
         this.verificationLifetimeSeconds,
       );
     }
+    await this.ensureMinimumResponseTime(startedAt);
     return { message: 'If the account is eligible, a verification email has been sent.' };
   }
 
@@ -116,6 +118,7 @@ export class AuthService {
   }
 
   async requestPasswordReset(email: string, ip: string): Promise<MessageResponse> {
+    const startedAt = Date.now();
     await this.rateLimits.enforce(ip, email, 'password-reset');
     const user = await this.usersService.findByEmail(email);
     if (
@@ -129,10 +132,18 @@ export class AuthService {
         this.resetLifetimeSeconds,
       );
     }
+    await this.ensureMinimumResponseTime(startedAt);
     return { message: 'If the account exists, a password reset email has been sent.' };
   }
 
-  async resetPassword(rawToken: string, newPassword: string): Promise<MessageResponse> {
+  async resetPassword(
+    rawToken: string,
+    newPassword: string,
+    confirmation: string,
+  ): Promise<MessageResponse> {
+    if (newPassword !== confirmation) {
+      throw new BadRequestException('Password confirmation does not match');
+    }
     const digest = this.digestToken(rawToken);
     const passwordHash = await this.usersService.hashPassword(newPassword);
 
@@ -354,6 +365,13 @@ export class AuthService {
         status: user.status,
       },
     };
+  }
+
+  private async ensureMinimumResponseTime(startedAt: number): Promise<void> {
+    const remaining = 300 - (Date.now() - startedAt);
+    if (remaining > 0) {
+      await new Promise<void>((resolve) => setTimeout(resolve, remaining));
+    }
   }
 
   private assertAccountEnabled(user: User): void {
