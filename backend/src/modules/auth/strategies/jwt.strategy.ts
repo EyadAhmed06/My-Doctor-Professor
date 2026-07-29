@@ -42,8 +42,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       session.userId !== user.id ||
       session.revokedAt ||
       session.expiresAt <= new Date() ||
-      user.status === UserStatus.SUSPENDED ||
-      user.status === UserStatus.DEACTIVATED
+      !user.emailVerified ||
+      user.status !== UserStatus.ACTIVE
     ) {
       throw new UnauthorizedException('Access session is no longer valid');
     }
