@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -20,6 +21,8 @@ import {
 
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(
     @InjectRepository(Notification)
     private readonly notifications:Repository<Notification>,
@@ -72,6 +75,49 @@ export class NotificationsService {
       ));
       return {...notification,recipients_count:dto.user_ids.length};
     });
+  }
+
+  async notifyUser(
+    userId:string,
+    event:Omit<CreateNotificationDto,'user_ids'>,
+    actor:AuthenticatedUser,
+  ):Promise<void> {
+    await this.tryCreate({...event,user_ids:[userId]},actor);
+  }
+
+  async notifyCourseStudents(
+    courseId:string,
+    event:Omit<CreateNotificationDto,'user_ids'>,
+    actor:AuthenticatedUser,
+  ):Promise<void> {
+    const rows=await this.dataSource.query(`
+      SELECT user_account.id
+      FROM users user_account
+      JOIN students student ON student.user_id=user_account.id
+      JOIN courses course ON course.semester_id IN (
+        SELECT semester.id FROM semesters semester
+        WHERE semester.semester_number=student.current_semester
+      )
+      WHERE course.id=$1
+        AND user_account.role='STUDENT'
+        AND user_account.status='ACTIVE'
+        AND user_account.email_verified=TRUE
+    `,[courseId]) as Array<{id:string}>;
+    const ids=rows.map((row)=>row.id);
+    for(let offset=0;offset<ids.length;offset+=500) {
+      await this.tryCreate({...event,user_ids:ids.slice(offset,offset+500)},actor);
+    }
+  }
+
+  private async tryCreate(dto:CreateNotificationDto,actor:AuthenticatedUser):Promise<void> {
+    try {
+      await this.create(dto,actor);
+    } catch(error) {
+      this.logger.error(
+        'Automatic notification delivery failed',
+        error instanceof Error?error.stack:undefined,
+      );
+    }
   }
 
   async list(query:NotificationQueryDto,userId:string) {
