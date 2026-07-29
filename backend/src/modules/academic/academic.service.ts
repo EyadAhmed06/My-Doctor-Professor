@@ -46,7 +46,7 @@ import {
   UploadedResourceFile,
 } from './resource-storage.service';
 
-interface Paginated<T> {
+export interface Paginated<T> {
   data: T[];
   page: number;
   limit: number;
