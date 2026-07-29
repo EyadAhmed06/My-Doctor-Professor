@@ -126,6 +126,7 @@ export class AdminService {
         await manager.save(Instructor,profile);
       }
       if(target.role===UserRole.SYSTEM_ADMIN) {
+        await manager.query("SELECT pg_advisory_xact_lock(hashtext('super-admin-invariant'))");
         const profile=await manager.findOne(SystemAdmin,{where:{userId:id},lock:{mode:'pessimistic_write'}});
         if(!profile) throw new ConflictException('Administrator profile is missing');
         if(dto.is_super_admin!==undefined) {
@@ -159,6 +160,7 @@ export class AdminService {
       const locked=await manager.findOne(User,{where:{id},lock:{mode:'pessimistic_write'}});
       if(!locked) throw new NotFoundException('User not found');
       if(target.role===UserRole.SYSTEM_ADMIN&&dto.status!==UserStatus.ACTIVE) {
+        await manager.query("SELECT pg_advisory_xact_lock(hashtext('super-admin-invariant'))");
         const profile=await manager.findOne(SystemAdmin,{where:{userId:id}});
         if(profile?.isSuperAdmin) await this.assertAnotherActiveSuperAdmin(id,manager);
       }
