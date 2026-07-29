@@ -46,7 +46,7 @@ CREATE TABLE student_course_progress (
 
     FOREIGN KEY (course_id)
         REFERENCES courses(id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
 
     CONSTRAINT uq_student_course
         UNIQUE(student_id, course_id),
@@ -92,16 +92,17 @@ CREATE TABLE student_lecture_progress (
 
     FOREIGN KEY (lecture_id)
         REFERENCES lectures(id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
 
     CONSTRAINT uq_student_lecture
         UNIQUE(student_id, lecture_id),
 
-    CONSTRAINT chk_lecture_completion
-        CHECK (
-            completion_percentage >= 0
-            AND completion_percentage <= 100
-        )
+    CONSTRAINT chk_lecture_completion CHECK (
+        completion_percentage >= 0 AND completion_percentage <= 100
+        AND time_spent_minutes >= 0
+        AND ((is_completed = FALSE AND completed_at IS NULL)
+          OR (is_completed = TRUE AND completion_percentage = 100 AND completed_at IS NOT NULL))
+    )
 
 );
 
@@ -143,16 +144,18 @@ CREATE TABLE student_topic_progress (
 
     FOREIGN KEY (topic_id)
         REFERENCES topics(id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
 
     CONSTRAINT uq_student_topic
         UNIQUE(student_id, topic_id),
 
-    CONSTRAINT chk_mastery
-        CHECK (
-            mastery_percentage >= 0
-            AND mastery_percentage <= 100
-        )
+    CONSTRAINT chk_mastery CHECK (
+        questions_attempted >= 0 AND questions_correct >= 0 AND questions_incorrect >= 0
+        AND questions_attempted = questions_correct + questions_incorrect
+        AND mastery_percentage >= 0 AND mastery_percentage <= 100
+        AND (confidence_level IS NULL OR (confidence_level >= 0 AND confidence_level <= 100))
+        AND (average_score IS NULL OR (average_score >= 0 AND average_score <= 100))
+    )
 
 );
 
@@ -192,10 +195,13 @@ CREATE TABLE student_question_progress (
 
     FOREIGN KEY (question_id)
         REFERENCES questions(id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
 
-    CONSTRAINT uq_student_question
-        UNIQUE(student_id, question_id)
+    CONSTRAINT uq_student_question UNIQUE(student_id, question_id),
+    CONSTRAINT chk_question_progress_counts CHECK (
+        attempts >= 0 AND correct_attempts >= 0 AND incorrect_attempts >= 0
+        AND attempts = correct_attempts + incorrect_attempts
+    )
 
 );
 
