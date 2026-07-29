@@ -251,7 +251,8 @@ export class FlashcardsService {
         if(state.reviewStreak===1) state.intervalDays=1;
         else if(state.reviewStreak===2) state.intervalDays=6;
         else {
-          const multiplier=dto.rating===ReviewRating.EASY?1.3:1;
+          const multiplier=dto.rating===ReviewRating.EASY?1.3:
+            dto.rating===ReviewRating.HARD?0.8:1;
           state.intervalDays=Math.max(1,Math.round(state.intervalDays*newEase*multiplier));
         }
       } else {
@@ -270,7 +271,7 @@ export class FlashcardsService {
   }
 
   private quality(rating:ReviewRating):number {
-    return {[ReviewRating.VERY_HARD]:1,[ReviewRating.HARD]:2,
+    return {[ReviewRating.VERY_HARD]:1,[ReviewRating.HARD]:3,
       [ReviewRating.GOOD]:4,[ReviewRating.EASY]:5}[rating];
   }
 
