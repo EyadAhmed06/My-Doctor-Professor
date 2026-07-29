@@ -38,6 +38,7 @@ jobs:
       - run: npm run build
       - run: npm run lint
       - run: npm test -- --runInBand
+      - run: npm audit --omit=dev --audit-level=high
 
   postgres:
     name: PostgreSQL bootstrap, migrations, drift
@@ -101,3 +102,17 @@ jobs:
           grep -qi "schema is up to date" /tmp/schema-log.txt
       - name: Run PostgreSQL integration and concurrency tests
         run: npm run test:e2e -- --runInBand
+      - name: Run readiness load smoke
+        run: |
+          set -euo pipefail
+          npm run build
+          npm run start:prod >/tmp/backend.log 2>&1 &
+          backend_pid=$!
+          trap 'kill "${backend_pid}" 2>/dev/null || true; cat /tmp/backend.log' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:3000/api/v1/health/ready >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          LOAD_TEST_REQUESTS=500 LOAD_TEST_CONCURRENCY=20 LOAD_TEST_MAX_P95_MS=500             node scripts/load-smoke.mjs
