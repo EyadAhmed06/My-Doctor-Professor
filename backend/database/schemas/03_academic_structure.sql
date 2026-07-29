@@ -181,6 +181,14 @@ CREATE TABLE resources (
 
     file_size BIGINT,
 
+    storage_key VARCHAR(255),
+
+    original_filename VARCHAR(255),
+
+    mime_type VARCHAR(100),
+
+    checksum_sha256 CHAR(64),
+
     description TEXT,
 
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -229,3 +237,7 @@ CREATE TABLE course_instructors (
 
 CREATE INDEX idx_course_instructors_instructor
 ON course_instructors(instructor_id);
+
+
+CREATE UNIQUE INDEX uq_resources_storage_key
+ON resources(storage_key) WHERE storage_key IS NOT NULL;
