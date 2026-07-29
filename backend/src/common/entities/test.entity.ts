@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-import { Instructor } from '../../modules/users/entities/instructor.entity';
+import { User } from '../../modules/users/entities/user.entity';
 import { Course } from './course.entity';
 import { Lecture } from './lecture.entity';
 import { Week } from './week.entity';
@@ -31,7 +31,7 @@ export class Test {
   @ManyToOne(()=>Course,{onDelete:'SET NULL',nullable:true}) @JoinColumn({name:'course_id'}) course:Course|null;
   @ManyToOne(()=>Week,{onDelete:'SET NULL',nullable:true}) @JoinColumn({name:'week_id'}) week:Week|null;
   @ManyToOne(()=>Lecture,{onDelete:'SET NULL',nullable:true}) @JoinColumn({name:'lecture_id'}) lecture:Lecture|null;
-  @ManyToOne(()=>Instructor,{onDelete:'RESTRICT'}) @JoinColumn({name:'created_by'}) creator:Instructor;
+  @ManyToOne(()=>User,{onDelete:'RESTRICT'}) @JoinColumn({name:'created_by'}) creator:User;
   @OneToMany(()=>TestQuestion,(item)=>item.test) questions:TestQuestion[];
   @OneToMany(()=>TestAttempt,(attempt)=>attempt.test) attempts:TestAttempt[];
 }
