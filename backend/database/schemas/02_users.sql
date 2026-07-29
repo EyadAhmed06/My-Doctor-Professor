@@ -155,6 +155,28 @@ CREATE TABLE auth_sessions (
 
 );
 
+CREATE TABLE account_action_tokens (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    purpose VARCHAR(30) NOT NULL,
+    token_digest CHAR(64) NOT NULL UNIQUE,
+    expires_at TIMESTAMP NOT NULL,
+    consumed_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+
+    CONSTRAINT chk_account_action_token_purpose
+        CHECK (purpose IN ('EMAIL_VERIFICATION', 'PASSWORD_RESET'))
+);
+
+CREATE INDEX idx_account_action_tokens_user_purpose
+ON account_action_tokens(user_id, purpose);
+
+CREATE INDEX idx_account_action_tokens_expiry
+ON account_action_tokens(expires_at);
+
 CREATE INDEX idx_auth_sessions_user
 ON auth_sessions(user_id);
 
