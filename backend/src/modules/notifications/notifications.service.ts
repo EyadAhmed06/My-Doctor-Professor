@@ -139,7 +139,7 @@ export class NotificationsService {
   private assertTargetUrl(value?:string) {
     if(value===undefined) return;
     const target=value.trim();
-    if(!target.startsWith('/')||target.startsWith('//')||target.includes('\\')) {
+    if(!target.startsWith('/')||target.startsWith('//')||target.includes('\\')||/[\s\u0000-\u001F]/.test(target)) {
       throw new BadRequestException('target_url must be a safe internal application path');
     }
   }
