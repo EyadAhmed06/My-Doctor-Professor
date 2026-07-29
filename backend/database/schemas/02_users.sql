@@ -177,6 +177,39 @@ ON account_action_tokens(user_id, purpose);
 CREATE INDEX idx_account_action_tokens_expiry
 ON account_action_tokens(expires_at);
 
+CREATE TABLE email_outbox (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    encrypted_payload TEXT NOT NULL,
+    encryption_iv VARCHAR(24) NOT NULL,
+    encryption_tag VARCHAR(32) NOT NULL,
+    attempts SMALLINT NOT NULL DEFAULT 0,
+    next_attempt_at TIMESTAMP,
+    sent_at TIMESTAMP,
+    last_error TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT chk_email_outbox_attempts
+        CHECK (attempts >= 0 AND attempts <= 5)
+);
+
+CREATE INDEX idx_email_outbox_pending
+ON email_outbox(sent_at, next_attempt_at);
+
+CREATE TABLE auth_rate_limits (
+
+    limit_key CHAR(64) PRIMARY KEY,
+    window_started_at TIMESTAMP NOT NULL,
+    request_count INTEGER NOT NULL DEFAULT 0,
+    expires_at TIMESTAMP NOT NULL,
+
+    CONSTRAINT chk_auth_rate_limit_count
+        CHECK (request_count >= 0)
+);
+
+CREATE INDEX idx_auth_rate_limits_expiry
+ON auth_rate_limits(expires_at);
+
 CREATE INDEX idx_auth_sessions_user
 ON auth_sessions(user_id);
 
