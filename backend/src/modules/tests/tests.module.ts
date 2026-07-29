@@ -1,2 +1,27 @@
-import { Module } from '@nestjs/common'; import { TypeOrmModule } from '@nestjs/typeorm'; import { QuestionFlag } from '../../common/entities/question-flag.entity'; import { QuestionNote } from '../../common/entities/question-note.entity'; import { StudentAnswer } from '../../common/entities/student-answer.entity'; import { TestAttempt } from '../../common/entities/test-attempt.entity'; import { TestQuestion } from '../../common/entities/test-question.entity'; import { Test } from '../../common/entities/test.entity'; import { TestsController } from './tests.controller';
-@Module({imports:[TypeOrmModule.forFeature([Test,TestQuestion,TestAttempt,StudentAnswer,QuestionFlag,QuestionNote])],controllers:[TestsController],exports:[TypeOrmModule]}) export class TestsModule {}
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Course } from '../../common/entities/course.entity';
+import { Lecture } from '../../common/entities/lecture.entity';
+import { McqOption } from '../../common/entities/mcq-option.entity';
+import { QuestionFlag } from '../../common/entities/question-flag.entity';
+import { QuestionNote } from '../../common/entities/question-note.entity';
+import { Question } from '../../common/entities/question.entity';
+import { StudentAnswer } from '../../common/entities/student-answer.entity';
+import { TestAttempt } from '../../common/entities/test-attempt.entity';
+import { TestQuestion } from '../../common/entities/test-question.entity';
+import { Test } from '../../common/entities/test.entity';
+import { Week } from '../../common/entities/week.entity';
+import { Student } from '../users/entities/student.entity';
+import { TestsController } from './tests.controller';
+import { TestsService } from './tests.service';
+
+@Module({
+ imports:[TypeOrmModule.forFeature([
+  Test,TestQuestion,TestAttempt,StudentAnswer,QuestionFlag,QuestionNote,
+  Question,McqOption,Course,Week,Lecture,Student,
+ ])],
+ controllers:[TestsController],
+ providers:[TestsService],
+ exports:[TestsService,TypeOrmModule],
+})
+export class TestsModule {}
