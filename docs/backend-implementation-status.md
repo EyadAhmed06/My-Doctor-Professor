@@ -51,9 +51,22 @@
 - Transactional, idempotent attempt finalization
 - PostgreSQL constraints and migration-safe schema alignment
 
+### Flashcards and spaced repetition
+
+- Instructor-owned and administrator-managed decks
+- Canonical course, lecture, and topic scope validation
+- Draft/publish lifecycle and active-card requirements
+- Reviewed-card immutability and protected deletion
+- Student-only progress ownership
+- Due-card pagination and filtering
+- Serialized concurrent reviews
+- SM-2-style ease-factor and interval scheduling
+- Recall streaks, correctness counts, mastery, and mastery revocation
+- PostgreSQL constraints, indexes, and migration-safe schema alignment
+
 ## Next domain
 
-Flashcard decks, cards, per-student review state, and spaced-repetition scheduling.
+Student progress and analytics, followed by notifications, audit, and administration.
 
 ## Scope constraints
 
