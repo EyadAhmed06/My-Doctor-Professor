@@ -153,7 +153,7 @@ export class AuthService {
       if (!user || user.status === UserStatus.DEACTIVATED) {
         throw new BadRequestException('Invalid or expired password reset token');
       }
-      if (await bcrypt.compare(newPassword, user.passwordHash)) {
+      if (await this.usersService.validatePassword(newPassword, user.passwordHash)) {
         throw new BadRequestException('New password must be different from the current password');
       }
 
@@ -201,6 +201,9 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
+    if (this.usersService.passwordHashNeedsUpgrade(user.passwordHash)) {
+      await this.usersService.upgradePasswordHash(user.id, dto.password);
+    }
     await this.usersService.resetFailedLoginAttempts(user.id);
     await this.usersService.updateLastLogin(user.id);
     return this.createSession(user);
