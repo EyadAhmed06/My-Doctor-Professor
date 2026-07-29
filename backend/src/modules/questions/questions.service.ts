@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -89,6 +90,9 @@ export class QuestionsService {
     const builder = this.questions
       .createQueryBuilder('question')
       .leftJoinAndSelect('question.topic', 'topic')
+      .leftJoin('topic.lecture', 'lecture')
+      .leftJoin('lecture.week', 'week')
+      .leftJoin('week.course', 'course')
       .leftJoinAndSelect('question.questionTags', 'questionTag')
       .leftJoinAndSelect('questionTag.tag', 'tag')
       .orderBy('question.created_at', 'DESC')
@@ -96,7 +100,10 @@ export class QuestionsService {
       .take(limit);
 
     if (actor.role === UserRole.STUDENT) {
-      builder.andWhere('question.is_active = TRUE');
+      builder
+        .andWhere('question.is_active = TRUE')
+        .andWhere('lecture.is_published = TRUE')
+        .andWhere('course.is_active = TRUE');
     } else if (query.is_active !== undefined) {
       builder.andWhere('question.is_active = :active', {
         active: query.is_active,
@@ -184,6 +191,13 @@ export class QuestionsService {
     actor: AuthenticatedUser,
   ) {
     const question = await this.requireMutableQuestion(id, actor);
+    if (Object.keys(dto).length === 0) {
+      throw new BadRequestException('At least one question field must be provided');
+    }
+    const changesContent = Object.keys(dto).some((key) => key !== 'is_active');
+    if (question.isActive && changesContent && dto.is_active !== false) {
+      throw new ConflictException('Deactivate the question before changing its content');
+    }
     if (dto.title !== undefined) question.title = dto.title.trim() || null;
     if (dto.question_text !== undefined) {
       question.questionText = dto.question_text.trim();
@@ -210,6 +224,9 @@ export class QuestionsService {
 
   async remove(id: string, actor: AuthenticatedUser): Promise<void> {
     const question = await this.requireMutableQuestion(id, actor);
+    if (question.isActive) {
+      throw new ConflictException('Deactivate the question before deleting it');
+    }
     try {
       await this.questions.remove(question);
     } catch (error) {
@@ -373,6 +390,9 @@ export class QuestionsService {
     actor: AuthenticatedUser,
   ) {
     const question = await this.requireMutableQuestion(questionId, actor);
+    if (Object.keys(dto).length === 0) {
+      throw new BadRequestException('At least one essay configuration field must be provided');
+    }
     if (question.questionType !== QuestionType.ESSAY) {
       throw new ConflictException('MCQ questions cannot have essay configuration');
     }
