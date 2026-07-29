@@ -53,8 +53,11 @@ export class AcademicController {
   }
 
   @Get('semesters/:semesterId')
-  getSemester(@Param('semesterId', uuid) id: string) {
-    return this.academic.getSemester(id);
+  getSemester(
+    @Param('semesterId', uuid) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.academic.getSemester(id, user.role);
   }
 
   @Put('semesters/:semesterId')
