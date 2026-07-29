@@ -1,5 +1,6 @@
+import { UserRole } from '../users/entities/user.entity';
 import { Body, Controller, Delete, Get, NotImplementedException, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common'; import { Roles } from '../auth/decorators/roles.decorator'; import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'; import { RolesGuard } from '../auth/guards/roles.guard';
-@Controller('admin') @UseGuards(JwtAuthGuard,RolesGuard) @Roles('SYSTEM_ADMIN')
+@Controller('admin') @UseGuards(JwtAuthGuard,RolesGuard) @Roles(UserRole.SYSTEM_ADMIN)
 export class AdminController {private pending():never{throw new NotImplementedException('Administration workflow will be implemented after DTO contracts');}
  @Get('users') listUsers(@Query() _query:Record<string,string>){return this.pending();} @Post('users') createUser(@Body() _body:unknown){return this.pending();} @Get('users/:userId') getUser(@Param('userId') _id:string){return this.pending();} @Put('users/:userId') updateUser(@Param('userId') _id:string,@Body() _body:unknown){return this.pending();} @Patch('users/:userId/status') updateStatus(@Param('userId') _id:string,@Body() _body:unknown){return this.pending();} @Post('users/:userId/reset-password') resetPassword(@Param('userId') _id:string){return this.pending();} @Delete('users/:userId') removeUser(@Param('userId') _id:string){return this.pending();} @Post('users/import') importUsers(@Body() _body:unknown){return this.pending();} @Get('statistics') statistics(@Query() _query:Record<string,string>){return this.pending();}
 }
