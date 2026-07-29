@@ -11,7 +11,7 @@ import {
   randomBytes,
 } from 'crypto';
 import * as nodemailer from 'nodemailer';
-import { DataSource, EntityManager, IsNull, LessThan } from 'typeorm';
+import { DataSource, EntityManager, LessThan } from 'typeorm';
 import { AuthRateLimit } from './entities/auth-rate-limit.entity';
 import { AccountActionToken } from './entities/account-action-token.entity';
 import { EmailOutbox } from './entities/email-outbox.entity';
@@ -196,10 +196,12 @@ export class EmailService implements OnModuleInit, OnModuleDestroy {
     const retention = new Date(Date.now() - 7 * 24 * 60 * 60_000);
     const outboxRetention = new Date(Date.now() - 30 * 24 * 60 * 60_000);
     await Promise.all([
-      this.dataSource.getRepository(AccountActionToken).delete([
-        { expiresAt: LessThan(retention) },
-        { consumedAt: LessThan(retention) },
-      ]),
+      this.dataSource
+        .getRepository(AccountActionToken)
+        .createQueryBuilder()
+        .delete()
+        .where('expires_at < :retention OR consumed_at < :retention', { retention })
+        .execute(),
       this.dataSource.getRepository(AuthRateLimit).delete({ expiresAt: LessThan(now) }),
       this.dataSource.getRepository(EmailOutbox).delete({
         sentAt: LessThan(outboxRetention),
