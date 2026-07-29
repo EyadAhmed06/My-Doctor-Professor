@@ -6,6 +6,7 @@ import { Flashcard } from './flashcard.entity';
 @Unique('uq_student_flashcard',['studentId','flashcardId'])
 @Index('idx_student_flashcards_student',['studentId'])
 @Index('idx_student_flashcards_flashcard',['flashcardId'])
+@Index('idx_student_flashcards_due',['studentId','nextReviewAt'])
 export class StudentFlashcardProgress {
  @PrimaryGeneratedColumn('uuid') id:string;
  @Column('uuid',{name:'student_id'}) studentId:string;
