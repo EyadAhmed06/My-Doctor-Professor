@@ -116,9 +116,11 @@
 - Platform statistics
 - Repaired canonical user service and completed self-service profile/password endpoints
 
-## Next phase
+## Release status
 
-Final cross-module consistency review and deployment-readiness documentation. Runtime test execution and frontend implementation remain outside the agreed scope.
+The cross-module static review is complete and immediate authentication, PostgreSQL enum, and database TLS defects were corrected. The backend is **not yet release-green** because build, clean-database, migration, integration, concurrency, and load/security gates have not been executed in CI. See [Full Backend Audit and Release Gate](FULL_BACKEND_AUDIT.md).
+
+The resource-upload product workflow, automatic cross-domain notifications, health/readiness checks, and production environment validation also remain open product work.
 
 ## Scope constraints
 
