@@ -10,6 +10,7 @@ import { DataSource, Repository } from 'typeorm';
 import { Course } from '../../common/entities/course.entity';
 import { Lecture } from '../../common/entities/lecture.entity';
 import { McqOption } from '../../common/entities/mcq-option.entity';
+import { NotificationType } from '../../common/entities/notification.entity';
 import { QuestionFlag } from '../../common/entities/question-flag.entity';
 import { QuestionNote } from '../../common/entities/question-note.entity';
 import { Question, QuestionType } from '../../common/entities/question.entity';
@@ -23,6 +24,7 @@ import { TestQuestion } from '../../common/entities/test-question.entity';
 import { Test, TestType } from '../../common/entities/test.entity';
 import { Week } from '../../common/entities/week.entity';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { NotificationsService } from '../notifications/notifications.service';
 import { Student } from '../users/entities/student.entity';
 import { UserRole } from '../users/entities/user.entity';
 import {
@@ -52,6 +54,7 @@ export class TestsService {
     @InjectRepository(Lecture) private readonly lectures: Repository<Lecture>,
     @InjectRepository(Student) private readonly students: Repository<Student>,
     private readonly dataSource: DataSource,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async create(dto: CreateTestDto, actor: AuthenticatedUser) {
@@ -107,6 +110,7 @@ export class TestsService {
 
   async update(id: string, dto: UpdateTestDto, actor: AuthenticatedUser) {
     const test = await this.requireOwnedTest(id, actor);
+    const wasPublished = test.isPublished;
     if (Object.keys(dto).length === 0) throw new BadRequestException('At least one test field must be provided');
     const attemptCount = await this.attempts.count({ where: { testId: id } });
     const changesDefinition = Object.keys(dto).some((key) => key !== 'is_published');
@@ -129,7 +133,16 @@ export class TestsService {
       if (dto.is_published) await this.assertPublishable(test);
       test.isPublished = dto.is_published;
     }
-    return this.tests.save(test);
+    const saved = await this.tests.save(test);
+    if (!wasPublished && saved.isPublished && saved.courseId) {
+      await this.notifications.notifyCourseStudents(saved.courseId, {
+        title: 'New assessment available',
+        message: saved.title,
+        target_url: `/tests/${saved.id}`,
+        notification_type: NotificationType.TEST,
+      }, actor);
+    }
+    return saved;
   }
 
   async remove(id: string, actor: AuthenticatedUser): Promise<void> {
@@ -378,6 +391,12 @@ export class TestsService {
     answer.gradedAt = new Date();
     await this.answers.save(answer);
     await this.recalculateScore(attempt);
+    await this.notifications.notifyUser(attempt.studentId, {
+      title: 'Assessment grade updated',
+      message: `Feedback is available for ${attempt.test.title}.`,
+      target_url: `/tests/attempts/${attempt.id}/review`,
+      notification_type: NotificationType.GRADE,
+    }, actor);
     return answer;
   }
 
