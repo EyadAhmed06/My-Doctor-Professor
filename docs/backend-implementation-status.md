@@ -77,9 +77,21 @@
 - Instructor ownership boundaries and administrator-wide reporting
 - PostgreSQL retention constraints and migration-safe entity alignment
 
+### Notifications
+
+- Instructor and administrator notification creation
+- Active-recipient validation and instructor-to-student boundaries
+- Transactional fan-out to recipient inbox rows
+- Paginated inbox filtering by status and type
+- Per-user unread counts
+- Idempotent single and bulk read transitions
+- Per-user deletion without removing shared notifications
+- Safe internal target paths without open redirects
+- PostgreSQL read-state constraints and inbox indexes
+
 ## Next domain
 
-Notifications, followed by audit and administration.
+Immutable audit logging, followed by administration.
 
 ## Scope constraints
 
