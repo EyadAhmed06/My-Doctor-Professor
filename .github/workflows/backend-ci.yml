@@ -99,3 +99,5 @@ jobs:
           set -euo pipefail
           npm run schema:log 2>&1 | tee /tmp/schema-log.txt
           grep -qi "schema is up to date" /tmp/schema-log.txt
+      - name: Run PostgreSQL integration and concurrency tests
+        run: npm run test:e2e -- --runInBand
