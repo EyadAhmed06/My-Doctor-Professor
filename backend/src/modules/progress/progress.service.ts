@@ -356,7 +356,7 @@ export class ProgressService {
             MAX(progress.last_attempted_at) AS last_practiced
           FROM student_question_progress progress
           JOIN questions question ON question.id=progress.question_id
-          WHERE progress.student_id=$1
+          WHERE progress.student_id=$1 AND progress.attempts>0
           GROUP BY question.topic_id
         ) aggregated
         JOIN (
