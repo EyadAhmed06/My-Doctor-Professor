@@ -1,3 +1,5 @@
+> **Legacy planning document.** The implemented contract is maintained in [API_SPECIFICATION.md](API_SPECIFICATION.md). Paths or response examples below may be obsolete.
+
 # COMPLETE API SPECIFICATION
 
 **Project:** My Doctor Professor  
