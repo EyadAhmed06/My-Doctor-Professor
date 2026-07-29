@@ -11,12 +11,13 @@ import { TestAttempt } from '../../common/entities/test-attempt.entity';
 import { TestQuestion } from '../../common/entities/test-question.entity';
 import { Test } from '../../common/entities/test.entity';
 import { Week } from '../../common/entities/week.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { Student } from '../users/entities/student.entity';
 import { TestsController } from './tests.controller';
 import { TestsService } from './tests.service';
 
 @Module({
- imports:[TypeOrmModule.forFeature([
+ imports:[NotificationsModule,TypeOrmModule.forFeature([
   Test,TestQuestion,TestAttempt,StudentAnswer,QuestionFlag,QuestionNote,
   Question,McqOption,Course,Week,Lecture,Student,
  ])],
