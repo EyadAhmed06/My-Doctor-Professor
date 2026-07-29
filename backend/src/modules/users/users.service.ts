@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { DataSource, QueryFailedError, Repository } from 'typeorm';
@@ -149,8 +149,30 @@ export class UsersService {
     return this.sessionsRepository.findOne({ where: { id } });
   }
 
-  async rotateSession(id: string, refreshTokenHash: string, expiresAt: Date): Promise<void> {
-    await this.sessionsRepository.update({ id }, { refreshTokenHash, expiresAt, lastUsedAt: new Date() });
+  async rotateSessionSecure(
+    id: string,
+    presentedToken: string,
+    refreshTokenHash: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      const session = await manager.findOne(AuthSession, {
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!session || session.revokedAt || session.expiresAt <= new Date()) {
+        throw new UnauthorizedException('Refresh session is no longer valid');
+      }
+      if (!(await bcrypt.compare(presentedToken, session.refreshTokenHash))) {
+        session.revokedAt = new Date();
+        await manager.save(AuthSession, session);
+        throw new UnauthorizedException('Refresh token reuse detected; session revoked');
+      }
+      session.refreshTokenHash = refreshTokenHash;
+      session.expiresAt = expiresAt;
+      session.lastUsedAt = new Date();
+      await manager.save(AuthSession, session);
+    });
   }
 
   async revokeSession(id: string): Promise<void> {
