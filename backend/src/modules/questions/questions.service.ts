@@ -331,6 +331,11 @@ export class QuestionsService {
     if (question.isActive) {
       throw new ConflictException('Deactivate the question before changing its options');
     }
+    const optionCount = await this.options.count({ where: { questionId } });
+    if (optionCount >= 4) {
+      throw new ConflictException('An MCQ cannot contain more than four options');
+    }
+    await this.assertOptionTextUnique(questionId, dto.option_text);
     const option = this.options.create({
       questionId,
       optionText: dto.option_text.trim(),
@@ -355,11 +360,17 @@ export class QuestionsService {
       relations: { question: true },
     });
     if (!option) throw new NotFoundException('Option not found');
+    if (Object.keys(dto).length === 0) {
+      throw new BadRequestException('At least one option field must be provided');
+    }
     this.assertOwner(option.question, actor);
     if (option.question.isActive) {
       throw new ConflictException('Deactivate the question before changing its options');
     }
-    if (dto.option_text !== undefined) option.optionText = dto.option_text.trim();
+    if (dto.option_text !== undefined) {
+      await this.assertOptionTextUnique(option.questionId, dto.option_text, option.id);
+      option.optionText = dto.option_text.trim();
+    }
     if (dto.is_correct !== undefined) option.isCorrect = dto.is_correct;
     if (dto.display_order !== undefined) option.displayOrder = dto.display_order;
     const saved = await this.saveUnique(
@@ -537,11 +548,11 @@ export class QuestionsService {
       if (options.length < 2) {
         throw new ConflictException('An active MCQ requires at least two options');
       }
-      if (!options.some((option) => option.isCorrect)) {
-        throw new ConflictException('An active MCQ requires a correct option');
+      if (options.length > 4) {
+        throw new ConflictException('An active MCQ cannot contain more than four options');
       }
-      if (options.every((option) => option.isCorrect)) {
-        throw new ConflictException('An MCQ must include at least one incorrect option');
+      if (options.filter((option) => option.isCorrect).length !== 1) {
+        throw new ConflictException('An active MCQ requires exactly one correct option');
       }
       return;
     }
@@ -598,6 +609,25 @@ export class QuestionsService {
   private assertMcq(question: Question): void {
     if (question.questionType !== QuestionType.MCQ) {
       throw new ConflictException('Essay questions cannot have MCQ options');
+    }
+  }
+
+  private async assertOptionTextUnique(
+    questionId: string,
+    optionText: string,
+    excludedOptionId?: string,
+  ): Promise<void> {
+    const builder = this.options
+      .createQueryBuilder('option')
+      .where('option.question_id = :questionId', { questionId })
+      .andWhere('LOWER(TRIM(option.option_text)) = LOWER(TRIM(:optionText))', {
+        optionText,
+      });
+    if (excludedOptionId) {
+      builder.andWhere('option.id <> :excludedOptionId', { excludedOptionId });
+    }
+    if (await builder.getExists()) {
+      throw new ConflictException('MCQ option text must be unique within the question');
     }
   }
 
