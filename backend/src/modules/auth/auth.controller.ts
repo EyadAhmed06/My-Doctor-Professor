@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
@@ -43,6 +43,8 @@ export class AuthController {
   }
 
   @Post('email-verification/confirm')
+  @Header('Cache-Control', 'no-store')
+  @Header('Referrer-Policy', 'no-referrer')
   confirmEmailVerification(@Body() dto: ConfirmEmailVerificationDto): Promise<MessageResponse> {
     return this.authService.confirmEmailVerification(dto.token);
   }
@@ -57,6 +59,8 @@ export class AuthController {
   }
 
   @Post('password/reset')
+  @Header('Cache-Control', 'no-store')
+  @Header('Referrer-Policy', 'no-referrer')
   resetPassword(@Body() dto: ResetPasswordDto): Promise<MessageResponse> {
     return this.authService.resetPassword(dto.token, dto.new_password, dto.confirm_password);
   }
