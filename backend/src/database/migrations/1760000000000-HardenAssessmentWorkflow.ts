@@ -50,7 +50,7 @@ export class HardenAssessmentWorkflow1760000000000 implements MigrationInterface
       ALTER TABLE test_attempts ADD CONSTRAINT fk_test_attempts_test_restrict
         FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE RESTRICT;
 
-      DO $ DECLARE table_name text; constraint_name text;
+      DO $$ DECLARE target_table text; constraint_name text;
       BEGIN
         FOREACH target_table IN ARRAY ARRAY['student_answers', 'question_flags', 'question_notes']
         LOOP
@@ -65,11 +65,11 @@ export class HardenAssessmentWorkflow1760000000000 implements MigrationInterface
           END IF;
           EXECUTE format(
             'ALTER TABLE %I ADD CONSTRAINT fk_%s_question_restrict FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE RESTRICT',
-            table_name, table_name
+            target_table, target_table
           );
           constraint_name := NULL;
         END LOOP;
-      END $;
+      END $$;
 
       ALTER TABLE student_answers
         ADD COLUMN IF NOT EXISTS feedback TEXT,
