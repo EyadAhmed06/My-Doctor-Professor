@@ -147,3 +147,14 @@ export class CreateResourceDto {
   @IsOptional() @IsString()
   description?: string;
 }
+
+export class UploadResourceDto {
+  @IsString() @IsNotEmpty() @MaxLength(200)
+  resource_name: string;
+
+  @IsEnum(ResourceType)
+  resource_type: ResourceType;
+
+  @IsOptional() @IsString() @MaxLength(5000)
+  description?: string;
+}
