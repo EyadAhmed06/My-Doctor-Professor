@@ -344,7 +344,7 @@ export class TestsService {
   }
 
   async unflag(attemptId: string, questionId: string, actor: AuthenticatedUser): Promise<void> {
-    const attempt = await this.requireStudentOpenAttempt(attemptId, actor);
+    await this.requireStudentOpenAttempt(attemptId, actor);
     const flag = await this.flags.findOne({ where: { attemptId, questionId } });
     if (!flag) throw new NotFoundException('Question flag not found');
     await this.flags.remove(flag);
