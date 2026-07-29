@@ -66,8 +66,9 @@ export class AuditInterceptor implements NestInterceptor {
       result&&typeof result==='object'?(result as Record<string,unknown>).id:null,
       ...Object.values(params??{}),
     ];
-    return candidates.find((value)=>typeof value==='string'&&
-      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) as string|undefined??null;
+    const found=candidates.find((value)=>typeof value==='string'&&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value));
+    return typeof found==='string'?found:null;
   }
 
   private responseUserId(result:unknown):string|null {
