@@ -1,8 +1,49 @@
-import { IsBoolean, IsDateString, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min } from 'class-validator'; import { TestMode } from '../../../common/entities/test-attempt.entity'; import { TestType } from '../../../common/entities/test.entity';
-export class CreateTestDto { @IsString() @IsNotEmpty() @MaxLength(200) title:string; @IsOptional() @IsString() description?:string; @IsEnum(TestType) test_type:TestType; @IsOptional() @IsUUID() course_id?:string; @IsOptional() @IsUUID() week_id?:string; @IsOptional() @IsUUID() lecture_id?:string; @IsOptional() @IsInt() @Min(1) duration_minutes?:number; @IsOptional() @IsNumber() @Min(0) passing_marks?:number; @IsOptional() @IsDateString() available_from?:string; @IsOptional() @IsDateString() available_until?:string; }
-export class UpdateTestDto { @IsOptional() @IsString() @MaxLength(200) title?:string; @IsOptional() @IsString() description?:string; @IsOptional() @IsInt() @Min(1) duration_minutes?:number; @IsOptional() @IsNumber() @Min(0) passing_marks?:number; @IsOptional() @IsBoolean() is_published?:boolean; @IsOptional() @IsDateString() available_from?:string; @IsOptional() @IsDateString() available_until?:string; }
-export class AddTestQuestionDto { @IsUUID() question_id:string; @IsInt() @Min(1) display_order:number; @IsNumber() @Min(0.01) marks:number; @IsOptional() @IsInt() @Min(1) time_limit_seconds?:number; }
+import { Transform } from 'class-transformer';
+import { IsBoolean, IsDateString, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { TestMode } from '../../../common/entities/test-attempt.entity';
+import { TestType } from '../../../common/entities/test.entity';
+
+export class CreateTestDto {
+ @IsString() @IsNotEmpty() @MaxLength(200) title:string;
+ @IsOptional() @IsString() description?:string;
+ @IsEnum(TestType) test_type:TestType;
+ @IsOptional() @IsUUID() course_id?:string;
+ @IsOptional() @IsUUID() week_id?:string;
+ @IsOptional() @IsUUID() lecture_id?:string;
+ @IsOptional() @IsInt() @Min(1) duration_minutes?:number;
+ @IsOptional() @IsNumber({maxDecimalPlaces:2}) @Min(0) passing_marks?:number;
+ @IsOptional() @IsDateString() available_from?:string;
+ @IsOptional() @IsDateString() available_until?:string;
+}
+export class UpdateTestDto {
+ @IsOptional() @IsString() @IsNotEmpty() @MaxLength(200) title?:string;
+ @IsOptional() @IsString() description?:string;
+ @IsOptional() @IsInt() @Min(1) duration_minutes?:number;
+ @IsOptional() @IsNumber({maxDecimalPlaces:2}) @Min(0) passing_marks?:number;
+ @IsOptional() @IsBoolean() is_published?:boolean;
+ @IsOptional() @IsDateString() available_from?:string;
+ @IsOptional() @IsDateString() available_until?:string;
+}
+export class TestQueryDto {
+ @IsOptional() @Transform(({value})=>Number(value)) @IsInt() @Min(1) page?:number;
+ @IsOptional() @Transform(({value})=>Number(value)) @IsInt() @Min(1) @Max(100) limit?:number;
+ @IsOptional() @IsEnum(TestType) test_type?:TestType;
+ @IsOptional() @IsUUID() course_id?:string;
+ @IsOptional() @Transform(({value})=>value==='true'?true:value==='false'?false:value) @IsBoolean() is_published?:boolean;
+}
+export class AddTestQuestionDto {
+ @IsUUID() question_id:string;
+ @IsInt() @Min(1) display_order:number;
+ @IsNumber({maxDecimalPlaces:2}) @Min(0.01) marks:number;
+ @IsOptional() @IsInt() @Min(1) time_limit_seconds?:number;
+}
 export class StartTestAttemptDto { @IsEnum(TestMode) test_mode:TestMode; }
-export class SaveAnswerDto { @IsOptional() @IsUUID() selected_option_id?:string; @IsOptional() @IsString() essay_answer?:string; }
-export class QuestionNoteDto { @IsString() @IsNotEmpty() note:string; }
-export class GradeEssayDto { @IsNumber() @Min(0) awarded_marks:number; @IsOptional() @IsString() feedback?:string; }
+export class SaveAnswerDto {
+ @IsOptional() @IsUUID() selected_option_id?:string;
+ @IsOptional() @IsString() @MaxLength(50000) essay_answer?:string;
+}
+export class QuestionNoteDto { @IsString() @IsNotEmpty() @MaxLength(5000) note:string; }
+export class GradeEssayDto {
+ @IsNumber({maxDecimalPlaces:2}) @Min(0) awarded_marks:number;
+ @IsOptional() @IsString() @MaxLength(10000) feedback?:string;
+}
