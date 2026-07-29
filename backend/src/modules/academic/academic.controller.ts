@@ -42,7 +42,7 @@ export class AcademicController {
   constructor(private readonly academic: AcademicService) {}
 
   @Post('semesters')
-  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  @Roles(UserRole.SYSTEM_ADMIN)
   createSemester(@Body() dto: CreateSemesterDto) {
     return this.academic.createSemester(dto);
   }
@@ -61,7 +61,7 @@ export class AcademicController {
   }
 
   @Put('semesters/:semesterId')
-  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  @Roles(UserRole.SYSTEM_ADMIN)
   updateSemester(
     @Param('semesterId', uuid) id: string,
     @Body() dto: UpdateSemesterDto,
@@ -81,8 +81,9 @@ export class AcademicController {
   createCourse(
     @Param('semesterId', uuid) semesterId: string,
     @Body() dto: CreateCourseDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.academic.createCourse(semesterId, dto);
+    return this.academic.createCourse(semesterId, dto, user);
   }
 
   @Get('courses')
@@ -101,20 +102,49 @@ export class AcademicController {
     return this.academic.getCourse(id, user.role);
   }
 
+  @Get('courses/:courseId/instructors')
+  @Roles(UserRole.SYSTEM_ADMIN)
+  listCourseInstructors(@Param('courseId', uuid) courseId: string) {
+    return this.academic.listCourseInstructors(courseId);
+  }
+
+  @Post('courses/:courseId/instructors/:instructorId')
+  @Roles(UserRole.SYSTEM_ADMIN)
+  assignCourseInstructor(
+    @Param('courseId', uuid) courseId: string,
+    @Param('instructorId', uuid) instructorId: string,
+  ) {
+    return this.academic.assignCourseInstructor(courseId, instructorId);
+  }
+
+  @Delete('courses/:courseId/instructors/:instructorId')
+  @Roles(UserRole.SYSTEM_ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeCourseInstructor(
+    @Param('courseId', uuid) courseId: string,
+    @Param('instructorId', uuid) instructorId: string,
+  ): Promise<void> {
+    await this.academic.removeCourseInstructor(courseId, instructorId);
+  }
+
   @Put('courses/:courseId')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   updateCourse(
     @Param('courseId', uuid) id: string,
     @Body() dto: UpdateCourseDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.academic.updateCourse(id, dto);
+    return this.academic.updateCourse(id, dto, user);
   }
 
   @Delete('courses/:courseId')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteCourse(@Param('courseId', uuid) id: string): Promise<void> {
-    await this.academic.deleteCourse(id);
+  async deleteCourse(
+    @Param('courseId', uuid) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    await this.academic.deleteCourse(id, user);
   }
 
   @Post('courses/:courseId/weeks')
@@ -122,8 +152,9 @@ export class AcademicController {
   createWeek(
     @Param('courseId', uuid) courseId: string,
     @Body() dto: CreateWeekDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.academic.createWeek(courseId, dto);
+    return this.academic.createWeek(courseId, dto, user);
   }
 
   @Get('courses/:courseId/weeks')
@@ -147,15 +178,19 @@ export class AcademicController {
   updateWeek(
     @Param('weekId', uuid) id: string,
     @Body() dto: UpdateWeekDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.academic.updateWeek(id, dto);
+    return this.academic.updateWeek(id, dto, user);
   }
 
   @Delete('weeks/:weekId')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteWeek(@Param('weekId', uuid) id: string): Promise<void> {
-    await this.academic.deleteWeek(id);
+  async deleteWeek(
+    @Param('weekId', uuid) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    await this.academic.deleteWeek(id, user);
   }
 
   @Post('weeks/:weekId/lectures')
@@ -163,8 +198,9 @@ export class AcademicController {
   createLecture(
     @Param('weekId', uuid) weekId: string,
     @Body() dto: CreateLectureDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.academic.createLecture(weekId, dto);
+    return this.academic.createLecture(weekId, dto, user);
   }
 
   @Get('weeks/:weekId/lectures')
@@ -188,15 +224,19 @@ export class AcademicController {
   updateLecture(
     @Param('lectureId', uuid) id: string,
     @Body() dto: UpdateLectureDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.academic.updateLecture(id, dto);
+    return this.academic.updateLecture(id, dto, user);
   }
 
   @Delete('lectures/:lectureId')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteLecture(@Param('lectureId', uuid) id: string): Promise<void> {
-    await this.academic.deleteLecture(id);
+  async deleteLecture(
+    @Param('lectureId', uuid) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    await this.academic.deleteLecture(id, user);
   }
 
   @Post('lectures/:lectureId/topics')
@@ -204,8 +244,9 @@ export class AcademicController {
   createTopic(
     @Param('lectureId', uuid) lectureId: string,
     @Body() dto: CreateTopicDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.academic.createTopic(lectureId, dto);
+    return this.academic.createTopic(lectureId, dto, user);
   }
 
   @Get('lectures/:lectureId/topics')
@@ -229,15 +270,19 @@ export class AcademicController {
   updateTopic(
     @Param('topicId', uuid) id: string,
     @Body() dto: UpdateTopicDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.academic.updateTopic(id, dto);
+    return this.academic.updateTopic(id, dto, user);
   }
 
   @Delete('topics/:topicId')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteTopic(@Param('topicId', uuid) id: string): Promise<void> {
-    await this.academic.deleteTopic(id);
+  async deleteTopic(
+    @Param('topicId', uuid) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    await this.academic.deleteTopic(id, user);
   }
 
   @Post('lectures/:lectureId/resources')
@@ -245,8 +290,9 @@ export class AcademicController {
   createResource(
     @Param('lectureId', uuid) lectureId: string,
     @Body() dto: CreateResourceDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.academic.createResource(lectureId, dto);
+    return this.academic.createResource(lectureId, dto, user);
   }
 
   @Get('lectures/:lectureId/resources')
@@ -260,7 +306,10 @@ export class AcademicController {
   @Delete('resources/:resourceId')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteResource(@Param('resourceId', uuid) id: string): Promise<void> {
-    await this.academic.deleteResource(id);
+  async deleteResource(
+    @Param('resourceId', uuid) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    await this.academic.deleteResource(id, user);
   }
 }
