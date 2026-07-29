@@ -34,7 +34,7 @@ import {
   UpdateQuestionDto,
 } from './dtos/questions.dto';
 
-interface Paginated<T> {
+export interface Paginated<T> {
   data: T[];
   page: number;
   limit: number;
