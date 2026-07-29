@@ -89,9 +89,22 @@
 - Safe internal target paths without open redirects
 - PostgreSQL read-state constraints and inbox indexes
 
+### Audit
+
+- PostgreSQL-enforced append-only audit history
+- Global successful mutation logging
+- Failed handled-request logging
+- Authentication, assessment, bookmark, flashcard, report, and export action classification
+- Recursive credential and token redaction
+- Bounded metadata depth, size, and string lengths
+- Actor, entity, request origin, and user-agent capture
+- Administrator-only pagination and filtering
+- Date-bounded CSV export with spreadsheet-injection protection
+- Best-effort audit writes that do not reverse completed business operations
+
 ## Next domain
 
-Immutable audit logging, followed by administration.
+Administration and final cross-module consistency review.
 
 ## Scope constraints
 
