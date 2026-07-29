@@ -8,7 +8,8 @@ This folder is the canonical home for project documentation.
 
 - [Product definition](PRODUCT_DEFINITION.md)
 - [Complete backend specification](COMPLETE_BACKEND_SPEC.md)
-- [API specification — Part 1](API_SPECIFICATION_PART_1.md)
+- [Canonical implemented API specification](API_SPECIFICATION.md)
+- [Legacy API specification — Part 1](API_SPECIFICATION_PART_1.md)
 - [Implementation roadmap](IMPLEMENTATION_ROADMAP.md)
 - [Action plan](ACTION_PLAN.md)
 - [Backend validation plan](BACKEND_VALIDATION_PLAN.md)
@@ -21,6 +22,7 @@ This folder is the canonical home for project documentation.
 - [Quick start](QUICK_START.md)
 - [Setup guide](SETUP_GUIDE.md)
 - [Backend setup](backend-setup.md)
+- [Operations, backup, and rollback runbook](OPERATIONS_RUNBOOK.md)
 - [Frontend setup](frontend-setup.md)
 - [Repository overview](../README.md)
 
