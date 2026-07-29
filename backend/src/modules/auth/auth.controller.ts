@@ -58,7 +58,7 @@ export class AuthController {
 
   @Post('password/reset')
   resetPassword(@Body() dto: ResetPasswordDto): Promise<MessageResponse> {
-    return this.authService.resetPassword(dto.token, dto.new_password);
+    return this.authService.resetPassword(dto.token, dto.new_password, dto.confirm_password);
   }
 
   @Post('refresh')
