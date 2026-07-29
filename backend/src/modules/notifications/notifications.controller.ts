@@ -1,0 +1,5 @@
+import { Body, Controller, Delete, Get, NotImplementedException, Param, Post, Put, Query, UseGuards } from '@nestjs/common'; import { Roles } from '../auth/decorators/roles.decorator'; import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'; import { RolesGuard } from '../auth/guards/roles.guard';
+@Controller('notifications') @UseGuards(JwtAuthGuard,RolesGuard)
+export class NotificationsController {private pending():never{throw new NotImplementedException('Notification workflow will be implemented after DTO contracts');}
+ @Get() list(@Query() _query:Record<string,string>){return this.pending();} @Post() @Roles('INSTRUCTOR','SYSTEM_ADMIN') create(@Body() _body:unknown){return this.pending();} @Put('mark-read') markAllRead(){return this.pending();} @Get('unread/count') unreadCount(){return this.pending();} @Put(':notificationId') markRead(@Param('notificationId') _id:string){return this.pending();} @Delete(':notificationId') remove(@Param('notificationId') _id:string){return this.pending();}
+}
