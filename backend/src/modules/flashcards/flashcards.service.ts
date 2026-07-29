@@ -222,6 +222,10 @@ export class FlashcardsService {
     await this.requireStudent(actor.userId);
     await this.requireVisibleCard(cardId);
     return this.dataSource.transaction(async(manager)=>{
+      await manager.query(
+        'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+        [`${actor.userId}:${cardId}`],
+      );
       const repository=manager.getRepository(StudentFlashcardProgress);
       let state=await repository.findOne({
         where:{studentId:actor.userId,flashcardId:cardId},
