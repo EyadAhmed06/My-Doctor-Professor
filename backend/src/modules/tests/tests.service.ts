@@ -162,7 +162,15 @@ export class TestsService {
   async listQuestions(testId: string, actor: AuthenticatedUser) {
     const test = await this.requireTest(testId);
     this.assertCanViewTest(test, actor);
-    if (actor.role === UserRole.STUDENT) this.assertAvailable(test);
+    if (actor.role === UserRole.STUDENT) {
+      this.assertAvailable(test);
+      const activeAttempt = await this.attempts.exist({
+        where: { testId, studentId: actor.userId, status: TestAttemptStatus.IN_PROGRESS },
+      });
+      if (!activeAttempt) {
+        throw new ForbiddenException('Start an attempt before accessing its questions');
+      }
+    }
     const items = await this.testQuestions.find({
       where: { testId },
       relations: { question: { options: true, essayConfiguration: true } },
@@ -346,7 +354,7 @@ export class TestsService {
   async gradeEssay(attemptId: string, answerId: string, dto: GradeEssayDto, actor: AuthenticatedUser) {
     const attempt = await this.requireAttempt(attemptId);
     this.assertOwner(attempt.test, actor);
-    if (attempt.status === TestAttemptStatus.IN_PROGRESS) {
+    if (![TestAttemptStatus.SUBMITTED, TestAttemptStatus.EXPIRED].includes(attempt.status)) {
       throw new ConflictException('Essay answers can be graded only after the attempt closes');
     }
     const answer = await this.answers.findOne({
@@ -445,26 +453,41 @@ export class TestsService {
   }
 
   private async finalizeAttempt(attempt: TestAttempt, expired: boolean): Promise<void> {
-    const assignments = await this.testQuestions.find({
-      where: { testId: attempt.testId }, relations: { question: true },
-    });
-    const answers = await this.answers.find({
-      where: { attemptId: attempt.id },
-      relations: { selectedOption: true, question: true },
-    });
-    const marks = new Map(assignments.map((item) => [item.questionId, item.marks]));
-    for (const answer of answers) {
-      if (answer.question.questionType === QuestionType.MCQ) {
-        answer.isCorrect = answer.selectedOption?.isCorrect ?? false;
-        answer.awardedMarks = answer.isCorrect ? marks.get(answer.questionId)! : '0.00';
+    const finalized = await this.dataSource.transaction(async (manager) => {
+      const locked = await manager.getRepository(TestAttempt).findOne({
+        where: { id: attempt.id },
+        relations: { test: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!locked) throw new NotFoundException('Test attempt not found');
+      if (locked.status !== TestAttemptStatus.IN_PROGRESS) return locked;
+      const assignments = await manager.getRepository(TestQuestion).find({
+        where: { testId: locked.testId },
+      });
+      const attemptAnswers = await manager.getRepository(StudentAnswer).find({
+        where: { attemptId: locked.id },
+        relations: { selectedOption: true, question: true },
+      });
+      const marks = new Map(assignments.map((item) => [item.questionId, item.marks]));
+      for (const answer of attemptAnswers) {
+        if (answer.question.questionType === QuestionType.MCQ) {
+          answer.isCorrect = answer.selectedOption?.isCorrect ?? false;
+          answer.awardedMarks = answer.isCorrect ? (marks.get(answer.questionId) ?? '0.00') : '0.00';
+        }
       }
-    }
-    await this.answers.save(answers);
-    attempt.status = expired ? TestAttemptStatus.EXPIRED : TestAttemptStatus.SUBMITTED;
-    attempt.autoSubmitted = expired;
-    attempt.submittedAt = new Date();
-    attempt.lastActivityAt = new Date();
-    await this.recalculateScore(attempt);
+      await manager.getRepository(StudentAnswer).save(attemptAnswers);
+      const score = attemptAnswers.reduce(
+        (total, answer) => total + Number(answer.awardedMarks ?? 0),
+        0,
+      );
+      locked.status = expired ? TestAttemptStatus.EXPIRED : TestAttemptStatus.SUBMITTED;
+      locked.autoSubmitted = expired;
+      locked.score = score.toFixed(2);
+      locked.submittedAt = new Date();
+      locked.lastActivityAt = new Date();
+      return manager.getRepository(TestAttempt).save(locked);
+    });
+    Object.assign(attempt, finalized);
   }
 
   private async recalculateScore(attempt: TestAttempt): Promise<void> {
@@ -562,6 +585,7 @@ export class TestsService {
     if (revealAnswers) return { ...question, options, essayConfiguration };
     const {
       explanation: _explanation,
+      hint: _hint,
       reference: _reference,
       createdBy: _createdBy,
       creator: _creator,
