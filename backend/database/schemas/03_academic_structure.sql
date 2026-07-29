@@ -217,3 +217,15 @@ ON resources(lecture_id);
 CREATE INDEX idx_resources_type
 ON resources(resource_type);
 
+-- Explicit instructor authorization boundary for course content.
+CREATE TABLE course_instructors (
+    course_id UUID NOT NULL,
+    instructor_id UUID NOT NULL,
+    assigned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (course_id, instructor_id),
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+    FOREIGN KEY (instructor_id) REFERENCES instructors(user_id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_course_instructors_instructor
+ON course_instructors(instructor_id);
