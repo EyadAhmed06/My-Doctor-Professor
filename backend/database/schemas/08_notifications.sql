@@ -54,8 +54,11 @@ CREATE TABLE user_notifications (
         REFERENCES users(id)
         ON DELETE CASCADE,
 
-    CONSTRAINT uq_notification_user
-        UNIQUE(notification_id, user_id)
+    CONSTRAINT uq_notification_user UNIQUE(notification_id, user_id),
+    CONSTRAINT chk_notification_read_state CHECK (
+        (notification_status = 'UNREAD' AND read_at IS NULL)
+        OR (notification_status = 'READ' AND read_at IS NOT NULL)
+    )
 
 );
 
@@ -73,4 +76,7 @@ ON user_notifications(notification_id);
 
 CREATE INDEX idx_user_notifications_status
 ON user_notifications(notification_status);
+
+CREATE INDEX idx_user_notifications_inbox
+ON user_notifications(user_id, notification_status, created_at DESC);
 
