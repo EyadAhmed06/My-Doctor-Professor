@@ -6,6 +6,15 @@ import { DataSource } from 'typeorm';
 export class AuthRateLimitService {
   constructor(private readonly dataSource: DataSource) {}
 
+  async enforceLogin(ip: string, email: string): Promise<void> {
+    await this.consume(`ip:login:${ip}`, 20, 15 * 60);
+    await this.consume(
+      `account:login:${email.trim().toLowerCase()}`,
+      10,
+      15 * 60,
+    );
+  }
+
   async enforce(ip: string, email: string, action: string): Promise<void> {
     await this.consume(`ip:${action}:${ip}`, 10, 15 * 60);
     await this.consume(
