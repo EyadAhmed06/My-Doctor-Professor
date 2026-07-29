@@ -5,7 +5,6 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
-  ForeignKey,
 } from 'typeorm';
 import { User } from './user.entity';
 
