@@ -19,7 +19,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
         logging: config.get<string>('NODE_ENV') !== 'production',
         ssl:
           config.get<string>('NODE_ENV') === 'production'
-            ? { rejectUnauthorized: false }
+            ? {
+                rejectUnauthorized:
+                  config.get<string>('DB_SSL_REJECT_UNAUTHORIZED', 'true') !== 'false',
+              }
             : false,
       }),
     }),
