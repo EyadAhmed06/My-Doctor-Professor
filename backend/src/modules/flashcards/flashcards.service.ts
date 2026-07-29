@@ -156,7 +156,7 @@ export class FlashcardsService {
     this.assertOwner(card.deck,actor);
     this.assertDraft(card.deck);
     if(!Object.keys(dto).length) throw new BadRequestException('At least one card field must be provided');
-    if(await this.progress.exist({where:{flashcardId:id}})) {
+    if(await this.progress.exists({where:{flashcardId:id}})) {
       throw new ConflictException('A reviewed flashcard is immutable; create a new card instead');
     }
     if(dto.title!==undefined) card.title=dto.title.trim();
@@ -175,7 +175,7 @@ export class FlashcardsService {
     const card=await this.requireCard(id);
     this.assertOwner(card.deck,actor);
     this.assertDraft(card.deck);
-    if(await this.progress.exist({where:{flashcardId:id}})) {
+    if(await this.progress.exists({where:{flashcardId:id}})) {
       throw new ConflictException('A reviewed flashcard cannot be deleted');
     }
     await this.cards.remove(card);
@@ -343,7 +343,7 @@ export class FlashcardsService {
     return card;
   }
   private async requireStudent(id:string):Promise<void> {
-    if(!(await this.students.exist({where:{userId:id}}))) {
+    if(!(await this.students.exists({where:{userId:id}}))) {
       throw new ForbiddenException('Student profile is required');
     }
   }
