@@ -15,7 +15,7 @@ export class Test {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column({ type:'varchar', length:200 }) title: string;
   @Column({ type:'text', nullable:true }) description: string | null;
-  @Column({ type:'enum', enum:TestType, name:'test_type' }) testType: TestType;
+  @Column({ type:'enum', enum:TestType, enumName:'test_type', name:'test_type' }) testType: TestType;
   @Column('uuid',{name:'course_id',nullable:true}) courseId:string|null;
   @Column('uuid',{name:'week_id',nullable:true}) weekId:string|null;
   @Column('uuid',{name:'lecture_id',nullable:true}) lectureId:string|null;
