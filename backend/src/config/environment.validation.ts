@@ -55,8 +55,8 @@ export function validateEnvironment(input: Record<string, unknown>): Record<stri
     }
   }
 
-  const accessSecret = environment.JWT_SECRET && String(environment.JWT_SECRET);
-  const refreshSecret = environment.JWT_REFRESH_SECRET && String(environment.JWT_REFRESH_SECRET);
+  const accessSecret = environment.JWT_SECRET === undefined ? undefined : String(environment.JWT_SECRET);
+  const refreshSecret = environment.JWT_REFRESH_SECRET === undefined ? undefined : String(environment.JWT_REFRESH_SECRET);
   if (accessSecret && accessSecret.length < 32) {
     throw new Error('JWT_SECRET must contain at least 32 characters');
   }
