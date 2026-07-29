@@ -1,218 +1,163 @@
-import {
-  Injectable,
-  ConflictException,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { User, UserRole, UserStatus, Gender } from './entities/user.entity';
-import { Student } from './entities/student.entity';
+import { DataSource, QueryFailedError, Repository } from 'typeorm';
+import { AuthSession } from './entities/auth-session.entity';
 import { Instructor } from './entities/instructor.entity';
+import { Student } from './entities/student.entity';
 import { SystemAdmin } from './entities/system-admin.entity';
+import { Gender, User, UserRole, UserStatus } from './entities/user.entity';
+
+export interface CreateStudentAccountInput {
+  fullName: string;
+  email: string;
+  password: string;
+  phoneNumber: string;
+  studentNumber: string;
+  currentSemester: number;
+  dateOfBirth?: Date;
+  gender?: Gender;
+}
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectRepository(User)
-    private usersRepository: Repository<User>,
-    @InjectRepository(Student)
-    private studentsRepository: Repository<Student>,
-    @InjectRepository(Instructor)
-    private instructorsRepository: Repository<Instructor>,
-    @InjectRepository(SystemAdmin)
-    private systemAdminsRepository: Repository<SystemAdmin>,
+    @InjectRepository(User) private readonly usersRepository: Repository<User>,
+    @InjectRepository(Student) private readonly studentsRepository: Repository<Student>,
+    @InjectRepository(Instructor) private readonly instructorsRepository: Repository<Instructor>,
+    @InjectRepository(SystemAdmin) private readonly systemAdminsRepository: Repository<SystemAdmin>,
+    @InjectRepository(AuthSession) private readonly sessionsRepository: Repository<AuthSession>,
+    private readonly dataSource: DataSource,
   ) {}
 
-  async findByEmail(email: string): Promise<User | null> {
-    return this.usersRepository.findOne({
-      where: { email: email.toLowerCase() },
-    });
+  findByEmail(email: string): Promise<User | null> {
+    return this.usersRepository.findOne({ where: { email: email.trim().toLowerCase() } });
   }
 
-  async findById(id: string): Promise<User | null> {
+  findById(id: string): Promise<User | null> {
     return this.usersRepository.findOne({ where: { id } });
   }
 
-  async validatePassword(
-    password: string,
-    passwordHash: string,
-  ): Promise<boolean> {
+  validatePassword(password: string, passwordHash: string): Promise<boolean> {
     return bcrypt.compare(password, passwordHash);
   }
 
-  async hashPassword(password: string): Promise<string> {
-    const salt = await bcrypt.genSalt(10);
-    return bcrypt.hash(password, salt);
+  hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, 12);
   }
 
-  async createUser(userData: {
-    full_name: string;
-    email: string;
-    password: string;
-    phone_number: string;
-    role: UserRole;
-    date_of_birth?: Date;
-    gender?: string | Gender;
-  }): Promise<User> {
-    // Check if user already exists
-    const existingUser = await this.findByEmail(userData.email);
-    if (existingUser) {
-      throw new ConflictException('Email already registered');
+  async createStudentAccount(input: CreateStudentAccountInput): Promise<User> {
+    const email = input.email.trim().toLowerCase();
+    const passwordHash = await this.hashPassword(input.password);
+
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        const duplicate = await manager.findOne(User, {
+          where: [
+            { email },
+            { phoneNumber: input.phoneNumber },
+          ],
+        });
+        if (duplicate) throw new ConflictException('Email or phone number is already registered');
+
+        const duplicateStudent = await manager.findOne(Student, {
+          where: { studentNumber: input.studentNumber },
+        });
+        if (duplicateStudent) throw new ConflictException('Student number is already registered');
+
+        const user = manager.create(User, {
+          fullName: input.fullName.trim(),
+          email,
+          passwordHash,
+          phoneNumber: input.phoneNumber,
+          role: UserRole.STUDENT,
+          status: UserStatus.PENDING_VERIFICATION,
+          dateOfBirth: input.dateOfBirth ?? null,
+          gender: input.gender ?? null,
+          emailVerified: false,
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+          lastLoginAt: null,
+          profilePictureUrl: null,
+        });
+        const savedUser = await manager.save(User, user);
+        const student = manager.create(Student, {
+          userId: savedUser.id,
+          studentNumber: input.studentNumber.trim(),
+          currentSemester: input.currentSemester,
+        });
+        await manager.save(Student, student);
+        return savedUser;
+      });
+    } catch (error) {
+      if (error instanceof ConflictException) throw error;
+      if (error instanceof QueryFailedError && (error as QueryFailedError & { driverError?: { code?: string } }).driverError?.code === '23505') {
+        throw new ConflictException('A unique account field is already registered');
+      }
+      throw error;
     }
-
-    const existingPhone = await this.usersRepository.findOne({
-      where: { phoneNumber: userData.phone_number },
-    });
-    if (existingPhone) {
-      throw new ConflictException('Phone number already registered');
-    }
-
-    // Hash password
-    const passwordHash = await this.hashPassword(userData.password);
-
-    // Create user
-    const user = new User();
-    user.fullName = userData.full_name;
-    user.email = userData.email.toLowerCase();
-    user.passwordHash = passwordHash;
-    user.phoneNumber = userData.phone_number;
-    user.role = userData.role;
-    user.dateOfBirth = userData.date_of_birth || null;
-    user.gender = (userData.gender as Gender) || null;
-    user.status = UserStatus.PENDING_VERIFICATION;
-    user.emailVerified = false;
-
-    return this.usersRepository.save(user);
   }
 
-  async createStudent(
-    user: User,
-    studentData?: { student_number: string; current_semester: number },
-  ): Promise<Student> {
-    if (!studentData) {
-      throw new BadRequestException('Student data is required');
-    }
-
-    // Check if student number already exists
-    const existingStudent = await this.studentsRepository.findOne({
-      where: { studentNumber: studentData.student_number },
-    });
-    if (existingStudent) {
-      throw new ConflictException('Student number already registered');
-    }
-
-    const student = this.studentsRepository.create({
-      userId: user.id,
-      studentNumber: studentData.student_number,
-      currentSemester: studentData.current_semester || 1,
-    });
-
-    return this.studentsRepository.save(student);
+  async createInstructor(user: User, data?: { specialization?: string; office_location?: string }): Promise<Instructor> {
+    return this.instructorsRepository.save(this.instructorsRepository.create({ userId: user.id, specialization: data?.specialization ?? null, officeLocation: data?.office_location ?? null }));
   }
 
-  async createInstructor(
-    user: User,
-    instructorData?: { specialization?: string; office_location?: string },
-  ): Promise<Instructor> {
-    const instructor = this.instructorsRepository.create({
-      userId: user.id,
-      specialization: instructorData?.specialization || null,
-      officeLocation: instructorData?.office_location || null,
-    });
-
-    return this.instructorsRepository.save(instructor);
-  }
-
-  async createSystemAdmin(
-    user: User,
-    adminData?: { employee_number?: string; is_super_admin?: boolean },
-  ): Promise<SystemAdmin> {
-    const admin = this.systemAdminsRepository.create({
-      userId: user.id,
-      employeeNumber: adminData?.employee_number || null,
-      isSuperAdmin: adminData?.is_super_admin || false,
-    });
-
-    return this.systemAdminsRepository.save(admin);
+  async createSystemAdmin(user: User, data?: { employee_number?: string; is_super_admin?: boolean }): Promise<SystemAdmin> {
+    return this.systemAdminsRepository.save(this.systemAdminsRepository.create({ userId: user.id, employeeNumber: data?.employee_number ?? null, isSuperAdmin: data?.is_super_admin ?? false }));
   }
 
   async updateLastLogin(userId: string): Promise<void> {
-    await this.usersRepository.update(
-      { id: userId },
-      { lastLoginAt: new Date() },
-    );
+    await this.usersRepository.update({ id: userId }, { lastLoginAt: new Date() });
   }
 
   async verifyEmail(userId: string): Promise<void> {
-    await this.usersRepository.update(
-      { id: userId },
-      { emailVerified: true, status: UserStatus.ACTIVE },
-    );
+    await this.usersRepository.update({ id: userId }, { emailVerified: true, status: UserStatus.ACTIVE });
   }
 
   async getUserProfile(userId: string) {
     const user = await this.findById(userId);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    const { passwordHash, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    if (!user) throw new NotFoundException('User not found');
+    const { passwordHash: _passwordHash, failedLoginAttempts: _failed, lockedUntil: _locked, ...safeUser } = user;
+    return safeUser;
   }
 
   async recordFailedLogin(userId: string): Promise<void> {
     const user = await this.findById(userId);
     if (!user) return;
-
-    const failedAttempts = user.failedLoginAttempts + 1;
-    const lockDuration = 15; // minutes
-
-    if (failedAttempts >= 5) {
-      const lockedUntil = new Date(
-        Date.now() + lockDuration * 60 * 1000,
-      );
-      await this.usersRepository.update(
-        { id: userId },
-        {
-          failedLoginAttempts: failedAttempts,
-          lockedUntil,
-        },
-      );
-    } else {
-      await this.usersRepository.update(
-        { id: userId },
-        { failedLoginAttempts: failedAttempts },
-      );
-    }
+    const failedLoginAttempts = user.failedLoginAttempts + 1;
+    const lockedUntil = failedLoginAttempts >= 5 ? new Date(Date.now() + 15 * 60_000) : user.lockedUntil;
+    await this.usersRepository.update({ id: userId }, { failedLoginAttempts, lockedUntil });
   }
 
   async resetFailedLoginAttempts(userId: string): Promise<void> {
-    await this.usersRepository.update(
-      { id: userId },
-      {
-        failedLoginAttempts: 0,
-        lockedUntil: null,
-      },
-    );
+    await this.usersRepository.update({ id: userId }, { failedLoginAttempts: 0, lockedUntil: null });
   }
 
   async isAccountLocked(userId: string): Promise<boolean> {
     const user = await this.findById(userId);
-    if (!user || !user.lockedUntil) return false;
-
-    const now = new Date();
-    if (user.lockedUntil > now) {
-      return true;
-    }
-
-    // Unlock account if lock period has expired
+    if (!user?.lockedUntil) return false;
+    if (user.lockedUntil > new Date()) return true;
     await this.resetFailedLoginAttempts(userId);
     return false;
   }
+
+  async saveSession(id: string, userId: string, refreshTokenHash: string, expiresAt: Date): Promise<void> {
+    await this.sessionsRepository.save(this.sessionsRepository.create({ id, userId, refreshTokenHash, expiresAt, revokedAt: null, lastUsedAt: null }));
+  }
+
+  findSession(id: string): Promise<AuthSession | null> {
+    return this.sessionsRepository.findOne({ where: { id } });
+  }
+
+  async rotateSession(id: string, refreshTokenHash: string, expiresAt: Date): Promise<void> {
+    await this.sessionsRepository.update({ id }, { refreshTokenHash, expiresAt, lastUsedAt: new Date() });
+  }
+
+  async revokeSession(id: string): Promise<void> {
+    await this.sessionsRepository.update({ id }, { revokedAt: new Date() });
+  }
+
+  async revokeAllSessions(userId: string): Promise<void> {
+    await this.sessionsRepository.createQueryBuilder().update(AuthSession).set({ revokedAt: new Date() }).where('user_id = :userId AND revoked_at IS NULL', { userId }).execute();
+  }
 }
-
-
-
-
