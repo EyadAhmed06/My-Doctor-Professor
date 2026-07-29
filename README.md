@@ -80,7 +80,7 @@ The active backend rebuild is performed on `agent/backend-foundation-rebuild`.
 - [ ] Phase 2 — all canonical entities
 - [ ] Phase 3 — all modules and controller endpoint scaffolds
 - [ ] Phase 4 — all DTO contracts
-- [ ] Phase 5 — academic workflows
+- [x] Phase 5 — academic workflows
 - [ ] Phase 6 — question-bank workflows
 - [ ] Phase 7 — assessment and grading workflows
 - [ ] Phase 8 — flashcard workflows
