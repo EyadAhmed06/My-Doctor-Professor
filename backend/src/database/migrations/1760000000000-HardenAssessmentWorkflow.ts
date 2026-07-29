@@ -50,6 +50,27 @@ export class HardenAssessmentWorkflow1760000000000 implements MigrationInterface
       ALTER TABLE test_attempts ADD CONSTRAINT fk_test_attempts_test_restrict
         FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE RESTRICT;
 
+      DO $ DECLARE table_name text; constraint_name text;
+      BEGIN
+        FOREACH table_name IN ARRAY ARRAY['student_answers', 'question_flags', 'question_notes']
+        LOOP
+          SELECT tc.constraint_name INTO constraint_name
+          FROM information_schema.table_constraints tc
+          JOIN information_schema.constraint_column_usage ccu USING (constraint_schema, constraint_name)
+          WHERE tc.table_schema = current_schema() AND tc.table_name = table_name
+            AND tc.constraint_type = 'FOREIGN KEY' AND ccu.column_name = 'question_id'
+          LIMIT 1;
+          IF constraint_name IS NOT NULL THEN
+            EXECUTE format('ALTER TABLE %I DROP CONSTRAINT %I', table_name, constraint_name);
+          END IF;
+          EXECUTE format(
+            'ALTER TABLE %I ADD CONSTRAINT fk_%s_question_restrict FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE RESTRICT',
+            table_name, table_name
+          );
+          constraint_name := NULL;
+        END LOOP;
+      END $;
+
       ALTER TABLE student_answers
         ADD COLUMN IF NOT EXISTS feedback TEXT,
         ADD COLUMN IF NOT EXISTS graded_by UUID,
@@ -57,8 +78,23 @@ export class HardenAssessmentWorkflow1760000000000 implements MigrationInterface
       ALTER TABLE student_answers
         ADD CONSTRAINT fk_student_answers_graded_by
         FOREIGN KEY (graded_by) REFERENCES users(id) ON DELETE SET NULL;
+      DELETE FROM student_answers duplicate
+      USING student_answers keeper
+      WHERE duplicate.attempt_id = keeper.attempt_id
+        AND duplicate.question_id = keeper.question_id
+        AND (duplicate.answered_at, duplicate.id) < (keeper.answered_at, keeper.id);
       ALTER TABLE student_answers
         ADD CONSTRAINT uq_attempt_question_answer UNIQUE (attempt_id, question_id);
+
+      WITH ranked AS (
+        SELECT id, row_number() OVER (
+          PARTITION BY student_id, test_id ORDER BY started_at DESC NULLS LAST, created_at DESC
+        ) AS position
+        FROM test_attempts WHERE status = 'IN_PROGRESS'
+      )
+      UPDATE test_attempts SET status = 'EXPIRED', auto_submitted = TRUE,
+        submitted_at = COALESCE(submitted_at, CURRENT_TIMESTAMP)
+      WHERE id IN (SELECT id FROM ranked WHERE position > 1);
       CREATE UNIQUE INDEX uq_active_student_test_attempt
         ON test_attempts(student_id, test_id) WHERE status = 'IN_PROGRESS';
     `);
