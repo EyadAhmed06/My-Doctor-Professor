@@ -1,4 +1,5 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
+import { Request } from 'express';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -34,8 +35,11 @@ export class AuthController {
 
   @Post('email-verification/request')
   @HttpCode(HttpStatus.ACCEPTED)
-  requestEmailVerification(@Body() dto: RequestEmailVerificationDto): Promise<MessageResponse> {
-    return this.authService.requestEmailVerification(dto.email);
+  requestEmailVerification(
+    @Body() dto: RequestEmailVerificationDto,
+    @Req() request: Request,
+  ): Promise<MessageResponse> {
+    return this.authService.requestEmailVerification(dto.email, request.ip);
   }
 
   @Post('email-verification/confirm')
@@ -45,8 +49,11 @@ export class AuthController {
 
   @Post('password/forgot')
   @HttpCode(HttpStatus.ACCEPTED)
-  forgotPassword(@Body() dto: ForgotPasswordDto): Promise<MessageResponse> {
-    return this.authService.requestPasswordReset(dto.email);
+  forgotPassword(
+    @Body() dto: ForgotPasswordDto,
+    @Req() request: Request,
+  ): Promise<MessageResponse> {
+    return this.authService.requestPasswordReset(dto.email, request.ip);
   }
 
   @Post('password/reset')
