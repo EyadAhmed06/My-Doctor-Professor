@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -10,7 +10,7 @@ import { ForgotPasswordDto, ResetPasswordDto } from './dtos/password-reset.dto';
 import { RefreshTokenDto } from './dtos/refresh-token.dto';
 import { SignupDto } from './dtos/signup.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { AuthenticatedUser } from './strategies/jwt.strategy';
+import type { AuthenticatedUser } from './strategies/jwt.strategy';
 
 interface MessageResponse { message: string }
 
@@ -27,7 +27,7 @@ export class AuthController {
     @Body() dto: LoginDto,
     @Req() request: Request,
   ): Promise<AuthResponseDto> {
-    return this.authService.login(dto, request.ip);
+    return this.authService.login(dto, request.ip ?? request.socket.remoteAddress ?? 'unknown');
   }
 
   @Post('signup')
@@ -42,7 +42,7 @@ export class AuthController {
     @Body() dto: RequestEmailVerificationDto,
     @Req() request: Request,
   ): Promise<MessageResponse> {
-    return this.authService.requestEmailVerification(dto.email, request.ip);
+    return this.authService.requestEmailVerification(dto.email, request.ip ?? request.socket.remoteAddress ?? 'unknown');
   }
 
   @Post('email-verification/confirm')
@@ -52,7 +52,7 @@ export class AuthController {
     @Body() dto: ConfirmEmailVerificationDto,
     @Req() request: Request,
   ): Promise<MessageResponse> {
-    return this.authService.confirmEmailVerification(dto.token, request.ip);
+    return this.authService.confirmEmailVerification(dto.token, request.ip ?? request.socket.remoteAddress ?? 'unknown');
   }
 
   @Post('password/forgot')
@@ -61,7 +61,7 @@ export class AuthController {
     @Body() dto: ForgotPasswordDto,
     @Req() request: Request,
   ): Promise<MessageResponse> {
-    return this.authService.requestPasswordReset(dto.email, request.ip);
+    return this.authService.requestPasswordReset(dto.email, request.ip ?? request.socket.remoteAddress ?? 'unknown');
   }
 
   @Post('password/reset')
@@ -75,7 +75,7 @@ export class AuthController {
       dto.token,
       dto.new_password,
       dto.confirm_password,
-      request.ip,
+      request.ip ?? request.socket.remoteAddress ?? 'unknown',
     );
   }
 
