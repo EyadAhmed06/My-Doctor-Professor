@@ -7,7 +7,7 @@ import { QuestionDifficulty } from './question.entity'; import { FlashcardDeck }
 export class Flashcard {
  @PrimaryGeneratedColumn('uuid') id:string; @Column('uuid',{name:'deck_id'}) deckId:string;
  @Column({type:'varchar',length:200}) title:string; @Column({type:'text',name:'front_content'}) frontContent:string; @Column({type:'text',name:'back_content'}) backContent:string;
- @Column({type:'enum',enum:QuestionDifficulty,default:QuestionDifficulty.MEDIUM}) difficulty:QuestionDifficulty;
+ @Column({type:'enum',enum:QuestionDifficulty,enumName:'question_difficulty',default:QuestionDifficulty.MEDIUM}) difficulty:QuestionDifficulty;
  @Column({type:'text',nullable:true}) explanation:string|null; @Column({type:'text',nullable:true}) hint:string|null;
  @Column({type:'int',name:'estimated_review_seconds',nullable:true}) estimatedReviewSeconds:number|null;
  @Column({type:'int',default:1,name:'display_order'}) displayOrder:number; @Column({type:'boolean',default:true,name:'is_active'}) isActive:boolean;
