@@ -1,8 +1,13 @@
-export class JwtPayload {
-  sub: string; // User ID
-  email: string;
-  role: string;
-  iat?: number; // Issued at
-  exp?: number; // Expiration time
-}
+import { UserRole } from '../../users/entities/user.entity';
 
+export type TokenType = 'access' | 'refresh';
+
+export class JwtPayload {
+  sub: string;
+  sid: string;
+  email: string;
+  role: UserRole;
+  tokenType: TokenType;
+  iat?: number;
+  exp?: number;
+}
