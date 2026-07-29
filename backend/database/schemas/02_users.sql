@@ -133,6 +133,34 @@ CREATE TABLE system_admins (
 
 );
 
+CREATE TABLE auth_sessions (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    user_id UUID NOT NULL,
+
+    refresh_token_hash TEXT NOT NULL,
+
+    expires_at TIMESTAMP NOT NULL,
+
+    revoked_at TIMESTAMP,
+
+    last_used_at TIMESTAMP,
+
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+
+);
+
+CREATE INDEX idx_auth_sessions_user
+ON auth_sessions(user_id);
+
+CREATE INDEX idx_auth_sessions_expiry
+ON auth_sessions(expires_at);
+
 CREATE INDEX idx_users_role
 ON users(role);
 
