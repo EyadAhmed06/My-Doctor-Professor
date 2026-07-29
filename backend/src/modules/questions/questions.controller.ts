@@ -1,9 +1,196 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
-import { Body, Controller, Delete, Get, NotImplementedException, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
-import { Roles } from '../auth/decorators/roles.decorator'; import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'; import { RolesGuard } from '../auth/guards/roles.guard';
-@Controller('questions') @UseGuards(JwtAuthGuard,RolesGuard)
-export class QuestionsController {private pending():never{throw new NotImplementedException('Question workflow will be implemented after DTO contracts');}
- @Post() @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) create(@Body() _body:unknown){return this.pending();} @Get() list(@Query() _query:Record<string,string>){return this.pending();}
- @Get('search') search(@Query() _query:Record<string,string>){return this.pending();} @Get('tags/all') listTags(){return this.pending();} @Post('tags') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) createTag(@Body() _body:unknown){return this.pending();} @Put('options/:optionId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) updateOption(@Param('optionId') _id:string,@Body() _body:unknown){return this.pending();} @Delete('options/:optionId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) removeOption(@Param('optionId') _id:string){return this.pending();} @Delete('tags/:tagId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) removeTag(@Param('tagId') _id:string){return this.pending();}
- @Get(':questionId') getOne(@Param('questionId') _id:string){return this.pending();} @Put(':questionId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) update(@Param('questionId') _id:string,@Body() _body:unknown){return this.pending();} @Delete(':questionId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) remove(@Param('questionId') _id:string){return this.pending();} @Post(':questionId/duplicate') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) duplicate(@Param('questionId') _id:string){return this.pending();} @Get(':questionId/options') getOptions(@Param('questionId') _id:string){return this.pending();} @Post(':questionId/options') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) addOption(@Param('questionId') _id:string,@Body() _body:unknown){return this.pending();} @Post(':questionId/essay-configuration') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) setEssayConfiguration(@Param('questionId') _id:string,@Body() _body:unknown){return this.pending();} @Get(':questionId/essay-configuration') getEssayConfiguration(@Param('questionId') _id:string){return this.pending();} @Post(':questionId/tags/:tagId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) addTag(@Param('questionId') _questionId:string,@Param('tagId') _tagId:string){return this.pending();} @Delete(':questionId/tags/:tagId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) removeQuestionTag(@Param('questionId') _questionId:string,@Param('tagId') _tagId:string){return this.pending();}
+import {
+  CreateMcqOptionDto,
+  CreateQuestionDto,
+  CreateTagDto,
+  EssayConfigurationDto,
+  QuestionQueryDto,
+  SearchQuestionsDto,
+  UpdateMcqOptionDto,
+  UpdateQuestionDto,
+} from './dtos/questions.dto';
+import { QuestionsService } from './questions.service';
+
+const uuid = new ParseUUIDPipe({ version: '4' });
+
+@Controller('questions')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class QuestionsController {
+  constructor(private readonly questions: QuestionsService) {}
+
+  @Post()
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  create(
+    @Body() dto: CreateQuestionDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.questions.create(dto, actor);
+  }
+
+  @Get()
+  list(
+    @Query() query: QuestionQueryDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.questions.list(query, actor);
+  }
+
+  @Get('search')
+  search(
+    @Query() query: SearchQuestionsDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.questions.search(query, actor);
+  }
+
+  @Get('tags/all')
+  listTags() {
+    return this.questions.listTags();
+  }
+
+  @Post('tags')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  createTag(@Body() dto: CreateTagDto) {
+    return this.questions.createTag(dto);
+  }
+
+  @Put('options/:optionId')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  updateOption(
+    @Param('optionId', uuid) id: string,
+    @Body() dto: UpdateMcqOptionDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.questions.updateOption(id, dto, actor);
+  }
+
+  @Delete('options/:optionId')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeOption(
+    @Param('optionId', uuid) id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ): Promise<void> {
+    await this.questions.removeOption(id, actor);
+  }
+
+  @Delete('tags/:tagId')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeTag(@Param('tagId', uuid) id: string): Promise<void> {
+    await this.questions.removeTag(id);
+  }
+
+  @Get(':questionId')
+  getOne(
+    @Param('questionId', uuid) id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.questions.getOne(id, actor);
+  }
+
+  @Put(':questionId')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  update(
+    @Param('questionId', uuid) id: string,
+    @Body() dto: UpdateQuestionDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.questions.update(id, dto, actor);
+  }
+
+  @Delete(':questionId')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(
+    @Param('questionId', uuid) id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ): Promise<void> {
+    await this.questions.remove(id, actor);
+  }
+
+  @Post(':questionId/duplicate')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  duplicate(
+    @Param('questionId', uuid) id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.questions.duplicate(id, actor);
+  }
+
+  @Get(':questionId/options')
+  getOptions(
+    @Param('questionId', uuid) id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.questions.getOptions(id, actor);
+  }
+
+  @Post(':questionId/options')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  addOption(
+    @Param('questionId', uuid) id: string,
+    @Body() dto: CreateMcqOptionDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.questions.addOption(id, dto, actor);
+  }
+
+  @Post(':questionId/essay-configuration')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  setEssayConfiguration(
+    @Param('questionId', uuid) id: string,
+    @Body() dto: EssayConfigurationDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.questions.setEssayConfiguration(id, dto, actor);
+  }
+
+  @Get(':questionId/essay-configuration')
+  getEssayConfiguration(
+    @Param('questionId', uuid) id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.questions.getEssayConfiguration(id, actor);
+  }
+
+  @Post(':questionId/tags/:tagId')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  addTag(
+    @Param('questionId', uuid) questionId: string,
+    @Param('tagId', uuid) tagId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.questions.addTag(questionId, tagId, actor);
+  }
+
+  @Delete(':questionId/tags/:tagId')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeQuestionTag(
+    @Param('questionId', uuid) questionId: string,
+    @Param('tagId', uuid) tagId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ): Promise<void> {
+    await this.questions.removeQuestionTag(questionId, tagId, actor);
+  }
 }
