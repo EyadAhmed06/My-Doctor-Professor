@@ -52,16 +52,16 @@ export class HardenAssessmentWorkflow1760000000000 implements MigrationInterface
 
       DO $ DECLARE table_name text; constraint_name text;
       BEGIN
-        FOREACH table_name IN ARRAY ARRAY['student_answers', 'question_flags', 'question_notes']
+        FOREACH target_table IN ARRAY ARRAY['student_answers', 'question_flags', 'question_notes']
         LOOP
           SELECT tc.constraint_name INTO constraint_name
           FROM information_schema.table_constraints tc
           JOIN information_schema.constraint_column_usage ccu USING (constraint_schema, constraint_name)
-          WHERE tc.table_schema = current_schema() AND tc.table_name = table_name
+          WHERE tc.table_schema = current_schema() AND tc.table_name = target_table
             AND tc.constraint_type = 'FOREIGN KEY' AND ccu.column_name = 'question_id'
           LIMIT 1;
           IF constraint_name IS NOT NULL THEN
-            EXECUTE format('ALTER TABLE %I DROP CONSTRAINT %I', table_name, constraint_name);
+            EXECUTE format('ALTER TABLE %I DROP CONSTRAINT %I', target_table, constraint_name);
           END IF;
           EXECUTE format(
             'ALTER TABLE %I ADD CONSTRAINT fk_%s_question_restrict FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE RESTRICT',
