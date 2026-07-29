@@ -17,6 +17,8 @@ describe('validateEnvironment', () => {
     SMTP_PASSWORD: 'password',
     SMTP_FROM: 'noreply@example.com',
     EMAIL_OUTBOX_ENCRYPTION_KEY: Buffer.alloc(32).toString('base64'),
+    FILE_UPLOAD_PATH: '/var/lib/my-doctor-professor/uploads',
+    MAX_FILE_SIZE: '52428800',
   };
 
   it('parses positive integer settings', () => {
