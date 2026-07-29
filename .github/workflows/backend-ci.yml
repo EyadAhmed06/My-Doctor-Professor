@@ -1,0 +1,101 @@
+name: Backend release gates
+
+on:
+  push:
+    branches:
+      - agent/backend-foundation-rebuild
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    name: Install, build, lint, unit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm run lint
+      - run: npm test -- --runInBand
+
+  postgres:
+    name: PostgreSQL bootstrap, migrations, drift
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres-ci-password
+          POSTGRES_DB: my_doctor_professor
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d my_doctor_professor"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      NODE_ENV: test
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres-ci-password
+      DB_NAME: my_doctor_professor
+      JWT_SECRET: ci-access-secret-at-least-thirty-two-characters
+      JWT_REFRESH_SECRET: ci-refresh-secret-at-least-thirty-two-characters
+      FRONTEND_URL: http://localhost:3001
+      SMTP_HOST: localhost
+      SMTP_PORT: 1025
+      SMTP_SECURE: 'false'
+      SMTP_USER: ci-user
+      SMTP_PASSWORD: ci-password
+      SMTP_FROM: noreply@example.test
+      EMAIL_OUTBOX_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      PGPASSWORD: postgres-ci-password
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - name: Bootstrap clean database
+        run: |
+          set -euo pipefail
+          while IFS= read -r schema; do
+            echo "Applying ${schema}"
+            psql -h localhost -U postgres -d my_doctor_professor -v ON_ERROR_STOP=1 -f "${schema}"
+          done < <(find database/schemas -maxdepth 1 -type f -name '*.sql' | sort)
+      - name: Apply TypeORM forward migrations
+        run: npm run migration:run
+      - name: Require zero schema drift
+        run: |
+          set -euo pipefail
+          npm run schema:log 2>&1 | tee /tmp/schema-log.txt
+          grep -qi "schema is up to date" /tmp/schema-log.txt
