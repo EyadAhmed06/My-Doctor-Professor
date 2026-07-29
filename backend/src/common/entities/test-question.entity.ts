@@ -13,5 +13,5 @@ export class TestQuestion {
  @Column({type:'int',name:'time_limit_seconds',nullable:true}) timeLimitSeconds:number|null;
  @CreateDateColumn({name:'created_at'}) createdAt:Date;
  @ManyToOne(()=>Test,(test)=>test.questions,{onDelete:'CASCADE'}) @JoinColumn({name:'test_id'}) test:Test;
- @ManyToOne(()=>Question,{onDelete:'CASCADE'}) @JoinColumn({name:'question_id'}) question:Question;
+ @ManyToOne(()=>Question,{onDelete:'RESTRICT'}) @JoinColumn({name:'question_id'}) question:Question;
 }
