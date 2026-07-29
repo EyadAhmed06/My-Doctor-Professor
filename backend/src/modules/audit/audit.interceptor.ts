@@ -4,7 +4,7 @@ import {
   Injectable,
   NestInterceptor,
 } from '@nestjs/common';
-import { Observable, mergeMap } from 'rxjs';
+import { Observable, catchError, from, mergeMap, throwError } from 'rxjs';
 import { AuditAction } from '../../common/entities/audit-log.entity';
 import { AuditService } from './audit.service';
 
@@ -19,20 +19,38 @@ export class AuditInterceptor implements NestInterceptor {
     const path=String(request.originalUrl??request.url??'').split('?')[0];
     if(!this.shouldAudit(method,path)) return next.handle();
     const body=this.audit.sanitize(request.body);
-    return next.handle().pipe(mergeMap(async(result)=>{
-      const entityId=this.entityId(request.params,result);
-      await this.audit.tryRecord({
-        userId:request.user?.userId??this.responseUserId(result),
+    return next.handle().pipe(
+      mergeMap(async(result)=>{
+        const entityId=this.entityId(request.params,result);
+        await this.audit.tryRecord({
+          userId:request.user?.userId??this.responseUserId(result),
+          action:this.action(method,path),
+          entityName:this.entityName(path),
+          entityId,
+          description:`${method} ${path} SUCCEEDED`,
+          newValues:body,
+          ipAddress:request.ip??request.socket?.remoteAddress,
+          userAgent:request.headers?.['user-agent'],
+        });
+        return result;
+      }),
+      catchError((error)=>from(this.audit.tryRecord({
+        userId:request.user?.userId??null,
         action:this.action(method,path),
         entityName:this.entityName(path),
-        entityId,
-        description:`${method} ${path}`,
-        newValues:body,
+        entityId:this.entityId(request.params,null),
+        description:`${method} ${path} FAILED`,
+        newValues:{
+          request:body,
+          error:{
+            status:typeof error?.getStatus==='function'?error.getStatus():500,
+            name:error?.name??'Error',
+          },
+        },
         ipAddress:request.ip??request.socket?.remoteAddress,
         userAgent:request.headers?.['user-agent'],
-      });
-      return result;
-    }));
+      })).pipe(mergeMap(()=>throwError(()=>error)))),
+    );
   }
 
   private shouldAudit(method:string,path:string):boolean {
