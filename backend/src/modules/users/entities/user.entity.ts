@@ -49,15 +49,16 @@ export class User {
   @Column({ type: 'date', nullable: true, name: 'date_of_birth' })
   dateOfBirth: Date | null;
 
-  @Column({ type: 'enum', enum: Gender, nullable: true })
+  @Column({ type: 'enum', enum: Gender, enumName: 'gender', nullable: true })
   gender: Gender | null;
 
-  @Column({ type: 'enum', enum: UserRole, nullable: false })
+  @Column({ type: 'enum', enum: UserRole, enumName: 'role', nullable: false })
   role: UserRole;
 
   @Column({
     type: 'enum',
     enum: UserStatus,
+    enumName: 'user_status',
     nullable: false,
     default: UserStatus.PENDING_VERIFICATION,
   })
