@@ -23,8 +23,11 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  login(@Body() dto: LoginDto): Promise<AuthResponseDto> {
-    return this.authService.login(dto);
+  login(
+    @Body() dto: LoginDto,
+    @Req() request: Request,
+  ): Promise<AuthResponseDto> {
+    return this.authService.login(dto, request.ip);
   }
 
   @Post('signup')
