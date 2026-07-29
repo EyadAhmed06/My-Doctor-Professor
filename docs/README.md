@@ -24,6 +24,6 @@ This folder is the canonical home for project documentation.
 3. Modules, controllers, and DTO foundations — implemented.
 4. Academic workflows — implemented.
 5. Question Bank workflows — implemented.
-6. Assessments and grading — next.
-7. Flashcards.
-8. Progress, notifications, audit, and administration.
+6. Assessments and grading — implemented.
+7. Flashcards and spaced repetition — implemented.
+8. Progress, notifications, audit, and administration — next.
