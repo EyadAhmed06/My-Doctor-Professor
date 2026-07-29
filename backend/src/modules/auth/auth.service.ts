@@ -6,14 +6,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes, randomUUID } from 'crypto';
-import { DataSource, IsNull, Repository } from 'typeorm';
+import { DataSource, IsNull } from 'typeorm';
 import { AuthSession } from '../users/entities/auth-session.entity';
 import { User, UserStatus } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
+import { AuthRateLimitService } from './auth-rate-limit.service';
 import { AuthResponseDto } from './dtos/auth-response.dto';
 import { JwtPayload } from './dtos/jwt-payload.dto';
 import { LoginDto } from './dtos/login.dto';
@@ -42,9 +42,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     private readonly emailService: EmailService,
+    private readonly rateLimits: AuthRateLimitService,
     private readonly dataSource: DataSource,
-    @InjectRepository(AccountActionToken)
-    private readonly actionTokens: Repository<AccountActionToken>,
   ) {
     this.accessSecret = this.config.getOrThrow<string>('JWT_SECRET');
     this.refreshSecret = this.config.getOrThrow<string>('JWT_REFRESH_SECRET');
@@ -65,24 +64,23 @@ export class AuthService {
       dateOfBirth: dto.date_of_birth ? new Date(dto.date_of_birth) : undefined,
       gender: dto.gender,
     });
-    const token = await this.issueActionToken(
-      user.id,
+    await this.issueActionToken(
+      user,
       AccountActionTokenPurpose.EMAIL_VERIFICATION,
       this.verificationLifetimeSeconds,
     );
-    await this.emailService.sendVerificationEmail(user.email, user.fullName, token);
     return { message: 'Account created. Check your email to verify your account.' };
   }
 
-  async requestEmailVerification(email: string): Promise<MessageResponse> {
+  async requestEmailVerification(email: string, ip: string): Promise<MessageResponse> {
+    await this.rateLimits.enforce(ip, email, 'verify-email');
     const user = await this.usersService.findByEmail(email);
     if (user && !user.emailVerified && user.status === UserStatus.PENDING_VERIFICATION) {
-      const token = await this.issueActionToken(
-        user.id,
+      await this.issueActionToken(
+        user,
         AccountActionTokenPurpose.EMAIL_VERIFICATION,
         this.verificationLifetimeSeconds,
       );
-      await this.emailService.sendVerificationEmail(user.email, user.fullName, token);
     }
     return { message: 'If the account is eligible, a verification email has been sent.' };
   }
@@ -117,19 +115,19 @@ export class AuthService {
     return { message: 'Email verified successfully. You can now sign in.' };
   }
 
-  async requestPasswordReset(email: string): Promise<MessageResponse> {
+  async requestPasswordReset(email: string, ip: string): Promise<MessageResponse> {
+    await this.rateLimits.enforce(ip, email, 'password-reset');
     const user = await this.usersService.findByEmail(email);
     if (
       user &&
       user.emailVerified &&
       user.status !== UserStatus.DEACTIVATED
     ) {
-      const token = await this.issueActionToken(
-        user.id,
+      await this.issueActionToken(
+        user,
         AccountActionTokenPurpose.PASSWORD_RESET,
         this.resetLifetimeSeconds,
       );
-      await this.emailService.sendPasswordResetEmail(user.email, user.fullName, token);
     }
     return { message: 'If the account exists, a password reset email has been sent.' };
   }
@@ -175,6 +173,7 @@ export class AuthService {
         },
         { consumedAt: new Date() },
       );
+      await this.emailService.queuePasswordChanged(manager, user.email, user.fullName);
       await manager
         .createQueryBuilder()
         .update(AuthSession)
@@ -244,29 +243,50 @@ export class AuthService {
   }
 
   private async issueActionToken(
-    userId: string,
+    user: User,
     purpose: AccountActionTokenPurpose,
     lifetimeSeconds: number,
-  ): Promise<string> {
+  ): Promise<void> {
     const rawToken = randomBytes(32).toString('base64url');
     await this.dataSource.transaction(async (manager) => {
+      const lockedUser = await manager.findOne(User, {
+        where: { id: user.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!lockedUser) throw new BadRequestException('User no longer exists');
+
       await manager.update(
         AccountActionToken,
-        { userId, purpose, consumedAt: IsNull() },
+        { userId: lockedUser.id, purpose, consumedAt: IsNull() },
         { consumedAt: new Date() },
       );
       await manager.save(
         AccountActionToken,
         manager.create(AccountActionToken, {
-          userId,
+          userId: lockedUser.id,
           purpose,
           tokenDigest: this.digestToken(rawToken),
           expiresAt: new Date(Date.now() + lifetimeSeconds * 1000),
           consumedAt: null,
         }),
       );
+
+      if (purpose === AccountActionTokenPurpose.EMAIL_VERIFICATION) {
+        await this.emailService.queueVerification(
+          manager,
+          lockedUser.email,
+          lockedUser.fullName,
+          rawToken,
+        );
+      } else {
+        await this.emailService.queuePasswordReset(
+          manager,
+          lockedUser.email,
+          lockedUser.fullName,
+          rawToken,
+        );
+      }
     });
-    return rawToken;
   }
 
   private assertUsableActionToken(
