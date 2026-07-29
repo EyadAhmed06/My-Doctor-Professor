@@ -197,9 +197,16 @@ export class AuthService {
     return { message: 'Password reset successfully. Sign in with your new password.' };
   }
 
-  async login(dto: LoginDto): Promise<AuthResponseDto> {
+  async login(dto: LoginDto, ip: string): Promise<AuthResponseDto> {
+    const startedAt = Date.now();
+    await this.rateLimits.enforceLogin(ip, dto.email);
     const user = await this.usersService.findByEmail(dto.email);
-    if (!user) throw new UnauthorizedException('Invalid email or password');
+    if (!user) {
+      // Perform equivalent password work so unknown accounts are not a cheap timing oracle.
+      await bcrypt.hash(dto.password, 10);
+      await this.ensureMinimumResponseTime(startedAt);
+      throw new UnauthorizedException('Invalid email or password');
+    }
     this.assertAccountEnabled(user);
 
     if (await this.usersService.isAccountLocked(user.id)) {
@@ -210,6 +217,7 @@ export class AuthService {
     }
     if (!(await this.usersService.validatePassword(dto.password, user.passwordHash))) {
       await this.usersService.recordFailedLogin(user.id);
+      await this.ensureMinimumResponseTime(startedAt);
       throw new UnauthorizedException('Invalid email or password');
     }
 
@@ -347,11 +355,11 @@ export class AuthService {
     const common = { sub: user.id, sid: sessionId, email: user.email, role: user.role };
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(
-        { ...common, tokenType: 'access' } satisfies JwtPayload,
+        { ...common, jti: randomUUID(), tokenType: 'access' } satisfies JwtPayload,
         { secret: this.accessSecret, expiresIn: this.accessLifetimeSeconds },
       ),
       this.jwtService.signAsync(
-        { ...common, tokenType: 'refresh' } satisfies JwtPayload,
+        { ...common, jti: randomUUID(), tokenType: 'refresh' } satisfies JwtPayload,
         { secret: this.refreshSecret, expiresIn: this.refreshLifetimeSeconds },
       ),
     ]);
