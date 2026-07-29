@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Course } from '../../common/entities/course.entity';
 import { Lecture } from '../../common/entities/lecture.entity';
 import { McqOption } from '../../common/entities/mcq-option.entity';
@@ -559,7 +559,15 @@ export class TestsService {
           minimumWordCount: question.essayConfiguration.minimumWordCount,
           maximumWordCount: question.essayConfiguration.maximumWordCount,
         } : null;
-    return { ...question, options, essayConfiguration };
+    if (revealAnswers) return { ...question, options, essayConfiguration };
+    const {
+      explanation: _explanation,
+      reference: _reference,
+      createdBy: _createdBy,
+      creator: _creator,
+      ...safeQuestion
+    } = question;
+    return { ...safeQuestion, options, essayConfiguration };
   }
 
   private hideGrade(answer: StudentAnswer) {
