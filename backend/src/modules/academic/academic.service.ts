@@ -657,7 +657,7 @@ export class AcademicService {
     if (actor.role === UserRole.SYSTEM_ADMIN) return;
     if (
       actor.role === UserRole.INSTRUCTOR &&
-      await this.courseInstructors.exist({ where: { courseId, instructorId: actor.userId } })
+      await this.courseInstructors.exists({ where: { courseId, instructorId: actor.userId } })
     ) return;
     throw new ForbiddenException('You are not assigned to manage this course');
   }
