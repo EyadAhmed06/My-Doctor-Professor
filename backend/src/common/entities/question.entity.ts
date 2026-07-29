@@ -1,9 +1,9 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Instructor } from '../../modules/users/entities/instructor.entity';
-import { Topic } from './topic.entity';
-import { McqOption } from './mcq-option.entity';
 import { EssayConfiguration } from './essay-configuration.entity';
+import { McqOption } from './mcq-option.entity';
 import { QuestionTag } from './question-tag.entity';
+import { Topic } from './topic.entity';
 
 export enum QuestionType { MCQ = 'MCQ', ESSAY = 'ESSAY' }
 export enum QuestionDifficulty { EASY = 'EASY', MEDIUM = 'MEDIUM', HARD = 'HARD' }
@@ -34,5 +34,5 @@ export class Question {
   @ManyToOne(() => Instructor, { onDelete: 'RESTRICT' }) @JoinColumn({ name: 'created_by' }) creator: Instructor;
   @OneToMany(() => McqOption, (option) => option.question) options: McqOption[];
   @OneToMany(() => QuestionTag, (questionTag) => questionTag.question) questionTags: QuestionTag[];
-  @OneToMany(() => EssayConfiguration, (config) => config.question) essayConfigurations: EssayConfiguration[];
+  @OneToOne(() => EssayConfiguration, (config) => config.question) essayConfiguration: EssayConfiguration | null;
 }
