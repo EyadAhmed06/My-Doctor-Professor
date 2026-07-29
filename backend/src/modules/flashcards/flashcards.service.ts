@@ -59,8 +59,6 @@ export class FlashcardsService {
       .leftJoinAndSelect('deck.course', 'course')
       .leftJoinAndSelect('deck.lecture', 'lecture')
       .leftJoinAndSelect('deck.topic', 'topic')
-      .loadRelationCountAndMap('deck.cardCount', 'deck.cards', 'card',
-        (cards) => cards.andWhere('card.is_active = TRUE'))
       .orderBy('deck.display_order', 'ASC')
       .addOrderBy('deck.created_at', 'DESC')
       .skip((page - 1) * limit).take(limit);
@@ -83,7 +81,17 @@ export class FlashcardsService {
         .orWhere('deck.description ILIKE :search')),
       { search: `%${query.search.trim()}%` });
     }
-    const [data,total] = await builder.getManyAndCount();
+    const [decks,total] = await builder.getManyAndCount();
+    const deckIds = decks.map((deck) => deck.id);
+    const countRows = deckIds.length ? await this.cards.createQueryBuilder('card')
+      .select('card.deck_id', 'deck_id')
+      .addSelect('COUNT(*)::int', 'count')
+      .where('card.deck_id IN (:...deckIds)', { deckIds })
+      .andWhere('card.is_active = TRUE')
+      .groupBy('card.deck_id')
+      .getRawMany<{deck_id:string;count:number}>() : [];
+    const counts = new Map(countRows.map((row) => [row.deck_id, Number(row.count)]));
+    const data = decks.map((deck) => ({...deck,cardCount:counts.get(deck.id)??0}));
     return { data,page,limit,total,total_pages:Math.ceil(total/limit) };
   }
 
