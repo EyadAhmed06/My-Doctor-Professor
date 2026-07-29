@@ -1,7 +1,7 @@
 import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Put, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { ChangePasswordDto, UpdateUserProfileDto } from './dtos/users.dto';
 import { UsersService } from './users.service';
 const uuid=new ParseUUIDPipe({version:'4'});
