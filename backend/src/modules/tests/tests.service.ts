@@ -164,11 +164,13 @@ export class TestsService {
     this.assertCanViewTest(test, actor);
     if (actor.role === UserRole.STUDENT) {
       this.assertAvailable(test);
-      const activeAttempt = await this.attempts.exist({
+      const activeAttempt = await this.attempts.findOne({
         where: { testId, studentId: actor.userId, status: TestAttemptStatus.IN_PROGRESS },
+        relations: { test: true },
       });
-      if (!activeAttempt) {
-        throw new ForbiddenException('Start an attempt before accessing its questions');
+      if (activeAttempt) await this.expireIfNeeded(activeAttempt, activeAttempt.test);
+      if (!activeAttempt || activeAttempt.status !== TestAttemptStatus.IN_PROGRESS) {
+        throw new ForbiddenException('Start an active attempt before accessing its questions');
       }
     }
     const items = await this.testQuestions.find({
@@ -601,8 +603,12 @@ export class TestsService {
   }
 
   private attemptView(attempt: TestAttempt) {
-    const deadline = attempt.startedAt && attempt.testMode === TestMode.TIMED && attempt.test.durationMinutes
-      ? new Date(attempt.startedAt.getTime() + attempt.test.durationMinutes * 60_000) : null;
+    const deadlines: number[] = [];
+    if (attempt.startedAt && attempt.testMode === TestMode.TIMED && attempt.test.durationMinutes) {
+      deadlines.push(attempt.startedAt.getTime() + attempt.test.durationMinutes * 60_000);
+    }
+    if (attempt.test.availableUntil) deadlines.push(attempt.test.availableUntil.getTime());
+    const deadline = deadlines.length ? new Date(Math.min(...deadlines)) : null;
     return { ...attempt, deadline };
   }
 }
