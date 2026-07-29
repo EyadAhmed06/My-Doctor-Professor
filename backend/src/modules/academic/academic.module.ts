@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CourseInstructor } from '../../common/entities/course-instructor.entity';
 import { Course } from '../../common/entities/course.entity';
 import { Lecture } from '../../common/entities/lecture.entity';
 import { Resource } from '../../common/entities/resource.entity';
@@ -14,6 +15,7 @@ import { AcademicService } from './academic.service';
     TypeOrmModule.forFeature([
       Semester,
       Course,
+      CourseInstructor,
       Week,
       Lecture,
       Topic,
