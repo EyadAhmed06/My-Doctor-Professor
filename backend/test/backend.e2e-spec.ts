@@ -9,6 +9,8 @@ describe('Backend integration', () => {
   let dataSource: DataSource;
 
   beforeAll(async () => {
+    process.env.ALLOW_ACCOUNT_BOOTSTRAP = 'true';
+    process.env.ACCOUNT_BOOTSTRAP_TOKEN = 'integration-bootstrap-token-32-characters';
     const module = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = module.createNestApplication();
     app.setGlobalPrefix('api/v1');
@@ -32,6 +34,41 @@ describe('Backend integration', () => {
       .get('/api/v1/health/ready')
       .expect(200);
     expect(readiness.body).toMatchObject({ status: 'ready', database: 'up' });
+  });
+
+  it('atomically bootstraps one verified account per role and permanently closes', async () => {
+    const suffix = Date.now().toString();
+    const body = {
+      admin: {
+        full_name: 'Bootstrap Admin', email: `admin-${suffix}@example.test`,
+        password: 'StrongPassword123', phone_number: `+2010${suffix.slice(-8)}`,
+        employee_number: `ADMIN-${suffix}`,
+      },
+      instructor: {
+        full_name: 'Bootstrap Instructor', email: `instructor-${suffix}@example.test`,
+        password: 'StrongPassword123', phone_number: `+2011${suffix.slice(-8)}`,
+        specialization: 'Medicine',
+      },
+      student: {
+        full_name: 'Bootstrap Student', email: `student-${suffix}@example.test`,
+        password: 'StrongPassword123', phone_number: `+2012${suffix.slice(-8)}`,
+        student_number: `BOOT-${suffix}`, current_semester: 1,
+      },
+    };
+    const responses = await Promise.all([
+      request(app.getHttpServer()).post('/api/v1/admin/bootstrap/accounts')
+        .set('X-Bootstrap-Token', process.env.ACCOUNT_BOOTSTRAP_TOKEN!).send(body),
+      request(app.getHttpServer()).post('/api/v1/admin/bootstrap/accounts')
+        .set('X-Bootstrap-Token', process.env.ACCOUNT_BOOTSTRAP_TOKEN!).send(body),
+    ]);
+    expect(responses.map((response) => response.status).sort()).toEqual([201, 409]);
+    const created = responses.find((response) => response.status === 201)!;
+    expect(created.body.accounts).toHaveLength(3);
+    expect(created.body.accounts.every((account: { status:string;email_verified:boolean }) =>
+      account.status === 'ACTIVE' && account.email_verified === true,
+    )).toBe(true);
+    await request(app.getHttpServer()).post('/api/v1/admin/bootstrap/accounts')
+      .set('X-Bootstrap-Token', process.env.ACCOUNT_BOOTSTRAP_TOKEN!).send(body).expect(409);
   });
 
   it('serializes duplicate student signup', async () => {
