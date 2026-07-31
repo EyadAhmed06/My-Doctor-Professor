@@ -5,9 +5,13 @@ import {
   HttpException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
+  UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { createHash, timingSafeEqual } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Not, Repository } from 'typeorm';
+import { DataSource, In, Not, Repository } from 'typeorm';
 import { AuthService } from '../auth/auth.service';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { Instructor } from '../users/entities/instructor.entity';
@@ -17,6 +21,7 @@ import { User, UserRole, UserStatus } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import {
   AdminUserQueryDto,
+  BootstrapAccountsDto,
   CreateManagedUserDto,
   ImportUsersDto,
   StatisticsQueryDto,
@@ -34,7 +39,90 @@ export class AdminService {
     private readonly usersService:UsersService,
     private readonly authService:AuthService,
     private readonly dataSource:DataSource,
+    private readonly config:ConfigService,
   ) {}
+
+  async bootstrapAccounts(dto:BootstrapAccountsDto,providedToken:string|undefined) {
+    this.assertBootstrapAuthorized(providedToken);
+    this.assertBootstrapPayloadUnique(dto);
+
+    const passwordHashes=await Promise.all([
+      this.usersService.hashPassword(dto.admin.password),
+      this.usersService.hashPassword(dto.instructor.password),
+      this.usersService.hashPassword(dto.student.password),
+    ]);
+
+    return this.dataSource.transaction(async manager=>{
+      await manager.query("SELECT pg_advisory_xact_lock(hashtext('account-bootstrap'))");
+      if(await manager.exists(SystemAdmin,{})) {
+        throw new ConflictException('Account bootstrap is permanently closed because an administrator already exists');
+      }
+
+      const emails=[dto.admin.email,dto.instructor.email,dto.student.email]
+        .map(value=>value.trim().toLowerCase());
+      const phones=[dto.admin.phone_number,dto.instructor.phone_number,dto.student.phone_number];
+      if(await manager.exists(User,{where:[{email:In(emails)},{phoneNumber:In(phones)}]})) {
+        throw new ConflictException('A bootstrap email or phone number is already registered');
+      }
+      if(await manager.exists(Student,{where:{studentNumber:dto.student.student_number.trim()}})) {
+        throw new ConflictException('The bootstrap student number is already registered');
+      }
+
+      const createUser=async(
+        input:{fullName:string;email:string;phone:string;role:UserRole},passwordHash:string,
+      )=>manager.save(User,manager.create(User,{
+        fullName:input.fullName.trim(),email:input.email.trim().toLowerCase(),
+        passwordHash,phoneNumber:input.phone,dateOfBirth:null,gender:null,role:input.role,
+        status:UserStatus.ACTIVE,profilePictureUrl:null,emailVerified:true,
+        failedLoginAttempts:0,lockedUntil:null,lastLoginAt:null,
+      }));
+
+      const admin=await createUser({fullName:dto.admin.full_name,email:dto.admin.email,phone:dto.admin.phone_number,role:UserRole.SYSTEM_ADMIN},passwordHashes[0]);
+      await manager.save(SystemAdmin,manager.create(SystemAdmin,{
+        userId:admin.id,employeeNumber:dto.admin.employee_number.trim(),isSuperAdmin:true,
+      }));
+
+      const instructor=await createUser({fullName:dto.instructor.full_name,email:dto.instructor.email,phone:dto.instructor.phone_number,role:UserRole.INSTRUCTOR},passwordHashes[1]);
+      await manager.save(Instructor,manager.create(Instructor,{
+        userId:instructor.id,specialization:dto.instructor.specialization?.trim()||null,
+        officeLocation:dto.instructor.office_location?.trim()||null,biography:null,
+      }));
+
+      const student=await createUser({fullName:dto.student.full_name,email:dto.student.email,phone:dto.student.phone_number,role:UserRole.STUDENT},passwordHashes[2]);
+      await manager.save(Student,manager.create(Student,{
+        userId:student.id,studentNumber:dto.student.student_number.trim(),
+        currentSemester:dto.student.current_semester,
+      }));
+
+      return {
+        message:'Bootstrap accounts created; the endpoint is now permanently closed',
+        accounts:[admin,instructor,student].map(user=>({
+          id:user.id,email:user.email,full_name:user.fullName,role:user.role,
+          status:user.status,email_verified:user.emailVerified,
+        })),
+      };
+    });
+  }
+
+  private assertBootstrapAuthorized(providedToken:string|undefined) {
+    if(this.config.get<string>('ALLOW_ACCOUNT_BOOTSTRAP','false')!=='true') {
+      throw new ServiceUnavailableException('Account bootstrap is disabled');
+    }
+    const expected=this.config.get<string>('ACCOUNT_BOOTSTRAP_TOKEN');
+    if(!expected||expected.length<32||!providedToken) {
+      throw new UnauthorizedException('Invalid bootstrap authorization');
+    }
+    const left=createHash('sha256').update(providedToken).digest();
+    const right=createHash('sha256').update(expected).digest();
+    if(!timingSafeEqual(left,right)) throw new UnauthorizedException('Invalid bootstrap authorization');
+  }
+
+  private assertBootstrapPayloadUnique(dto:BootstrapAccountsDto) {
+    const emails=[dto.admin.email,dto.instructor.email,dto.student.email].map(value=>value.trim().toLowerCase());
+    const phones=[dto.admin.phone_number,dto.instructor.phone_number,dto.student.phone_number];
+    if(new Set(emails).size!==emails.length) throw new BadRequestException('Bootstrap emails must be unique');
+    if(new Set(phones).size!==phones.length) throw new BadRequestException('Bootstrap phone numbers must be unique');
+  }
 
   async listUsers(query:AdminUserQueryDto) {
     const page=query.page??1,limit=query.limit??20;
