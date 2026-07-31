@@ -2,13 +2,18 @@
   "info": {
     "_postman_id": "ca9ca204-f27b-4f72-bd94-34f22512fce0",
     "name": "My Doctor Professor - Complete Backend API",
-    "description": "Generated from NestJS controllers. 130 unique controller routes are included. Run folders in numeric order; provide seeded role credentials first. Email confirmation/reset tokens and upload file path are manual inputs. Cleanup is destructive and intentionally last.",
+    "description": "Generated from NestJS controllers. 131 unique controller routes are included. Run folders in numeric order; provide seeded role credentials first. Email confirmation/reset tokens and upload file path are manual inputs. Cleanup is destructive and intentionally last.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "baseUrl",
       "value": "http://localhost:3000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "bootstrapToken",
+      "value": "REPLACE_WITH_32_PLUS_CHARACTER_BOOTSTRAP_TOKEN",
       "type": "string"
     },
     {
@@ -92,12 +97,22 @@
       "type": "string"
     },
     {
+      "key": "adminId",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "studentUserId",
       "value": "",
       "type": "string"
     },
     {
       "key": "instructorId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "managedUserId",
       "value": "",
       "type": "string"
     },
@@ -279,6 +294,55 @@
                 "exec": [
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Account bootstrap",
+      "item": [
+        {
+          "name": "POST /admin/bootstrap/accounts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Bootstrap-Token",
+                "value": "{{bootstrapToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/bootstrap/accounts",
+            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#bootstrapAccounts",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"admin\": {\n    \"full_name\": \"Postman Super Admin\",\n    \"email\": \"{{adminEmail}}\",\n    \"password\": \"{{adminPassword}}\",\n    \"phone_number\": \"+201000000010\",\n    \"employee_number\": \"PM-ADMIN-001\"\n  },\n  \"instructor\": {\n    \"full_name\": \"Postman Instructor\",\n    \"email\": \"{{instructorEmail}}\",\n    \"password\": \"{{instructorPassword}}\",\n    \"phone_number\": \"+201000000011\",\n    \"specialization\": \"Medicine\",\n    \"office_location\": \"Postman Lab\"\n  },\n  \"student\": {\n    \"full_name\": \"Postman Student\",\n    \"email\": \"{{studentEmail}}\",\n    \"password\": \"{{studentPassword}}\",\n    \"phone_number\": \"+201000000012\",\n    \"student_number\": \"PM-STUDENT-001\",\n    \"current_semester\": 1\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Bootstrap is created or already closed', () => pm.expect([201,409,503]).to.include(pm.response.code));",
+                  "if (pm.response.code === 201) { const accounts=pm.response.json().accounts ?? [];",
+                  "for (const account of accounts) { if(account.role==='SYSTEM_ADMIN') pm.collectionVariables.set('adminId',account.id); if(account.role==='INSTRUCTOR') pm.collectionVariables.set('instructorId',account.id); if(account.role==='STUDENT') pm.collectionVariables.set('studentUserId',account.id); } }"
                 ]
               }
             }
@@ -649,7 +713,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/users",
-            "description": "Controller source: src/modules/admin/admin.controller.ts#createUser",
+            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#createUser",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -662,7 +726,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"full_name\": \"Postman Instructor\",\n  \"email\": \"{{instructorEmail}}\",\n  \"password\": \"{{instructorPassword}}\",\n  \"phone_number\": \"+201000000002\",\n  \"role\": \"INSTRUCTOR\",\n  \"employee_number\": \"PM-INST-{{$timestamp}}\",\n  \"specialization\": \"Medicine\"\n}",
+              "raw": "{\n  \"full_name\": \"Postman Auxiliary Instructor\",\n  \"email\": \"postman.aux.instructor+{{$timestamp}}@example.com\",\n  \"password\": \"PostmanPass123\",\n  \"phone_number\": \"+201000000002\",\n  \"role\": \"INSTRUCTOR\",\n  \"specialization\": \"Medicine\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -681,7 +745,7 @@
                   "if (pm.response.code >= 200 && pm.response.code < 300 && pm.response.text()) {",
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
-                  "  if (value) pm.collectionVariables.set('instructorId', value);",
+                  "  if (value) pm.collectionVariables.set('managedUserId', value);",
                   "}"
                 ]
               }
@@ -838,7 +902,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/users/import",
-            "description": "Controller source: src/modules/admin/admin.controller.ts#importUsers",
+            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#importUsers",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -883,7 +947,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/users?page=1&limit=20",
-            "description": "Controller source: src/modules/admin/admin.controller.ts#listUsers",
+            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#listUsers",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -919,7 +983,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/users/{{studentUserId}}",
-            "description": "Controller source: src/modules/admin/admin.controller.ts#getUser",
+            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#getUser",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -959,7 +1023,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/users/{{studentUserId}}",
-            "description": "Controller source: src/modules/admin/admin.controller.ts#updateUser",
+            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#updateUser",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1008,7 +1072,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/users/{{studentUserId}}/status",
-            "description": "Controller source: src/modules/admin/admin.controller.ts#updateStatus",
+            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#updateStatus",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1053,7 +1117,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/users/{{studentUserId}}/reset-password",
-            "description": "Controller source: src/modules/admin/admin.controller.ts#resetPassword",
+            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#resetPassword",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1089,7 +1153,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/statistics",
-            "description": "Controller source: src/modules/admin/admin.controller.ts#statistics",
+            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#statistics",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -5557,7 +5621,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/users/{{studentUserId}}",
-            "description": "Controller source: src/modules/admin/admin.controller.ts#removeUser",
+            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#removeUser",
             "auth": {
               "type": "bearer",
               "bearer": [
