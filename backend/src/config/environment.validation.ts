@@ -37,6 +37,20 @@ export function validateEnvironment(input: Record<string, unknown>): Record<stri
   }
   environment.NODE_ENV = nodeEnvironment;
 
+  for (const key of ['ALLOW_ACCOUNT_BOOTSTRAP'] as const) {
+    if (environment[key] === undefined || environment[key] === '') continue;
+    if (!['true', 'false'].includes(String(environment[key]))) {
+      throw new Error(`${key} must be true or false`);
+    }
+  }
+
+  if (String(environment.ALLOW_ACCOUNT_BOOTSTRAP ?? 'false') === 'true') {
+    const token = String(environment.ACCOUNT_BOOTSTRAP_TOKEN ?? '');
+    if (token.length < 32) {
+      throw new Error('ACCOUNT_BOOTSTRAP_TOKEN must contain at least 32 characters when account bootstrap is enabled');
+    }
+  }
+
   for (const key of POSITIVE_INTEGER_KEYS) {
     if (environment[key] === undefined || environment[key] === '') continue;
     const value = Number(environment[key]);
