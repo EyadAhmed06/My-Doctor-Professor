@@ -18,6 +18,7 @@ controllerFiles.push(path.join(root, 'src', 'app.controller.ts'));
 
 const folderNames = {
   app: '00 - Root', health: '01 - Health', auth: '02 - Authentication',
+  'admin-bootstrap': '02 - Account bootstrap',
   admin: '03 - Administration bootstrap', academic: '04 - Academic structure',
   questions: '05 - Question bank', tests: '06 - Assessments',
   flashcards: '07 - Flashcards', progress: '08 - Progress and dashboards',
@@ -26,6 +27,7 @@ const folderNames = {
 
 const authFor = (module, method, route) => {
   if (module === 'app' || module === 'health') return null;
+  if (module === 'admin-bootstrap') return null;
   if (module === 'auth') return ['me', 'logout'].includes(route) ? 'adminAccessToken' : null;
   if (module === 'admin' || module === 'audit') return 'adminAccessToken';
   if (module === 'users') return 'studentAccessToken';
@@ -65,7 +67,8 @@ const bodyMap = {
   'POST auth/password/forgot': { email: '{{adminEmail}}' },
   'POST auth/password/reset': { token: '{{passwordResetToken}}', new_password: '{{studentNewPassword}}', confirm_password: '{{studentNewPassword}}' },
   'POST auth/refresh': { refresh_token: '{{adminRefreshToken}}' },
-  'POST admin/users': { full_name: 'Postman Instructor', email: '{{instructorEmail}}', password: '{{instructorPassword}}', phone_number: '+201000000002', role: 'INSTRUCTOR', employee_number: 'PM-INST-{{$timestamp}}', specialization: 'Medicine' },
+  'POST admin/bootstrap/accounts': { admin: { full_name: 'Postman Super Admin', email: '{{adminEmail}}', password: '{{adminPassword}}', phone_number: '+201000000010', employee_number: 'PM-ADMIN-001' }, instructor: { full_name: 'Postman Instructor', email: '{{instructorEmail}}', password: '{{instructorPassword}}', phone_number: '+201000000011', specialization: 'Medicine', office_location: 'Postman Lab' }, student: { full_name: 'Postman Student', email: '{{studentEmail}}', password: '{{studentPassword}}', phone_number: '+201000000012', student_number: 'PM-STUDENT-001', current_semester: 1 } },
+  'POST admin/users': { full_name: 'Postman Auxiliary Instructor', email: 'postman.aux.instructor+{{$timestamp}}@example.com', password: 'PostmanPass123', phone_number: '+201000000002', role: 'INSTRUCTOR', specialization: 'Medicine' },
   'POST admin/users/import': { users: [{ full_name: 'Postman Imported Student', email: 'postman.imported+{{$timestamp}}@example.com', password: 'PostmanPass123', phone_number: '+201000000003', role: 'STUDENT', student_number: 'PM-IMP-{{$timestamp}}', current_semester: 1 }] },
   'PUT admin/users/:userId': { full_name: 'Postman Updated User' },
   'PATCH admin/users/:userId/status': { status: 'ACTIVE' },
@@ -133,7 +136,7 @@ const captureFor = (method, route) => {
     'POST tests': 'testId', 'POST tests/:testId/attempts': 'attemptId',
     'PUT tests/attempts/:attemptId/answers/:questionId': 'answerId', 'POST flashcards/decks': 'deckId',
     'POST flashcards/decks/:deckId/cards': 'cardId', 'POST notifications': 'notificationId',
-    'POST admin/users': 'instructorId',
+    'POST admin/users': 'managedUserId',
   };
   return map[`${method} ${route}`];
 };
@@ -223,11 +226,20 @@ function makeRequest(r) {
       { key: 'file', type: 'file', src: '{{uploadFilePath}}' },
     ] };
   }
+  if (key === 'POST admin/bootstrap/accounts') {
+    request.header.push({key:'X-Bootstrap-Token',value:'{{bootstrapToken}}'});
+  }
   if (key.includes('questions/:questionId/essay-configuration')) request.url=request.url.replace('{{questionId}}','{{essayQuestionId}}');
   if (key === 'PUT tests/attempts/:attemptId/answers/:answerId/grade') request.url=request.url.replace('{{answerId}}','{{essayAnswerId}}');
   if (key === 'GET academic/resources/:resourceId/file') request.url=request.url.replace('{{resourceId}}','{{uploadedResourceId}}');
   if (key === 'POST auth/login') request.description += '\nDuplicate this request as Login Admin/Instructor/Student by changing credential variables; dedicated login requests are prepended.';
-  return { name: `${r.method} /${r.route || ''}`, request, event: testScript(captureFor(r.method, r.route)) };
+  const item={ name: `${r.method} /${r.route || ''}`, request, event: testScript(captureFor(r.method, r.route)) };
+  if(key==='POST admin/bootstrap/accounts') item.event=[{listen:'test',script:{type:'text/javascript',exec:[
+    "pm.test('Bootstrap is created or already closed', () => pm.expect([201,409,503]).to.include(pm.response.code));",
+    "if (pm.response.code === 201) { const accounts=pm.response.json().accounts ?? [];",
+    "for (const account of accounts) { if(account.role==='SYSTEM_ADMIN') pm.collectionVariables.set('adminId',account.id); if(account.role==='INSTRUCTOR') pm.collectionVariables.set('instructorId',account.id); if(account.role==='STUDENT') pm.collectionVariables.set('studentUserId',account.id); } }",
+  ]}}];
+  return item;
 }
 
 const folderMap = new Map();
@@ -297,11 +309,11 @@ if(logoutRoute) deletes.push(makeRequest(logoutRoute));
 folders.push({ name:'99 - Cleanup (destructive; run last)', description:'Delete requests are deliberately isolated so collection prerequisites survive a sequential run.', item:deletes });
 
 const variables = [
-  ['baseUrl','http://localhost:3000/api/v1'], ['adminEmail','admin@example.com'], ['adminPassword','ChangeMeAdmin123'],
+  ['baseUrl','http://localhost:3000/api/v1'], ['bootstrapToken','REPLACE_WITH_32_PLUS_CHARACTER_BOOTSTRAP_TOKEN'], ['adminEmail','admin@example.com'], ['adminPassword','ChangeMeAdmin123'],
   ['instructorEmail','instructor@example.com'], ['instructorPassword','ChangeMeInstructor123'],
   ['studentEmail','student@example.com'], ['studentPassword','ChangeMeStudent123'], ['studentNewPassword','ChangeMeStudent456'],
   ['verificationToken','PASTE_FROM_EMAIL'], ['passwordResetToken','PASTE_FROM_EMAIL'], ['uploadFilePath',''],
-  ...['adminAccessToken','adminRefreshToken','instructorAccessToken','instructorRefreshToken','studentAccessToken','studentRefreshToken','studentUserId','instructorId','semesterId','courseId','weekId','lectureId','topicId','resourceId','uploadedResourceId','questionId','essayQuestionId','optionId','tagId','testId','attemptId','answerId','essayAnswerId','deckId','cardId','notificationId','auditId'].map(k=>[k,'']),
+  ...['adminAccessToken','adminRefreshToken','instructorAccessToken','instructorRefreshToken','studentAccessToken','studentRefreshToken','adminId','studentUserId','instructorId','managedUserId','semesterId','courseId','weekId','lectureId','topicId','resourceId','uploadedResourceId','questionId','essayQuestionId','optionId','tagId','testId','attemptId','answerId','essayAnswerId','deckId','cardId','notificationId','auditId'].map(k=>[k,'']),
 ].map(([key,value])=>({key,value,type:'string'}));
 
 const collection = {
@@ -312,7 +324,7 @@ const collection = {
 };
 
 const environment = { id:'cc1db627-7292-4fd5-a56d-e08cacfe102c', name:'My Doctor Professor - Local',
-  values:variables.filter(v=>['baseUrl','adminEmail','adminPassword','instructorEmail','instructorPassword','studentEmail','studentPassword','studentNewPassword','verificationToken','passwordResetToken','uploadFilePath'].includes(v.key)).map(v=>({...v,enabled:true})),
+  values:variables.filter(v=>['baseUrl','bootstrapToken','adminEmail','adminPassword','instructorEmail','instructorPassword','studentEmail','studentPassword','studentNewPassword','verificationToken','passwordResetToken','uploadFilePath'].includes(v.key)).map(v=>({...v,enabled:true})),
   _postman_variable_scope:'environment', _postman_exported_using:'My Doctor Professor generator' };
 
 fs.writeFileSync(path.join(outDir,'My-Doctor-Professor.postman_collection.json'),JSON.stringify(collection,null,2)+'\n');
