@@ -22,7 +22,8 @@
     "typeorm": "typeorm-ts-node-esm",
     "migration:run": "npm run typeorm -- migration:run -d src/database/data-source.ts",
     "migration:show": "npm run typeorm -- migration:show -d src/database/data-source.ts",
-    "schema:log": "npm run typeorm -- schema:log -d src/database/data-source.ts"
+    "schema:log": "npm run typeorm -- schema:log -d src/database/data-source.ts",
+    "postman:generate": "node scripts/generate-postman.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
