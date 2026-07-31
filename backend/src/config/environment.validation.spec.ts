@@ -46,4 +46,20 @@ describe('validateEnvironment', () => {
       FRONTEND_URL: 'http://example.com',
     })).toThrow('must use HTTPS');
   });
+
+  it('requires a strong token when account bootstrap is enabled', () => {
+    expect(() => validateEnvironment({
+      NODE_ENV: 'development',
+      ALLOW_ACCOUNT_BOOTSTRAP: 'true',
+      ACCOUNT_BOOTSTRAP_TOKEN: 'short',
+    })).toThrow('ACCOUNT_BOOTSTRAP_TOKEN must contain at least 32 characters');
+  });
+
+  it('accepts an explicitly enabled, strongly authorized bootstrap', () => {
+    expect(validateEnvironment({
+      NODE_ENV: 'development',
+      ALLOW_ACCOUNT_BOOTSTRAP: 'true',
+      ACCOUNT_BOOTSTRAP_TOKEN: 'a'.repeat(32),
+    }).ALLOW_ACCOUNT_BOOTSTRAP).toBe('true');
+  });
 });
