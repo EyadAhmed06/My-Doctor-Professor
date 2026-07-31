@@ -1,6 +1,6 @@
 # Postman API pipeline
 
-Import both JSON files from this directory into Postman. Select the local environment, keep the API running at `http://localhost:3000/api/v1`, and provide credentials for one seeded `SYSTEM_ADMIN`, `INSTRUCTOR`, and verified `STUDENT` account.
+Import both JSON files from this directory into Postman. Select the local environment and keep the API running at `http://localhost:3000/api/v1`. On an empty database, set `ALLOW_ACCOUNT_BOOTSTRAP=true`, configure a matching 32+ character `ACCOUNT_BOOTSTRAP_TOKEN`, and copy it into the Postman `bootstrapToken` variable. The first request atomically creates a verified super-admin, instructor, and student. It permanently closes after an administrator exists.
 
 Run folders in numeric order. Login requests capture bearer and refresh tokens. Creation requests capture IDs used by later paths. Email verification and password reset require manually copying the token delivered by the configured SMTP provider. The upload request requires `uploadFilePath` to point to a valid PDF. Folder `99` contains destructive cleanup and must run last.
 
