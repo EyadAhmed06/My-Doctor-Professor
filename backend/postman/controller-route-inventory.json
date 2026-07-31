@@ -1,5 +1,5 @@
 {
-  "count": 130,
+  "count": 131,
   "routes": [
     "DELETE academic/courses/:courseId",
     "DELETE academic/courses/:courseId/instructors/:instructorId",
@@ -84,6 +84,7 @@
     "POST academic/semesters",
     "POST academic/semesters/:semesterId/courses",
     "POST academic/weeks/:weekId/lectures",
+    "POST admin/bootstrap/accounts",
     "POST admin/users",
     "POST admin/users/:userId/reset-password",
     "POST admin/users/import",
