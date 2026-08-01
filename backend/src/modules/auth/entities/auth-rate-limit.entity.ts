@@ -8,7 +8,7 @@ export class AuthRateLimit {
   @Column({ type: 'timestamp', name: 'window_started_at' })
   windowStartedAt: Date;
 
-  @Column({ type: 'integer', default: 0 })
+  @Column({ type: 'integer', default: 0, name: 'request_count' })
   requestCount: number;
 
   @Column({ type: 'timestamp', name: 'expires_at' })
