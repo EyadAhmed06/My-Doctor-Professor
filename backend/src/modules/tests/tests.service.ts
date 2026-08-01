@@ -474,6 +474,7 @@ export class TestsService {
   }
 
   private async finalizeAttempt(attempt: TestAttempt, expired: boolean): Promise<void> {
+    const test = attempt.test;
     const finalized = await this.dataSource.transaction(async (manager) => {
       const locked = await manager.getRepository(TestAttempt).findOne({
         where: { id: attempt.id },
@@ -508,6 +509,7 @@ export class TestsService {
       return manager.getRepository(TestAttempt).save(locked);
     });
     Object.assign(attempt, finalized);
+    attempt.test = test;
   }
 
   private async recalculateScore(attempt: TestAttempt): Promise<void> {
