@@ -12,7 +12,9 @@ node scripts/generate-postman.mjs
 
 The generator fails if a controller route is missing. `controller-route-inventory.json` is the auditable source list.
 
-The collection asserts that responses do not return unexpected 5xx errors and complete within five seconds. Domain-dependent requests can legitimately return 4xx when prerequisites or roles are intentionally absent; run the seeded pipeline for success-path validation.
+The collection asserts that responses do not return unexpected 5xx errors and complete within five seconds. The automated verifier also fails on every unexpected 4xx response. The only accepted 4xx responses are named negative tests: invalid verification/reset tokens and deletion attempts that intentionally prove immutable, published, reviewed, submitted, or non-empty resources cannot be destroyed.
+
+The current generated pipeline executes 141 requests across 131 unique controller routes. It validates that every dynamic route ID is populated before use, so an empty variable cannot accidentally hit a neighboring controller route and produce a misleading success response.
 
 ## Automated HTTP execution
 
