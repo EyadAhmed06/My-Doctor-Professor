@@ -13,3 +13,9 @@ node scripts/generate-postman.mjs
 The generator fails if a controller route is missing. `controller-route-inventory.json` is the auditable source list.
 
 The collection asserts that responses do not return unexpected 5xx errors and complete within five seconds. Domain-dependent requests can legitimately return 4xx when prerequisites or roles are intentionally absent; run the seeded pipeline for success-path validation.
+
+## Automated HTTP execution
+
+The `Backend HTTP API` GitHub Actions workflow starts the real compiled NestJS application against an isolated PostgreSQL service and executes every collection request with Newman. It applies the canonical SQL schemas, creates an upload fixture, verifies the controller inventory, and publishes the Newman JSON/JUnit output, backend log, and a Markdown status summary as a workflow artifact.
+
+The workflow fails when a collection request is skipped, a request receives no HTTP response, an HTTP 5xx occurs, a response exceeds five seconds, or a Postman assertion fails. HTTP 4xx responses are listed separately for business-flow review; they are not silently classified as successful behavior.
