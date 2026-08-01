@@ -56,7 +56,7 @@ const authFor = (module, method, route) => {
   if (module === "flashcards")
     return route.includes("/review") ||
       route.includes("/progress") ||
-      route === "cards/due"
+      route.endsWith("/cards/due")
       ? "studentAccessToken"
       : "instructorAccessToken";
   if (module === "progress") {
