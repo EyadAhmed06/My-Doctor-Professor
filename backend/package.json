@@ -25,7 +25,7 @@
     "schema:log": "npm run typeorm -- schema:log -d src/database/data-source.ts",
     "postman:generate": "node scripts/generate-postman.mjs",
     "postman:verify-report": "node scripts/verify-newman-report.mjs",
-    "schema:check": "typeorm-ts-node-commonjs migration:generate /tmp/typeorm-schema-check -d src/database/data-source.ts --check"
+    "schema:check": "node scripts/check-schema-compatibility.cjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
