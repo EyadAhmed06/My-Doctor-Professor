@@ -28,6 +28,16 @@ const normalizeExpectedType = (column) => {
 const qualifiedTableName = (metadata) =>
   metadata.schema ? `${metadata.schema}.${metadata.tableName}` : metadata.tableName;
 
+const toStringArray = (value) => {
+  if (Array.isArray(value)) return value.map(String);
+  if (typeof value !== 'string') return [];
+  const contents = value.startsWith('{') && value.endsWith('}')
+    ? value.slice(1, -1)
+    : value;
+  if (!contents) return [];
+  return contents.split(',').map((item) => item.replace(/^"|"$/g, ''));
+};
+
 const main = async () => {
   const failures = [];
   await AppDataSource.initialize();
@@ -44,7 +54,8 @@ const main = async () => {
     );
 
     const enumRows = await AppDataSource.query(`
-      SELECT type_name, array_agg(enum_value ORDER BY enum_order) AS enum_values
+      SELECT type_name,
+        array_agg(enum_value::text ORDER BY enum_order)::text[] AS enum_values
       FROM (
         SELECT type.typname AS type_name, enum.enumlabel AS enum_value,
           enum.enumsortorder AS enum_order
@@ -55,13 +66,16 @@ const main = async () => {
       ) values_by_type
       GROUP BY type_name
     `);
-    const enumValues = new Map(enumRows.map((row) => [row.type_name, row.enum_values]));
+    const enumValues = new Map(
+      enumRows.map((row) => [row.type_name, toStringArray(row.enum_values)]),
+    );
 
     const foreignKeys = await AppDataSource.query(`
       SELECT source.relname AS table_name,
-        array_agg(source_column.attname ORDER BY source_key.ordinality) AS columns,
+        array_agg(source_column.attname::text ORDER BY source_key.ordinality)::text[] AS columns,
         target.relname AS referenced_table,
-        array_agg(target_column.attname ORDER BY source_key.ordinality) AS referenced_columns,
+        array_agg(target_column.attname::text ORDER BY source_key.ordinality)::text[]
+          AS referenced_columns,
         constraint_record.confdeltype AS delete_action
       FROM pg_constraint constraint_record
       JOIN pg_class source ON source.oid = constraint_record.conrelid
@@ -86,6 +100,10 @@ const main = async () => {
       n: 'SET NULL',
       d: 'SET DEFAULT',
     };
+    for (const foreignKey of foreignKeys) {
+      foreignKey.columns = toStringArray(foreignKey.columns);
+      foreignKey.referenced_columns = toStringArray(foreignKey.referenced_columns);
+    }
 
     for (const metadata of AppDataSource.entityMetadatas) {
       const table = qualifiedTableName(metadata);
