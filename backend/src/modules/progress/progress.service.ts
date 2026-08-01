@@ -342,7 +342,7 @@ export class ProgressService {
         )
         SELECT gen_random_uuid(),$1,aggregated.topic_id,
           aggregated.attempts,aggregated.correct,aggregated.incorrect,
-          LEAST(100,ROUND(SQRT(aggregated.attempts)*20,2)),
+          LEAST(100,ROUND((SQRT(aggregated.attempts)*20)::numeric,2)),
           ROUND(100.0*aggregated.correct/NULLIF(aggregated.attempts,0),2),
           ROUND(
             0.7*(100.0*aggregated.correct/NULLIF(aggregated.attempts,0))
