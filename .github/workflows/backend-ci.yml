@@ -100,12 +100,7 @@ jobs:
             psql -h localhost -U postgres -d clean_test -v ON_ERROR_STOP=1 -f "${schema}"
           done < <(find database/schemas -maxdepth 1 -type f -name '*.sql' | sort)
       - name: Require zero drift after clean bootstrap
-        run: >-
-          DB_NAME=clean_test
-          npx typeorm-ts-node-esm migration:generate
-          /tmp/clean-schema-check
-          -d src/database/data-source.ts
-          --check
+        run: DB_NAME=clean_test npm run schema:check
       - name: Bootstrap deployment baseline from Eyad
         run: |
           set -euo pipefail
@@ -124,12 +119,7 @@ jobs:
           done < <(find database/migrations -maxdepth 1 -type f -name '*.sql' | sort)
           DB_NAME=upgrade_test npm run migration:run
       - name: Require zero drift after upgrade
-        run: >-
-          DB_NAME=upgrade_test
-          npx typeorm-ts-node-esm migration:generate
-          /tmp/upgrade-schema-check
-          -d src/database/data-source.ts
-          --check
+        run: DB_NAME=upgrade_test npm run schema:check
       - name: Run PostgreSQL integration and concurrency tests
         run: DB_NAME=clean_test npm run test:e2e -- --runInBand
       - name: Run readiness load smoke
