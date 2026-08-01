@@ -19,13 +19,13 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "typeorm": "typeorm-ts-node-esm",
+    "typeorm": "typeorm-ts-node-commonjs",
     "migration:run": "npm run typeorm -- migration:run -d src/database/data-source.ts",
     "migration:show": "npm run typeorm -- migration:show -d src/database/data-source.ts",
     "schema:log": "npm run typeorm -- schema:log -d src/database/data-source.ts",
     "postman:generate": "node scripts/generate-postman.mjs",
     "postman:verify-report": "node scripts/verify-newman-report.mjs",
-    "schema:check": "typeorm-ts-node-esm migration:generate /tmp/typeorm-schema-check -d src/database/data-source.ts --check"
+    "schema:check": "typeorm-ts-node-commonjs migration:generate /tmp/typeorm-schema-check -d src/database/data-source.ts --check"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
