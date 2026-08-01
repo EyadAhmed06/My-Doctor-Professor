@@ -43,6 +43,29 @@ const serverFailures = rows.filter(
 const businessRejections = rows.filter(
   (row) => row.status !== null && row.status >= 400 && row.status < 500,
 );
+const allowedBusinessRejections = new Map([
+  ["POST /auth/email-verification/confirm", new Set([400])],
+  ["POST /auth/password/reset", new Set([400])],
+  ["DELETE /tests/attempts/:attemptId/notes/:questionId", new Set([409])],
+  ["DELETE /tests/attempts/:attemptId/flags/:questionId", new Set([409])],
+  ["DELETE /tests/:testId/questions/:questionId", new Set([409])],
+  ["DELETE /tests/:testId", new Set([409])],
+  ["DELETE /questions/options/:optionId", new Set([409])],
+  ["DELETE /questions/:questionId", new Set([409])],
+  ["DELETE /flashcards/cards/:cardId", new Set([409])],
+  ["DELETE /flashcards/decks/:deckId", new Set([409])],
+  ["DELETE /academic/topics/:topicId", new Set([409])],
+  ["DELETE /academic/lectures/:lectureId", new Set([409])],
+  ["DELETE /academic/weeks/:weekId", new Set([409])],
+  ["DELETE /academic/courses/:courseId", new Set([409])],
+  ["DELETE /academic/semesters/:semesterId", new Set([409])],
+]);
+const expectedBusinessRejections = businessRejections.filter((row) =>
+  allowedBusinessRejections.get(row.name)?.has(row.status),
+);
+const unexpectedBusinessRejections = businessRejections.filter(
+  (row) => !allowedBusinessRejections.get(row.name)?.has(row.status),
+);
 const slowResponses = rows.filter(
   (row) => row.responseTime !== null && row.responseTime >= 5000,
 );
@@ -67,6 +90,10 @@ if (transportFailures.length)
   );
 if (serverFailures.length)
   hardErrors.push(`${serverFailures.length} request(s) returned HTTP 5xx.`);
+if (unexpectedBusinessRejections.length)
+  hardErrors.push(
+    `${unexpectedBusinessRejections.length} request(s) returned an unexpected HTTP 4xx response.`,
+  );
 if (slowResponses.length)
   hardErrors.push(`${slowResponses.length} request(s) exceeded five seconds.`);
 if (failures.length)
@@ -82,7 +109,8 @@ const lines = [
   `- Collection requests executed: **${rows.length}**`,
   `- Transport failures: **${transportFailures.length}**`,
   `- HTTP 5xx responses: **${serverFailures.length}**`,
-  `- HTTP 4xx business rejections: **${businessRejections.length}**`,
+  `- Expected HTTP 4xx negative tests: **${expectedBusinessRejections.length}**`,
+  `- Unexpected HTTP 4xx responses: **${unexpectedBusinessRejections.length}**`,
   `- Responses taking at least five seconds: **${slowResponses.length}**`,
   `- Newman failures: **${failures.length}**`,
   "",
@@ -95,7 +123,7 @@ const lines = [
     .map(([status, count]) => `| ${status} | ${count} |`),
 ];
 
-if (businessRejections.length) {
+if (unexpectedBusinessRejections.length) {
   lines.push(
     "",
     "## HTTP 4xx responses requiring review",
@@ -103,7 +131,7 @@ if (businessRejections.length) {
     "| Request | Method | Status |",
     "| --- | --- | ---: |",
   );
-  for (const row of businessRejections)
+  for (const row of unexpectedBusinessRejections)
     lines.push(
       `| ${row.name.replaceAll("|", "\\|")} | ${row.method} | ${row.status} |`,
     );
