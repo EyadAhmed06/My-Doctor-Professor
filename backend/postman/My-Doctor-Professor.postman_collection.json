@@ -678,7 +678,17 @@
               }
             ],
             "url": "{{baseUrl}}/auth/me",
-            "description": "Controller source: src/modules/auth/auth.controller.ts#getCurrentUser"
+            "description": "Controller source: src/modules/auth/auth.controller.ts#getCurrentUser",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           },
           "event": [
             {
@@ -746,59 +756,6 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('managedUserId', value);",
-                  "}"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Create managed Student for pipeline",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/admin/users",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"full_name\": \"Postman Student\",\n  \"email\": \"{{studentEmail}}\",\n  \"password\": \"{{studentPassword}}\",\n  \"phone_number\": \"+201000000005\",\n  \"role\": \"STUDENT\",\n  \"student_number\": \"PM-STUDENT-{{$timestamp}}\",\n  \"current_semester\": 1\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));",
-                  "if (pm.response.code >= 200 && pm.response.code < 300 && pm.response.text()) {",
-                  "  const json = pm.response.json();",
-                  "  const value = json.id ?? json.data?.id ?? json.result?.id;",
-                  "  if (value) pm.collectionVariables.set('studentUserId', value);",
                   "}"
                 ]
               }
@@ -982,7 +939,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{baseUrl}}/admin/users/{{studentUserId}}",
+            "url": "{{baseUrl}}/admin/users/{{managedUserId}}",
             "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#getUser",
             "auth": {
               "type": "bearer",
@@ -1001,6 +958,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable managedUserId is populated', () => pm.expect(pm.variables.get('managedUserId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -1022,7 +980,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{baseUrl}}/admin/users/{{studentUserId}}",
+            "url": "{{baseUrl}}/admin/users/{{managedUserId}}",
             "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#updateUser",
             "auth": {
               "type": "bearer",
@@ -1050,6 +1008,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable managedUserId is populated', () => pm.expect(pm.variables.get('managedUserId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -1071,7 +1030,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{baseUrl}}/admin/users/{{studentUserId}}/status",
+            "url": "{{baseUrl}}/admin/users/{{managedUserId}}/status",
             "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#updateStatus",
             "auth": {
               "type": "bearer",
@@ -1099,6 +1058,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable managedUserId is populated', () => pm.expect(pm.variables.get('managedUserId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -1116,7 +1076,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{baseUrl}}/admin/users/{{studentUserId}}/reset-password",
+            "url": "{{baseUrl}}/admin/users/{{managedUserId}}/reset-password",
             "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#resetPassword",
             "auth": {
               "type": "bearer",
@@ -1135,6 +1095,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable managedUserId is populated', () => pm.expect(pm.variables.get('managedUserId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -1204,7 +1165,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{instructorAccessToken}}",
+                  "value": "{{adminAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -1254,7 +1215,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{studentAccessToken}}",
+                  "value": "{{instructorAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -1290,7 +1251,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{studentAccessToken}}",
+                  "value": "{{instructorAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -1302,6 +1263,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable semesterId is populated', () => pm.expect(pm.variables.get('semesterId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -1330,7 +1292,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{instructorAccessToken}}",
+                  "value": "{{adminAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -1351,6 +1313,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable semesterId is populated', () => pm.expect(pm.variables.get('semesterId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -1379,7 +1342,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{instructorAccessToken}}",
+                  "value": "{{adminAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -1400,6 +1363,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable semesterId is populated', () => pm.expect(pm.variables.get('semesterId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));",
                   "if (pm.response.code >= 200 && pm.response.code < 300 && pm.response.text()) {",
@@ -1441,6 +1405,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable courseId is populated', () => pm.expect(pm.variables.get('courseId')).to.be.a('string').and.not.empty);",
+                  "pm.test('Route variable instructorId is populated', () => pm.expect(pm.variables.get('instructorId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -1465,7 +1431,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{studentAccessToken}}",
+                  "value": "{{instructorAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -1477,6 +1443,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable semesterId is populated', () => pm.expect(pm.variables.get('semesterId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -1501,7 +1468,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{studentAccessToken}}",
+                  "value": "{{instructorAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -1513,6 +1480,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable courseId is populated', () => pm.expect(pm.variables.get('courseId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -1549,6 +1517,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable courseId is populated', () => pm.expect(pm.variables.get('courseId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -1598,6 +1567,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable courseId is populated', () => pm.expect(pm.variables.get('courseId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -1647,6 +1617,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable courseId is populated', () => pm.expect(pm.variables.get('courseId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));",
                   "if (pm.response.code >= 200 && pm.response.code < 300 && pm.response.text()) {",
@@ -1676,7 +1647,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{studentAccessToken}}",
+                  "value": "{{instructorAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -1688,6 +1659,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable courseId is populated', () => pm.expect(pm.variables.get('courseId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -1712,7 +1684,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{studentAccessToken}}",
+                  "value": "{{instructorAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -1724,6 +1696,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable weekId is populated', () => pm.expect(pm.variables.get('weekId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -1773,6 +1746,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable weekId is populated', () => pm.expect(pm.variables.get('weekId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -1822,6 +1796,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable weekId is populated', () => pm.expect(pm.variables.get('weekId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));",
                   "if (pm.response.code >= 200 && pm.response.code < 300 && pm.response.text()) {",
@@ -1862,7 +1837,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Postman Lecture Updated\",\n  \"is_published\": true\n}",
+              "raw": "{\n  \"title\": \"Postman Lecture Updated\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1876,6 +1851,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable lectureId is populated', () => pm.expect(pm.variables.get('lectureId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -1900,7 +1876,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{studentAccessToken}}",
+                  "value": "{{instructorAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -1912,6 +1888,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable weekId is populated', () => pm.expect(pm.variables.get('weekId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -1936,7 +1913,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{studentAccessToken}}",
+                  "value": "{{instructorAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -1948,6 +1925,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable lectureId is populated', () => pm.expect(pm.variables.get('lectureId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -1997,6 +1975,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable lectureId is populated', () => pm.expect(pm.variables.get('lectureId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));",
                   "if (pm.response.code >= 200 && pm.response.code < 300 && pm.response.text()) {",
@@ -2026,7 +2005,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{studentAccessToken}}",
+                  "value": "{{instructorAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -2038,6 +2017,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable lectureId is populated', () => pm.expect(pm.variables.get('lectureId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -2062,7 +2042,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{studentAccessToken}}",
+                  "value": "{{instructorAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -2074,6 +2054,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable topicId is populated', () => pm.expect(pm.variables.get('topicId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -2123,6 +2104,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable topicId is populated', () => pm.expect(pm.variables.get('topicId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -2172,6 +2154,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable lectureId is populated', () => pm.expect(pm.variables.get('lectureId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));",
                   "if (pm.response.code >= 200 && pm.response.code < 300 && pm.response.text()) {",
@@ -2238,6 +2221,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable lectureId is populated', () => pm.expect(pm.variables.get('lectureId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));",
                   "if (pm.response.code >= 200 && pm.response.code < 300 && pm.response.text()) {",
@@ -2267,7 +2251,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{studentAccessToken}}",
+                  "value": "{{instructorAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -2279,6 +2263,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable uploadedResourceId is populated', () => pm.expect(pm.variables.get('uploadedResourceId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -2303,7 +2288,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{studentAccessToken}}",
+                  "value": "{{instructorAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -2315,6 +2300,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable lectureId is populated', () => pm.expect(pm.variables.get('lectureId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -2530,6 +2516,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable questionId is populated', () => pm.expect(pm.variables.get('questionId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));",
                   "if (pm.response.code >= 200 && pm.response.code < 300 && pm.response.text()) {",
@@ -2537,6 +2524,54 @@
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('optionId', value);",
                   "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add incorrect MCQ option",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/questions/{{questionId}}/options",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"option_text\": \"Incorrect option\",\n  \"is_correct\": false,\n  \"display_order\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
               }
             }
@@ -2571,6 +2606,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable questionId is populated', () => pm.expect(pm.variables.get('questionId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -2620,6 +2656,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable optionId is populated', () => pm.expect(pm.variables.get('optionId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -2656,6 +2693,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable topicId is populated', () => pm.expect(pm.variables.get('topicId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -2764,6 +2802,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable questionId is populated', () => pm.expect(pm.variables.get('questionId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -2813,6 +2852,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable questionId is populated', () => pm.expect(pm.variables.get('questionId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -2849,6 +2889,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable questionId is populated', () => pm.expect(pm.variables.get('questionId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -2898,6 +2939,55 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable essayQuestionId is populated', () => pm.expect(pm.variables.get('essayQuestionId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Activate ESSAY question",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/questions/{{essayQuestionId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -2934,6 +3024,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable essayQuestionId is populated', () => pm.expect(pm.variables.get('essayQuestionId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -2962,6 +3053,56 @@
                   "type": "string"
                 }
               ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable questionId is populated', () => pm.expect(pm.variables.get('questionId')).to.be.a('string').and.not.empty);",
+                  "pm.test('Route variable tagId is populated', () => pm.expect(pm.variables.get('tagId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Publish lecture after question setup",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/academic/lectures/{{lectureId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_published\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -3078,6 +3219,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable testId is populated', () => pm.expect(pm.variables.get('testId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -3162,6 +3304,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable testId is populated', () => pm.expect(pm.variables.get('testId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -3211,6 +3354,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable testId is populated', () => pm.expect(pm.variables.get('testId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -3247,6 +3391,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable courseId is populated', () => pm.expect(pm.variables.get('courseId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -3283,6 +3428,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable testId is populated', () => pm.expect(pm.variables.get('testId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -3332,6 +3478,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable testId is populated', () => pm.expect(pm.variables.get('testId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));",
                   "if (pm.response.code >= 200 && pm.response.code < 300 && pm.response.text()) {",
@@ -3373,6 +3520,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable attemptId is populated', () => pm.expect(pm.variables.get('attemptId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -3409,6 +3557,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable attemptId is populated', () => pm.expect(pm.variables.get('attemptId')).to.be.a('string').and.not.empty);",
+                  "pm.test('Route variable questionId is populated', () => pm.expect(pm.variables.get('questionId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -3458,6 +3608,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable attemptId is populated', () => pm.expect(pm.variables.get('attemptId')).to.be.a('string').and.not.empty);",
+                  "pm.test('Route variable questionId is populated', () => pm.expect(pm.variables.get('questionId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -3507,6 +3659,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable attemptId is populated', () => pm.expect(pm.variables.get('attemptId')).to.be.a('string').and.not.empty);",
+                  "pm.test('Route variable questionId is populated', () => pm.expect(pm.variables.get('questionId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -3556,6 +3710,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable attemptId is populated', () => pm.expect(pm.variables.get('attemptId')).to.be.a('string').and.not.empty);",
+                  "pm.test('Route variable questionId is populated', () => pm.expect(pm.variables.get('questionId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));",
                   "if (pm.response.code >= 200 && pm.response.code < 300 && pm.response.text()) {",
@@ -3595,7 +3751,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"essay_answer\": \"Postman essay response with sufficient content for grading.\"\n}",
+              "raw": "{\n  \"essay_answer\": \"This Postman essay response contains sufficient clinical reasoning content for automated grading validation.\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3650,6 +3806,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable attemptId is populated', () => pm.expect(pm.variables.get('attemptId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -3686,6 +3843,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable attemptId is populated', () => pm.expect(pm.variables.get('attemptId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -3735,6 +3893,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable attemptId is populated', () => pm.expect(pm.variables.get('attemptId')).to.be.a('string').and.not.empty);",
+                  "pm.test('Route variable essayAnswerId is populated', () => pm.expect(pm.variables.get('essayAnswerId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -3771,6 +3931,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable attemptId is populated', () => pm.expect(pm.variables.get('attemptId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -3807,6 +3968,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable testId is populated', () => pm.expect(pm.variables.get('testId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -3915,6 +4077,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable deckId is populated', () => pm.expect(pm.variables.get('deckId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));",
                   "if (pm.response.code >= 200 && pm.response.code < 300 && pm.response.text()) {",
@@ -3922,163 +4085,6 @@
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('cardId', value);",
                   "}"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "PUT /flashcards/decks/:deckId",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/flashcards/decks/{{deckId}}",
-            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#updateDeck",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{instructorAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"Postman Deck Updated\",\n  \"is_published\": true\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "GET /flashcards/decks",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/flashcards/decks?page=1&limit=20&course_id={{courseId}}",
-            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#listDecks",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{instructorAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "GET /flashcards/decks/:deckId",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/flashcards/decks/{{deckId}}",
-            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#getDeck",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{instructorAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "GET /flashcards/decks/:deckId/cards",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/flashcards/decks/{{deckId}}/cards?page=1&limit=20",
-            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#listCards",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{instructorAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
               }
             }
@@ -4126,6 +4132,168 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable cardId is populated', () => pm.expect(pm.variables.get('cardId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /flashcards/decks/:deckId",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/flashcards/decks/{{deckId}}",
+            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#updateDeck",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman Deck Updated\",\n  \"is_published\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable deckId is populated', () => pm.expect(pm.variables.get('deckId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /flashcards/decks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/flashcards/decks?page=1&limit=20&course_id={{courseId}}",
+            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#listDecks",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable courseId is populated', () => pm.expect(pm.variables.get('courseId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /flashcards/decks/:deckId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/flashcards/decks/{{deckId}}",
+            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#getDeck",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable deckId is populated', () => pm.expect(pm.variables.get('deckId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /flashcards/decks/:deckId/cards",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/flashcards/decks/{{deckId}}/cards?page=1&limit=20",
+            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#listCards",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable deckId is populated', () => pm.expect(pm.variables.get('deckId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -4198,6 +4366,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable cardId is populated', () => pm.expect(pm.variables.get('cardId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -4247,6 +4416,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable cardId is populated', () => pm.expect(pm.variables.get('cardId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -4324,6 +4494,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable courseId is populated', () => pm.expect(pm.variables.get('courseId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -4360,6 +4531,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable lectureId is populated', () => pm.expect(pm.variables.get('lectureId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -4409,6 +4581,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable lectureId is populated', () => pm.expect(pm.variables.get('lectureId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -4445,6 +4618,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable topicId is populated', () => pm.expect(pm.variables.get('topicId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -4481,6 +4655,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable questionId is populated', () => pm.expect(pm.variables.get('questionId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -4530,6 +4705,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable questionId is populated', () => pm.expect(pm.variables.get('questionId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -4602,6 +4778,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable courseId is populated', () => pm.expect(pm.variables.get('courseId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -4674,6 +4851,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable courseId is populated', () => pm.expect(pm.variables.get('courseId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -4710,6 +4888,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable testId is populated', () => pm.expect(pm.variables.get('testId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -4746,6 +4925,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable courseId is populated', () => pm.expect(pm.variables.get('courseId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -4913,6 +5093,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable notificationId is populated', () => pm.expect(pm.variables.get('notificationId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -4990,6 +5171,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable studentUserId is populated', () => pm.expect(pm.variables.get('studentUserId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5039,6 +5221,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable studentUserId is populated', () => pm.expect(pm.variables.get('studentUserId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5088,8 +5271,50 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable studentUserId is populated', () => pm.expect(pm.variables.get('studentUserId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Student after password change",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{studentEmail}}\",\n  \"password\": \"{{studentNewPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login succeeds', () => pm.expect(pm.response.code).to.eql(200));",
+                  "if (pm.response.code === 200) { const json=pm.response.json();",
+                  "pm.collectionVariables.set('studentAccessToken', json.access_token);",
+                  "pm.collectionVariables.set('studentRefreshToken', json.refresh_token);",
+                  "if (json.user?.id) pm.collectionVariables.set('studentUserId', json.user.id); }"
                 ]
               }
             }
@@ -5130,7 +5355,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));",
+                  "if (pm.response.code === 200) { const json=pm.response.json(); const first=json.data?.[0]; if(first?.id) pm.collectionVariables.set('auditId',first.id); }"
                 ]
               }
             }
@@ -5146,7 +5372,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{baseUrl}}/audit-logs/export/file",
+            "url": "{{baseUrl}}/audit-logs/export/file?date_from={{$isoTimestamp}}&date_until={{$isoTimestamp}}",
             "description": "Controller source: src/modules/audit/audit.controller.ts#export",
             "auth": {
               "type": "bearer",
@@ -5201,6 +5427,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable auditId is populated', () => pm.expect(pm.variables.get('auditId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5243,6 +5470,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable attemptId is populated', () => pm.expect(pm.variables.get('attemptId')).to.be.a('string').and.not.empty);",
+                  "pm.test('Route variable questionId is populated', () => pm.expect(pm.variables.get('questionId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5279,6 +5508,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable attemptId is populated', () => pm.expect(pm.variables.get('attemptId')).to.be.a('string').and.not.empty);",
+                  "pm.test('Route variable questionId is populated', () => pm.expect(pm.variables.get('questionId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5315,6 +5546,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable testId is populated', () => pm.expect(pm.variables.get('testId')).to.be.a('string').and.not.empty);",
+                  "pm.test('Route variable questionId is populated', () => pm.expect(pm.variables.get('questionId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5351,6 +5584,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable testId is populated', () => pm.expect(pm.variables.get('testId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5387,78 +5621,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "DELETE /questions/:questionId",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/questions/{{questionId}}",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#remove",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{instructorAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "DELETE /questions/tags/:tagId",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/questions/tags/{{tagId}}",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#removeTag",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{instructorAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
+                  "pm.test('Route variable questionId is populated', () => pm.expect(pm.variables.get('questionId')).to.be.a('string').and.not.empty);",
+                  "pm.test('Route variable tagId is populated', () => pm.expect(pm.variables.get('tagId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5495,6 +5659,81 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable optionId is populated', () => pm.expect(pm.variables.get('optionId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /questions/:questionId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/questions/{{questionId}}",
+            "description": "Controller source: src/modules/questions/questions.controller.ts#remove",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable questionId is populated', () => pm.expect(pm.variables.get('questionId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /questions/tags/:tagId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/questions/tags/{{tagId}}",
+            "description": "Controller source: src/modules/questions/questions.controller.ts#removeTag",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable tagId is populated', () => pm.expect(pm.variables.get('tagId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5531,6 +5770,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable notificationId is populated', () => pm.expect(pm.variables.get('notificationId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5567,6 +5807,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable cardId is populated', () => pm.expect(pm.variables.get('cardId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5603,6 +5844,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable deckId is populated', () => pm.expect(pm.variables.get('deckId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5620,7 +5862,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{baseUrl}}/admin/users/{{studentUserId}}",
+            "url": "{{baseUrl}}/admin/users/{{managedUserId}}",
             "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#removeUser",
             "auth": {
               "type": "bearer",
@@ -5639,6 +5881,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable managedUserId is populated', () => pm.expect(pm.variables.get('managedUserId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5675,6 +5918,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable resourceId is populated', () => pm.expect(pm.variables.get('resourceId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5711,6 +5955,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable topicId is populated', () => pm.expect(pm.variables.get('topicId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5747,6 +5992,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable lectureId is populated', () => pm.expect(pm.variables.get('lectureId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5783,42 +6029,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "DELETE /academic/courses/:courseId",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/academic/courses/{{courseId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#deleteCourse",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{instructorAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
+                  "pm.test('Route variable weekId is populated', () => pm.expect(pm.variables.get('weekId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5855,6 +6066,45 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable courseId is populated', () => pm.expect(pm.variables.get('courseId')).to.be.a('string').and.not.empty);",
+                  "pm.test('Route variable instructorId is populated', () => pm.expect(pm.variables.get('instructorId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /academic/courses/:courseId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/academic/courses/{{courseId}}",
+            "description": "Controller source: src/modules/academic/academic.controller.ts#deleteCourse",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable courseId is populated', () => pm.expect(pm.variables.get('courseId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5879,7 +6129,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{instructorAccessToken}}",
+                  "value": "{{adminAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -5891,6 +6141,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test('Route variable semesterId is populated', () => pm.expect(pm.variables.get('semesterId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5909,7 +6160,17 @@
               }
             ],
             "url": "{{baseUrl}}/auth/logout",
-            "description": "Controller source: src/modules/auth/auth.controller.ts#logout"
+            "description": "Controller source: src/modules/auth/auth.controller.ts#logout",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           },
           "event": [
             {
