@@ -477,7 +477,6 @@ export class TestsService {
     const finalized = await this.dataSource.transaction(async (manager) => {
       const locked = await manager.getRepository(TestAttempt).findOne({
         where: { id: attempt.id },
-        relations: { test: true },
         lock: { mode: 'pessimistic_write' },
       });
       if (!locked) throw new NotFoundException('Test attempt not found');
