@@ -54,6 +54,7 @@ const allowedBusinessRejections = new Map([
   ["DELETE /questions/:questionId", new Set([409])],
   ["DELETE /flashcards/cards/:cardId", new Set([409])],
   ["DELETE /flashcards/decks/:deckId", new Set([409])],
+  ["DELETE /academic/resources/:resourceId", new Set([409])],
   ["DELETE /academic/topics/:topicId", new Set([409])],
   ["DELETE /academic/lectures/:lectureId", new Set([409])],
   ["DELETE /academic/weeks/:weekId", new Set([409])],
