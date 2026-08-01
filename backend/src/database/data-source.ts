@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { join } from 'node:path';
 import { DataSource } from 'typeorm';
 
+// TypeORM package scripts execute with backend/ as their working directory.
 const backendDirectory = process.cwd();
 
 export const AppDataSource = new DataSource({
