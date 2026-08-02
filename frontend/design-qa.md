@@ -18,7 +18,7 @@
 - Fonts and typography: Georgia display serif reproduces the high-contrast editorial headings; Arial provides the compact UI sans. Heading hierarchy, weights, teal emphasis, form-label optical weight, and wrapping follow X. Login was given a 59/41 split and a 53 px intermediate-desktop heading to preserve the source's two-line composition.
 - Spacing and layout rhythm: the hero/form splits, form density, bottom trust strip, pricing-card geometry, register two-column workflow, radii, borders, and vertical rhythm follow X. The 1363 px register overflow and pricing metadata wrapping found in the first pass were corrected with fractional minmax tracks and a non-wrapping price row.
 - Colors and visual tokens: X's light surfaces were intentionally replaced with Y's near-black navy, indigo panels, low-contrast borders, cyan/teal states, and blue-to-violet primary gradients.
-- Image quality and asset fidelity: the central medical-study scene is a dedicated generated raster asset, embedded losslessly in a repository-safe SVG container. Its monitor, notebook, mug, heart poster, books, and plant match X's subject while line color and glow match Y. No placeholder or CSS-drawn illustration is used.
+- Image quality and asset fidelity: the user explicitly requested removal of the generated clinical-study illustration after the initial build. Landing and login now intentionally use open negative space; registration never contained the illustration.
 - Copy and content: headings, supporting copy, benefits, plan names/prices/features, field labels, institution prompts, trust statements, and payment messaging are preserved from the supplied X references.
 
 ## Full-view comparison evidence
@@ -48,6 +48,10 @@ Focused region comparison was not separately required because every important fo
 - Fix: reduced only the login form-side and card horizontal padding between 1101–1500 px, restoring the source's input width and institution-row proportions without changing the wide desktop layout.
 - Post-fix evidence: the final 1363 × 936 browser capture showed an unbroken “Welcome back” title, full-width fields and CTA, and readable single-row institution content.
 - No actionable P0/P1/P2 visual differences remain. Residual differences are the explicitly requested Y theme and responsive normalization for the narrower QA viewport.
+
+### Iteration 4
+
+- User-directed revision: removed the clinical-study illustration from landing and login and deleted the unused repository asset. Registration was verified to contain no instance of it.
 
 ## Interaction and runtime checks
 
