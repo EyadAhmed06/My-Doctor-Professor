@@ -167,22 +167,38 @@ export class UsersService {
   }
   findSession(id:string){return this.sessionsRepository.findOne({where:{id}});}
   async rotateSessionSecure(
-    id:string,presentedToken:string,refreshTokenHash:string,expiresAt:Date,
+    id:string,userId:string,presentedToken:string,
+    refreshTokenHash:string,expiresAt:Date,
   ) {
-    await this.dataSource.transaction(async manager=>{
+    const outcome=await this.dataSource.transaction<'rotated'|'invalid'|'reuse'>(async manager=>{
+      await manager.query(
+        'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+        [id],
+      );
       const session=await manager.findOne(AuthSession,{
         where:{id},lock:{mode:'pessimistic_write'},
       });
-      if(!session||session.revokedAt||session.expiresAt<=new Date()) {
-        throw new UnauthorizedException('Refresh session is no longer valid');
+      if(!session||session.userId!==userId||session.revokedAt||session.expiresAt<=new Date()) {
+        return 'invalid';
       }
       if(!(await bcrypt.compare(presentedToken,session.refreshTokenHash))) {
-        session.revokedAt=new Date();await manager.save(AuthSession,session);
-        throw new UnauthorizedException('Refresh token reuse detected; session revoked');
+        session.revokedAt=new Date();
+        await manager.save(AuthSession,session);
+        return 'reuse';
       }
-      session.refreshTokenHash=refreshTokenHash;session.expiresAt=expiresAt;
-      session.lastUsedAt=new Date();await manager.save(AuthSession,session);
+      session.refreshTokenHash=refreshTokenHash;
+      session.expiresAt=expiresAt;
+      session.lastUsedAt=new Date();
+      await manager.save(AuthSession,session);
+      return 'rotated';
     });
+    if(outcome!=='rotated') {
+      throw new UnauthorizedException(
+        outcome==='reuse'
+          ?'Refresh token reuse detected; session revoked'
+          :'Refresh session is no longer valid',
+      );
+    }
   }
   async revokeSession(id:string){await this.sessionsRepository.update({id},{revokedAt:new Date()});}
   async revokeAllSessions(userId:string) {
