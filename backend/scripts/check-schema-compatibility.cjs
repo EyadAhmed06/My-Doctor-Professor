@@ -115,9 +115,14 @@ const main = async () => {
         }
 
         const expectedType = normalizeExpectedType(expected);
-        if (actual.data_type.toLowerCase() !== expectedType) {
+        const reportedType = actual.data_type.toLowerCase();
+        const actualType = reportedType === 'user-defined' && expectedType !== 'user-defined'
+          ? actual.udt_name.toLowerCase()
+          : reportedType;
+        if (actualType !== expectedType) {
           failures.push(
-            `${table}.${expected.databaseName}: expected ${expectedType}, found ${actual.data_type}`,
+            `${table}.${expected.databaseName}: expected ${expectedType}, ` +
+              `found ${actual.data_type}${reportedType === 'user-defined' ? ` (${actual.udt_name})` : ''}`,
           );
         }
 
