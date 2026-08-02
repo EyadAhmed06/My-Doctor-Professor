@@ -1,5 +1,4 @@
 "use client";
-import Image from "next/image";
 import { Brand, Benefit, Field, icons, PageFooter, SecureNote, SubmitForm, TrustStrip } from "./ui";
 
 const planFeatures=["Full case library","Qbank access","Spaced repetition","Professor Pearls","Advanced analytics"];
@@ -17,7 +16,6 @@ export function LandingPage(){
           <Benefit icon={icons.Bar} title="Track & measure progress.">See your strengths, spot gaps, and<br/>improve with real-time insights.</Benefit>
         </div>
       </div>
-      <Image className="study-art landing-art" src="/clinical-study.svg" alt="" width={1536} height={1024} priority />
       <TrustStrip/><PageFooter/>
     </section>
     <section className="form-side landing-form-side">
