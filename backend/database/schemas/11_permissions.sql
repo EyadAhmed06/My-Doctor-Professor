@@ -10,11 +10,21 @@
 --
 -- =====================================================
 
-CREATE ROLE mdp_admin;
+DO $
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'mdp_admin') THEN
+        CREATE ROLE mdp_admin;
+    END IF;
 
-CREATE ROLE mdp_backend;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'mdp_backend') THEN
+        CREATE ROLE mdp_backend;
+    END IF;
 
-CREATE ROLE mdp_readonly;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'mdp_readonly') THEN
+        CREATE ROLE mdp_readonly;
+    END IF;
+END
+$;
 
 GRANT USAGE
 ON SCHEMA public
