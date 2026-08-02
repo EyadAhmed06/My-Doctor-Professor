@@ -167,30 +167,33 @@ export class UsersService {
   }
   findSession(id:string){return this.sessionsRepository.findOne({where:{id}});}
   async rotateSessionSecure(
-    id:string,userId:string,presentedToken:string,
-    refreshTokenHash:string,expiresAt:Date,
+    id:string,userId:string,presentedTokenDigest:string,
+    refreshTokenDigest:string,expiresAt:Date,
   ) {
     const outcome=await this.dataSource.transaction<'rotated'|'invalid'|'reuse'>(async manager=>{
-      await manager.query(
-        'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
-        [id],
-      );
-      const session=await manager.findOne(AuthSession,{
-        where:{id},lock:{mode:'pessimistic_write'},
-      });
-      if(!session||session.userId!==userId||session.revokedAt||session.expiresAt<=new Date()) {
-        return 'invalid';
-      }
-      if(!(await bcrypt.compare(presentedToken,session.refreshTokenHash))) {
-        session.revokedAt=new Date();
-        await manager.save(AuthSession,session);
-        return 'reuse';
-      }
-      session.refreshTokenHash=refreshTokenHash;
-      session.expiresAt=expiresAt;
-      session.lastUsedAt=new Date();
-      await manager.save(AuthSession,session);
-      return 'rotated';
+      const rotation=await manager.createQueryBuilder()
+        .update(AuthSession)
+        .set({
+          refreshTokenHash:refreshTokenDigest,
+          expiresAt,
+          lastUsedAt:new Date(),
+        })
+        .where('id = :id',{id})
+        .andWhere('user_id = :userId',{userId})
+        .andWhere('refresh_token_hash = :presentedTokenDigest',{presentedTokenDigest})
+        .andWhere('revoked_at IS NULL')
+        .andWhere('expires_at > CURRENT_TIMESTAMP')
+        .execute();
+      if(rotation.affected===1)return 'rotated';
+
+      const revocation=await manager.createQueryBuilder()
+        .update(AuthSession)
+        .set({revokedAt:new Date()})
+        .where('id = :id',{id})
+        .andWhere('user_id = :userId',{userId})
+        .andWhere('revoked_at IS NULL')
+        .execute();
+      return revocation.affected===1?'reuse':'invalid';
     });
     if(outcome!=='rotated') {
       throw new UnauthorizedException(
