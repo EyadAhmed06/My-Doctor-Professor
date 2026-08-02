@@ -80,6 +80,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @HttpCode(HttpStatus.OK)
   refreshToken(@Body() dto: RefreshTokenDto): Promise<AuthResponseDto> {
     return this.authService.refreshAccessToken(dto.refresh_token);
   }
