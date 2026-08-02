@@ -118,6 +118,25 @@ jobs:
             psql -h localhost -U postgres -d upgrade_test -v ON_ERROR_STOP=1 -f "${migration}"
           done < <(find database/migrations -maxdepth 1 -type f -name '*.sql' | sort)
           DB_NAME=upgrade_test npm run migration:run
+      - name: Prove expected TypeORM migrations executed
+        run: |
+          set -euo pipefail
+          psql -h localhost -U postgres -d upgrade_test -c \
+            "SELECT id, timestamp, name FROM migrations ORDER BY timestamp"
+          expected_count="$(psql -h localhost -U postgres -d upgrade_test -Atc "
+            SELECT count(*)
+            FROM migrations
+            WHERE name IN (
+              'HardenAssessmentWorkflow1760000000000',
+              'HardenFlashcardWorkflow1770000000000',
+              'HardenProgressWorkflow1780000000000',
+              'HardenNotificationWorkflow1790000000000',
+              'EnforceAppendOnlyAudit1800000000000',
+              'AddCourseInstructorOwnership1810000000000',
+              'AddResourceStorageMetadata1820000000000'
+            )
+          ")"
+          test "${expected_count}" -eq 7
       - name: Apply current database permissions
         run: >-
           psql -h localhost -U postgres -d upgrade_test
@@ -125,8 +144,21 @@ jobs:
           -f database/schemas/11_permissions.sql
       - name: Require zero drift after upgrade
         run: DB_NAME=upgrade_test npm run schema:check
-      - name: Run PostgreSQL integration and concurrency tests
+      - name: Prove deployment migrations are repeatable
+        run: |
+          set -euo pipefail
+          while IFS= read -r migration; do
+            echo "Reapplying ${migration}"
+            psql -h localhost -U postgres -d upgrade_test -v ON_ERROR_STOP=1 -f "${migration}"
+          done < <(find database/migrations -maxdepth 1 -type f -name '*.sql' | sort)
+          DB_NAME=upgrade_test npm run migration:run
+          psql -h localhost -U postgres -d upgrade_test \
+            -v ON_ERROR_STOP=1 -f database/schemas/11_permissions.sql
+          DB_NAME=upgrade_test npm run schema:check
+      - name: Run PostgreSQL integration and concurrency tests on clean bootstrap
         run: DB_NAME=clean_test npm run test:e2e -- --runInBand
+      - name: Run PostgreSQL integration and concurrency tests after legacy upgrade
+        run: DB_NAME=upgrade_test npm run test:e2e -- --runInBand
       - name: Run readiness load smoke
         run: |
           set -euo pipefail
