@@ -1,20 +1,19 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useState } from "react";
 import {
   FiActivity, FiBell, FiBookOpen, FiBookmark, FiChevronDown,
   FiChevronRight, FiClipboard, FiClock, FiFileText, FiGrid, FiHeart,
-  FiHome, FiMenu, FiMoon, FiSearch, FiSettings,
-  FiSun, FiTrendingUp, FiX, FiZap,
+  FiHome, FiMenu, FiSearch, FiSettings, FiTrendingUp, FiX, FiZap,
 } from "react-icons/fi";
+import { ThemeToggle, useAppTheme } from "./app-theme";
 import "./dashboard.css";
 
-type Theme = "dark" | "light";
-
 const navItems = [
-  ["Dashboard", FiHome], ["Rounds", FiBookOpen], ["Cases", FiClipboard],
-  ["Review", FiActivity], ["Notebook", FiBookmark], ["References", FiFileText],
+  ["Dashboard", FiHome, "/dashboard"], ["Rounds", FiBookOpen, "/rounds"], ["Cases", FiClipboard, "/past-exams"],
+  ["Review", FiActivity, "/study-plan"], ["Notebook", FiBookmark, "/notebook"], ["References", FiFileText, "/guidelines"],
 ] as const;
 
 const plan = [
@@ -42,29 +41,16 @@ function Card({ title, action, children, className = "" }: { title: string; acti
 }
 
 export function DashboardPage() {
-  const [theme, setTheme] = useState<Theme>("light");
+  const { theme } = useAppTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    const saved = window.localStorage.getItem("mdp-dashboard-theme");
-    // This is a one-time synchronization with the user's stored preference.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (saved === "dark" || saved === "light") setTheme(saved);
-  }, []);
-
-  function toggleTheme() {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    window.localStorage.setItem("mdp-dashboard-theme", next);
-  }
 
   return <main className="dashboard-shell" data-theme={theme}>
     <aside className={`dash-sidebar ${menuOpen ? "open" : ""}`}>
       <div className="dash-brand"><span><FiActivity /></span><strong>The Doctor &amp;<br />My Professor</strong></div>
       <button className="sidebar-close" onClick={() => setMenuOpen(false)} aria-label="Close navigation"><FiX /></button>
-      <nav>{navItems.map(([label, Icon], index) => <button className={index === 0 ? "active" : ""} key={label}><Icon />{label}</button>)}</nav>
-      <button className="settings-link"><FiSettings />Settings</button>
+      <nav>{navItems.map(([label, Icon, href], index) => <Link className={index === 0 ? "active" : ""} key={label} href={href}><Icon />{label}</Link>)}</nav>
+      <Link className="settings-link" href="/settings"><FiSettings />Settings</Link>
       <div className="level-mini"><div className="level-badge">14</div><div><strong>Level 14</strong><span>Clinical Learner</span><div className="mini-progress"><i /></div><small>620 / 1000 XP</small></div><FiChevronRight /></div>
       <div className="cme-card"><FiActivity /><div><strong>Earn CME Credits</strong><span>Complete studies and claim CME credits.</span><button>Explore CME</button></div></div>
     </aside>
@@ -74,7 +60,7 @@ export function DashboardPage() {
         <button className="mobile-menu" onClick={() => setMenuOpen(true)} aria-label="Open navigation"><FiMenu /></button>
         <label className="dash-search"><FiSearch /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search cases, topics, or concepts" /><kbd>⌘ K</kbd></label>
         <div className="top-actions">
-          <button className="theme-toggle" onClick={toggleTheme} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}><FiSun /><span className="toggle-track"><i /></span><FiMoon /></button>
+          <ThemeToggle />
           <button className="notification" aria-label="Notifications"><FiBell /><span>2</span></button>
           <Image src="/dashboard/amr-avatar.png" width={42} height={42} alt="Amr Hassan" className="avatar" />
           <div className="profile-copy"><strong>Amr Hassan</strong><span>Medical Student</span></div><FiChevronDown />
