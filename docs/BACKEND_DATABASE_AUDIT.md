@@ -20,7 +20,7 @@ Documentation claims, compilation success, and the absence of an error are not p
 | Clean bootstrap | `backend/database/schemas/00_*.sql` through `11_*.sql` | Build a new database | Entity compatibility passed in the most recent supplied clean run |
 | Legacy baseline | `Eyad:backend/database/schemas/*.sql` | Reproduce the previously deployable database | Used only for `upgrade_test`; permissions intentionally excluded |
 | Raw forward migrations | `backend/database/migrations/*.sql` | SQL transitions not tracked by TypeORM | Must be idempotent because the workflow has no SQL migration ledger |
-| TypeORM migrations | `backend/src/database/migrations/*.ts` | Versioned application migrations | Eight migrations numbered 176 through 183; execution is asserted from the `migrations` ledger |
+| TypeORM migrations | `backend/src/database/migrations/*.ts` | Versioned application migrations | Nine migrations numbered 176 through 184; execution is asserted from the `migrations` ledger |
 | Permissions | `backend/database/schemas/11_permissions.sql` | PostgreSQL roles and grants | Role creation repaired to be repeatable and concurrency-safe |
 | Compatibility validator | `backend/scripts/check-schema-compatibility.cjs` | Compare entity-required columns, enums, and foreign keys to PostgreSQL | Compatibility check, not a complete schema equality check |
 | HTTP contract | Postman/Newman workflow | Exercise all controller routes in a logical pipeline | Latest supplied run: 131 routes, 141 requests, zero 5xx/unexpected 4xx/Newman failures |
@@ -57,7 +57,7 @@ Earlier failures belonged to prerequisites that had hidden the schema drift:
 | B1 | Empty PostgreSQL bootstrap | All current schema files apply with `ON_ERROR_STOP=1` | PASS | Passed in supplied CI output after permission quoting repair |
 | B2 | Entity compatibility | All entity-required columns/enums/FKs match | PASS | Most recent clean `schema:check` reached success before upgrade-only failure |
 | B3 | Full database contract | PKs, defaults, unique/check constraints, indexes, views, triggers, extensions and grants match the declared contract | NOT COVERED | Extend contract audit beyond entity metadata |
-| B4 | Clean integration | E2E/concurrency tests pass on `clean_test` | FAIL, FIX PUSHED | Run #112 passed health, bootstrap and duplicate signup; refresh rotation allowed both concurrent uses and returned default POST 201 |
+| B4 | Clean integration | E2E/concurrency tests pass on `clean_test` | FAIL, CAS FIX PUSHED | Run #116 proved status 200 but both concurrent uses still rotated; replaced multi-step bcrypt rotation with database compare-and-swap |
 
 ### C. Legacy upgrade path
 
@@ -65,7 +65,7 @@ Earlier failures belonged to prerequisites that had hidden the schema drift:
 |---|---|---|---|---|
 | C1 | Reproduce Eyad baseline | Historical SQL builds `upgrade_test` | PASS | Baseline files apply; historical permissions are excluded to prevent host-global role collisions |
 | C2 | Raw migrations | All SQL migrations apply in deterministic filename order | IN PROGRESS | Reconciliation migration added; rerun behavior not yet proved |
-| C3 | TypeORM discovery | Migrations 176-183 are present in the runtime data source | PASS | Run #110 passed the ledger assertion for all eight migrations |
+| C3 | TypeORM discovery | Migrations 176-184 are present in the runtime data source | PASS | Run #110 passed the ledger assertion for all eight migrations |
 | C4 | Upgrade compatibility | Upgraded DB satisfies entity-required contract | PASS | Run #110 passed upgrade `schema:check` after migrations 176-183 |
 | C5 | Upgrade integration | Same E2E/concurrency suite passes on `upgrade_test` | NOT EXECUTED | Run #110 stopped at clean E2E before reaching this step |
 | C6 | Clean/upgrade equivalence | Both paths produce the same declared contract, allowing explicitly documented database-only objects | NOT COVERED | Add normalized structural comparison |
@@ -142,3 +142,5 @@ Earlier failures belonged to prerequisites that had hidden the schema drift:
 | 2026-08-02 | Added migration 183 to canonicalize all duplicate/legacy FKs and reconcile auth sessions plus attempt nullability for databases that already recorded older migrations | Previously upgraded installations now have a forward migration instead of depending on re-running modified historical migrations |
 | 2026-08-02 | Run #110 passed migration ledger, upgrade compatibility and repeatability, then clean E2E returned 400 for synthetic non-E.164 phone fixtures | Database transition is verified; corrected test inputs and added response-body diagnostics |
 | 2026-08-02 | Run #112 returned two successful 201 responses for concurrent reuse of one refresh token | Added session-scoped advisory locking, moved all token/session validation into the locked transaction, persisted reuse revocation before throwing, and set refresh HTTP status to 200 |
+| 2026-08-02 | Run #116 still returned 200/200 despite transaction locks | Rejected read/compare/write design; refresh JWTs now use deterministic SHA-256 digests and one-statement PostgreSQL compare-and-swap |
+| 2026-08-02 | Existing bcrypt session hashes cannot participate in deterministic CAS | Migration 184 revokes legacy active sessions once; passwords remain protected by Argon2/bcrypt as appropriate |
