@@ -41,6 +41,12 @@ Focused region comparison was not separately required because every important fo
 ### Iteration 2
 
 - Post-fix evidence: revised browser captures showed the register card fully inside the viewport, compact pricing rows, a two-line login headline, and clear illustration separation.
+- A final intermediate-width capture exposed a P2 regression: the narrower login grid caused the card's internal content column and institution row to wrap too aggressively.
+
+### Iteration 3
+
+- Fix: reduced only the login form-side and card horizontal padding between 1101–1500 px, restoring the source's input width and institution-row proportions without changing the wide desktop layout.
+- Post-fix evidence: the final 1363 × 936 browser capture showed an unbroken “Welcome back” title, full-width fields and CTA, and readable single-row institution content.
 - No actionable P0/P1/P2 visual differences remain. Residual differences are the explicitly requested Y theme and responsive normalization for the narrower QA viewport.
 
 ## Interaction and runtime checks
