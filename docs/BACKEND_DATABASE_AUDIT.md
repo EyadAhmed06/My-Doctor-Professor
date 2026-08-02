@@ -57,7 +57,7 @@ Earlier failures belonged to prerequisites that had hidden the schema drift:
 | B1 | Empty PostgreSQL bootstrap | All current schema files apply with `ON_ERROR_STOP=1` | PASS | Passed in supplied CI output after permission quoting repair |
 | B2 | Entity compatibility | All entity-required columns/enums/FKs match | PASS | Most recent clean `schema:check` reached success before upgrade-only failure |
 | B3 | Full database contract | PKs, defaults, unique/check constraints, indexes, views, triggers, extensions and grants match the declared contract | NOT COVERED | Extend contract audit beyond entity metadata |
-| B4 | Clean integration | E2E/concurrency tests pass on `clean_test` | FAIL, FIX PUSHED | Health and bootstrap passed; signup/refresh fixtures used invalid phone numbers and returned 400 before their target logic |
+| B4 | Clean integration | E2E/concurrency tests pass on `clean_test` | FAIL, FIX PUSHED | Run #112 passed health, bootstrap and duplicate signup; refresh rotation allowed both concurrent uses and returned default POST 201 |
 
 ### C. Legacy upgrade path
 
@@ -141,3 +141,4 @@ Earlier failures belonged to prerequisites that had hidden the schema drift:
 | 2026-08-02 | Migrations 176-178 used `constraint_column_usage` to locate source FK columns | Replaced with `pg_constraint.conkey` + `pg_attribute`; removed FK ownership from raw reconciliation |
 | 2026-08-02 | Added migration 183 to canonicalize all duplicate/legacy FKs and reconcile auth sessions plus attempt nullability for databases that already recorded older migrations | Previously upgraded installations now have a forward migration instead of depending on re-running modified historical migrations |
 | 2026-08-02 | Run #110 passed migration ledger, upgrade compatibility and repeatability, then clean E2E returned 400 for synthetic non-E.164 phone fixtures | Database transition is verified; corrected test inputs and added response-body diagnostics |
+| 2026-08-02 | Run #112 returned two successful 201 responses for concurrent reuse of one refresh token | Added session-scoped advisory locking, moved all token/session validation into the locked transaction, persisted reuse revocation before throwing, and set refresh HTTP status to 200 |
