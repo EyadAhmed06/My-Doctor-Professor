@@ -1,6 +1,5 @@
 "use client";
 import Link from "next/link";
-import Image from "next/image";
 import { Brand, Benefit, Field, icons, PageFooter, SecureNote, SubmitForm, TrustStrip } from "./ui";
 
 export function LoginPage(){
@@ -16,7 +15,6 @@ export function LoginPage(){
           <Benefit icon={icons.Users} title="Built for learners and clinicians.">Trusted by medical students, residents,<br/>and practicing physicians.</Benefit>
         </div>
       </div>
-      <Image className="study-art login-art" src="/clinical-study.svg" alt="" width={1536} height={1024} priority />
       <TrustStrip/><PageFooter/>
     </section>
     <section className="form-side">
