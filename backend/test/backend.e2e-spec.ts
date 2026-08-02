@@ -101,7 +101,7 @@ describe('Backend integration', () => {
       request(app.getHttpServer()).post('/api/v1/auth/signup').send(body),
       request(app.getHttpServer()).post('/api/v1/auth/signup').send(body),
     ]);
-    expect(responses.map((response) => response.status).sort()).toEqual([201, 409]);
+    expectStatuses(responses, [201, 409]);
   });
 
   it('rotates a refresh token once and rejects concurrent reuse', async () => {
