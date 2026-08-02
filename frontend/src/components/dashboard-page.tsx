@@ -9,6 +9,7 @@ import {
   FiHome, FiMenu, FiSearch, FiSettings, FiTrendingUp, FiX, FiZap,
 } from "react-icons/fi";
 import { ThemeToggle, useAppTheme } from "./app-theme";
+import { BrandLockup } from "./brand";
 import "./dashboard.css";
 
 const navItems = [
@@ -47,7 +48,7 @@ export function DashboardPage() {
 
   return <main className="dashboard-shell" data-theme={theme}>
     <aside className={`dash-sidebar ${menuOpen ? "open" : ""}`}>
-      <div className="dash-brand"><span><FiActivity /></span><strong>The Doctor &amp;<br />My Professor</strong></div>
+      <BrandLockup className="dash-brand" href="/dashboard" stacked />
       <button className="sidebar-close" onClick={() => setMenuOpen(false)} aria-label="Close navigation"><FiX /></button>
       <nav>{navItems.map(([label, Icon, href], index) => <Link className={index === 0 ? "active" : ""} key={label} href={href}><Icon />{label}</Link>)}</nav>
       <Link className="settings-link" href="/settings"><FiSettings />Settings</Link>

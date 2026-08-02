@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { BRAND_NAME, BrandLockup } from "./brand";
 import {
   FiActivity, FiArrowRight, FiBarChart2, FiBookOpen, FiCalendar, FiCheck,
   FiChevronDown, FiClipboard, FiEye, FiEyeOff, FiLock, FiMail, FiShield,
@@ -14,10 +14,7 @@ export const icons = { Activity:FiActivity, Arrow:FiArrowRight, Bar:FiBarChart2,
   User:FiUser, Users:FiUsers, Star:FiStar };
 
 export function Brand() {
-  return <Link href="/" className="brand" aria-label="The Doctor and My Professor home">
-    <span className="brand-mark"><FiActivity /></span>
-    <span>The Doctor &amp; My Professor</span>
-  </Link>;
+  return <BrandLockup className="brand" />;
 }
 
 export function Field({label,icon:Icon,placeholder,type="text",select=false}:{
@@ -61,7 +58,7 @@ export function TrustStrip() {
 }
 
 export function PageFooter() {
-  return <footer><span>© 2026 The Doctor &amp; My Professor. All rights reserved.</span>
+  return <footer><span>© 2026 {BRAND_NAME}. All rights reserved.</span>
     <nav><a href="#">Privacy Policy</a><a href="#">Terms of Service</a></nav></footer>;
 }
 
