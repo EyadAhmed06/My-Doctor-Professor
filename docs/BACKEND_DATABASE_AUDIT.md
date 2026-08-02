@@ -47,7 +47,7 @@ Earlier failures belonged to prerequisites that had hidden the schema drift:
 | A1 | Entity inventory | Every runtime table maps to exactly one entity | IN PROGRESS | 37 compiled entity files counted; duplicate table-name scan still required |
 | A2 | Clean SQL inventory | Ordered schema files and their dependencies are documented | PASS | `00_extensions` -> `01_enums` -> domain tables -> indexes/views -> permissions |
 | A3 | Raw SQL migration inventory | Every file has owner, order, repeatability rule, and target versions | IN PROGRESS | `999_reconcile_current_contract.sql` observed; complete branch inventory still required |
-| A4 | TypeORM migration inventory | All migration classes are discovered and recorded after execution | NOT COVERED | Add CI assertion against the TypeORM `migrations` table |
+| A4 | TypeORM migration inventory | All migration classes are discovered and recorded after execution | COVERED, RESULT PENDING | CI now prints the ledger and requires migrations 176-182 |
 | A5 | Package/toolchain consistency | Node, TypeScript, TypeORM runner, module system, and lockfile agree | IN PROGRESS | Node 22 and ESM-compatible data source verified; migration discovery still unproved |
 
 ### B. Clean database path
@@ -65,16 +65,16 @@ Earlier failures belonged to prerequisites that had hidden the schema drift:
 |---|---|---|---|---|
 | C1 | Reproduce Eyad baseline | Historical SQL builds `upgrade_test` | PASS | Baseline files apply; historical permissions are excluded to prevent host-global role collisions |
 | C2 | Raw migrations | All SQL migrations apply in deterministic filename order | IN PROGRESS | Reconciliation migration added; rerun behavior not yet proved |
-| C3 | TypeORM discovery | Migrations 176-182 are present in the runtime data source | NOT COVERED | Assert expected migration names in TypeORM ledger after `migration:run` |
+| C3 | TypeORM discovery | Migrations 176-182 are present in the runtime data source | COVERED, RESULT PENDING | CI requires all seven expected names in the TypeORM ledger |
 | C4 | Upgrade compatibility | Upgraded DB satisfies entity-required contract | FAIL -> IN PROGRESS | Last failure: 11 delete policies, one nullability mismatch, missing `auth_sessions`; reconciliation run pending |
-| C5 | Upgrade integration | Same E2E/concurrency suite passes on `upgrade_test` | NOT COVERED | Add CI execution after upgrade compatibility |
+| C5 | Upgrade integration | Same E2E/concurrency suite passes on `upgrade_test` | COVERED, RESULT PENDING | CI now runs the same E2E suite against the upgraded database |
 | C6 | Clean/upgrade equivalence | Both paths produce the same declared contract, allowing explicitly documented database-only objects | NOT COVERED | Add normalized structural comparison |
 
 ### D. Migration safety
 
 | ID | Check | Acceptance condition | Status | Evidence / next action |
 |---|---|---|---|---|
-| D1 | Repeatability | Re-running deploy command causes no failure or drift | NOT COVERED | Add second raw-migration, TypeORM and permissions pass in CI |
+| D1 | Repeatability | Re-running deploy command causes no failure or drift | COVERED, RESULT PENDING | CI now reapplies raw SQL, TypeORM migrations, permissions, and compatibility validation |
 | D2 | Data backfill | New `NOT NULL` constraints safely handle legacy nulls | IN PROGRESS | `auto_submitted` is backfilled to false before `SET NOT NULL` |
 | D3 | Destructive policy review | Every CASCADE/RESTRICT/SET NULL change has intentional business semantics | IN PROGRESS | Eleven historical-content relationships currently require RESTRICT; user-owned/session relationships retain CASCADE |
 | D4 | Transaction/partial failure | Interrupted migration can be safely detected and resumed or rolled back | NOT COVERED | Add failure-injection validation after migration authority is selected |
@@ -134,3 +134,5 @@ Earlier failures belonged to prerequisites that had hidden the schema drift:
 | 2026-08-02 | Upgrade retained eleven `CASCADE` FKs, nullable `auto_submitted`, and lacked `auth_sessions` | Historical hardening and auth-session creation were not fully represented in the executed transition |
 | 2026-08-02 | `999_reconcile_current_contract.sql` sorts after raw SQL migrations but before TypeORM migrations | It is a provisional safety net, not yet the final migration architecture |
 
+
+| 2026-08-02 | CI now asserts the TypeORM ledger, deployment repeatability, and upgraded-database integration | Previously implicit assumptions now produce explicit pass/fail evidence |
