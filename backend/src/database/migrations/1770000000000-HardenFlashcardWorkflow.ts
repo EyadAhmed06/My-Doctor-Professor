@@ -7,11 +7,16 @@ export class HardenFlashcardWorkflow1770000000000 implements MigrationInterface 
     await queryRunner.query(`
       DO $$ DECLARE constraint_name text;
       BEGIN
-        SELECT tc.constraint_name INTO constraint_name
-        FROM information_schema.table_constraints tc
-        JOIN information_schema.constraint_column_usage ccu USING (constraint_schema, constraint_name)
-        WHERE tc.table_schema = current_schema() AND tc.table_name = 'flashcard_decks'
-          AND tc.constraint_type = 'FOREIGN KEY' AND ccu.column_name = 'created_by'
+        SELECT constraint_record.conname INTO constraint_name
+        FROM pg_constraint constraint_record
+        JOIN pg_class source_table ON source_table.oid = constraint_record.conrelid
+        JOIN pg_namespace source_schema ON source_schema.oid = source_table.relnamespace
+        JOIN unnest(constraint_record.conkey) AS source_key(attnum) ON TRUE
+        JOIN pg_attribute source_column
+          ON source_column.attrelid = source_table.oid
+         AND source_column.attnum = source_key.attnum
+        WHERE source_schema.nspname = current_schema() AND source_table.relname = 'flashcard_decks'
+          AND constraint_record.contype = 'f' AND source_column.attname = 'created_by'
         LIMIT 1;
         IF constraint_name IS NOT NULL THEN
           EXECUTE format('ALTER TABLE flashcard_decks DROP CONSTRAINT %I', constraint_name);
@@ -22,11 +27,16 @@ export class HardenFlashcardWorkflow1770000000000 implements MigrationInterface 
 
       DO $$ DECLARE constraint_name text;
       BEGIN
-        SELECT tc.constraint_name INTO constraint_name
-        FROM information_schema.table_constraints tc
-        JOIN information_schema.constraint_column_usage ccu USING (constraint_schema, constraint_name)
-        WHERE tc.table_schema = current_schema() AND tc.table_name = 'flashcard_decks'
-          AND tc.constraint_type = 'FOREIGN KEY' AND ccu.column_name = 'course_id'
+        SELECT constraint_record.conname INTO constraint_name
+        FROM pg_constraint constraint_record
+        JOIN pg_class source_table ON source_table.oid = constraint_record.conrelid
+        JOIN pg_namespace source_schema ON source_schema.oid = source_table.relnamespace
+        JOIN unnest(constraint_record.conkey) AS source_key(attnum) ON TRUE
+        JOIN pg_attribute source_column
+          ON source_column.attrelid = source_table.oid
+         AND source_column.attnum = source_key.attnum
+        WHERE source_schema.nspname = current_schema() AND source_table.relname = 'flashcard_decks'
+          AND constraint_record.contype = 'f' AND source_column.attname = 'course_id'
         LIMIT 1;
         IF constraint_name IS NOT NULL THEN
           EXECUTE format('ALTER TABLE flashcard_decks DROP CONSTRAINT %I', constraint_name);
@@ -37,11 +47,17 @@ export class HardenFlashcardWorkflow1770000000000 implements MigrationInterface 
 
       DO $$ DECLARE constraint_name text;
       BEGIN
-        SELECT tc.constraint_name INTO constraint_name
-        FROM information_schema.table_constraints tc
-        JOIN information_schema.constraint_column_usage ccu USING (constraint_schema, constraint_name)
-        WHERE tc.table_schema = current_schema() AND tc.table_name = 'student_flashcard_progress'
-          AND tc.constraint_type = 'FOREIGN KEY' AND ccu.column_name = 'flashcard_id'
+        SELECT constraint_record.conname INTO constraint_name
+        FROM pg_constraint constraint_record
+        JOIN pg_class source_table ON source_table.oid = constraint_record.conrelid
+        JOIN pg_namespace source_schema ON source_schema.oid = source_table.relnamespace
+        JOIN unnest(constraint_record.conkey) AS source_key(attnum) ON TRUE
+        JOIN pg_attribute source_column
+          ON source_column.attrelid = source_table.oid
+         AND source_column.attnum = source_key.attnum
+        WHERE source_schema.nspname = current_schema()
+          AND source_table.relname = 'student_flashcard_progress'
+          AND constraint_record.contype = 'f' AND source_column.attname = 'flashcard_id'
         LIMIT 1;
         IF constraint_name IS NOT NULL THEN
           EXECUTE format('ALTER TABLE student_flashcard_progress DROP CONSTRAINT %I', constraint_name);
