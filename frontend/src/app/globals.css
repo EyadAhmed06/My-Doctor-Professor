@@ -42,14 +42,14 @@ input {
 .brand-lockup {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   color: inherit;
   text-decoration: none;
   min-width: 0;
 }
 .brand-emblem {
-  width: 50px;
-  height: 50px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
   flex: none;
 }
@@ -58,7 +58,11 @@ input {
   min-width: 0;
 }
 .brand-words strong {
-  font: 700 24px/1.05 Georgia, serif;
+  display: grid;
+  font: 700 17px/1.03 Georgia, serif;
+}
+.brand-words strong span {
+  display: block;
   white-space: nowrap;
 }
 .brand-words small {
@@ -66,9 +70,6 @@ input {
   font-size: 10px;
   letter-spacing: .04em;
   margin-top: 4px;
-}
-.brand-lockup-stacked .brand-words strong {
-  white-space: normal;
 }
 .auth-page {
   min-height: 939px;

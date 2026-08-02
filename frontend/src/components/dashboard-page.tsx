@@ -48,7 +48,7 @@ export function DashboardPage() {
 
   return <main className="dashboard-shell" data-theme={theme}>
     <aside className={`dash-sidebar ${menuOpen ? "open" : ""}`}>
-      <BrandLockup className="dash-brand" href="/dashboard" stacked />
+      <BrandLockup className="dash-brand" href="/dashboard" />
       <button className="sidebar-close" onClick={() => setMenuOpen(false)} aria-label="Close navigation"><FiX /></button>
       <nav>{navItems.map(([label, Icon, href], index) => <Link className={index === 0 ? "active" : ""} key={label} href={href}><Icon />{label}</Link>)}</nav>
       <Link className="settings-link" href="/settings"><FiSettings />Settings</Link>
