@@ -109,7 +109,7 @@ jobs:
             echo "Applying baseline ${schema}"
             git show "origin/Eyad:backend/${schema}" |
               psql -h localhost -U postgres -d upgrade_test -v ON_ERROR_STOP=1
-          done < <(find database/schemas -maxdepth 1 -type f -name '*.sql' | sort)
+          done < <(find database/schemas -maxdepth 1 -type f -name '*.sql' ! -name '11_permissions.sql' | sort)
       - name: Apply forward SQL and TypeORM migrations
         run: |
           set -euo pipefail
@@ -118,6 +118,11 @@ jobs:
             psql -h localhost -U postgres -d upgrade_test -v ON_ERROR_STOP=1 -f "${migration}"
           done < <(find database/migrations -maxdepth 1 -type f -name '*.sql' | sort)
           DB_NAME=upgrade_test npm run migration:run
+      - name: Apply current database permissions
+        run: >-
+          psql -h localhost -U postgres -d upgrade_test
+          -v ON_ERROR_STOP=1
+          -f database/schemas/11_permissions.sql
       - name: Require zero drift after upgrade
         run: DB_NAME=upgrade_test npm run schema:check
       - name: Run PostgreSQL integration and concurrency tests
