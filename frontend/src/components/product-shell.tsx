@@ -8,7 +8,7 @@ import { FiBell, FiChevronDown, FiMenu, FiSearch, FiX } from "react-icons/fi";
 import { ThemeToggle } from "./app-theme";
 import { BrandLockup } from "./brand";
 
-const nav = [["Rounds","/rounds"],["Past Exams","/past-exams"],["Notebook","/notebook"],["Guidelines","/guidelines"],["Drug Reference","/references/drugs/lisinopril"],["Study Plan","/study-plan"]];
+const nav = [["Rounds","/rounds"],["Past Exams","/past-exams"],["Notebook","/notebook"],["Study Guides","/guidelines"],["Drug Reference","/references/drugs/lisinopril"],["Study Plan","/study-plan"]];
 
 export function ProductShell({ children, search = "Search cases, topics, or concepts" }: { children: React.ReactNode; search?: string }) {
   const path = usePathname();
