@@ -57,7 +57,7 @@ Earlier failures belonged to prerequisites that had hidden the schema drift:
 | B1 | Empty PostgreSQL bootstrap | All current schema files apply with `ON_ERROR_STOP=1` | PASS | Passed in supplied CI output after permission quoting repair |
 | B2 | Entity compatibility | All entity-required columns/enums/FKs match | PASS | Most recent clean `schema:check` reached success before upgrade-only failure |
 | B3 | Full database contract | PKs, defaults, unique/check constraints, indexes, views, triggers, extensions and grants match the declared contract | NOT COVERED | Extend contract audit beyond entity metadata |
-| B4 | Clean integration | E2E/concurrency tests pass on `clean_test` | COVERED BY CI | Record latest run result after current changes finish |
+| B4 | Clean integration | E2E/concurrency tests pass on `clean_test` | FAIL, FIX PUSHED | Health and bootstrap passed; signup/refresh fixtures used invalid phone numbers and returned 400 before their target logic |
 
 ### C. Legacy upgrade path
 
@@ -65,16 +65,16 @@ Earlier failures belonged to prerequisites that had hidden the schema drift:
 |---|---|---|---|---|
 | C1 | Reproduce Eyad baseline | Historical SQL builds `upgrade_test` | PASS | Baseline files apply; historical permissions are excluded to prevent host-global role collisions |
 | C2 | Raw migrations | All SQL migrations apply in deterministic filename order | IN PROGRESS | Reconciliation migration added; rerun behavior not yet proved |
-| C3 | TypeORM discovery | Migrations 176-183 are present in the runtime data source | PARTIAL PASS | CI proved 176 and 177 were discovered, executed, and recorded; verification of 178-182 is pending the FK fix |
-| C4 | Upgrade compatibility | Upgraded DB satisfies entity-required contract | IN PROGRESS | Reconciliation exposed incorrect FK source-column discovery in migrations 176-178; fix pushed and rerun pending |
-| C5 | Upgrade integration | Same E2E/concurrency suite passes on `upgrade_test` | COVERED, RESULT PENDING | CI now runs the same E2E suite against the upgraded database |
+| C3 | TypeORM discovery | Migrations 176-183 are present in the runtime data source | PASS | Run #110 passed the ledger assertion for all eight migrations |
+| C4 | Upgrade compatibility | Upgraded DB satisfies entity-required contract | PASS | Run #110 passed upgrade `schema:check` after migrations 176-183 |
+| C5 | Upgrade integration | Same E2E/concurrency suite passes on `upgrade_test` | NOT EXECUTED | Run #110 stopped at clean E2E before reaching this step |
 | C6 | Clean/upgrade equivalence | Both paths produce the same declared contract, allowing explicitly documented database-only objects | NOT COVERED | Add normalized structural comparison |
 
 ### D. Migration safety
 
 | ID | Check | Acceptance condition | Status | Evidence / next action |
 |---|---|---|---|---|
-| D1 | Repeatability | Re-running deploy command causes no failure or drift | COVERED, RESULT PENDING | CI now reapplies raw SQL, TypeORM migrations, permissions, and compatibility validation |
+| D1 | Repeatability | Re-running deploy command causes no failure or drift | PASS | Run #110 reached clean E2E after the repeatability and second compatibility gates |
 | D2 | Data backfill | New `NOT NULL` constraints safely handle legacy nulls | IN PROGRESS | `auto_submitted` is backfilled to false before `SET NOT NULL` |
 | D3 | Destructive policy review | Every CASCADE/RESTRICT/SET NULL change has intentional business semantics | IN PROGRESS | Eleven historical-content relationships currently require RESTRICT; user-owned/session relationships retain CASCADE |
 | D4 | Transaction/partial failure | Interrupted migration can be safely detected and resumed or rolled back | NOT COVERED | Add failure-injection validation after migration authority is selected |
@@ -140,3 +140,4 @@ Earlier failures belonged to prerequisites that had hidden the schema drift:
 | 2026-08-02 | Run #104 recorded migrations 176 and 177, then failed when 178 attempted to recreate a constraint already introduced by raw reconciliation | TypeORM discovery works; the failure was overlapping migration ownership plus incorrect source-FK lookup |
 | 2026-08-02 | Migrations 176-178 used `constraint_column_usage` to locate source FK columns | Replaced with `pg_constraint.conkey` + `pg_attribute`; removed FK ownership from raw reconciliation |
 | 2026-08-02 | Added migration 183 to canonicalize all duplicate/legacy FKs and reconcile auth sessions plus attempt nullability for databases that already recorded older migrations | Previously upgraded installations now have a forward migration instead of depending on re-running modified historical migrations |
+| 2026-08-02 | Run #110 passed migration ledger, upgrade compatibility and repeatability, then clean E2E returned 400 for synthetic non-E.164 phone fixtures | Database transition is verified; corrected test inputs and added response-body diagnostics |
