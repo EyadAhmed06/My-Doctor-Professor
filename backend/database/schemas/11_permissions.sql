@@ -10,21 +10,27 @@
 --
 -- =====================================================
 
-DO $
+DO $roles$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'mdp_admin') THEN
-        CREATE ROLE mdp_admin;
-    END IF;
+    BEGIN
+        CREATE ROLE mdp_admin NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+    EXCEPTION
+        WHEN duplicate_object THEN NULL;
+    END;
 
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'mdp_backend') THEN
-        CREATE ROLE mdp_backend;
-    END IF;
+    BEGIN
+        CREATE ROLE mdp_backend NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+    EXCEPTION
+        WHEN duplicate_object THEN NULL;
+    END;
 
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'mdp_readonly') THEN
-        CREATE ROLE mdp_readonly;
-    END IF;
+    BEGIN
+        CREATE ROLE mdp_readonly NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+    EXCEPTION
+        WHEN duplicate_object THEN NULL;
+    END;
 END
-$;
+$roles$;
 
 GRANT USAGE
 ON SCHEMA public
