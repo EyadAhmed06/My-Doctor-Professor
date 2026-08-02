@@ -51,6 +51,7 @@
 |------|---------|------|
 | `IMPLEMENTATION_SUMMARY.md` | Phase 1 detailed summary | 30 min |
 | `BACKEND_VALIDATION_PLAN.md` | Testing & validation strategy | 45 min |
+| `BACKEND_DATABASE_AUDIT.md` | Live database/CI evidence ledger and coverage gaps | 15 min |
 | `PROJECT_STATUS.md` | Phase tracking & timeline | 20 min |
 | `DOCUMENTATION_INDEX.md` | This file | 10 min |
 
