@@ -4,6 +4,21 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 
+const expectStatuses = (
+  responses: Array<{ status: number; body: unknown }>,
+  expected: number[],
+): void => {
+  const actual = responses.map((response) => response.status).sort((a, b) => a - b);
+  const sortedExpected = [...expected].sort((a, b) => a - b);
+  if (actual.join(',') !== sortedExpected.join(',')) {
+    throw new Error(
+      `Unexpected HTTP results: ${JSON.stringify(
+        responses.map((response) => ({ status: response.status, body: response.body })),
+      )}`,
+    );
+  }
+};
+
 describe('Backend integration', () => {
   let app: INestApplication;
   let dataSource: DataSource;
@@ -61,7 +76,7 @@ describe('Backend integration', () => {
       request(app.getHttpServer()).post('/api/v1/admin/bootstrap/accounts')
         .set('X-Bootstrap-Token', process.env.ACCOUNT_BOOTSTRAP_TOKEN!).send(body),
     ]);
-    expect(responses.map((response) => response.status).sort()).toEqual([201, 409]);
+    expectStatuses(responses, [201, 409]);
     const created = responses.find((response) => response.status === 201)!;
     expect(created.body.accounts).toHaveLength(3);
     expect(created.body.accounts.every((account: { status:string;email_verified:boolean }) =>
@@ -77,7 +92,7 @@ describe('Backend integration', () => {
       full_name: 'Concurrency Student',
       email: `concurrency-${suffix}@example.test`,
       password: 'StrongPassword123',
-      phone_number: `+20${suffix.slice(-10).padStart(10, '1')}`,
+      phone_number: `+2010${suffix.slice(-8)}`,
       role: 'STUDENT',
       student_number: `ST-${suffix}`,
       current_semester: 1,
@@ -97,7 +112,7 @@ describe('Backend integration', () => {
       full_name: 'Refresh Student',
       email,
       password,
-      phone_number: `+21${suffix.slice(-10).padStart(10, '2')}`,
+      phone_number: `+2015${suffix.slice(-8)}`,
       role: 'STUDENT',
       student_number: `RF-${suffix}`,
       current_semester: 1,
@@ -117,6 +132,6 @@ describe('Backend integration', () => {
       request(app.getHttpServer()).post('/api/v1/auth/refresh').send({ refresh_token: token }),
       request(app.getHttpServer()).post('/api/v1/auth/refresh').send({ refresh_token: token }),
     ]);
-    expect(responses.map((response) => response.status).sort()).toEqual([200, 401]);
+    expectStatuses(responses, [200, 401]);
   });
 });
