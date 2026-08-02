@@ -132,26 +132,6 @@ input {
   line-height: 1.48;
   margin: 6px 0 0;
 }
-.study-art {
-  position: absolute;
-  z-index: 1;
-  object-fit: contain;
-  opacity: 0.75;
-  filter: saturate(0.9);
-}
-.login-art {
-  width: 600px;
-  left: 320px;
-  right: auto;
-  bottom: 210px;
-}
-.landing-art {
-  width: 560px;
-  left: 300px;
-  right: auto;
-  bottom: 215px;
-  opacity: 0.63;
-}
 .trust-strip {
   position: absolute;
   left: 35px;
@@ -937,9 +917,6 @@ footer nav {
   .login-page .login-card {
     padding: 58px 55px;
   }
-  .login-page .login-art {
-    left: 220px;
-  }
 }
 @media (max-width: 700px) {
   .story-side {
@@ -949,11 +926,6 @@ footer nav {
   .story-copy h1,
   .plan-area > h1 {
     font-size: 42px;
-  }
-  .study-art {
-    width: 100%;
-    right: 0;
-    bottom: 260px;
   }
   .trust-strip {
     left: 20px;
