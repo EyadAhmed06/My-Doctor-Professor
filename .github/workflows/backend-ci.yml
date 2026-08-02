@@ -133,10 +133,11 @@ jobs:
               'HardenNotificationWorkflow1790000000000',
               'EnforceAppendOnlyAudit1800000000000',
               'AddCourseInstructorOwnership1810000000000',
-              'AddResourceStorageMetadata1820000000000'
+              'AddResourceStorageMetadata1820000000000',
+              'ReconcileDatabaseContract1830000000000'
             )
           ")"
-          test "${expected_count}" -eq 7
+          test "${expected_count}" -eq 8
       - name: Apply current database permissions
         run: >-
           psql -h localhost -U postgres -d upgrade_test
