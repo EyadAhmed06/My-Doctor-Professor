@@ -326,7 +326,7 @@ export class AuthService {
     await this.usersService.saveSession(
       sessionId,
       user.id,
-      await bcrypt.hash(response.refresh_token, 10),
+      this.digestToken(response.refresh_token),
       new Date(Date.now() + this.refreshLifetimeSeconds * 1000),
     );
     return response;
@@ -341,8 +341,8 @@ export class AuthService {
     await this.usersService.rotateSessionSecure(
       sessionId,
       user.id,
-      presentedToken,
-      await bcrypt.hash(response.refresh_token, 10),
+      this.digestToken(presentedToken),
+      this.digestToken(response.refresh_token),
       new Date(Date.now() + this.refreshLifetimeSeconds * 1000),
     );
     return response;
