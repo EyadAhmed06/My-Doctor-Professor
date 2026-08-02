@@ -1,68 +1,44 @@
-# Design QA — X layouts in Y visual language
+# Dashboard Design QA
 
-## Evidence
+- Source visual truth: `/workspace/scratch/44144b9eb803/upload/WhatsApp Image 2026-08-02 at 2.52.55 PM(1)(1).jpeg`
+- Implementation: browser-rendered `/dashboard` route in the local cloud preview
+- Source pixels: 1600 × 900; implementation viewport: 1363 × 936 CSS pixels at device scale 1
+- Normalization: full-width desktop comparison; both artifacts inspected together in the same comparison input, with the implementation evaluated at its available cloud-browser viewport
+- States checked: dark reference state, new light state, dark/light switch, stored theme after reload, search input, desktop responsive layout
+- Browser console: no application errors or warnings after the final reload
 
-- Source visual truth:
-  - `/workspace/scratch/44144b9eb803/upload/landing.png` (1680 × 939)
-  - `/workspace/scratch/44144b9eb803/upload/login.png` (1680 × 939)
-  - `/workspace/scratch/44144b9eb803/upload/register.png` (1693 × 939)
-  - Y palette/style reference: `/workspace/scratch/44144b9eb803/upload/WhatsApp Image 2026-08-02 at 2.52.55 PM(1).jpeg` (1600 × 900)
-- Implementation: browser-rendered routes `/`, `/login`, and `/register` in cloud-browser tab 1.
-- Browser viewport: 1363 × 936 CSS pixels, device density 1.
-- Implementation captures: full-page browser screenshots emitted during the QA run for all three routes.
-- State: desktop, dark Y theme, default form state.
-- Normalization: the source screenshots are wider than the fixed cloud-browser viewport. Comparisons therefore used the same 939/936 px vertical frame and judged horizontal region proportions responsively rather than claiming a literal equal-pixel overlay.
+## Findings
 
-## Required fidelity surfaces
+- No remaining P0, P1, or P2 findings.
+- The implementation preserves the source hierarchy: fixed sidebar, top search/profile bar, welcome block, momentum metrics, two-column workflow area, and right analytics rail.
+- The source uses a slightly wider 16:9 canvas. At the available 1363px viewport, the implementation preserves card order and proportions while extending vertically rather than compressing text below legible size.
 
-- Fonts and typography: Georgia display serif reproduces the high-contrast editorial headings; Arial provides the compact UI sans. Heading hierarchy, weights, teal emphasis, form-label optical weight, and wrapping follow X. Login was given a 59/41 split and a 53 px intermediate-desktop heading to preserve the source's two-line composition.
-- Spacing and layout rhythm: the hero/form splits, form density, bottom trust strip, pricing-card geometry, register two-column workflow, radii, borders, and vertical rhythm follow X. The 1363 px register overflow and pricing metadata wrapping found in the first pass were corrected with fractional minmax tracks and a non-wrapping price row.
-- Colors and visual tokens: X's light surfaces were intentionally replaced with Y's near-black navy, indigo panels, low-contrast borders, cyan/teal states, and blue-to-violet primary gradients.
-- Image quality and asset fidelity: the user explicitly requested removal of the generated clinical-study illustration after the initial build. Landing and login now intentionally use open negative space; registration never contained the illustration.
-- Copy and content: headings, supporting copy, benefits, plan names/prices/features, field labels, institution prompts, trust statements, and payment messaging are preserved from the supplied X references.
+## Required Fidelity Surfaces
 
-## Full-view comparison evidence
+- Fonts and typography: Georgia display headings and compact sans-serif UI copy reproduce the editorial-clinical contrast. Weight and hierarchy remain legible in both themes.
+- Spacing and layout rhythm: card gaps, sidebar width, topbar height, dense panel rhythm, borders, and radii closely follow the reference. The earlier registration-page `.plan-card` selector collision was removed by isolating the dashboard schedule class.
+- Colors and visual tokens: dark mode follows the navy/teal/violet reference. Light mode uses warm white surfaces, blue-gray borders, navy text, teal clinical accents, and violet progression signals with AA-conscious foreground contrast.
+- Image quality and asset fidelity: the profile avatar and professor portrait are purpose-generated raster assets, correctly cropped and responsive. Icons use the installed Feather icon family.
+- Copy and content: the reference dashboard’s clinical momentum, schedule, deadlines, progress, review, mastery, activity, and pearl content are represented with realistic matching data.
 
-- Landing: source and browser render were placed in the same comparison call. Main region split, hero hierarchy, benefit stack, signup-card structure, Clinical Pro summary, and bottom security row align. Y styling is the requested intentional deviation.
-- Login: source and browser render were placed in the same comparison call. The editorial left hero, three benefits, illustration, trust strip, login-card sequence, Google action, account link, institution row, and security note align.
-- Register: source and browser render were placed in the same comparison call. Plan selection, pricing cards, payment benefits, account/student form sections, verification notice, terms, and payment CTA align.
+## Interaction Checks
 
-Focused region comparison was not separately required because every important form control and text block remained legible in the 1363 × 936 full-page captures.
+- Theme control switches both directions.
+- Light preference survives a reload.
+- Search input accepts and reflects typed text.
+- Sidebar navigation, notification, profile, schedule, analytics, review, and supporting controls expose clear hover/click affordances.
+- At narrow breakpoints, the sidebar becomes an off-canvas menu and dense grids collapse to single-column layouts.
 
-## Comparison history
+## Comparison History
 
-### Iteration 1
+1. Initial pass: P2 CSS selector collision caused schedule status buttons to inherit absolute positioning from the registration plan cards.
+2. Fix: renamed the dashboard schedule card and isolated dashboard styles.
+3. Post-fix evidence: dark and light browser captures show correctly aligned schedule rows, legible actions, balanced columns, and no horizontal overflow.
+4. Persistence pass: the theme initialized before reading saved preference.
+5. Fix: synchronized the stored preference on mount; post-reload evidence confirmed `data-theme="light"` and the inverse control label.
 
-- P1: register right panel overflowed the fixed browser viewport.
-- P2: quarterly/annual pricing metadata wrapped and the last annual feature approached the CTA.
-- P2: login heading wrapped to three lines at the intermediate desktop width, unlike the source.
-- Fixes: replaced percentage grid tracks with `minmax(0, 57fr/43fr)`; compacted register form rhythm; made price rows non-wrapping and reduced feature spacing; changed login to a 59/41 split with intermediate-width heading scaling; repositioned the illustration to avoid benefit-copy overlap.
+## Follow-up Polish
 
-### Iteration 2
-
-- Post-fix evidence: revised browser captures showed the register card fully inside the viewport, compact pricing rows, a two-line login headline, and clear illustration separation.
-- A final intermediate-width capture exposed a P2 regression: the narrower login grid caused the card's internal content column and institution row to wrap too aggressively.
-
-### Iteration 3
-
-- Fix: reduced only the login form-side and card horizontal padding between 1101–1500 px, restoring the source's input width and institution-row proportions without changing the wide desktop layout.
-- Post-fix evidence: the final 1363 × 936 browser capture showed an unbroken “Welcome back” title, full-width fields and CTA, and readable single-row institution content.
-- No actionable P0/P1/P2 visual differences remain. Residual differences are the explicitly requested Y theme and responsive normalization for the narrower QA viewport.
-
-### Iteration 4
-
-- User-directed revision: removed the clinical-study illustration from landing and login and deleted the unused repository asset. Registration was verified to contain no instance of it.
-
-## Interaction and runtime checks
-
-- Routes opened successfully: `/`, `/login`, `/register`.
-- Input filling, password visibility control, plan selection controls, and route links were inspected.
-- Application console errors filtered to `terminal.local`: none.
-- Browser-extension metadata errors were excluded because they originate from the cloud-browser extension, not the application.
-- Production build: passed.
-- TypeScript: passed through Next production build.
-- ESLint: passed with zero warnings after use of Next Image.
-
-## Final result
+- P3: at ultra-wide monitors, slightly increasing the dashboard maximum width would use more horizontal space; the current cap intentionally protects readability.
 
 final result: passed
