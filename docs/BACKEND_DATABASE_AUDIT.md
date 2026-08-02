@@ -65,8 +65,8 @@ Earlier failures belonged to prerequisites that had hidden the schema drift:
 |---|---|---|---|---|
 | C1 | Reproduce Eyad baseline | Historical SQL builds `upgrade_test` | PASS | Baseline files apply; historical permissions are excluded to prevent host-global role collisions |
 | C2 | Raw migrations | All SQL migrations apply in deterministic filename order | IN PROGRESS | Reconciliation migration added; rerun behavior not yet proved |
-| C3 | TypeORM discovery | Migrations 176-182 are present in the runtime data source | COVERED, RESULT PENDING | CI requires all seven expected names in the TypeORM ledger |
-| C4 | Upgrade compatibility | Upgraded DB satisfies entity-required contract | FAIL -> IN PROGRESS | Last failure: 11 delete policies, one nullability mismatch, missing `auth_sessions`; reconciliation run pending |
+| C3 | TypeORM discovery | Migrations 176-182 are present in the runtime data source | PARTIAL PASS | CI proved 176 and 177 were discovered, executed, and recorded; verification of 178-182 is pending the FK fix |
+| C4 | Upgrade compatibility | Upgraded DB satisfies entity-required contract | IN PROGRESS | Reconciliation exposed incorrect FK source-column discovery in migrations 176-178; fix pushed and rerun pending |
 | C5 | Upgrade integration | Same E2E/concurrency suite passes on `upgrade_test` | COVERED, RESULT PENDING | CI now runs the same E2E suite against the upgraded database |
 | C6 | Clean/upgrade equivalence | Both paths produce the same declared contract, allowing explicitly documented database-only objects | NOT COVERED | Add normalized structural comparison |
 
@@ -136,3 +136,6 @@ Earlier failures belonged to prerequisites that had hidden the schema drift:
 
 
 | 2026-08-02 | CI now asserts the TypeORM ledger, deployment repeatability, and upgraded-database integration | Previously implicit assumptions now produce explicit pass/fail evidence |
+
+| 2026-08-02 | Run #104 recorded migrations 176 and 177, then failed when 178 attempted to recreate a constraint already introduced by raw reconciliation | TypeORM discovery works; the failure was overlapping migration ownership plus incorrect source-FK lookup |
+| 2026-08-02 | Migrations 176-178 used `constraint_column_usage` to locate source FK columns | Replaced with `pg_constraint.conkey` + `pg_attribute`; removed FK ownership from raw reconciliation |
