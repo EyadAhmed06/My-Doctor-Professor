@@ -931,6 +931,12 @@ footer nav {
   .login-page .story-copy h1 {
     font-size: 53px;
   }
+  .login-page .form-side {
+    padding: 79px 30px 20px;
+  }
+  .login-page .login-card {
+    padding: 58px 55px;
+  }
   .login-page .login-art {
     left: 220px;
   }
