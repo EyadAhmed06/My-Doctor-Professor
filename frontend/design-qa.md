@@ -1,48 +1,38 @@
-# Connected Product Screens — Design QA
+# Flashcard Flip Design QA
 
-- Visual sources: the 14 supplied dashboard, study-plan, notebook, examination, reasoning, settings, instructor, guideline, and drug-reference screenshots.
-- Implementation: 12 new connected routes plus the existing `/dashboard` route.
-- Visual system: shared navy, teal, violet, orange, and clinical-red semantic palette with dedicated light and dark surface tokens.
-- Validation: Next.js production build, TypeScript static generation for all 17 application routes, ESLint, route/link inventory, and responsive CSS review at desktop, tablet, and mobile breakpoints.
+- Source visual truth: cloud-browser capture of the existing `/flashcards` student front-card state before the flip implementation.
+- Implementation: `http://terminal.local:4173/flashcards` in the cloud browser.
+- Viewport: 1339 × 921 CSS pixels.
+- Density: device pixel ratio 1; source and implementation were compared at the same browser viewport and density.
+- States checked: dark-theme front, active 3D rotation, dark-theme back, light-theme back, keyboard flip, and rating controls.
+- Browser-rendered evidence: front and back screenshots were captured and visually inspected in the cloud browser during this run. The browser runtime displayed the captures directly and did not expose a durable local screenshot path.
 
-## Route and purpose reconciliation
+## Required fidelity surfaces
 
-| Product purpose | Route | Connected action |
-|---|---|---|
-| Learning home | `/dashboard` | Opens rounds, study plan, notebook, references, and settings |
-| Daily clinical case | `/rounds` | Opens the reasoning builder |
-| Structured reasoning | `/rounds/case-14-02/reasoning` | Returns to rounds |
-| Adaptive study schedule | `/study-plan` | Opens plan settings |
-| Study preferences | `/study-plan/settings` | Saves and previews the plan |
-| Knowledge library | `/notebook` | Opens the note editor |
-| Structured note authoring | `/notebook/new` | Edits linked explanations, pearls, cases, and images |
-| Exam discovery | `/past-exams` | Selects an exam and starts a session |
-| Timed examination | `/mock-exam/session` | Supports navigation, answers, flags, notes, labs, and block controls |
-| Account preferences | `/settings` | Controls the shared persistent theme |
-| Instructor assessment authoring | `/instructor/quizzes` | Builds, previews, and publishes quizzes |
-| Evidence pathways | `/guidelines` | Presents specialty navigation and the HFrEF pathway |
-| Medication reference | `/references/drugs/lisinopril` | Connects safety, dosing context, and practice questions |
+- Fonts and typography: existing Georgia display hierarchy and Arial UI typography are preserved on both faces. The back explanation uses a slightly smaller display size to support longer summaries.
+- Spacing and layout rhythm: the card keeps the original 430px height, 16px radius, central alignment, surrounding grid, and rating-control position. No layout jump occurs during the flip.
+- Colors and visual tokens: both faces use the existing panel, line, teal, and violet tokens in light and dark themes. The back adds only a low-opacity token-based highlight.
+- Image and icon quality: no new raster assets or approximated artwork were introduced. Existing React Icons are reused.
+- Copy and content: the front remains the instructor-authored prompt; the back remains the instructor-authored concise explanation and course source.
 
-## Findings and fixes
+## Interaction verification
 
-- Unified formerly isolated mockups under one responsive product shell and persistent navigation.
-- Reconciled the two past-exam references into one catalog with filters, card discovery, recent/recommended sections, and a persistent selected-exam detail rail.
-- Connected the case-question and clinical-reasoning references as sequential screens in the same case workflow.
-- Replaced the dashboard-only theme state with one application-level provider. The selected theme now persists under `mdp-theme` and applies to every route.
-- Light mode uses real light surfaces, navy text, visible borders, and adjusted semantic accents; dark mode uses the existing deep navy system. Neither mode is implemented as a color filter.
-- Responsive breakpoints collapse dense side rails and multi-column cards without reproducing the decorative phone mockup frames.
-- All primary source content categories and page-level hierarchy are represented. Duplicate visual states are consolidated rather than exposed as redundant routes.
+- Clicking the card flips front-to-back and back-to-front.
+- The Flip card button triggers the same interaction.
+- Enter and Space operate the focused card.
+- `aria-pressed` and the accessible label change with the visible side.
+- Rating controls appear only after the answer is revealed.
+- `prefers-reduced-motion` removes the transition while preserving the state change.
+- Lint and production build pass.
 
-## Validation results
+## Comparison history
 
-- `npm run build`: passed; 17 routes compiled and statically generated.
-- `npm run lint`: passed with no errors or warnings.
-- No missing imports, unresolved modules, TypeScript errors, or route-generation failures.
-- Shared navigation and primary CTA destinations are implemented with Next.js links.
+- Initial implementation preserved the card dimensions and surrounding layout.
+- Browser inspection confirmed the front state at no transform and the back state at `rotateY(180deg)`.
+- No actionable P0, P1, or P2 visual differences remained after the interaction-state comparison.
 
-## Residual notes
+## Residual test notes
 
-- Data is currently representative UI state. Live backend hydration should be added through the existing API client layer without changing the screen hierarchy.
-- Exact institutional photography and medical imaging from the concept boards are represented with structured content surfaces in this pass; no unlicensed source-board artwork was copied into production assets.
+- Historical development-console messages from an earlier hot-reload/chunk timeout and the browser extension were present. A clean page reload rendered and operated correctly; production build completed successfully.
 
 final result: passed
