@@ -7,11 +7,16 @@ export class HardenAssessmentWorkflow1760000000000 implements MigrationInterface
     await queryRunner.query(`
       DO $$ DECLARE constraint_name text;
       BEGIN
-        SELECT tc.constraint_name INTO constraint_name
-        FROM information_schema.table_constraints tc
-        JOIN information_schema.constraint_column_usage ccu USING (constraint_schema, constraint_name)
-        WHERE tc.table_schema = current_schema() AND tc.table_name = 'tests'
-          AND tc.constraint_type = 'FOREIGN KEY' AND ccu.column_name = 'created_by'
+        SELECT constraint_record.conname INTO constraint_name
+        FROM pg_constraint constraint_record
+        JOIN pg_class source_table ON source_table.oid = constraint_record.conrelid
+        JOIN pg_namespace source_schema ON source_schema.oid = source_table.relnamespace
+        JOIN unnest(constraint_record.conkey) AS source_key(attnum) ON TRUE
+        JOIN pg_attribute source_column
+          ON source_column.attrelid = source_table.oid
+         AND source_column.attnum = source_key.attnum
+        WHERE source_schema.nspname = current_schema() AND source_table.relname = 'tests'
+          AND constraint_record.contype = 'f' AND source_column.attname = 'created_by'
         LIMIT 1;
         IF constraint_name IS NOT NULL THEN
           EXECUTE format('ALTER TABLE tests DROP CONSTRAINT %I', constraint_name);
@@ -22,11 +27,16 @@ export class HardenAssessmentWorkflow1760000000000 implements MigrationInterface
 
       DO $$ DECLARE constraint_name text;
       BEGIN
-        SELECT tc.constraint_name INTO constraint_name
-        FROM information_schema.table_constraints tc
-        JOIN information_schema.constraint_column_usage ccu USING (constraint_schema, constraint_name)
-        WHERE tc.table_schema = current_schema() AND tc.table_name = 'test_questions'
-          AND tc.constraint_type = 'FOREIGN KEY' AND ccu.column_name = 'question_id'
+        SELECT constraint_record.conname INTO constraint_name
+        FROM pg_constraint constraint_record
+        JOIN pg_class source_table ON source_table.oid = constraint_record.conrelid
+        JOIN pg_namespace source_schema ON source_schema.oid = source_table.relnamespace
+        JOIN unnest(constraint_record.conkey) AS source_key(attnum) ON TRUE
+        JOIN pg_attribute source_column
+          ON source_column.attrelid = source_table.oid
+         AND source_column.attnum = source_key.attnum
+        WHERE source_schema.nspname = current_schema() AND source_table.relname = 'test_questions'
+          AND constraint_record.contype = 'f' AND source_column.attname = 'question_id'
         LIMIT 1;
         IF constraint_name IS NOT NULL THEN
           EXECUTE format('ALTER TABLE test_questions DROP CONSTRAINT %I', constraint_name);
@@ -37,11 +47,16 @@ export class HardenAssessmentWorkflow1760000000000 implements MigrationInterface
 
       DO $$ DECLARE constraint_name text;
       BEGIN
-        SELECT tc.constraint_name INTO constraint_name
-        FROM information_schema.table_constraints tc
-        JOIN information_schema.constraint_column_usage ccu USING (constraint_schema, constraint_name)
-        WHERE tc.table_schema = current_schema() AND tc.table_name = 'test_attempts'
-          AND tc.constraint_type = 'FOREIGN KEY' AND ccu.column_name = 'test_id'
+        SELECT constraint_record.conname INTO constraint_name
+        FROM pg_constraint constraint_record
+        JOIN pg_class source_table ON source_table.oid = constraint_record.conrelid
+        JOIN pg_namespace source_schema ON source_schema.oid = source_table.relnamespace
+        JOIN unnest(constraint_record.conkey) AS source_key(attnum) ON TRUE
+        JOIN pg_attribute source_column
+          ON source_column.attrelid = source_table.oid
+         AND source_column.attnum = source_key.attnum
+        WHERE source_schema.nspname = current_schema() AND source_table.relname = 'test_attempts'
+          AND constraint_record.contype = 'f' AND source_column.attname = 'test_id'
         LIMIT 1;
         IF constraint_name IS NOT NULL THEN
           EXECUTE format('ALTER TABLE test_attempts DROP CONSTRAINT %I', constraint_name);
@@ -54,11 +69,16 @@ export class HardenAssessmentWorkflow1760000000000 implements MigrationInterface
       BEGIN
         FOREACH target_table IN ARRAY ARRAY['student_answers', 'question_flags', 'question_notes']
         LOOP
-          SELECT tc.constraint_name INTO constraint_name
-          FROM information_schema.table_constraints tc
-          JOIN information_schema.constraint_column_usage ccu USING (constraint_schema, constraint_name)
-          WHERE tc.table_schema = current_schema() AND tc.table_name = target_table
-            AND tc.constraint_type = 'FOREIGN KEY' AND ccu.column_name = 'question_id'
+          SELECT constraint_record.conname INTO constraint_name
+          FROM pg_constraint constraint_record
+          JOIN pg_class source_table ON source_table.oid = constraint_record.conrelid
+          JOIN pg_namespace source_schema ON source_schema.oid = source_table.relnamespace
+          JOIN unnest(constraint_record.conkey) AS source_key(attnum) ON TRUE
+          JOIN pg_attribute source_column
+            ON source_column.attrelid = source_table.oid
+           AND source_column.attnum = source_key.attnum
+          WHERE source_schema.nspname = current_schema() AND source_table.relname = target_table
+            AND constraint_record.contype = 'f' AND source_column.attname = 'question_id'
           LIMIT 1;
           IF constraint_name IS NOT NULL THEN
             EXECUTE format('ALTER TABLE %I DROP CONSTRAINT %I', target_table, constraint_name);
