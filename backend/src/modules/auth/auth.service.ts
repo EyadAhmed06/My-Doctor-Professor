@@ -248,23 +248,13 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token type');
     }
 
-    const session = await this.usersService.findSession(payload.sid);
-    if (
-      !session ||
-      session.userId !== payload.sub ||
-      session.revokedAt ||
-      session.expiresAt <= new Date()
-    ) {
-      throw new UnauthorizedException('Refresh session is no longer valid');
-    }
-
     const user = await this.usersService.findById(payload.sub);
     if (!user) {
-      await this.usersService.revokeSession(session.id);
+      await this.usersService.revokeSession(payload.sid);
       throw new UnauthorizedException('User no longer exists');
     }
     this.assertAccountEnabled(user);
-    return this.rotateSession(user, session.id, refreshToken);
+    return this.rotateSession(user, payload.sid, refreshToken);
   }
 
   revokeSession(sessionId: string): Promise<void> {
@@ -350,6 +340,7 @@ export class AuthService {
     const response = await this.signTokenPair(user, sessionId);
     await this.usersService.rotateSessionSecure(
       sessionId,
+      user.id,
       presentedToken,
       await bcrypt.hash(response.refresh_token, 10),
       new Date(Date.now() + this.refreshLifetimeSeconds * 1000),
