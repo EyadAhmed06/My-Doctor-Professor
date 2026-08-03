@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "ca9ca204-f27b-4f72-bd94-34f22512fce0",
     "name": "My Doctor Professor - Complete Backend API",
-    "description": "Generated from NestJS controllers. 133 unique controller routes are included. Run folders in numeric order; provide seeded role credentials first. Email confirmation/reset tokens and upload file path are manual inputs. Cleanup is destructive and intentionally last.",
+    "description": "Generated from NestJS controllers. 143 unique controller routes are included. Run folders in numeric order; provide seeded role credentials first. Email confirmation/reset tokens and upload file path are manual inputs. Cleanup is destructive and intentionally last.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -756,6 +756,7 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('managedUserId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
                   "}"
                 ]
               }
@@ -1192,6 +1193,7 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('semesterId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
                   "}"
                 ]
               }
@@ -1370,6 +1372,7 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('courseId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
                   "}"
                 ]
               }
@@ -1624,6 +1627,7 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('weekId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
                   "}"
                 ]
               }
@@ -1803,6 +1807,7 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('lectureId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
                   "}"
                 ]
               }
@@ -1982,6 +1987,7 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('topicId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
                   "}"
                 ]
               }
@@ -2161,6 +2167,7 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('resourceId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
                   "}"
                 ]
               }
@@ -2228,6 +2235,7 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('uploadedResourceId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
                   "}"
                 ]
               }
@@ -2361,6 +2369,7 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('questionId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
                   "}"
                 ]
               }
@@ -2414,6 +2423,7 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('essayQuestionId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
                   "}"
                 ]
               }
@@ -2468,6 +2478,7 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('tagId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
                   "}"
                 ]
               }
@@ -2523,6 +2534,7 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('optionId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
                   "}"
                 ]
               }
@@ -3171,6 +3183,7 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('testId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
                   "}"
                 ]
               }
@@ -3485,6 +3498,7 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('attemptId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
                   "}"
                 ]
               }
@@ -3718,6 +3732,7 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('answerId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
                   "}"
                 ]
               }
@@ -3771,6 +3786,7 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('essayAnswerId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
                   "}"
                 ]
               }
@@ -4115,6 +4131,7 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('deckId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
                   "}"
                 ]
               }
@@ -4170,6 +4187,7 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('cardId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
                   "}"
                 ]
               }
@@ -5072,6 +5090,7 @@
                   "  const json = pm.response.json();",
                   "  const value = json.id ?? json.data?.id ?? json.result?.id;",
                   "  if (value) pm.collectionVariables.set('notificationId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
                   "}"
                 ]
               }
@@ -5514,6 +5533,415 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Route variable auditId is populated', () => pm.expect(pm.variables.get('auditId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "workspace",
+      "item": [
+        {
+          "name": "POST /notebook/notes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/notebook/notes",
+            "description": "Controller source: src/modules/workspace/workspace.controller.ts#createNote",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman integration note\",\n  \"note_type\": \"PERSONAL\",\n  \"content\": \"A persisted notebook note created by the API pipeline.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300 && pm.response.text()) {",
+                  "  const json = pm.response.json();",
+                  "  const value = json.id ?? json.data?.id ?? json.result?.id;",
+                  "  if (value) pm.collectionVariables.set('noteId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /notebook/notes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/notebook/notes",
+            "description": "Controller source: src/modules/workspace/workspace.controller.ts#listNotes",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /notebook/notes/:noteId",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/notebook/notes/{{noteId}}",
+            "description": "Controller source: src/modules/workspace/workspace.controller.ts#updateNote",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman integration note updated\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable noteId is populated', () => pm.expect(pm.variables.get('noteId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /study-plan",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/study-plan",
+            "description": "Controller source: src/modules/workspace/workspace.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /study-plan",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/study-plan",
+            "description": "Controller source: src/modules/workspace/workspace.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"target_exam\": \"Course final\",\n  \"daily_question_target\": 20,\n  \"weekly_hours_target\": 14,\n  \"daily_flashcard_target\": 30,\n  \"preferences\": {\n    \"source\": \"postman\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /drug-references",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/drug-references",
+            "description": "Controller source: src/modules/workspace/workspace.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Medicine\",\n  \"slug\": \"postman-medicine-{{$timestamp}}\",\n  \"category\": \"Integration\",\n  \"drug_class\": \"Test class\",\n  \"content\": {\n    \"summary\": \"Created by the complete HTTP collection.\"\n  },\n  \"is_published\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300 && pm.response.text()) {",
+                  "  const json = pm.response.json();",
+                  "  const value = json.id ?? json.data?.id ?? json.result?.id;",
+                  "  if (value) pm.collectionVariables.set('drugId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /drug-references",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/drug-references",
+            "description": "Controller source: src/modules/workspace/workspace.controller.ts#listDrugs",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /drug-references/:slug",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/drug-references/{{drugSlug}}",
+            "description": "Controller source: src/modules/workspace/workspace.controller.ts#getDrug",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable drugSlug is populated', () => pm.expect(pm.variables.get('drugSlug')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /drug-references/:drugId",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/drug-references/{{drugId}}",
+            "description": "Controller source: src/modules/workspace/workspace.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": {\n    \"summary\": \"Updated by the complete HTTP collection.\"\n  },\n  \"is_published\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable drugId is populated', () => pm.expect(pm.variables.get('drugId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -6228,6 +6656,43 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Route variable semesterId is populated', () => pm.expect(pm.variables.get('semesterId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /notebook/notes/:noteId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/notebook/notes/{{noteId}}",
+            "description": "Controller source: src/modules/workspace/workspace.controller.ts#HttpCode",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable noteId is populated', () => pm.expect(pm.variables.get('noteId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
