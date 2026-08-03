@@ -1,38 +1,40 @@
-# Flashcard Flip Design QA
+# Dashboard design QA
 
-- Source visual truth: cloud-browser capture of the existing `/flashcards` student front-card state before the flip implementation.
-- Implementation: `http://terminal.local:4173/flashcards` in the cloud browser.
-- Viewport: 1339 × 921 CSS pixels.
-- Density: device pixel ratio 1; source and implementation were compared at the same browser viewport and density.
-- States checked: dark-theme front, active 3D rotation, dark-theme back, light-theme back, keyboard flip, and rating controls.
-- Browser-rendered evidence: front and back screenshots were captured and visually inspected in the cloud browser during this run. The browser runtime displayed the captures directly and did not expose a durable local screenshot path.
+- Source visual truth: `/workspace/scratch/44144b9eb803/upload/WhatsApp Image 2026-08-03 at 10.39.35 PM.jpeg`
+- Source dimensions: 1600 × 844 pixels.
+- Intended implementation viewport: 1600 × 844 CSS pixels at device scale factor 1.
+- State: authenticated student dashboard, light theme.
+- Implementation route: `/dashboard`.
+- Implementation screenshot: unavailable.
 
-## Required fidelity surfaces
+## Full-view comparison evidence
 
-- Fonts and typography: existing Georgia display hierarchy and Arial UI typography are preserved on both faces. The back explanation uses a slightly smaller display size to support longer summaries.
-- Spacing and layout rhythm: the card keeps the original 430px height, 16px radius, central alignment, surrounding grid, and rating-control position. No layout jump occurs during the flip.
-- Colors and visual tokens: both faces use the existing panel, line, teal, and violet tokens in light and dark themes. The back adds only a low-opacity token-based highlight.
-- Image and icon quality: no new raster assets or approximated artwork were introduced. Existing React Icons are reused.
-- Copy and content: the front remains the instructor-authored prompt; the back remains the instructor-authored concise explanation and course source.
+The source reference was opened and inspected. The implementation preserves the existing dashboard stylesheet and its major visual regions: fixed 250px sidebar, 72px top bar, welcome block, Clinical Momentum, two-column plan/deadline area, Continue Learning, Spaced Repetition, Weekly Activity, progress, mastery, and pearl panels.
 
-## Interaction verification
+Browser-rendered comparison is blocked because the preview requires a real authenticated API session and the isolated cloud preview cannot reuse the developer's local browser tokens or database connection. No fake production auth or mock API data was added to bypass this boundary.
 
-- Clicking the card flips front-to-back and back-to-front.
-- The Flip card button triggers the same interaction.
-- Enter and Space operate the focused card.
-- `aria-pressed` and the accessible label change with the visible side.
-- Rating controls appear only after the answer is revealed.
-- `prefers-reduced-motion` removes the transition while preserving the state change.
-- Lint and production build pass.
+## Focused-region comparison evidence
+
+Source regions inspected: sidebar/brand, top toolbar, Clinical Momentum metrics, plan/deadline panels, course cards, review queue, progress badge, and Topic Mastery. A matching implementation capture could not be produced for visual comparison for the authentication reason above.
+
+## Findings
+
+- No code/build blocker: ESLint and the Next.js production build pass.
+- Visual parity cannot be certified without an authenticated browser-rendered screenshot.
+- Real API fields now populate the existing layout. Unsupported streak, study-hour, deadline, and weekly-history metrics display zero or honest unavailable/empty states instead of fabricated values.
 
 ## Comparison history
 
-- Initial implementation preserved the card dimensions and surrounding layout.
-- Browser inspection confirmed the front state at no transform and the back state at `rotateY(180deg)`.
-- No actionable P0, P1, or P2 visual differences remained after the interaction-state comparison.
+- Earlier implementation replaced the visual structure with generic live-data panels.
+- Current fix restores the original component hierarchy and dashboard CSS while retaining API ownership.
+- Post-fix browser evidence remains unavailable because of the isolated authentication boundary.
 
-## Residual test notes
+## Primary interactions
 
-- Historical development-console messages from an earlier hot-reload/chunk timeout and the browser extension were present. A clean page reload rendered and operated correctly; production build completed successfully.
+Navigation links, theme switcher, notification route, logout, course links, assessment links, review links, and responsive sidebar are implemented. Browser interaction testing is blocked by authentication.
 
-final result: passed
+## Console errors
+
+Not checked because the authenticated dashboard could not be opened in the isolated browser preview.
+
+final result: blocked
