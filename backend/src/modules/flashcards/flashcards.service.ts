@@ -8,6 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, DataSource, Repository } from 'typeorm';
 import { Course } from '../../common/entities/course.entity';
+import { CourseInstructor } from '../../common/entities/course-instructor.entity';
 import { FlashcardDeck } from '../../common/entities/flashcard-deck.entity';
 import { Flashcard } from '../../common/entities/flashcard.entity';
 import { Lecture } from '../../common/entities/lecture.entity';
@@ -34,6 +35,7 @@ export class FlashcardsService {
     @InjectRepository(Flashcard) private readonly cards: Repository<Flashcard>,
     @InjectRepository(StudentFlashcardProgress) private readonly progress: Repository<StudentFlashcardProgress>,
     @InjectRepository(Course) private readonly courses: Repository<Course>,
+    @InjectRepository(CourseInstructor) private readonly courseInstructors: Repository<CourseInstructor>,
     @InjectRepository(Lecture) private readonly lectures: Repository<Lecture>,
     @InjectRepository(Topic) private readonly topics: Repository<Topic>,
     @InjectRepository(Student) private readonly students: Repository<Student>,
@@ -42,6 +44,12 @@ export class FlashcardsService {
 
   async createDeck(dto: CreateDeckDto, actor: AuthenticatedUser) {
     const scope = await this.resolveScope(dto.course_id, dto.lecture_id, dto.topic_id);
+    if (actor.role === UserRole.INSTRUCTOR) {
+      const assigned = await this.courseInstructors.exists({
+        where: { courseId: scope.courseId, instructorId: actor.userId },
+      });
+      if (!assigned) throw new ForbiddenException('You are not assigned to manage this course');
+    }
     return this.decks.save(this.decks.create({
       ...scope,
       createdBy: actor.userId,
