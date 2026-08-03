@@ -7,3 +7,4 @@
 .dash-brand .brand-emblem{width:60px;height:60px}.dash-brand>.brand-words{width:auto;height:auto;border:0;border-radius:0;display:grid;place-items:initial;color:inherit;font-size:inherit;box-shadow:none}.dash-brand .brand-words strong{font:700 17px/1.03 Georgia,serif;color:var(--db-text)}
 
 .schedule-card{min-height:250px}
+.dash-card>header a,.dash-card>header>div{border:0;background:transparent;color:var(--db-teal);font-size:9px;display:flex;align-items:center;gap:4px;cursor:pointer;text-decoration:none}
