@@ -70,6 +70,11 @@ const authFor = (module, method, route) => {
   }
   if (module === "notifications")
     return method === "POST" ? "adminAccessToken" : "studentAccessToken";
+  if (module === "workspace") {
+    if (route.startsWith("notebook/") || route === "study-plan")
+      return "studentAccessToken";
+    return method === "GET" ? "studentAccessToken" : "instructorAccessToken";
+  }
   if (module === "academic") {
     if (route.startsWith("academic/semesters") && method !== "GET")
       return "adminAccessToken";
@@ -103,6 +108,9 @@ const routeVar = (name) =>
     notificationId: "notificationId",
     userId: "studentUserId",
     auditId: "auditId",
+    noteId: "noteId",
+    drugId: "drugId",
+    slug: "drugSlug",
   })[name] ?? name;
 
 const bodyMap = {
@@ -173,6 +181,31 @@ const bodyMap = {
   },
   "PUT admin/users/:userId": { full_name: "Postman Updated User" },
   "PATCH admin/users/:userId/status": { status: "ACTIVE" },
+  "POST notebook/notes": {
+    title: "Postman integration note",
+    note_type: "PERSONAL",
+    content: "A persisted notebook note created by the API pipeline.",
+  },
+  "PUT notebook/notes/:noteId": { title: "Postman integration note updated" },
+  "PUT study-plan": {
+    target_exam: "Course final",
+    daily_question_target: 20,
+    weekly_hours_target: 14,
+    daily_flashcard_target: 30,
+    preferences: { source: "postman" },
+  },
+  "POST drug-references": {
+    name: "Postman Medicine",
+    slug: "postman-medicine-{{$timestamp}}",
+    category: "Integration",
+    drug_class: "Test class",
+    content: { summary: "Created by the complete HTTP collection." },
+    is_published: true,
+  },
+  "PUT drug-references/:drugId": {
+    content: { summary: "Updated by the complete HTTP collection." },
+    is_published: true,
+  },
   "POST academic/semesters": {
     semester_number: 1,
     title: "Postman Semester",
@@ -415,12 +448,23 @@ const captureFor = (method, route) => {
     "POST flashcards/decks/:deckId/cards": "cardId",
     "POST notifications": "notificationId",
     "POST admin/users": "managedUserId",
+    "POST notebook/notes": "noteId",
+    "POST drug-references": "drugId",
   };
   return map[`${method} ${route}`];
 };
 
 const flowPriority = new Map([
   ["POST admin/users", 10],
+  ["POST notebook/notes", 10],
+  ["GET notebook/notes", 20],
+  ["PUT notebook/notes/:noteId", 30],
+  ["GET study-plan", 40],
+  ["PUT study-plan", 50],
+  ["POST drug-references", 60],
+  ["GET drug-references", 70],
+  ["GET drug-references/:slug", 80],
+  ["PUT drug-references/:drugId", 90],
   ["POST admin/users/import", 60],
   ["GET admin/users", 70],
   ["GET admin/users/:userId", 80],
@@ -560,6 +604,7 @@ const testScript = (capture, requiredVariables = []) => {
       "  const json = pm.response.json();",
       "  const value = json.id ?? json.data?.id ?? json.result?.id;",
       `  if (value) pm.collectionVariables.set('${capture}', value);`,
+      "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
       "}",
     );
   return [{ listen: "test", script: { type: "text/javascript", exec: lines } }];
