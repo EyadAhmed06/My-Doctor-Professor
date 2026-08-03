@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FiArrowLeft, FiBookOpen, FiCheckCircle, FiLayers, FiShield, FiTarget } from "react-icons/fi";
 import { Brand, Field, icons, SubmitForm } from "./ui";
-import { apiRequest, ApiError } from "@/lib/api";
+import { apiRequest } from "@/lib/api";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -22,7 +22,7 @@ export function RegisterPage() {
     try{
       await apiRequest<{message:string}>("/auth/signup",{method:"POST",body:{full_name:form.full_name,email:form.email,phone_number:form.phone_number,student_number:form.student_number,password:form.password,role:"STUDENT",current_semester:Number(form.current_semester)}});
       router.push(`/verify-email?email=${encodeURIComponent(form.email)}`);
-    }catch(cause){setError(cause instanceof ApiError?cause.message:"Unable to create your account. Please try again.");}
+    }catch(cause){setError(cause instanceof Error?cause.message:"Unable to create your account. Please try again.");}
     finally{setLoading(false);}
   }
   return <main className="registration-page">
