@@ -1,1 +1,1 @@
-import { DrugPage } from "@/components/product-pages"; export default function Page(){return <DrugPage/>}
+import { ConnectedDrugReferencePage } from "@/components/connected-drug-reference-page"; export default function Page(){return <ConnectedDrugReferencePage/>}
