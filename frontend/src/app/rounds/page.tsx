@@ -1,1 +1,1 @@
-import { RoundsPage } from "@/components/product-pages"; export default function Page(){return <RoundsPage/>}
+import { ConnectedRoundsPage } from "@/components/connected-rounds-page"; export default function Page(){return <ConnectedRoundsPage/>}
