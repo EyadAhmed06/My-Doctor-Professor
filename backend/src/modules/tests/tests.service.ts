@@ -30,6 +30,7 @@ import { UserRole } from '../users/entities/user.entity';
 import {
   AddTestQuestionDto,
   CreateTestDto,
+  GeneratePracticeTestDto,
   GradeEssayDto,
   QuestionNoteDto,
   SaveAnswerDto,
@@ -106,6 +107,86 @@ export class TestsService {
     this.assertCanViewTest(test, actor);
     if (actor.role === UserRole.STUDENT) this.assertAvailable(test);
     return test;
+  }
+
+  async practiceCatalog(courseId: string, actor: AuthenticatedUser) {
+    if (actor.role !== UserRole.STUDENT) throw new ForbiddenException('Student access is required');
+    const course = await this.courses.findOne({ where: { id: courseId } });
+    if (!course) throw new NotFoundException('Course not found');
+    const weeks = await this.weeks.find({
+      where: { courseId }, relations: { lectures: true },
+      order: { weekNumber: 'ASC', lectures: { lectureNumber: 'ASC' } },
+    });
+    const counts = await this.questions.createQueryBuilder('question')
+      .innerJoin('question.topic', 'topic')
+      .select('topic.lecture_id', 'lecture_id')
+      .addSelect('COUNT(question.id)::integer', 'question_count')
+      .where('question.is_active = TRUE')
+      .andWhere('question.is_question_bank = TRUE')
+      .andWhere('topic.lecture_id IN (:...lectureIds)', {
+        lectureIds: weeks.flatMap((week) => week.lectures.map((lecture) => lecture.id)).length
+          ? weeks.flatMap((week) => week.lectures.map((lecture) => lecture.id)) : ['00000000-0000-0000-0000-000000000000'],
+      })
+      .groupBy('topic.lecture_id').getRawMany<{ lecture_id:string; question_count:number }>();
+    const byLecture = new Map(counts.map((item) => [item.lecture_id, Number(item.question_count)]));
+    return { course, weeks: weeks.map((week) => ({ ...week, lectures: week.lectures.map((lecture) => ({
+      ...lecture, question_count: byLecture.get(lecture.id) ?? 0,
+    })) })) };
+  }
+
+  async generatePractice(dto: GeneratePracticeTestDto, actor: AuthenticatedUser) {
+    if (!(await this.students.exists({ where: { userId: actor.userId } }))) {
+      throw new ForbiddenException('Student profile is required to generate a practice test');
+    }
+    if (dto.test_mode === TestMode.TIMED && !dto.duration_minutes) {
+      throw new BadRequestException('Timed practice requires duration_minutes');
+    }
+    const lectures = await this.lectures.createQueryBuilder('lecture')
+      .leftJoinAndSelect('lecture.week', 'week')
+      .leftJoinAndSelect('week.course', 'course')
+      .where('lecture.id IN (:...lectureIds)', { lectureIds: dto.lecture_ids }).getMany();
+    if (lectures.length !== dto.lecture_ids.length) throw new NotFoundException('One or more lectures were not found');
+    const courseIds = new Set(lectures.map((lecture) => lecture.week.courseId));
+    if (courseIds.size !== 1) throw new BadRequestException('All selected lectures must belong to the same course');
+    const builder = this.questions.createQueryBuilder('question')
+      .innerJoinAndSelect('question.topic', 'topic')
+      .leftJoinAndSelect('question.options', 'options')
+      .leftJoinAndSelect('question.essayConfiguration', 'essayConfiguration')
+      .where('topic.lecture_id IN (:...lectureIds)', { lectureIds: dto.lecture_ids })
+      .andWhere('question.is_active = TRUE').andWhere('question.is_question_bank = TRUE');
+    if (dto.difficulty) builder.andWhere('question.difficulty = :difficulty', { difficulty: dto.difficulty });
+    const eligible = await builder.getMany();
+    if (eligible.length < dto.question_count) {
+      throw new BadRequestException(`Only ${eligible.length} eligible questions are available for this selection`);
+    }
+    for (let index = eligible.length - 1; index > 0; index -= 1) {
+      const target = Math.floor(Math.random() * (index + 1));
+      [eligible[index], eligible[target]] = [eligible[target], eligible[index]];
+    }
+    const selected = eligible.slice(0, dto.question_count);
+    const courseId = lectures[0].week.courseId;
+    return this.dataSource.transaction(async (manager) => {
+      const now = new Date();
+      const total = selected.reduce((sum, question) => sum + Number(question.marks), 0);
+      const test = await manager.save(Test, manager.create(Test, {
+        title: `Custom practice · ${now.toISOString().slice(0, 10)}`,
+        description: `Generated from ${lectures.length} selected lecture${lectures.length === 1 ? '' : 's'}`,
+        testType: TestType.CUSTOM, courseId, weekId: null, lectureId: null,
+        durationMinutes: dto.test_mode === TestMode.TIMED ? dto.duration_minutes! : null,
+        totalMarks: total.toFixed(2), passingMarks: null, isPublished: true,
+        availableFrom: null, availableUntil: null, createdBy: actor.userId,
+      }));
+      await manager.save(TestQuestion, selected.map((question, index) => manager.create(TestQuestion, {
+        testId: test.id, questionId: question.id, displayOrder: index + 1,
+        marks: question.marks, timeLimitSeconds: null,
+      })));
+      const attempt = await manager.save(TestAttempt, manager.create(TestAttempt, {
+        studentId: actor.userId, testId: test.id, testMode: dto.test_mode,
+        status: TestAttemptStatus.IN_PROGRESS, score: null, startedAt: now,
+        submittedAt: null, lastActivityAt: now, autoSubmitted: false,
+      }));
+      return { test, attempt: { ...attempt, test }, question_count: selected.length };
+    });
   }
 
   async update(id: string, dto: UpdateTestDto, actor: AuthenticatedUser) {
