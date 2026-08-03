@@ -1,1 +1,1 @@
-import { GuidelinesPage } from "@/components/product-pages"; export default function Page(){return <GuidelinesPage/>}
+import { ConnectedStudyGuidesPage } from "@/components/connected-study-guides-page"; export default function Page(){return <ConnectedStudyGuidesPage/>}
