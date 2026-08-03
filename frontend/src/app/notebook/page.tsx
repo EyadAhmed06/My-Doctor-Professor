@@ -1,1 +1,1 @@
-import { NotebookPage } from "@/components/product-pages"; export default function Page(){return <NotebookPage/>}
+import { ConnectedNotebookPage } from "@/components/connected-notebook-page"; export default function Page(){return <ConnectedNotebookPage/>}
