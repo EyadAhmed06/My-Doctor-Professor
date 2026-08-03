@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Brand, Benefit, Field, icons, PageFooter, SecureNote, SubmitForm, TrustStrip } from "./ui";
 import { useAuth } from "./auth-provider";
-import { ApiError } from "@/lib/api";
 
 export function LoginPage(){
   const router=useRouter();
@@ -17,7 +16,7 @@ export function LoginPage(){
   async function submit(){
     setLoading(true);setError(null);
     try { await login({email,password,remember}); router.replace("/dashboard"); }
-    catch (cause) { setError(cause instanceof ApiError?cause.message:"Unable to sign in. Check your connection and try again."); }
+    catch (cause) { setError(cause instanceof Error?cause.message:"Unable to sign in. Check your connection and try again."); }
     finally { setLoading(false); }
   }
   return <main className="auth-page login-page">
