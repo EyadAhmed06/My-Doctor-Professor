@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Course } from '../../common/entities/course.entity';
+import { CourseInstructor } from '../../common/entities/course-instructor.entity';
 import { FlashcardDeck } from '../../common/entities/flashcard-deck.entity';
 import { Flashcard } from '../../common/entities/flashcard.entity';
 import { Lecture } from '../../common/entities/lecture.entity';
@@ -12,7 +13,7 @@ import { FlashcardsService } from './flashcards.service';
 
 @Module({
  imports:[TypeOrmModule.forFeature([
-  FlashcardDeck,Flashcard,StudentFlashcardProgress,Course,Lecture,Topic,Student,
+  FlashcardDeck,Flashcard,StudentFlashcardProgress,Course,CourseInstructor,Lecture,Topic,Student,
  ])],
  controllers:[FlashcardsController],
  providers:[FlashcardsService],
