@@ -1,5 +1,3 @@
-import { InstructorFlashcardsPage } from "@/components/product-pages";
+import { ConnectedInstructorFlashcardsPage } from "@/components/connected-instructor-flashcards-page";
 
-export default function Page(){
-  return <InstructorFlashcardsPage/>;
-}
+export default function Page(){return <ConnectedInstructorFlashcardsPage/>;}
