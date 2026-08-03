@@ -1,0 +1,3 @@
+import { Module } from '@nestjs/common';import { TypeOrmModule } from '@nestjs/typeorm';import { DrugReference } from '../../common/entities/drug-reference.entity';import { NotebookNote } from '../../common/entities/notebook-note.entity';import { StudentStudyPlan } from '../../common/entities/student-study-plan.entity';import { WorkspaceController } from './workspace.controller';import { WorkspaceService } from './workspace.service';
+@Module({imports:[TypeOrmModule.forFeature([NotebookNote,StudentStudyPlan,DrugReference])],controllers:[WorkspaceController],providers:[WorkspaceService]})
+export class WorkspaceModule {}
