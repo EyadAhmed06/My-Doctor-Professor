@@ -14,9 +14,18 @@ const nav = [["Rounds","/rounds"],["Past Exams","/past-exams"],["Flashcards","/f
 export function ProductShell({ children, search = "Search cases, topics, or concepts" }: { children: React.ReactNode; search?: string }) {
   const path = usePathname();
   const router = useRouter();
-  const {user,loading,logout}=useAuth();
+  const {user,loading,logout,request}=useAuth();
   const [open,setOpen] = useState(false);
+  const [unread,setUnread] = useState(0);
   useEffect(()=>{if(!loading&&!user)router.replace(`/login?next=${encodeURIComponent(path)}`);},[loading,user,router,path]);
+  useEffect(()=>{
+    if(!user)return;
+    let active=true;
+    void request<{count:number}>("/notifications/unread/count")
+      .then(result=>{if(active)setUnread(result.count);})
+      .catch(()=>{if(active)setUnread(0);});
+    return()=>{active=false;};
+  },[user,request]);
   if(loading||!user)return <div className="product-auth-loading" role="status">Loading your workspace…</div>;
   const displayName=user.fullName||user.full_name||user.email;
   const roleLabel=user.role==="SYSTEM_ADMIN"?"System Administrator":user.role==="INSTRUCTOR"?"Instructor":"Medical Student";
@@ -26,7 +35,7 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
       <button className="pp-menu" onClick={()=>setOpen(true)} aria-label="Open menu"><FiMenu /></button>
       <nav className={open ? "open" : ""}><button className="pp-nav-close" onClick={()=>setOpen(false)}><FiX /></button>{nav.map(([label,href])=><Link key={href} className={path.startsWith(href) ? "active" : ""} href={href} onClick={()=>setOpen(false)}>{label}</Link>)}{user.role!=="STUDENT"&&<Link href="/instructor/quizzes">Instructor</Link>}<Link href="/settings">Settings</Link></nav>
       <label className="pp-search"><FiSearch/><input placeholder={search}/></label>
-      <div className="pp-profile"><ThemeToggle compact/><button><FiBell/><i>3</i></button><span className="avatar-fallback">{displayName.slice(0,2).toUpperCase()}</span><span><b>{displayName}</b><small>{roleLabel}</small></span><button className="pp-logout" onClick={()=>void logout().then(()=>router.replace("/login"))}>Log out</button><FiChevronDown/></div>
+      <div className="pp-profile"><ThemeToggle compact/><button aria-label={`${unread} unread notifications`} onClick={()=>router.push("/notifications")}><FiBell/>{unread>0&&<i>{unread>99?"99+":unread}</i>}</button><span className="avatar-fallback">{displayName.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join("").toUpperCase()}</span><span><b>{displayName}</b><small>{roleLabel}</small></span><button className="pp-logout" onClick={()=>void logout().then(()=>router.replace("/login"))}>Log out</button><FiChevronDown/></div>
     </header>
     {children}
   </div>;
