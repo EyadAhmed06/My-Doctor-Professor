@@ -15,6 +15,7 @@ import { ProgressModule } from './modules/progress/progress.module';
 import { QuestionsModule } from './modules/questions/questions.module';
 import { TestsModule } from './modules/tests/tests.module';
 import { UsersModule } from './modules/users/users.module';
+import { WorkspaceModule } from './modules/workspace/workspace.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { UsersModule } from './modules/users/users.module';
     NotificationsModule,
     AuditModule,
     AdminModule,
+    WorkspaceModule,
   ],
   controllers: [AppController],
   providers: [AppService],
