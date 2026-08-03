@@ -47,7 +47,7 @@ const authFor = (module, method, route) => {
       ? "instructorAccessToken"
       : "instructorAccessToken";
   if (module === "tests")
-    return route.includes("attempts/") ||
+    return route.startsWith("tests/practice/") || route.includes("attempts/") ||
       (route.endsWith("/attempts") && method === "POST")
       ? route.endsWith("/grade")
         ? "instructorAccessToken"
@@ -265,6 +265,11 @@ const bodyMap = {
     time_limit_seconds: 60,
   },
   "POST tests/:testId/attempts": { test_mode: "TUTOR" },
+  "POST tests/practice/generate": {
+    lecture_ids: ["{{lectureId}}"],
+    question_count: 1,
+    test_mode: "TUTOR",
+  },
   "PUT tests/attempts/:attemptId/answers/:questionId": {
     selected_option_id: "{{optionId}}",
   },
@@ -343,6 +348,7 @@ const queryMap = {
     ["limit", "20"],
     ["course_id", "{{courseId}}"],
   ],
+  "GET tests/practice/catalog": [["course_id", "{{courseId}}"]],
   "GET flashcards/decks": [
     ["page", "1"],
     ["limit", "20"],
@@ -453,6 +459,8 @@ const flowPriority = new Map([
   ["PUT tests/attempts/:attemptId/answers/:answerId/grade", 150],
   ["GET tests/attempts/:attemptId/review", 160],
   ["GET tests/:testId/attempts", 170],
+  ["GET tests/practice/catalog", 180],
+  ["POST tests/practice/generate", 190],
   ["POST flashcards/decks", 10],
   ["POST flashcards/decks/:deckId/cards", 20],
   ["PUT flashcards/cards/:cardId", 25],
