@@ -19,6 +19,8 @@ export class ApiError extends Error {
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1").replace(/\/$/, "");
 
+export const apiBaseUrl = API_URL;
+
 export type RequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
   accessToken?: string | null;
@@ -39,11 +41,19 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   void _body;
   void _accessToken;
 
-  const response = await fetch(`${API_URL}${path.startsWith("/") ? path : `/${path}`}`, {
-    ...requestInit,
-    headers,
-    body: requestBody,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path.startsWith("/") ? path : `/${path}`}`, {
+      ...requestInit,
+      headers,
+      body: requestBody,
+    });
+  } catch (cause) {
+    throw new Error(
+      `Cannot reach the backend at ${API_URL}. Start NestJS on port 3000 and the frontend on port 3001.`,
+      { cause },
+    );
+  }
 
   if (response.status === 204) return undefined as T;
   const contentType = response.headers.get("content-type") || "";
