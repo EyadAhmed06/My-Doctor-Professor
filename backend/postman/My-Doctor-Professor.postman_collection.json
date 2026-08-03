@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "ca9ca204-f27b-4f72-bd94-34f22512fce0",
     "name": "My Doctor Professor - Complete Backend API",
-    "description": "Generated from NestJS controllers. 131 unique controller routes are included. Run folders in numeric order; provide seeded role credentials first. Email confirmation/reset tokens and upload file path are manual inputs. Cleanup is destructive and intentionally last.",
+    "description": "Generated from NestJS controllers. 133 unique controller routes are included. Run folders in numeric order; provide seeded role credentials first. Email confirmation/reset tokens and upload file path are manual inputs. Cleanup is destructive and intentionally last.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -3969,6 +3969,92 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Route variable testId is populated', () => pm.expect(pm.variables.get('testId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /tests/practice/catalog",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tests/practice/catalog?course_id={{courseId}}",
+            "description": "Controller source: src/modules/tests/tests.controller.ts#practiceCatalog",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable courseId is populated', () => pm.expect(pm.variables.get('courseId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /tests/practice/generate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tests/practice/generate",
+            "description": "Controller source: src/modules/tests/tests.controller.ts#generatePractice",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lecture_ids\": [\n    \"{{lectureId}}\"\n  ],\n  \"question_count\": 1,\n  \"test_mode\": \"TUTOR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
