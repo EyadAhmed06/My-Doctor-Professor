@@ -1,1 +1,1 @@
-import { SettingsPage } from "@/components/product-pages"; export default function Page(){return <SettingsPage/>}
+import { ConnectedSettingsPage } from "@/components/connected-settings-page"; export default function Page(){return <ConnectedSettingsPage/>}
