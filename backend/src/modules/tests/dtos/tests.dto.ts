@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsDateString, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { QuestionDifficulty } from '../../../common/entities/question.entity';
 import { TestMode } from '../../../common/entities/test-attempt.entity';
 import { TestType } from '../../../common/entities/test.entity';
 
@@ -38,6 +39,14 @@ export class AddTestQuestionDto {
  @IsOptional() @IsInt() @Min(1) time_limit_seconds?:number;
 }
 export class StartTestAttemptDto { @IsEnum(TestMode) test_mode:TestMode; }
+export class PracticeCatalogQueryDto { @IsUUID() course_id:string; }
+export class GeneratePracticeTestDto {
+ @IsArray() @ArrayMinSize(1) @ArrayMaxSize(50) @ArrayUnique() @IsUUID('4',{each:true}) lecture_ids:string[];
+ @IsInt() @Min(1) @Max(200) question_count:number;
+ @IsOptional() @IsEnum(QuestionDifficulty) difficulty?:QuestionDifficulty;
+ @IsEnum(TestMode) test_mode:TestMode;
+ @IsOptional() @IsInt() @Min(1) @Max(600) duration_minutes?:number;
+}
 export class SaveAnswerDto {
  @IsOptional() @IsUUID() selected_option_id?:string;
  @IsOptional() @IsString() @MaxLength(50000) essay_answer?:string;
