@@ -5,7 +5,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
-import { AddTestQuestionDto, CreateTestDto, GradeEssayDto, QuestionNoteDto, SaveAnswerDto, StartTestAttemptDto, TestQueryDto, UpdateTestDto } from './dtos/tests.dto';
+import { AddTestQuestionDto, CreateTestDto, GeneratePracticeTestDto, GradeEssayDto, PracticeCatalogQueryDto, QuestionNoteDto, SaveAnswerDto, StartTestAttemptDto, TestQueryDto, UpdateTestDto } from './dtos/tests.dto';
 import { TestsService } from './tests.service';
 const uuid = new ParseUUIDPipe({version:'4'});
 
@@ -18,6 +18,10 @@ export class TestsController {
  create(@Body() dto:CreateTestDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.create(dto,actor);}
  @Get()
  list(@Query() query:TestQueryDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.list(query,actor);}
+ @Get('practice/catalog') @Roles(UserRole.STUDENT)
+ practiceCatalog(@Query() query:PracticeCatalogQueryDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.practiceCatalog(query.course_id,actor);}
+ @Post('practice/generate') @Roles(UserRole.STUDENT)
+ generatePractice(@Body() dto:GeneratePracticeTestDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.generatePractice(dto,actor);}
  @Get(':testId')
  getOne(@Param('testId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.getOne(id,actor);}
  @Put(':testId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
