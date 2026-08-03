@@ -1,1 +1,1 @@
-import { PastExamsPage } from "@/components/product-pages"; export default function Page(){return <PastExamsPage/>}
+import { ConnectedAssessmentsPage } from "@/components/connected-assessments-page"; export default function Page(){return <ConnectedAssessmentsPage/>}
