@@ -1,5 +1,5 @@
 {
-  "count": 131,
+  "count": 133,
   "routes": [
     "DELETE academic/courses/:courseId",
     "DELETE academic/courses/:courseId/instructors/:instructorId",
@@ -74,6 +74,7 @@
     "GET tests/attempts/:attemptId",
     "GET tests/attempts/:attemptId/answers",
     "GET tests/attempts/:attemptId/review",
+    "GET tests/practice/catalog",
     "GET users/:userId",
     "PATCH admin/users/:userId/status",
     "POST academic/courses/:courseId/instructors/:instructorId",
@@ -112,6 +113,7 @@
     "POST tests/attempts/:attemptId/flags/:questionId",
     "POST tests/attempts/:attemptId/notes/:questionId",
     "POST tests/attempts/:attemptId/submit",
+    "POST tests/practice/generate",
     "POST users/:userId/change-password",
     "PUT academic/courses/:courseId",
     "PUT academic/lectures/:lectureId",
