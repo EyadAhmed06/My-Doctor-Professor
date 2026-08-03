@@ -1,5 +1,5 @@
-import { DashboardPage } from "@/components/dashboard-page";
+import { ConnectedDashboardPage } from "@/components/connected-dashboard-page";
 
 export default function Page() {
-  return <DashboardPage />;
+  return <ConnectedDashboardPage />;
 }
