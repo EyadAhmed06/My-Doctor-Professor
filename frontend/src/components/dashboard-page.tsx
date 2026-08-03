@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   FiActivity, FiBell, FiBookOpen, FiBookmark, FiChevronDown,
   FiChevronRight, FiClipboard, FiClock, FiFileText, FiGrid, FiHeart,
@@ -10,6 +11,7 @@ import {
 } from "react-icons/fi";
 import { ThemeToggle, useAppTheme } from "./app-theme";
 import { BrandLockup } from "./brand";
+import { useAuth } from "./auth-provider";
 import "./dashboard.css";
 
 const navItems = [
@@ -43,8 +45,26 @@ function Card({ title, action, children, className = "" }: { title: string; acti
 
 export function DashboardPage() {
   const { theme } = useAppTheme();
+  const router = useRouter();
+  const { user, loading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (!loading && !user) router.replace("/login?next=%2Fdashboard");
+  }, [loading, user, router]);
+
+  if (loading || !user) {
+    return <div className="product-auth-loading" role="status">Loading your workspace…</div>;
+  }
+
+  const displayName = user.fullName || user.full_name || user.email;
+  const firstName = displayName.trim().split(/\s+/)[0] || displayName;
+  const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2)
+    .map(part => part[0]).join("").toUpperCase();
+  const roleLabel = user.role === "SYSTEM_ADMIN"
+    ? "System Administrator"
+    : user.role === "INSTRUCTOR" ? "Instructor" : "Medical Student";
 
   return <main className="dashboard-shell" data-theme={theme}>
     <aside className={`dash-sidebar ${menuOpen ? "open" : ""}`}>
@@ -63,13 +83,13 @@ export function DashboardPage() {
         <div className="top-actions">
           <ThemeToggle />
           <button className="notification" aria-label="Notifications"><FiBell /><span>2</span></button>
-          <Image src="/dashboard/amr-avatar.png" width={42} height={42} alt="Amr Hassan" className="avatar" />
-          <div className="profile-copy"><strong>Amr Hassan</strong><span>Medical Student</span></div><FiChevronDown />
+          <span className="avatar avatar-user" aria-label={`${displayName} profile`} style={user.profilePictureUrl ? { backgroundImage: `url(${user.profilePictureUrl})` } : undefined}>{user.profilePictureUrl ? "" : initials}</span>
+          <div className="profile-copy"><strong>{displayName}</strong><span>{roleLabel}</span></div><FiChevronDown />
         </div>
       </header>
 
       <div className="dash-content">
-        <section className="welcome"><p className="eyebrow">TODAY’S FOCUS</p><h1>Welcome back, Amr</h1><p>You’re building clinical expertise every day.</p><strong>Strengthen cardiovascular reasoning and apply evidence-based<br />management to real-world cases.</strong></section>
+        <section className="welcome"><p className="eyebrow">TODAY’S FOCUS</p><h1>Welcome back, {firstName}</h1><p>You’re building clinical expertise every day.</p><strong>Strengthen cardiovascular reasoning and apply evidence-based<br />management to real-world cases.</strong></section>
         <Card title="Clinical Momentum" className="momentum-card">
           <p className="card-subtitle">Your progress at a glance</p>
           <div className="metrics">
