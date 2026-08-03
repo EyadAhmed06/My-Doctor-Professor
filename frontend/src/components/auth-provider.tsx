@@ -1,7 +1,7 @@
 "use client";
 
 import { apiRequest } from "@/lib/api";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 export type UserRole = "STUDENT" | "INSTRUCTOR" | "SYSTEM_ADMIN";
 export type AuthUser = {
@@ -46,6 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const refreshPromise = useRef<Promise<string | null> | null>(null);
 
   const persist = useCallback((auth: AuthResponse, remember: boolean) => {
     clearTokens();
@@ -57,6 +58,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refresh = useCallback(async (): Promise<string | null> => {
+    if (refreshPromise.current) return refreshPromise.current;
+    refreshPromise.current = (async () => {
     const localRefresh = localStorage.getItem(REFRESH_KEY);
     const sessionRefresh = sessionStorage.getItem(REFRESH_KEY);
     const refreshToken = localRefresh || sessionRefresh;
@@ -73,6 +76,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAccessToken(null);
       setUser(null);
       return null;
+    }
+    })();
+    try {
+      return await refreshPromise.current;
+    } finally {
+      refreshPromise.current = null;
     }
   }, [persist]);
 
@@ -139,4 +148,3 @@ export function useAuth() {
   if (!value) throw new Error("useAuth must be used inside AuthProvider");
   return value;
 }
-
