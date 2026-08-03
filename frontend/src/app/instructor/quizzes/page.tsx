@@ -1,1 +1,1 @@
-import { InstructorPage } from "@/components/product-pages"; export default function Page(){return <InstructorPage/>}
+import { ConnectedInstructorPage } from "@/components/connected-instructor-page"; export default function Page(){return <ConnectedInstructorPage/>}
