@@ -24,6 +24,13 @@ const features = [
   { icon: FiShield, title: "A focused academic space", text: "A calm, structured environment designed for learning, with clear ownership of your account and study data." },
 ];
 
+const reasons = [
+  { icon: FiUsers, title: "Built by doctors who understand the journey", text: "The platform is shaped by people who faced the same lectures, exam pressure, and search for trustworthy study material." },
+  { icon: FiTarget, title: "High-yield without losing understanding", text: "Questions and explanations focus on the details that matter in exams while preserving the clinical reasoning behind every answer." },
+  { icon: FiLayers, title: "MCQs, essays, and revision in one structure", text: "Weekly content, question banks, notes, flashcards, and progress tracking stay connected to the same academic path." },
+  { icon: FiCheckCircle, title: "Continuously improved with student feedback", text: "Content and workflows evolve around what students actually struggle with, need clarified, and want to practise next." },
+];
+
 export function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   return <main className="public-home">
@@ -31,16 +38,16 @@ export function LandingPage() {
       <BrandLockup className="public-brand" />
       <button className="public-menu" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle navigation">{menuOpen ? <FiX /> : <FiMenu />}</button>
       <nav className={menuOpen ? "open" : ""}>
-        <a href="#product">Product</a><a href="#features">Features</a><a href="#curriculum">Curriculum</a><a href="#about">About</a>
+        <a href="#about">About us</a><a href="#goal">Our goal</a><a href="#curriculum">Curriculum</a><a href="#features">Features</a>
       </nav>
       <div className="public-actions"><Link href="/login">Log in</Link><Link className="public-button small" href="/register">Create account <FiArrowRight /></Link></div>
     </header>
 
     <section className="public-hero" id="product">
       <div className="hero-copy">
-        <span className="public-eyebrow"><FiBookOpen /> A connected learning system for medical education</span>
-        <h1>Understand medicine.<br />Think like a <em>clinician.</em></h1>
-        <p>{BRAND_NAME} turns courses, cases, practice, and revision into one clear path—from your first semester to clinical rounds.</p>
+        <span className="public-eyebrow"><FiBookOpen /> My Doctor &amp; The Professor</span>
+        <h1>The professor’s <em>wisdom.</em><br />The doctor’s precision.</h1>
+        <p>Reliable medical education, structured around the way students learn, professors examine, and doctors think.</p>
         <div className="hero-actions"><Link className="public-button" href="/register">Start learning <FiArrowRight /></Link><a className="public-button ghost" href="#curriculum">Explore the curriculum</a></div>
         <div className="hero-proof"><span><FiCheckCircle /> Organized by academic year</span><span><FiCheckCircle /> Case-based reasoning</span><span><FiCheckCircle /> Personal progress</span></div>
       </div>
@@ -52,7 +59,12 @@ export function LandingPage() {
       </div>
     </section>
 
-    <section className="public-stat-strip"><div><strong>One path</strong><span>from foundations to rounds</span></div><div><strong>Connected tools</strong><span>notes, cases, review, and analytics</span></div><div><strong>Clear priorities</strong><span>know what to study and why</span></div><div><strong>Built for medicine</strong><span>not a generic productivity app</span></div></section>
+    <section className="public-section story-section" id="about">
+      <div className="section-heading"><span>ABOUT US</span><h2>Created from the same challenges you face.</h2></div>
+      <div className="story-copy"><p>We are a group of doctors who were once exactly in your place. We understand how challenging it can be to find reliable, high-quality study materials—especially when it comes to high-yield questions and the tricky details that professors love to test.</p><p>That struggle is what drove us to make a change. Five years ago, we launched My Doctor. Two years ago, we took a giant leap forward by releasing a completely redesigned version of our platform, alongside the very first weekly structured essay booklets that filled a huge gap for students.</p><p>Today, we continue that work through My Doctor &amp; The Professor, becoming a trusted primary source for both MCQs and essays.</p></div>
+    </section>
+
+    <section className="public-goal" id="goal"><span><FiTarget /></span><div><small>OUR GOAL</small><h2>Make studying medicine clearer, smarter, and more reliable.</h2><p>Our goal has always been to make your life easier, helping you study smarter, master your courses, and excel in your exams. We continuously improve our content, listen to your feedback, and provide the reliable academic support you deserve.</p></div></section>
 
     <section className="public-section curriculum-section" id="curriculum">
       <div className="section-heading"><span>YOUR ACADEMIC JOURNEY</span><h2>Find your year. Continue your work.</h2><p>Enter the platform through the stage you are studying now, then move between semesters, courses, and learning activities without losing context.</p></div>
@@ -74,15 +86,15 @@ export function LandingPage() {
       <ol><li><b>01</b><div><strong>Plan</strong><span>Choose your year, courses, goals, and available study time.</span></div></li><li><b>02</b><div><strong>Learn</strong><span>Move through structured topics, resources, and clinical cases.</span></div></li><li><b>03</b><div><strong>Practice</strong><span>Use questions and reasoning builders to apply what you know.</span></div></li><li><b>04</b><div><strong>Review</strong><span>Return to weak concepts through notes, errors, and spaced repetition.</span></div></li></ol>
     </section>
 
-    <section className="public-section about-section" id="about">
-      <div><span className="section-kicker">ABOUT THE PRODUCT</span><h2>The professor’s wisdom.<br />The doctor’s precision.</h2></div>
-      <div><p>{BRAND_NAME} is built around a simple idea: medical education works best when expert explanation and clinical decision-making are connected.</p><p>Our product brings academic structure and real-world reasoning into the same workspace, helping learners understand not only <em>what</em> is correct, but <em>why</em> it is correct and <em>when</em> to use it.</p><p className="about-note"><FiUsers /> Designed for students, instructors, and future clinicians.</p></div>
+    <section className="public-section why-section">
+      <div className="section-heading narrow"><span>WHY CHOOSE US</span><h2>Academic support built around the realities of medical school.</h2><p>Everything is designed to reduce uncertainty: what to study, what is important, how it may be examined, and how well you actually understand it.</p></div>
+      <div className="why-grid">{reasons.map(({icon:Icon,title,text}) => <article key={title}><Icon /><div><h3>{title}</h3><p>{text}</p></div></article>)}</div>
     </section>
 
     <section className="public-cta"><BrandLockup /><div><span>Ready when you are</span><h2>Build a clearer path through medicine.</h2><p>Create your academic workspace and begin with your current year.</p></div><Link className="public-button" href="/register">Create your account <FiArrowRight /></Link></section>
 
     <footer className="public-footer">
-      <div className="footer-main"><div><BrandLockup showTagline /><p>A connected academic and clinical learning workspace for medical students.</p></div><div><h4>Product</h4><a href="#features">Features</a><a href="#curriculum">Academic years</a><Link href="/dashboard">Dashboard</Link><Link href="/study-plan">Study planning</Link></div><div><h4>Learning</h4><Link href="/bundles">Learning bundles</Link><Link href="/notebook">Notebook</Link><Link href="/flashcards">Flashcards</Link><Link href="/guidelines">Guidelines</Link></div><div><h4>Company</h4><a href="#about">About</a><a href="mailto:support@mydoctorprofessor.com">Contact</a><a href="#">Privacy</a><a href="#">Terms</a></div></div>
+      <div className="footer-main"><div><BrandLockup showTagline /><p>Reliable academic support for medical students—from weekly learning to exam preparation.</p></div><div><h4>Product</h4><a href="#features">Features</a><a href="#curriculum">Academic years</a><Link href="/dashboard">Dashboard</Link><Link href="/study-plan">Study planning</Link></div><div><h4>Learning</h4><Link href="/bundles">Learning bundles</Link><Link href="/notebook">Notebook</Link><Link href="/flashcards">Flashcards</Link><Link href="/guidelines">Guidelines</Link></div><div><h4>Company</h4><a href="#about">About us</a><a href="#goal">Our goal</a><a href="mailto:support@mydoctorprofessor.com">Contact</a><a href="#">Privacy</a><a href="#">Terms</a></div></div>
       <div className="footer-bottom"><span>© 2026 {BRAND_NAME}. All rights reserved.</span><span>{BRAND_TAGLINE}</span></div>
     </footer>
   </main>;
