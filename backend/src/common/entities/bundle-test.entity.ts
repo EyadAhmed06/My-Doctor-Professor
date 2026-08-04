@@ -1,0 +1,3 @@
+import { CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';import { Bundle } from './bundle.entity';import { Test } from './test.entity';
+@Entity('bundle_tests') @Index('idx_bundle_tests_test',['testId'])
+export class BundleTest { @PrimaryColumn('uuid',{name:'bundle_id'}) bundleId:string; @PrimaryColumn('uuid',{name:'test_id'}) testId:string; @CreateDateColumn({name:'created_at'}) createdAt:Date; @ManyToOne(()=>Bundle,{onDelete:'CASCADE'}) @JoinColumn({name:'bundle_id'}) bundle:Bundle; @ManyToOne(()=>Test,{onDelete:'RESTRICT'}) @JoinColumn({name:'test_id'}) test:Test; }
