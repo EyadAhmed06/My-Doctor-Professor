@@ -26,7 +26,7 @@
     "schema:check": "node scripts/check-schema-compatibility.cjs",
     "postman:generate": "node scripts/generate-postman.mjs",
     "postman:verify-report": "node scripts/verify-newman-report.mjs",
-    "seed:demo": "typeorm-ts-node-commonjs scripts/seed-demo.ts"
+    "seed:demo": "ts-node scripts/seed-demo.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
