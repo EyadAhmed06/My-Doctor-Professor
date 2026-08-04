@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "ca9ca204-f27b-4f72-bd94-34f22512fce0",
     "name": "My Doctor Professor - Complete Backend API",
-    "description": "Generated from NestJS controllers. 143 unique controller routes are included. Run folders in numeric order; provide seeded role credentials first. Email confirmation/reset tokens and upload file path are manual inputs. Cleanup is destructive and intentionally last.",
+    "description": "Generated from NestJS controllers. 162 unique controller routes are included. Run folders in numeric order; provide seeded role credentials first. Email confirmation/reset tokens and upload file path are manual inputs. Cleanup is destructive and intentionally last.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -5543,6 +5543,561 @@
       ]
     },
     {
+      "name": "bundles",
+      "item": [
+        {
+          "name": "GET /catalog/bundles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles",
+            "description": "Controller source: src/modules/bundles/bundles.controller.ts#catalog",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /catalog/bundles",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles",
+            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /catalog/bundles/mine",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles/mine",
+            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /catalog/bundles/managed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles/managed",
+            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /catalog/bundles/enroll",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles/enroll",
+            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /catalog/bundles/:bundleId/enroll",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/enroll",
+            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /catalog/bundles/:bundleId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}",
+            "description": "Controller source: src/modules/bundles/bundles.controller.ts#get",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /catalog/bundles/:bundleId/content",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/content",
+            "description": "Controller source: src/modules/bundles/bundles.controller.ts#getContent",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /catalog/bundles/:bundleId",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}",
+            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /catalog/bundles/:bundleId/status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/status",
+            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /catalog/bundles/:bundleId/courses",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/courses",
+            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /catalog/bundles/:bundleId/weeks",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/weeks",
+            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /catalog/bundles/:bundleId/tests",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/tests",
+            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /catalog/bundles/:bundleId/instructors",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/instructors",
+            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /catalog/bundles/:bundleId/enrollments",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/enrollments",
+            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "workspace",
       "item": [
         {
@@ -6656,6 +7211,158 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Route variable semesterId is populated', () => pm.expect(pm.variables.get('semesterId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /catalog/bundles/:bundleId/courses/:courseId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/courses/{{courseId}}",
+            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('Route variable courseId is populated', () => pm.expect(pm.variables.get('courseId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /catalog/bundles/:bundleId/weeks/:weekId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/weeks/{{weekId}}",
+            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('Route variable weekId is populated', () => pm.expect(pm.variables.get('weekId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /catalog/bundles/:bundleId/tests/:testId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/tests/{{testId}}",
+            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('Route variable testId is populated', () => pm.expect(pm.variables.get('testId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /catalog/bundles/:bundleId/enrollments/:studentId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/enrollments/{{studentId}}",
+            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('Route variable studentId is populated', () => pm.expect(pm.variables.get('studentId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
