@@ -10,7 +10,31 @@ import { BundleCourse } from '../../common/entities/bundle-course.entity';import
  async managed(actor:AuthenticatedUser){if(actor.role===UserRole.SYSTEM_ADMIN)return this.bundles.find({order:{createdAt:'DESC'}});const assignments=await this.bundleInstructors.find({where:{instructorId:actor.userId}});if(!assignments.length)return [];return this.bundles.createQueryBuilder('bundle').where('bundle.id IN (:...ids)',{ids:assignments.map(item=>item.bundleId)}).orderBy('bundle.created_at','DESC').getMany();}
  async mine(studentId:string){const rows=await this.enrollments.find({where:{studentId},relations:{bundle:true},order:{createdAt:'DESC'}});return rows.filter(row=>row.status!==BundleEnrollmentStatus.REVOKED).map(row=>this.enrollmentView(row));}
  async getAccessible(id:string,actor:AuthenticatedUser){const bundle=await this.requireBundle(id);if(actor.role!==UserRole.STUDENT){await this.assertManager(id,actor);return {...bundle,read_only:false};}const enrollment=await this.requireEnrollment(id,actor.userId);if(bundle.availableFrom&&bundle.availableFrom>new Date())throw new ForbiddenException('Bundle access has not started yet');return {...bundle,...this.accessState(enrollment,bundle.status)};}
- async getContent(id:string,actor:AuthenticatedUser){const access=await this.getAccessible(id,actor);const [courseLinks,weekLinks,testLinks]=await Promise.all([this.bundleCourses.find({where:{bundleId:id},relations:{course:{semester:true}},order:{course:{displayOrder:'ASC'}}}),this.bundleWeeks.find({where:{bundleId:id},relations:{week:{lectures:true}},order:{week:{displayOrder:'ASC'}}}),this.bundleTests.find({where:{bundleId:id},relations:{test:true},order:{test:{createdAt:'DESC'}}})]);return {bundle:access,courses:courseLinks.map(link=>({...link.course,weeks:weekLinks.filter(item=>item.week.courseId===link.courseId).map(item=>({...item.week,lectures:item.week.lectures.filter(lecture=>actor.role!==UserRole.STUDENT||lecture.isPublished)}))})),past_exams:testLinks.map(link=>link.test),selected_week_count:weekLinks.length};}
+ async getContent(id:string,actor:AuthenticatedUser){
+  const access=await this.getAccessible(id,actor);
+  const [courseLinks,weekLinks,testLinks,lectureStats]=await Promise.all([
+   this.bundleCourses.find({where:{bundleId:id},relations:{course:{semester:true}},order:{course:{displayOrder:'ASC'}}}),
+   this.bundleWeeks.find({where:{bundleId:id},relations:{week:{lectures:true}},order:{week:{displayOrder:'ASC'}}}),
+   this.bundleTests.find({where:{bundleId:id},relations:{test:true},order:{test:{createdAt:'DESC'}}}),
+   this.dataSource.query(`
+    SELECT lecture.id,
+      COUNT(DISTINCT question.id)::int AS question_count,
+      COUNT(DISTINCT deck.id)::int AS flashcard_deck_count,
+      COUNT(DISTINCT resource.id)::int AS resource_count
+    FROM bundle_weeks bundle_week JOIN weeks week ON week.id=bundle_week.week_id
+    JOIN lectures lecture ON lecture.week_id=week.id
+    LEFT JOIN topics topic ON topic.lecture_id=lecture.id
+    LEFT JOIN questions question ON question.topic_id=topic.id AND question.is_active=TRUE
+    LEFT JOIN flashcard_decks deck ON deck.lecture_id=lecture.id AND deck.is_published=TRUE
+    LEFT JOIN resources resource ON resource.lecture_id=lecture.id
+    WHERE bundle_week.bundle_id=$1 GROUP BY lecture.id`,[id]),
+  ]);
+  const stats=new Map((lectureStats as {id:string;question_count:number;flashcard_deck_count:number;resource_count:number}[]).map(row=>[row.id,row]));
+  const courses=courseLinks.map(link=>({...link.course,weeks:weekLinks.filter(item=>item.week.courseId===link.courseId).map(item=>({...item.week,lectures:item.week.lectures.filter(lecture=>actor.role!==UserRole.STUDENT||lecture.isPublished).map(lecture=>({...lecture,...(stats.get(lecture.id)??{question_count:0,flashcard_deck_count:0,resource_count:0})}))}))}));
+  return {bundle:access,courses,past_exams:testLinks.map(link=>link.test),selected_week_count:weekLinks.length,
+   totals:{courses:courses.length,weeks:weekLinks.length,lectures:courses.flatMap(course=>course.weeks).flatMap(week=>week.lectures).length,
+    questions:[...stats.values()].reduce((sum,row)=>sum+Number(row.question_count),0),flashcard_decks:[...stats.values()].reduce((sum,row)=>sum+Number(row.flashcard_deck_count),0),resources:[...stats.values()].reduce((sum,row)=>sum+Number(row.resource_count),0),past_exams:testLinks.length}};
+ }
  async update(id:string,actor:AuthenticatedUser,dto:UpdateBundleDto){await this.assertManager(id,actor);const bundle=await this.requireBundleWithSecret(id);this.validateWindow(dto.available_from??bundle.availableFrom?.toISOString(),dto.available_until??bundle.availableUntil?.toISOString());if(dto.title!==undefined)bundle.title=dto.title.trim();if(dto.description!==undefined)bundle.description=dto.description.trim()||null;if(dto.access_mode!==undefined)bundle.accessMode=dto.access_mode;if(dto.is_free!==undefined)bundle.isFree=dto.is_free;if(dto.available_from!==undefined)bundle.availableFrom=dto.available_from?new Date(dto.available_from):null;if(dto.available_until!==undefined)bundle.availableUntil=dto.available_until?new Date(dto.available_until):null;if(dto.enrollment_code!==undefined)bundle.enrollmentCodeHash=await bcrypt.hash(dto.enrollment_code,10);return this.bundles.save(bundle);}
  async changeStatus(id:string,actor:AuthenticatedUser,status:BundleStatus){await this.assertManager(id,actor);const bundle=await this.requireBundle(id);if(status===BundleStatus.PUBLISHED){const count=await this.bundleCourses.count({where:{bundleId:id}});if(count===0)throw new ConflictException('A bundle needs at least one course before publishing');}bundle.status=status;return this.bundles.save(bundle);}
  async addCourse(id:string,actor:AuthenticatedUser,courseId:string){await this.assertManager(id,actor);if(!await this.courses.exists({where:{id:courseId}}))throw new NotFoundException('Course not found');return this.saveLink(()=>this.bundleCourses.save(this.bundleCourses.create({bundleId:id,courseId})),'Course already belongs to this bundle');}
