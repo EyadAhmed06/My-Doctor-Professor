@@ -19,6 +19,7 @@ import { createPostgresSslOptions } from "./postgres-ssl";
         synchronize: false,
         logging: config.get<string>("NODE_ENV") !== "production",
         ssl: createPostgresSslOptions({
+          DB_HOST: config.get<string>("DB_HOST", "localhost"),
           DB_SSL_ENABLED: config.get<string>("DB_SSL_ENABLED", "false"),
           DB_SSL_REJECT_UNAUTHORIZED: config.get<string>(
             "DB_SSL_REJECT_UNAUTHORIZED",
