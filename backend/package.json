@@ -23,9 +23,10 @@
     "migration:run": "npm run typeorm -- migration:run -d src/database/data-source.ts",
     "migration:show": "npm run typeorm -- migration:show -d src/database/data-source.ts",
     "schema:log": "npm run typeorm -- schema:log -d src/database/data-source.ts",
+    "schema:check": "node scripts/check-schema-compatibility.cjs",
     "postman:generate": "node scripts/generate-postman.mjs",
     "postman:verify-report": "node scripts/verify-newman-report.mjs",
-    "schema:check": "node scripts/check-schema-compatibility.cjs"
+    "seed:demo": "typeorm-ts-node-commonjs scripts/seed-demo.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
