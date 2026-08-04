@@ -9,7 +9,7 @@ import { ThemeToggle } from "./app-theme";
 import { BrandLockup } from "./brand";
 import { useAuth } from "./auth-provider";
 
-const nav = [["My Bundles","/bundles"],["Flashcards","/flashcards"],["Notebook","/notebook"],["Study Guides","/guidelines"],["Study Plan","/study-plan"]];
+const nav = [["My Bundles","/bundles"],["Flashcards","/flashcards"],["Notebook","/notebook"],["Study Guides","/guidelines"],["Analytics","/analytics"],["Study Plan","/study-plan"]];
 
 export function ProductShell({ children, search = "Search cases, topics, or concepts" }: { children: React.ReactNode; search?: string }) {
   const path = usePathname();
