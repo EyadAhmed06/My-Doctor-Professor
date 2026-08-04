@@ -1,5 +1,6 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, OneToOne, PrimaryColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, OneToMany, OneToOne, PrimaryColumn, UpdateDateColumn } from 'typeorm';
 import { Student } from '../../modules/users/entities/student.entity';
+import { StudyPlanItem } from './study-plan-item.entity';
 
 @Entity('student_study_plans')
 export class StudentStudyPlan {
@@ -10,7 +11,10 @@ export class StudentStudyPlan {
  @Column({type:'int',name:'weekly_hours_target',default:10}) weeklyHoursTarget:number;
  @Column({type:'int',name:'daily_flashcard_target',default:20}) dailyFlashcardTarget:number;
  @Column({type:'jsonb',default:()=>"'{}'::jsonb"}) preferences:Record<string,unknown>;
+ @Column({type:'timestamp',name:'generated_at',nullable:true}) generatedAt:Date|null;
+ @Column({type:'int',name:'schedule_version',default:0}) scheduleVersion:number;
  @CreateDateColumn({name:'created_at'}) createdAt:Date;
  @UpdateDateColumn({name:'updated_at'}) updatedAt:Date;
  @OneToOne(()=>Student,{onDelete:'CASCADE'}) @JoinColumn({name:'student_id'}) student:Student;
+ @OneToMany(()=>StudyPlanItem,(item)=>item.plan) items:StudyPlanItem[];
 }
