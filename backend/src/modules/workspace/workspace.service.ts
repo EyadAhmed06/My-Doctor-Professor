@@ -1,26 +1,181 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, ILike, Repository } from 'typeorm';
+import { DataSource, FindOptionsWhere, ILike, In, Repository } from 'typeorm';
 import { DrugReference } from '../../common/entities/drug-reference.entity';
+import { NotebookAttachment } from '../../common/entities/notebook-attachment.entity';
+import { NotebookCollection } from '../../common/entities/notebook-collection.entity';
 import { NotebookNote } from '../../common/entities/notebook-note.entity';
+import { NotebookTag } from '../../common/entities/notebook-tag.entity';
+import { QuestionDifficulty } from '../../common/entities/question.entity';
 import { StudentStudyPlan } from '../../common/entities/student-study-plan.entity';
+import { StudyPlanItem, StudyPlanItemStatus, StudyPlanItemType } from '../../common/entities/study-plan-item.entity';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { FlashcardsService } from '../flashcards/flashcards.service';
 import { UserRole } from '../users/entities/user.entity';
-import { CreateNotebookNoteDto, DrugReferenceQueryDto, NotebookQueryDto, SaveDrugReferenceDto, UpdateDrugReferenceDto, UpdateNotebookNoteDto, UpdateStudyPlanDto } from './dtos/workspace.dto';
+import {
+ AddNotebookAttachmentDto, ConvertNoteToFlashcardDto, CreateNotebookNoteDto,
+ DrugReferenceQueryDto, NotebookQueryDto, SaveDrugReferenceDto,
+ SaveNotebookCollectionDto, SaveNotebookTagDto, StudyPlanCalendarQueryDto,
+ UpdateDrugReferenceDto, UpdateNotebookCollectionDto, UpdateNotebookNoteDto,
+ UpdateStudyPlanDto, UpdateStudyPlanItemDto,
+} from './dtos/workspace.dto';
 
 @Injectable()
 export class WorkspaceService {
- constructor(@InjectRepository(NotebookNote) private readonly notes:Repository<NotebookNote>,@InjectRepository(StudentStudyPlan) private readonly plans:Repository<StudentStudyPlan>,@InjectRepository(DrugReference) private readonly drugs:Repository<DrugReference>){}
- async listNotes(userId:string,query:NotebookQueryDto){const page=query.page??1,limit=query.limit??20;const builder=this.notes.createQueryBuilder('note').where('note.user_id=:userId',{userId}).orderBy('note.updated_at','DESC').skip((page-1)*limit).take(limit);if(query.note_type)builder.andWhere('note.note_type=:type',{type:query.note_type});if(query.search)builder.andWhere('(note.title ILIKE :search OR note.content ILIKE :search)',{search:`%${query.search}%`});const [data,total]=await builder.getManyAndCount();return{data,page,limit,total,total_pages:Math.ceil(total/limit)};}
- createNote(userId:string,dto:CreateNotebookNoteDto){return this.notes.save(this.notes.create({userId,title:dto.title.trim(),noteType:dto.note_type,content:dto.content.trim(),metadata:dto.metadata??{}}));}
- async updateNote(userId:string,id:string,dto:UpdateNotebookNoteDto){const note=await this.requireNote(userId,id);if(dto.title!==undefined)note.title=dto.title.trim();if(dto.note_type!==undefined)note.noteType=dto.note_type;if(dto.content!==undefined)note.content=dto.content.trim();if(dto.metadata!==undefined)note.metadata=dto.metadata;return this.notes.save(note);}
+ constructor(
+  @InjectRepository(NotebookNote) private readonly notes:Repository<NotebookNote>,
+  @InjectRepository(NotebookCollection) private readonly collections:Repository<NotebookCollection>,
+  @InjectRepository(NotebookTag) private readonly tags:Repository<NotebookTag>,
+  @InjectRepository(NotebookAttachment) private readonly attachments:Repository<NotebookAttachment>,
+  @InjectRepository(StudentStudyPlan) private readonly plans:Repository<StudentStudyPlan>,
+  @InjectRepository(StudyPlanItem) private readonly planItems:Repository<StudyPlanItem>,
+  @InjectRepository(DrugReference) private readonly drugs:Repository<DrugReference>,
+  private readonly dataSource:DataSource,
+  private readonly flashcards:FlashcardsService,
+ ){}
+
+ async listNotes(userId:string,query:NotebookQueryDto){
+  const page=query.page??1,limit=query.limit??20;
+  const builder=this.notes.createQueryBuilder('note')
+   .leftJoinAndSelect('note.collection','collection').leftJoinAndSelect('note.tags','tag')
+   .leftJoinAndSelect('note.attachments','attachment').where('note.user_id=:userId',{userId})
+   .orderBy('note.updated_at','DESC').skip((page-1)*limit).take(limit);
+  if(query.note_type)builder.andWhere('note.note_type=:type',{type:query.note_type});
+  if(query.collection_id)builder.andWhere('note.collection_id=:collectionId',{collectionId:query.collection_id});
+  if(query.tag_id)builder.andWhere('tag.id=:tagId',{tagId:query.tag_id});
+  if(query.favorite!==undefined)builder.andWhere('note.is_favorite=:favorite',{favorite:query.favorite});
+  if(query.search)builder.andWhere('(note.title ILIKE :search OR note.content ILIKE :search)',{search:`%${query.search.trim()}%`});
+  const [data,total]=await builder.getManyAndCount();
+  return{data,page,limit,total,total_pages:Math.ceil(total/limit)};
+ }
+ async getNote(userId:string,id:string){return this.requireNote(userId,id,true);}
+ async createNote(userId:string,dto:CreateNotebookNoteDto){
+  await this.validateNotebookLinks(userId,dto.collection_id,dto.tag_ids);
+  const note=this.notes.create({userId,title:dto.title.trim(),noteType:dto.note_type,content:dto.content.trim(),metadata:dto.metadata??{},
+   collectionId:dto.collection_id??null,isFavorite:dto.is_favorite??false,reviewAt:dto.review_at?new Date(dto.review_at):null,
+   linkedQuestionId:dto.linked_question_id??null,linkedLectureId:dto.linked_lecture_id??null});
+  if(dto.tag_ids?.length)note.tags=await this.tags.findBy({id:In(dto.tag_ids),userId});
+  return this.notes.save(note);
+ }
+ async updateNote(userId:string,id:string,dto:UpdateNotebookNoteDto){
+  const note=await this.requireNote(userId,id,true);await this.validateNotebookLinks(userId,dto.collection_id??undefined,dto.tag_ids);
+  if(dto.title!==undefined)note.title=dto.title.trim();if(dto.note_type!==undefined)note.noteType=dto.note_type;
+  if(dto.content!==undefined)note.content=dto.content.trim();if(dto.metadata!==undefined)note.metadata=dto.metadata;
+  if(dto.collection_id!==undefined)note.collectionId=dto.collection_id;if(dto.is_favorite!==undefined)note.isFavorite=dto.is_favorite;
+  if(dto.review_at!==undefined)note.reviewAt=dto.review_at?new Date(dto.review_at):null;
+  if(dto.linked_question_id!==undefined)note.linkedQuestionId=dto.linked_question_id;
+  if(dto.linked_lecture_id!==undefined)note.linkedLectureId=dto.linked_lecture_id;
+  if(dto.tag_ids!==undefined)note.tags=dto.tag_ids.length?await this.tags.findBy({id:In(dto.tag_ids),userId}):[];
+  return this.notes.save(note);
+ }
  async removeNote(userId:string,id:string){await this.notes.remove(await this.requireNote(userId,id));}
- private async requireNote(userId:string,id:string){const note=await this.notes.findOne({where:{id,userId}});if(!note)throw new NotFoundException('Notebook note not found');return note;}
- async getPlan(studentId:string){let plan=await this.plans.findOne({where:{studentId}});if(plan)return plan;await this.plans.createQueryBuilder().insert().values({studentId,targetExam:null,examDate:null,dailyQuestionTarget:20,weeklyHoursTarget:10,dailyFlashcardTarget:20,preferences:{}}).orIgnore().execute();plan=await this.plans.findOne({where:{studentId}});if(!plan)throw new NotFoundException('Student study plan could not be initialized');return plan;}
- async updatePlan(studentId:string,dto:UpdateStudyPlanDto){const plan=await this.getPlan(studentId);if(dto.target_exam!==undefined)plan.targetExam=dto.target_exam.trim()||null;if(dto.exam_date!==undefined)plan.examDate=dto.exam_date;if(dto.daily_question_target!==undefined)plan.dailyQuestionTarget=dto.daily_question_target;if(dto.weekly_hours_target!==undefined)plan.weeklyHoursTarget=dto.weekly_hours_target;if(dto.daily_flashcard_target!==undefined)plan.dailyFlashcardTarget=dto.daily_flashcard_target;if(dto.preferences!==undefined)plan.preferences=dto.preferences;return this.plans.save(plan);}
+ async listCollections(userId:string){return this.collections.find({where:{userId},relations:{notes:true},order:{isPinned:'DESC',updatedAt:'DESC'}});}
+ async createCollection(userId:string,dto:SaveNotebookCollectionDto){
+  const name=dto.name.trim();if(await this.collectionNameExists(userId,name))throw new ConflictException('A collection with this name already exists');
+  return this.collections.save(this.collections.create({userId,name,description:dto.description?.trim()||null,color:dto.color??'#5b8f8a',isPinned:dto.is_pinned??false}));
+ }
+ async updateCollection(userId:string,id:string,dto:UpdateNotebookCollectionDto){
+  const collection=await this.requireCollection(userId,id);if(dto.name!==undefined&&await this.collectionNameExists(userId,dto.name,id))throw new ConflictException('A collection with this name already exists');
+  if(dto.name!==undefined)collection.name=dto.name.trim();if(dto.description!==undefined)collection.description=dto.description.trim()||null;
+  if(dto.color!==undefined)collection.color=dto.color;if(dto.is_pinned!==undefined)collection.isPinned=dto.is_pinned;
+  return this.collections.save(collection);
+ }
+ async removeCollection(userId:string,id:string){await this.collections.remove(await this.requireCollection(userId,id));}
+ async listTags(userId:string){return this.tags.find({where:{userId},order:{name:'ASC'}});}
+ async createTag(userId:string,dto:SaveNotebookTagDto){
+  const duplicate=await this.tags.createQueryBuilder('tag').where('tag.user_id=:userId',{userId}).andWhere('lower(tag.name)=lower(:name)',{name:dto.name.trim()}).getOne();
+  if(duplicate)throw new ConflictException('A tag with this name already exists');
+  return this.tags.save(this.tags.create({userId,name:dto.name.trim(),color:dto.color??'#5b8f8a'}));
+ }
+ async removeTag(userId:string,id:string){const tag=await this.tags.findOne({where:{id,userId}});if(!tag)throw new NotFoundException('Notebook tag not found');await this.tags.remove(tag);}
+ async addAttachment(userId:string,noteId:string,dto:AddNotebookAttachmentDto){
+  await this.requireNote(userId,noteId);return this.attachments.save(this.attachments.create({noteId,kind:dto.kind,fileName:dto.file_name.trim(),mimeType:dto.mime_type.trim(),fileUrl:dto.file_url.trim(),sizeBytes:dto.size_bytes?.toString()??null}));
+ }
+ async removeAttachment(userId:string,noteId:string,attachmentId:string){await this.requireNote(userId,noteId);const attachment=await this.attachments.findOne({where:{id:attachmentId,noteId}});if(!attachment)throw new NotFoundException('Notebook attachment not found');await this.attachments.remove(attachment);}
+ async convertToFlashcard(actor:AuthenticatedUser,noteId:string,dto:ConvertNoteToFlashcardDto){
+  await this.requireNote(actor.userId,noteId);
+  return this.flashcards.addCard(dto.deck_id,{title:dto.title,front_content:dto.front_content,back_content:dto.back_content,difficulty:QuestionDifficulty.MEDIUM},actor);
+ }
+
+ async getPlan(studentId:string){
+  let plan=await this.plans.findOne({where:{studentId}});if(plan)return plan;
+  await this.plans.createQueryBuilder().insert().values({studentId,targetExam:null,examDate:null,dailyQuestionTarget:20,weeklyHoursTarget:10,dailyFlashcardTarget:20,preferences:{available_days:[1,2,3,4,5,6],rest_day:0},generatedAt:null,scheduleVersion:0}).orIgnore().execute();
+  plan=await this.plans.findOne({where:{studentId}});if(!plan)throw new NotFoundException('Student study plan could not be initialized');return plan;
+ }
+ async updatePlan(studentId:string,dto:UpdateStudyPlanDto){
+  const plan=await this.getPlan(studentId);if(dto.target_exam!==undefined)plan.targetExam=dto.target_exam.trim()||null;
+  if(dto.exam_date!==undefined){if(new Date(`${dto.exam_date}T23:59:59Z`)<=new Date())throw new BadRequestException('Exam date must be in the future');plan.examDate=dto.exam_date;}
+  if(dto.daily_question_target!==undefined)plan.dailyQuestionTarget=dto.daily_question_target;if(dto.weekly_hours_target!==undefined)plan.weeklyHoursTarget=dto.weekly_hours_target;
+  if(dto.daily_flashcard_target!==undefined)plan.dailyFlashcardTarget=dto.daily_flashcard_target;if(dto.preferences!==undefined)plan.preferences=dto.preferences;
+  return this.plans.save(plan);
+ }
+ async generatePlan(studentId:string){
+  const plan=await this.getPlan(studentId);if(!plan.examDate)throw new BadRequestException('Set an exam date before generating a schedule');
+  const today=this.isoDate(new Date()),examDate=new Date(`${plan.examDate}T00:00:00Z`);
+  const lastDate=new Date(Math.min(examDate.getTime()-86_400_000,new Date().getTime()+179*86_400_000));
+  if(lastDate<new Date(`${today}T00:00:00Z`))throw new BadRequestException('Exam date must leave at least one study day');
+  const preferences=plan.preferences as {available_days?:number[];rest_day?:number;questions_minutes?:number;flashcards_minutes?:number};
+  const availableDays=preferences.available_days?.filter((day)=>Number.isInteger(day)&&day>=0&&day<=6)??[1,2,3,4,5,6];
+  const restDay=preferences.rest_day??0;
+  const lectures=await this.dataSource.query<{id:string;title:string}[]>(`
+   SELECT DISTINCT lecture.id,lecture.title FROM bundle_enrollments enrollment
+   JOIN bundles bundle ON bundle.id=enrollment.bundle_id AND bundle.status='PUBLISHED'
+   LEFT JOIN bundle_courses bc ON bc.bundle_id=bundle.id LEFT JOIN bundle_weeks bw ON bw.bundle_id=bundle.id
+   JOIN weeks week ON week.course_id=bc.course_id OR week.id=bw.week_id
+   JOIN lectures lecture ON lecture.week_id=week.id AND lecture.is_published=TRUE
+   WHERE enrollment.student_id=$1 AND enrollment.status='ACTIVE' AND (enrollment.expires_at IS NULL OR enrollment.expires_at>CURRENT_TIMESTAMP)
+   ORDER BY lecture.title`,[studentId]);
+  const generated:Partial<StudyPlanItem>[]=[];let cursor=new Date(`${today}T00:00:00Z`),lectureIndex=0;
+  while(cursor<=lastDate){
+   const day=cursor.getUTCDay(),scheduledDate=this.isoDate(cursor);
+   if(day===restDay||!availableDays.includes(day))generated.push({studentId,scheduledDate,itemType:StudyPlanItemType.REST,status:StudyPlanItemStatus.PLANNED,durationMinutes:15,targetCount:null,lectureId:null,metadata:{reason:'Protected recovery day'}});
+   else {
+    generated.push({studentId,scheduledDate,itemType:StudyPlanItemType.QUESTIONS,status:StudyPlanItemStatus.PLANNED,durationMinutes:preferences.questions_minutes??Math.max(30,Math.ceil(plan.dailyQuestionTarget*1.5)),targetCount:plan.dailyQuestionTarget,lectureId:null,metadata:{source:'bundle_question_bank'}});
+    generated.push({studentId,scheduledDate,itemType:StudyPlanItemType.FLASHCARDS,status:StudyPlanItemStatus.PLANNED,durationMinutes:preferences.flashcards_minutes??Math.max(15,Math.ceil(plan.dailyFlashcardTarget*.5)),targetCount:plan.dailyFlashcardTarget,lectureId:null,metadata:{source:'spaced_repetition'}});
+    if(lectures.length){const lecture=lectures[lectureIndex++%lectures.length];generated.push({studentId,scheduledDate,itemType:StudyPlanItemType.LECTURE,status:StudyPlanItemStatus.PLANNED,durationMinutes:60,targetCount:null,lectureId:lecture.id,metadata:{title:lecture.title}});}
+   }
+   cursor=new Date(cursor.getTime()+86_400_000);
+  }
+  await this.dataSource.transaction(async(manager)=>{
+   await manager.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[`${studentId}:study-plan`]);
+   await manager.getRepository(StudyPlanItem).createQueryBuilder().delete().where('student_id=:studentId AND scheduled_date>=:today AND status=:status',{studentId,today,status:StudyPlanItemStatus.PLANNED}).execute();
+   await manager.getRepository(StudyPlanItem).save(generated.map((item)=>manager.getRepository(StudyPlanItem).create(item)));
+   await manager.getRepository(StudentStudyPlan).update({studentId},{generatedAt:new Date(),scheduleVersion:plan.scheduleVersion+1});
+  });
+  return this.getCalendar(studentId,{from:today,to:this.isoDate(lastDate)});
+ }
+ async getCalendar(studentId:string,query:StudyPlanCalendarQueryDto){
+  await this.getPlan(studentId);const from=query.from??this.isoDate(new Date()),to=query.to??this.isoDate(new Date(Date.now()+30*86_400_000));
+  if(new Date(to)<new Date(from))throw new BadRequestException('Calendar end date must not precede start date');
+  const data=await this.planItems.createQueryBuilder('item').leftJoinAndSelect('item.lecture','lecture').where('item.student_id=:studentId',{studentId}).andWhere('item.scheduled_date BETWEEN :from AND :to',{from,to}).orderBy('item.scheduled_date','ASC').addOrderBy('item.created_at','ASC').getMany();
+  return{from,to,data};
+ }
+ async updatePlanItem(studentId:string,id:string,dto:UpdateStudyPlanItemDto){
+  const item=await this.planItems.findOne({where:{id,studentId}});if(!item)throw new NotFoundException('Study plan item not found');
+  item.status=dto.status as StudyPlanItemStatus;item.completedAt=item.status===StudyPlanItemStatus.COMPLETED?new Date():null;return this.planItems.save(item);
+ }
+ async readiness(studentId:string){
+  await this.getPlan(studentId);const rows=await this.dataSource.query(`
+   SELECT
+    COALESCE((SELECT ROUND(100.0*SUM(correct_attempts)/NULLIF(SUM(attempts),0),2) FROM student_question_progress WHERE student_id=$1),0)::float AS accuracy,
+    COALESCE((SELECT ROUND(AVG(completion_percentage),2) FROM student_course_progress WHERE student_id=$1),0)::float AS curriculum,
+    COALESCE((SELECT ROUND(100.0*COUNT(*) FILTER(WHERE is_mastered)/NULLIF(COUNT(*),0),2) FROM student_flashcard_progress WHERE student_id=$1),0)::float AS flashcards,
+    COALESCE((SELECT ROUND(100.0*COUNT(*) FILTER(WHERE status='COMPLETED')/NULLIF(COUNT(*) FILTER(WHERE status IN ('COMPLETED','SKIPPED')),0),2) FROM study_plan_items WHERE student_id=$1 AND scheduled_date<=CURRENT_DATE),0)::float AS consistency
+  `,[studentId]);
+  const components=rows[0] as {accuracy:number;curriculum:number;flashcards:number;consistency:number};
+  const score=Math.round(components.accuracy*.4+components.curriculum*.25+components.flashcards*.2+components.consistency*.15);
+  return{score,band:score>=80?'READY':score>=60?'ON_TRACK':score>=40?'DEVELOPING':'GETTING_STARTED',components,weights:{accuracy:.4,curriculum:.25,flashcards:.2,consistency:.15}};
+ }
+
  async listDrugs(actor:AuthenticatedUser,query:DrugReferenceQueryDto){const page=query.page??1,limit=query.limit??20;const where:FindOptionsWhere<DrugReference>={};if(actor.role===UserRole.STUDENT)where.isPublished=true;if(query.category)where.category=query.category;if(query.search)where.name=ILike(`%${query.search}%`);const [data,total]=await this.drugs.findAndCount({where,order:{name:'ASC'},skip:(page-1)*limit,take:limit});return{data,page,limit,total,total_pages:Math.ceil(total/limit)};}
  async getDrug(actor:AuthenticatedUser,slug:string){const drug=await this.drugs.findOne({where:{slug}});if(!drug||(actor.role===UserRole.STUDENT&&!drug.isPublished))throw new NotFoundException('Drug reference not found');return drug;}
  async createDrug(actor:AuthenticatedUser,dto:SaveDrugReferenceDto){this.assertEditor(actor);const slug=dto.slug.trim().toLowerCase();if(await this.drugs.findOne({where:{slug}}))throw new ConflictException('Drug reference slug already exists');return this.drugs.save(this.drugs.create({name:dto.name.trim(),slug,category:dto.category.trim(),drugClass:dto.drug_class.trim(),content:dto.content,isPublished:dto.is_published??false,createdBy:actor.userId}));}
  async updateDrug(actor:AuthenticatedUser,id:string,dto:UpdateDrugReferenceDto){this.assertEditor(actor);const drug=await this.drugs.findOne({where:{id}});if(!drug)throw new NotFoundException('Drug reference not found');if(dto.slug!==undefined){const slug=dto.slug.trim().toLowerCase();const duplicate=await this.drugs.findOne({where:{slug}});if(duplicate&&duplicate.id!==id)throw new ConflictException('Drug reference slug already exists');drug.slug=slug;}if(dto.name!==undefined)drug.name=dto.name.trim();if(dto.category!==undefined)drug.category=dto.category.trim();if(dto.drug_class!==undefined)drug.drugClass=dto.drug_class.trim();if(dto.content!==undefined)drug.content=dto.content;if(dto.is_published!==undefined)drug.isPublished=dto.is_published;return this.drugs.save(drug);}
+
+ private async requireNote(userId:string,id:string,relations=false){const note=await this.notes.findOne({where:{id,userId},relations:relations?{collection:true,tags:true,attachments:true}:undefined});if(!note)throw new NotFoundException('Notebook note not found');return note;}
+ private async validateNotebookLinks(userId:string,collectionId?:string,tagIds?:string[]){if(collectionId)await this.requireCollection(userId,collectionId);if(tagIds?.length&&await this.tags.count({where:{id:In(tagIds),userId}})!==new Set(tagIds).size)throw new BadRequestException('One or more tags do not belong to this account');}
+ private async requireCollection(userId:string,id:string){const item=await this.collections.findOne({where:{id,userId}});if(!item)throw new NotFoundException('Notebook collection not found');return item;}
+ private async collectionNameExists(userId:string,name:string,excludeId?:string){const item=await this.collections.createQueryBuilder('collection').where('collection.user_id=:userId',{userId}).andWhere('lower(collection.name)=lower(:name)',{name:name.trim()}).getOne();return !!item&&item.id!==excludeId;}
+ private isoDate(value:Date){return value.toISOString().slice(0,10);}
  private assertEditor(actor:AuthenticatedUser){if(actor.role===UserRole.STUDENT)throw new ForbiddenException('Only instructors and administrators can manage drug references');}
 }
