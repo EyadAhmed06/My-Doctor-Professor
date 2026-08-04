@@ -238,6 +238,55 @@ export class ProgressService {
     return rows[0];
   }
 
+  async studentAnalytics(studentId:string,query:AnalyticsQueryDto) {
+    await this.requireStudent(studentId);
+    await this.synchronizeStudent(studentId);
+    const params:unknown[]=[studentId];
+    const dateClauses:string[]=[];
+    if(query.date_from){params.push(query.date_from);dateClauses.push(`answer.answered_at >= $${params.length}::date`);}
+    if(query.date_until){params.push(query.date_until);dateClauses.push(`answer.answered_at < ($${params.length}::date + INTERVAL '1 day')`);}
+    const answerFilter=dateClauses.length?`AND ${dateClauses.join(' AND ')}`:'';
+    const [summary,accuracyTrend,topics,activity]=await Promise.all([
+      this.dataSource.query(`
+        SELECT COALESCE(SUM(progress.attempts),0)::int AS questions_answered,
+          COALESCE(ROUND(100.0*SUM(progress.correct_attempts)/NULLIF(SUM(progress.attempts),0),2),0)::float AS accuracy,
+          COUNT(*) FILTER(WHERE progress.bookmarked)::int AS bookmarked,
+          COALESCE((SELECT ROUND(AVG(confidence_level),2)::float FROM student_topic_progress WHERE student_id=$1),0) AS calibrated_confidence,
+          COALESCE((SELECT COUNT(*) FILTER(WHERE is_mastered)::int FROM student_flashcard_progress WHERE student_id=$1),0) AS flashcards_mastered,
+          COALESCE((SELECT COUNT(*) FILTER(WHERE next_review_at IS NULL OR next_review_at<=CURRENT_TIMESTAMP)::int FROM student_flashcard_progress WHERE student_id=$1),0) AS flashcards_due
+        FROM student_question_progress progress WHERE progress.student_id=$1`,[studentId]),
+      this.dataSource.query(`
+        SELECT answer.answered_at::date AS date,COUNT(*)::int AS answered,
+          COUNT(*) FILTER(WHERE answer.is_correct)::int AS correct,
+          COALESCE(ROUND(100.0*COUNT(*) FILTER(WHERE answer.is_correct)/NULLIF(COUNT(*) FILTER(WHERE answer.is_correct IS NOT NULL),0),2),0)::float AS accuracy
+        FROM student_answers answer JOIN test_attempts attempt ON attempt.id=answer.attempt_id
+        WHERE attempt.student_id=$1 ${answerFilter} GROUP BY answer.answered_at::date ORDER BY date`,params),
+      this.dataSource.query(`
+        SELECT topic.id,topic.topic_name AS name,lecture.title AS lecture,week.title AS week,course.course_name AS course,
+          progress.questions_attempted,progress.questions_correct,progress.mastery_percentage::float AS mastery,
+          progress.confidence_level::float AS confidence,progress.last_practiced_at
+        FROM student_topic_progress progress JOIN topics topic ON topic.id=progress.topic_id
+        JOIN lectures lecture ON lecture.id=topic.lecture_id JOIN weeks week ON week.id=lecture.week_id
+        JOIN courses course ON course.id=week.course_id WHERE progress.student_id=$1
+        ORDER BY progress.mastery_percentage ASC,progress.questions_attempted DESC`,[studentId]),
+      this.dataSource.query(`
+        SELECT scheduled_date AS date,COUNT(*) FILTER(WHERE status='COMPLETED')::int AS completed,
+          COUNT(*) FILTER(WHERE status='SKIPPED')::int AS skipped,COUNT(*)::int AS planned
+        FROM study_plan_items WHERE student_id=$1 AND scheduled_date<=CURRENT_DATE
+        GROUP BY scheduled_date ORDER BY scheduled_date`,[studentId]),
+    ]);
+    const courseReadiness=await this.dataSource.query(`SELECT COALESCE(ROUND(AVG(completion_percentage),2),0)::float AS curriculum FROM student_course_progress WHERE student_id=$1`,[studentId]);
+    const consistency=activity.length?Math.round(100*activity.reduce((sum:number,row:{completed:number})=>sum+Number(row.completed),0)/Math.max(1,activity.reduce((sum:number,row:{completed:number;skipped:number})=>sum+Number(row.completed)+Number(row.skipped),0))):0;
+    const base=summary[0] as {accuracy:number;flashcards_mastered:number;questions_answered:number};
+    const flashcardRows=await this.dataSource.query(`SELECT COUNT(*)::int AS reviewed FROM student_flashcard_progress WHERE student_id=$1`,[studentId]);
+    const flashcardMastery=Number(flashcardRows[0].reviewed)?100*Number(base.flashcards_mastered)/Number(flashcardRows[0].reviewed):0;
+    const components={accuracy:Number(base.accuracy),curriculum:Number(courseReadiness[0].curriculum),flashcards:Math.round(flashcardMastery),consistency};
+    const readiness=Math.round(components.accuracy*.4+components.curriculum*.25+components.flashcards*.2+components.consistency*.15);
+    return {summary:base,accuracy_over_time:accuracyTrend,topic_mastery:topics,study_activity:activity,
+      readiness:{score:readiness,band:readiness>=80?'READY':readiness>=60?'ON_TRACK':readiness>=40?'DEVELOPING':'GETTING_STARTED',components},
+      unavailable_metrics:[],generated_at:new Date().toISOString()};
+  }
+
   async questionAnalytics(actor:AuthenticatedUser,query:AnalyticsQueryDto) {
     const {clauses,params}=this.analyticsFilters(actor,query,'test','question');
     const rows=await this.dataSource.query(`
