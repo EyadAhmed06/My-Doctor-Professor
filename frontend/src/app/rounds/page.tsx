@@ -1,1 +1,1 @@
-import { ConnectedRoundsPage } from "@/components/connected-rounds-page"; export default function Page(){return <ConnectedRoundsPage/>}
+import { redirect } from "next/navigation";export default function Page(){redirect("/bundles")}
