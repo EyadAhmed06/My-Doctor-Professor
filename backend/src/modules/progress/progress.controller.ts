@@ -42,4 +42,6 @@ export class ProgressController {
  testAnalytics(@Query() query:AnalyticsQueryDto,@CurrentUser() actor:AuthenticatedUser){return this.progress.testAnalytics(actor,query);}
  @Get('analytics/performance') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
  performanceAnalytics(@Query() query:AnalyticsQueryDto,@CurrentUser() actor:AuthenticatedUser){return this.progress.performanceAnalytics(actor,query);}
+ @Get('analytics/student') @Roles(UserRole.STUDENT)
+ studentAnalytics(@CurrentUser() actor:AuthenticatedUser,@Query() query:AnalyticsQueryDto){return this.progress.studentAnalytics(actor.userId,query);}
 }
