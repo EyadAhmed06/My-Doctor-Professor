@@ -73,6 +73,18 @@ export function LandingPage() {
       </div>
     </section>
 
+    <section className="public-section organ-insight" aria-labelledby="organ-insight-title">
+      <div className="organ-insight-copy">
+        <span className="section-kicker">FROM KNOWLEDGE TO CLINICAL REASONING</span>
+        <h2 id="organ-insight-title">Understand the organ. Connect the decision.</h2>
+        <p>Move between mechanisms, anatomy, and clinical interpretation without treating each concept as an isolated fact.</p>
+      </div>
+      <div className="organ-image-grid">
+        <figure><img src="/media/home-brain.jpeg" alt="Brain medical illustration" /><figcaption>Neuroscience &amp; cognition</figcaption></figure>
+        <figure><img src="/media/home-heart.jpeg" alt="Heart and electrocardiogram medical illustration" /><figcaption>Cardiovascular reasoning</figcaption></figure>
+      </div>
+    </section>
+
     <section className="public-goal" id="goal"><span><FiTarget /></span><div><small>OUR GOAL</small><h2>Make studying medicine clearer, smarter, and more reliable.</h2><p>Our goal has always been to make your life easier, helping you study smarter, master your courses, and excel in your exams. We continuously improve our content, listen to your feedback, and provide the reliable academic support you deserve.</p></div></section>
 
     <section className="public-section curriculum-section" id="curriculum">
@@ -88,6 +100,15 @@ export function LandingPage() {
     <section className="public-section feature-section" id="features">
       <div className="section-heading narrow"><span>WHY IT STANDS OUT</span><h2>More than content. A system for learning how to think.</h2><p>The platform connects each learning action to the next, reducing the gap between studying a fact and using it in a clinical decision.</p></div>
       <div className="feature-grid">{features.map(({ icon: Icon, title, text }) => <article key={title}><span><Icon /></span><h3>{title}</h3><p>{text}</p></article>)}</div>
+    </section>
+
+    <section className="public-section circulation-feature" aria-labelledby="circulation-title">
+      <div className="circulation-copy">
+        <span className="section-kicker">SYSTEMS IN CONTEXT</span>
+        <h2 id="circulation-title">Follow the whole circulatory system.</h2>
+        <p>Connect vessels, perfusion, and organ function as one continuous physiological system.</p>
+      </div>
+      <figure><img src="/media/home-circulatory-system.jpeg" alt="Human circulatory system visualization" /></figure>
     </section>
 
     <section className="public-section workflow-section">
