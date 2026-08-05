@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { BundleTest } from '../../common/entities/bundle-test.entity';
 import { Course } from '../../common/entities/course.entity';
 import { Lecture } from '../../common/entities/lecture.entity';
 import { McqOption } from '../../common/entities/mcq-option.entity';
@@ -90,8 +91,7 @@ export class TestsService {
       builder.andWhere('test.is_published = TRUE')
         .andWhere('(test.available_from IS NULL OR test.available_from <= :now)', { now })
         .andWhere('(test.available_until IS NULL OR test.available_until > :now)', { now })
-        .andWhere(`(
-          test.created_by = :actorId OR EXISTS (
+        .andWhere(`EXISTS (
             SELECT 1 FROM bundle_tests bundle_test
             INNER JOIN bundle_enrollments enrollment
               ON enrollment.bundle_id = bundle_test.bundle_id
@@ -101,8 +101,7 @@ export class TestsService {
               AND enrollment.status <> 'REVOKED'
               AND bundle.status IN ('PUBLISHED', 'ARCHIVED')
               AND (bundle.available_from IS NULL OR bundle.available_from <= :now)
-          )
-        )`, { actorId: actor.userId });
+          )`, { actorId: actor.userId });
     } else if (actor.role === UserRole.INSTRUCTOR) {
       builder.andWhere('test.created_by = :actorId', { actorId: actor.userId });
     }
@@ -196,6 +195,9 @@ export class TestsService {
         durationMinutes: dto.test_mode === TestMode.TIMED ? dto.duration_minutes! : null,
         totalMarks: total.toFixed(2), passingMarks: null, isPublished: true,
         availableFrom: null, availableUntil: null, createdBy: actor.userId,
+      }));
+      await manager.save(BundleTest, manager.create(BundleTest, {
+        bundleId: dto.bundle_id, testId: test.id,
       }));
       await manager.save(TestQuestion, selected.map((question, index) => manager.create(TestQuestion, {
         testId: test.id, questionId: question.id, displayOrder: index + 1,
@@ -554,7 +556,6 @@ export class TestsService {
     studentId: string,
     requireWritable: boolean,
   ): Promise<void> {
-    if (test.createdBy === studentId) return;
     const rows = await this.dataSource.query<Array<{ read_only: boolean }>>(`
       SELECT (
         bundle.status = 'ARCHIVED'
