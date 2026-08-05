@@ -24,11 +24,12 @@ const features = [
   { icon: FiShield, title: "A focused academic space", text: "A calm, structured environment designed for learning, with clear ownership of your account and study data." },
 ];
 
+// TODO: Replace this temporary copy with the approved “Why choose us” content.
 const reasons = [
-  { icon: FiUsers, title: "Built by doctors who understand the journey", text: "The platform is shaped by people who faced the same lectures, exam pressure, and search for trustworthy study material." },
-  { icon: FiTarget, title: "High-yield without losing understanding", text: "Questions and explanations focus on the details that matter in exams while preserving the clinical reasoning behind every answer." },
-  { icon: FiLayers, title: "MCQs, essays, and revision in one structure", text: "Weekly content, question banks, notes, flashcards, and progress tracking stay connected to the same academic path." },
-  { icon: FiCheckCircle, title: "Continuously improved with student feedback", text: "Content and workflows evolve around what students actually struggle with, need clarified, and want to practise next." },
+  { icon: FiUsers, title: "Made for the medical student journey", text: "Add the approved reason explaining who built the platform and which student problem it solves." },
+  { icon: FiTarget, title: "Focused on what matters", text: "Add the approved reason describing the academic value, quality, and high-yield learning approach." },
+  { icon: FiLayers, title: "Everything works together", text: "Add the approved reason connecting courses, questions, notes, flashcards, and revision." },
+  { icon: FiCheckCircle, title: "Improved with every cohort", text: "Add the approved reason explaining how feedback and continuous improvement shape the experience." },
 ];
 
 export function LandingPage() {
@@ -38,16 +39,17 @@ export function LandingPage() {
       <BrandLockup className="public-brand" />
       <button className="public-menu" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle navigation">{menuOpen ? <FiX /> : <FiMenu />}</button>
       <nav className={menuOpen ? "open" : ""}>
-        <a href="#about">About us</a><a href="#goal">Our goal</a><a href="#curriculum">Curriculum</a><a href="#features">Features</a>
+        <a href="#why-us">Why choose us</a><a href="#about">About us</a><a href="#goal">Our goal</a><a href="#curriculum">Curriculum</a>
       </nav>
       <div className="public-actions"><Link href="/login">Log in</Link><Link className="public-button small" href="/register">Create account <FiArrowRight /></Link></div>
     </header>
 
     <section className="public-hero" id="product">
       <div className="hero-copy">
-        <span className="public-eyebrow"><FiBookOpen /> My Doctor &amp; The Professor</span>
-        <h1>The professor’s <em>wisdom.</em><br />The doctor’s precision.</h1>
-        <p>Reliable medical education, structured around the way students learn, professors examine, and doctors think.</p>
+        {/* TODO: Replace this temporary hero copy with the approved brand slogan. */}
+        <span className="public-eyebrow"><FiBookOpen /> YOUR BRAND MESSAGE</span>
+        <h1>Learn medicine with <em>clarity.</em><br />Think with confidence.</h1>
+        <p>Add the approved supporting sentence for the brand slogan here. Keep it concise, specific, and student-focused.</p>
         <div className="hero-actions"><Link className="public-button" href="/register">Start learning <FiArrowRight /></Link><a className="public-button ghost" href="#curriculum">Explore the curriculum</a></div>
         <div className="hero-proof"><span><FiCheckCircle /> Organized by academic year</span><span><FiCheckCircle /> Case-based reasoning</span><span><FiCheckCircle /> Personal progress</span></div>
       </div>
@@ -57,6 +59,12 @@ export function LandingPage() {
         <div className="preview-grid"><article><FiBookOpen /><strong>3</strong><span>Topics planned</span></article><article><FiClipboard /><strong>24</strong><span>Questions due</span></article><article><FiCpu /><strong>11</strong><span>Day streak</span></article></div>
         <div className="preview-list"><span><i />Review previous errors <b>10:30</b></span><span><i />Complete case discussion <b>13:00</b></span><span><i />Spaced repetition <b>18:00</b></span></div>
       </div>
+    </section>
+
+    <section className="public-section why-section" id="why-us">
+      {/* TODO: Replace this temporary section copy with the approved “Why choose us” wording. */}
+      <div className="section-heading narrow"><span>WHY CHOOSE US</span><h2>A learning experience designed around medical students.</h2><p>Add the approved introduction explaining why students should choose My Doctor &amp; The Professor.</p></div>
+      <div className="why-grid">{reasons.map(({icon:Icon,title,text}) => <article key={title}><Icon /><div><h3>{title}</h3><p>{text}</p></div></article>)}</div>
     </section>
 
     <section className="public-section story-section" id="about">
@@ -85,13 +93,6 @@ export function LandingPage() {
       <div className="workflow-copy"><span className="section-kicker">HOW IT WORKS</span><h2>A repeatable learning loop</h2><p>Every feature supports one continuous workflow instead of becoming another disconnected tool.</p><Link href="/register">Build your workspace <FiArrowRight /></Link></div>
       <ol><li><b>01</b><div><strong>Plan</strong><span>Choose your year, courses, goals, and available study time.</span></div></li><li><b>02</b><div><strong>Learn</strong><span>Move through structured topics, resources, and clinical cases.</span></div></li><li><b>03</b><div><strong>Practice</strong><span>Use questions and reasoning builders to apply what you know.</span></div></li><li><b>04</b><div><strong>Review</strong><span>Return to weak concepts through notes, errors, and spaced repetition.</span></div></li></ol>
     </section>
-
-    <section className="public-section why-section">
-      <div className="section-heading narrow"><span>WHY CHOOSE US</span><h2>Academic support built around the realities of medical school.</h2><p>Everything is designed to reduce uncertainty: what to study, what is important, how it may be examined, and how well you actually understand it.</p></div>
-      <div className="why-grid">{reasons.map(({icon:Icon,title,text}) => <article key={title}><Icon /><div><h3>{title}</h3><p>{text}</p></div></article>)}</div>
-    </section>
-
-    <section className="public-cta"><BrandLockup /><div><span>Ready when you are</span><h2>Build a clearer path through medicine.</h2><p>Create your academic workspace and begin with your current year.</p></div><Link className="public-button" href="/register">Create your account <FiArrowRight /></Link></section>
 
     <footer className="public-footer">
       <div className="footer-main"><div><BrandLockup showTagline /><p>Reliable academic support for medical students—from weekly learning to exam preparation.</p></div><div><h4>Product</h4><a href="#features">Features</a><a href="#curriculum">Academic years</a><Link href="/dashboard">Dashboard</Link><Link href="/study-plan">Study planning</Link></div><div><h4>Learning</h4><Link href="/bundles">Learning bundles</Link><Link href="/notebook">Notebook</Link><Link href="/flashcards">Flashcards</Link><Link href="/guidelines">Guidelines</Link></div><div><h4>Company</h4><a href="#about">About us</a><a href="#goal">Our goal</a><a href="mailto:support@mydoctorprofessor.com">Contact</a><a href="#">Privacy</a><a href="#">Terms</a></div></div>
