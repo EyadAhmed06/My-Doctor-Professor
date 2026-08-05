@@ -47,6 +47,8 @@ export class TestsController {
  saveAnswer(@Param('attemptId',uuid) attemptId:string,@Param('questionId',uuid) questionId:string,@Body() dto:SaveAnswerDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.saveAnswer(attemptId,questionId,dto,actor);}
  @Post('attempts/:attemptId/submit') @Roles(UserRole.STUDENT)
  submit(@Param('attemptId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.submit(id,actor);}
+ @Get('attempts/:attemptId/workspace-state')
+ getWorkspaceState(@Param('attemptId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.getWorkspaceState(id,actor);}
  @Get('attempts/:attemptId/answers')
  getAnswers(@Param('attemptId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.getAnswers(id,actor);}
  @Get('attempts/:attemptId/review')
