@@ -6,6 +6,7 @@ import {
   FiClipboard, FiLayers, FiMenu, FiShield, FiTarget, FiUsers, FiX,
 } from "react-icons/fi";
 import { useState } from "react";
+import { HERO_DOCTOR_PROFESSOR } from "./medical-image-assets";
 import { BRAND_NAME, BRAND_TAGLINE, BrandLockup } from "./brand";
 
 const years = [
@@ -51,12 +52,14 @@ export function LandingPage() {
         <div className="hero-actions"><Link className="public-button" href="/register">Start learning <FiArrowRight /></Link><a className="public-button ghost" href="#curriculum">Explore the curriculum</a></div>
         <div className="hero-proof"><span><FiCheckCircle /> Organized by academic year</span><span><FiCheckCircle /> Case-based reasoning</span><span><FiCheckCircle /> Personal progress</span></div>
       </div>
-      <div className="hero-product" aria-label="Product workflow preview">
-        <div className="preview-top"><span>Today’s learning path</span><small>Tuesday, 14 May</small></div>
-        <article className="preview-focus"><span><FiTarget /></span><div><small>PRIMARY FOCUS</small><strong>Cardiovascular reasoning</strong><p>Continue Heart Failure — Initial Management</p></div><b>68%</b></article>
-        <div className="preview-grid"><article><FiBookOpen /><strong>3</strong><span>Topics planned</span></article><article><FiClipboard /><strong>24</strong><span>Questions due</span></article><article><FiCpu /><strong>11</strong><span>Day streak</span></article></div>
-        <div className="preview-list"><span><i />Review previous errors <b>10:30</b></span><span><i />Complete case discussion <b>13:00</b></span><span><i />Spaced repetition <b>18:00</b></span></div>
-      </div>
+      <figure className="hero-characters" aria-label="A doctor and a professor representing the two learning perspectives">
+        <img src={HERO_DOCTOR_PROFESSOR} alt="Illustrated doctor and professor" />
+        <figcaption>
+          <span><b>The Doctor</b><small>Clinical precision</small></span>
+          <i aria-hidden="true" />
+          <span><b>The Professor</b><small>Academic wisdom</small></span>
+        </figcaption>
+      </figure>
     </section>
 
     <section className="public-section story-section" id="about">
