@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Brand, Benefit, Field, icons, PageFooter, SecureNote, SubmitForm, TrustStrip } from "./ui";
+import { Brand, Field, icons, PageFooter, SecureNote, SubmitForm, TrustStrip } from "./ui";
 import { useAuth } from "./auth-provider";
 
 export function LoginPage(){
@@ -22,15 +22,9 @@ export function LoginPage(){
   return <main className="auth-page login-page">
     <section className="story-side">
       <Brand/>
-      <div className="story-copy">
-        <h1>Learn like a <em>clinician.</em><br/>Think like you’re on rounds.</h1>
-        <p className="lead">Case-based learning. Clinical reasoning.<br/>Lasting retention.</p>
-        <div className="benefits">
-          <Benefit icon={icons.Clipboard} title="Real cases. Real decisions.">Work through authentic patient cases<br/>used by clinicians and educators.</Benefit>
-          <Benefit icon={icons.Trend} title="Track your progress.">See your growth in clinical reasoning<br/>and retention over time.</Benefit>
-          <Benefit icon={icons.Users} title="Built for learners and clinicians.">Trusted by medical students, residents,<br/>and practicing physicians.</Benefit>
-        </div>
-      </div>
+      <figure className="auth-story-image dna-story-image">
+        <img src="/media/login-dna.jpeg" alt="DNA and molecular medicine visualization" />
+      </figure>
       <TrustStrip/><PageFooter/>
     </section>
     <section className="form-side">
