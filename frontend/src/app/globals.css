@@ -1085,3 +1085,111 @@ input {
   .hero-learning figcaption{left:14px;right:14px;bottom:12px;grid-template-columns:1fr}
   .hero-learning figcaption span{padding:8px 10px}
 }
+
+
+/* Home image composition: Doctor, Professor, and thyroid spotlight */
+.hero-duo{
+  position:relative;
+  z-index:1;
+  width:100%;
+  margin:0;
+  border:1px solid var(--pub-line);
+  border-radius:24px;
+  background:#070b18;
+  box-shadow:0 32px 80px rgba(0,0,0,.3);
+  overflow:hidden;
+  isolation:isolate;
+}
+.hero-duo::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  box-shadow:inset 0 0 70px rgba(72,210,199,.08),inset 0 0 110px rgba(134,85,255,.08);
+}
+.hero-duo img{
+  display:block;
+  width:100%;
+  height:auto;
+  aspect-ratio:870/547;
+  object-fit:cover;
+  filter:saturate(.94) contrast(1.02) brightness(.94);
+  transition:filter .25s ease;
+}
+.thyroid-spotlight{
+  display:grid;
+  grid-template-columns:minmax(280px,430px) minmax(0,1fr);
+  align-items:center;
+  gap:clamp(38px,7vw,110px);
+  padding-top:64px;
+  padding-bottom:96px;
+}
+.thyroid-visual{
+  position:relative;
+  margin:0;
+  border:1px solid var(--pub-line);
+  border-radius:24px;
+  background:var(--pub-panel);
+  box-shadow:0 24px 64px rgba(0,0,0,.24);
+  overflow:hidden;
+}
+.thyroid-visual::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:linear-gradient(145deg,rgba(72,210,199,.06),rgba(134,85,255,.1));
+  mix-blend-mode:screen;
+}
+.thyroid-visual img{
+  display:block;
+  width:100%;
+  aspect-ratio:1;
+  object-fit:cover;
+  filter:hue-rotate(4deg) saturate(.86) contrast(1.05) brightness(.87);
+}
+.thyroid-copy{max-width:640px}
+.thyroid-copy h2{font-size:clamp(34px,4vw,58px);line-height:1.08;margin:14px 0 18px}
+.thyroid-copy p{font-size:16px;max-width:590px}
+.thyroid-copy a{display:inline-flex;align-items:center;gap:9px;margin-top:14px;color:var(--pub-teal);font-weight:700}
+html[data-theme="light"] .public-home{
+  --pub-bg:#f3f6fb;
+  --pub-panel:#fff;
+  --pub-soft:#f6f8fc;
+  --pub-line:#dce3ef;
+  --pub-text:#14213d;
+  --pub-muted:#64708b;
+  --pub-teal:#178f8c;
+}
+html[data-theme="light"] .hero-duo{
+  background:#e9eef7;
+  box-shadow:0 24px 62px rgba(20,33,61,.16);
+}
+html[data-theme="light"] .hero-duo img{
+  filter:saturate(.76) contrast(.96) brightness(1.12);
+}
+html[data-theme="light"] .hero-duo::after{
+  background:rgba(243,246,251,.09);
+  box-shadow:inset 0 0 80px rgba(243,246,251,.2);
+}
+html[data-theme="light"] .thyroid-visual{
+  box-shadow:0 22px 54px rgba(20,33,61,.14);
+}
+html[data-theme="light"] .thyroid-visual img{
+  filter:hue-rotate(2deg) saturate(.68) contrast(.91) brightness(1.26);
+}
+html[data-theme="light"] .thyroid-visual::after{
+  background:linear-gradient(145deg,rgba(23,143,140,.03),rgba(118,82,232,.07));
+  mix-blend-mode:color;
+}
+@media(max-width:1050px){
+  .hero-duo{width:min(760px,100%);margin:auto}
+  .thyroid-spotlight{grid-template-columns:minmax(240px,360px) minmax(0,1fr);gap:38px}
+}
+@media(max-width:720px){
+  .hero-duo{border-radius:18px}
+  .thyroid-spotlight{grid-template-columns:1fr;padding-top:48px;padding-bottom:72px}
+  .thyroid-visual{width:min(100%,420px);justify-self:center;border-radius:18px}
+  .thyroid-copy{text-align:center}
+  .thyroid-copy a{justify-content:center}
+}
