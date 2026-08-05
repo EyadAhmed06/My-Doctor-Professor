@@ -75,3 +75,6 @@
 .review-answer{padding:13px 0;border-bottom:1px solid var(--p-line)}.review-answer:last-of-type{border-bottom:0}
 .exam-strip .pp-progress{min-width:160px;margin-top:7px}
 @media(max-width:900px){.round-filters{display:grid;width:100%}.round-filters label{min-width:0}.tutor-workspace .mock-layout{grid-template-columns:1fr}.tutor-workspace .navigator{order:2}}
+
+.real-exams-layout{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:16px}.real-exams-layout .exam-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.real-exam-card{min-height:260px;display:flex;flex-direction:column}.real-exam-card>p{flex:1}.real-exam-card dl{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.real-exam-card dl div{padding:9px;border:1px solid var(--p-line);border-radius:8px}.real-exam-card dt{font-size:10px;color:var(--p-muted)}.real-exam-card dd{margin:5px 0 0;font-weight:700}.real-exam-card .pp-button{width:100%}
+@media(max-width:1050px){.real-exams-layout{grid-template-columns:1fr}.real-exams-layout .exam-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:650px){.real-exams-layout .exam-grid{grid-template-columns:1fr}}
