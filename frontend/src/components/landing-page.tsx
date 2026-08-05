@@ -6,7 +6,7 @@ import {
   FiClipboard, FiLayers, FiMenu, FiShield, FiTarget, FiUsers, FiX,
 } from "react-icons/fi";
 import { useState } from "react";
-import { HERO_DOCTOR_PROFESSOR } from "./medical-image-assets";
+import { HERO_MEDICAL_LEARNING } from "./medical-image-assets";
 import { BRAND_NAME, BRAND_TAGLINE, BrandLockup } from "./brand";
 
 const years = [
@@ -52,12 +52,12 @@ export function LandingPage() {
         <div className="hero-actions"><Link className="public-button" href="/register">Start learning <FiArrowRight /></Link><a className="public-button ghost" href="#curriculum">Explore the curriculum</a></div>
         <div className="hero-proof"><span><FiCheckCircle /> Organized by academic year</span><span><FiCheckCircle /> Case-based reasoning</span><span><FiCheckCircle /> Personal progress</span></div>
       </div>
-      <figure className="hero-characters" aria-label="A doctor and a professor representing the two learning perspectives">
-        <img src={HERO_DOCTOR_PROFESSOR} alt="Illustrated doctor and professor" />
+      <figure className="hero-learning" aria-label="An integrated medical learning illustration">
+        <img src={HERO_MEDICAL_LEARNING} alt="Anatomy, neuroscience, and genetics organized as one learning system" />
         <figcaption>
-          <span><b>The Doctor</b><small>Clinical precision</small></span>
-          <i aria-hidden="true" />
-          <span><b>The Professor</b><small>Academic wisdom</small></span>
+          <span><FiCpu /><b>Understand</b><small>Connect mechanisms</small></span>
+          <span><FiClipboard /><b>Practice</b><small>Apply with questions</small></span>
+          <span><FiBarChart2 /><b>Improve</b><small>Track real mastery</small></span>
         </figcaption>
       </figure>
     </section>

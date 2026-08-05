@@ -1024,67 +1024,64 @@ input {
 .form-error{color:#ff8e9a;margin:.75rem 0 0;font-size:.9rem}.primary-button:disabled,.google-button:disabled{cursor:not-allowed;opacity:.62}.product-auth-loading{min-height:100vh;display:grid;place-items:center;background:var(--page);color:var(--muted);font-weight:700}.avatar-fallback{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--teal),var(--violet));color:white;font-weight:800}.pp-logout{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:.78rem}.pp-logout:hover{color:var(--accent)}
 
 
-/* Homepage doctor + professor composition */
-.hero-characters{
+/* Homepage medical-learning artwork */
+.hero-learning{
   position:relative;
   z-index:1;
   width:100%;
   margin:0;
-  min-height:560px;
-  display:grid;
-  align-content:end;
-  isolation:isolate;
+  padding:12px 12px 58px;
+  border:1px solid var(--pub-line);
+  border-radius:24px;
+  background:linear-gradient(145deg,rgba(255,255,255,.98),rgba(239,244,252,.96));
+  box-shadow:0 32px 80px rgba(0,0,0,.28);
+  overflow:hidden;
 }
-.hero-characters::before{
+.hero-learning::after{
   content:"";
   position:absolute;
-  inset:13% 2% 8%;
-  z-index:-1;
-  border:1px solid color-mix(in srgb,var(--pub-teal) 22%,var(--pub-line));
-  border-radius:48% 48% 18px 18px;
-  background:
-    radial-gradient(circle at 28% 38%,rgba(72,210,199,.15),transparent 34%),
-    radial-gradient(circle at 72% 38%,rgba(118,82,232,.16),transparent 34%),
-    linear-gradient(180deg,rgba(21,27,49,.7),rgba(8,11,25,.2));
+  inset:auto 0 0;
+  height:38%;
+  background:linear-gradient(180deg,transparent,rgba(8,11,25,.22));
+  pointer-events:none;
 }
-.hero-characters img{
+.hero-learning>img{
   display:block;
-  width:108%;
-  max-width:none;
-  height:auto;
-  margin-left:-4%;
-  object-fit:contain;
-  object-position:center bottom;
-  filter:drop-shadow(0 28px 40px rgba(0,0,0,.34));
+  width:100%;
+  aspect-ratio:16/10;
+  border-radius:16px;
+  object-fit:cover;
+  object-position:center;
 }
-.hero-characters figcaption{
+.hero-learning figcaption{
   position:absolute;
-  left:8%;
-  right:8%;
-  bottom:12px;
+  z-index:2;
+  left:6%;
+  right:6%;
+  bottom:18px;
   display:grid;
-  grid-template-columns:1fr 1px 1fr;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+}
+.hero-learning figcaption span{
+  min-width:0;
+  padding:11px 10px;
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:11px;
+  background:rgba(10,16,34,.86);
+  backdrop-filter:blur(14px);
+  color:#fff;
+  display:grid;
+  grid-template-columns:auto 1fr;
+  column-gap:8px;
   align-items:center;
-  gap:18px;
-  padding:14px 18px;
-  border:1px solid var(--pub-line);
-  border-radius:12px;
-  background:rgba(11,15,31,.82);
-  backdrop-filter:blur(16px);
-  box-shadow:0 18px 42px rgba(0,0,0,.25);
 }
-.hero-characters figcaption span{display:grid;gap:3px;text-align:center}
-.hero-characters figcaption b{font:700 14px Georgia,serif;color:var(--pub-text)}
-.hero-characters figcaption small{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--pub-teal)}
-.hero-characters figcaption span:last-child small{color:#a78bfa}
-.hero-characters figcaption i{width:1px;height:30px;background:var(--pub-line)}
-@media(max-width:1050px){
-  .hero-characters{width:min(720px,100%);min-height:0;margin:auto}
-  .hero-characters img{width:100%;margin:0}
-}
+.hero-learning figcaption svg{grid-row:1/3;color:var(--pub-teal);font-size:18px}
+.hero-learning figcaption b{font:700 11px Georgia,serif}
+.hero-learning figcaption small{color:#b8c2dc;font-size:7px;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+@media(max-width:1050px){.hero-learning{width:min(760px,100%);margin:auto}}
 @media(max-width:720px){
-  .hero-characters::before{inset:8% 0 7%}
-  .hero-characters figcaption{left:3%;right:3%;bottom:4px;padding:10px 8px;gap:8px}
-  .hero-characters figcaption b{font-size:12px}
-  .hero-characters figcaption small{font-size:7px}
+  .hero-learning{padding:8px 8px 84px;border-radius:18px}
+  .hero-learning figcaption{left:14px;right:14px;bottom:12px;grid-template-columns:1fr}
+  .hero-learning figcaption span{padding:8px 10px}
 }
