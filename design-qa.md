@@ -2,32 +2,44 @@
 
 final result: blocked
 
-## Scope inspected
+## Implemented scope
 
-- Reference: supplied Rounds desktop/mobile screenshot.
-- Implementation: `frontend/src/components/connected-rounds-page.tsx`.
-- Shared styling: `frontend/src/components/product-pages.css`.
+- Rounds: bundle/course/week/lecture navigator, lecture workspace, real content counts, Tutor launch, entitlement states.
+- Question Banks: bundle-scoped academic tree, lecture selection, real coverage, custom quiz generation.
+- Past Exams: bundle-assigned exams, availability/read-only behavior, real exam cards.
+- Study Plan: persisted settings, generated calendar, completion state, overdue state, readiness calculation.
+- Notebook: real library/search/filter/collection/tag CRUD presentation and inspector.
+- New Note: real structured note editor using supported note fields, collections, tags, favorites, and review date.
+- Analytics: real question, confidence, flashcard, topic, schedule, and readiness data.
+- Settings: authenticated profile update, account state, password change, and appearance only.
+- Mock Exam visual restoration remains intentionally excluded from this pass. Its persisted runtime logic is preserved.
 
-## Implemented before the visual gate
+## Source-level checks completed
 
-- Bundle → Course → Week → Lecture hierarchy.
-- Real lecture question, flashcard-deck, and resource counts.
-- Tutor-mode generation through the existing backend.
-- Bundle read-only enforcement.
-- Loading, empty, error, and no-content states.
-- Desktop three-column hierarchy and responsive single-column behavior.
+- The connected page components contain no `mockData`, `hardcoded`, or fixture-domain imports.
+- Primary values are sourced from authenticated requests or deterministic calculations from those responses.
+- Bundle entitlement and read-only access remain part of the Rounds and Assessments flows.
+- Responsive layout rules were added for desktop, tablet, and narrow mobile widths.
 
 ## Blocking condition
 
-A runnable repository checkout and cloud-browser capture are not available in this execution environment. Therefore the implementation cannot yet be captured at the same viewport as the source screenshot, overlaid/compared, or declared visually passed.
+This environment has the reference screenshots and GitHub connector access, but no runnable repository checkout and no cloud browser attached to the application. Therefore it cannot:
 
-## Required next QA run
+1. install/build the exact branch,
+2. open the application with seeded data,
+3. capture the implementation at matching viewports,
+4. compare source and implementation screenshots,
+5. verify browser console and interactions.
 
-1. Run the frontend and backend with seeded bundle data.
-2. Open the Rounds route as the seeded student.
-3. Capture the desktop reference viewport and a mobile viewport.
-4. Compare against the supplied Rounds references.
-5. Fix all P0/P1/P2 differences.
-6. Repeat until this file can state `final result: passed`.
+The GitHub combined-status endpoint currently reports no status contexts for the latest pushed commits, so CI success is not inferred.
 
-No claim of pixel-perfect completion is made while this gate is blocked.
+## Required visual gate
+
+1. Run backend and frontend with the seeded student and bundle content.
+2. Capture each route at the reference desktop viewport and a mobile viewport.
+3. Compare each capture against its assigned screenshot.
+4. Fix every P0/P1/P2 visual and interaction difference.
+5. Run build, lint, and HTTP flow checks.
+6. Change this document to `final result: passed` only after those checks succeed.
+
+No pixel-perfect or fully verified claim is made while this gate remains blocked.
