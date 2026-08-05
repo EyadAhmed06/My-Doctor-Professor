@@ -405,6 +405,24 @@ export class TestsService {
     return this.attemptView(attempt);
   }
 
+  async getWorkspaceState(id: string, actor: AuthenticatedUser) {
+    const attempt = await this.requireAttempt(id);
+    await this.assertAttemptAccess(attempt, actor);
+    await this.expireIfNeeded(attempt, attempt.test);
+    const [answers, flags, notes] = await Promise.all([
+      this.answers.find({ where: { attemptId: id }, order: { answeredAt: 'ASC' } }),
+      this.flags.find({ where: { attemptId: id } }),
+      this.notes.find({ where: { attemptId: id } }),
+    ]);
+    return {
+      attempt: this.attemptView(attempt),
+      answers: actor.role === UserRole.STUDENT && attempt.status === TestAttemptStatus.IN_PROGRESS
+        ? answers.map((answer) => this.hideGrade(answer)) : answers,
+      flagged_question_ids: flags.map((flag) => flag.questionId),
+      notes: notes.map((note) => ({ question_id: note.questionId, note: note.note })),
+    };
+  }
+
   async getAnswers(id: string, actor: AuthenticatedUser) {
     const attempt = await this.requireAttempt(id);
     await this.assertAttemptAccess(attempt, actor);
