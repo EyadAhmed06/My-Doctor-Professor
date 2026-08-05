@@ -615,3 +615,84 @@ html[data-theme=light] .featured-quiz p{color:#f1edff}
 @media(max-width:720px){
   .question-visual{aspect-ratio:16/8;margin-bottom:14px}
 }
+
+
+/* Specialty artwork stays contextual, theme-aware, and outside the Home page. */
+button.question-visual{
+  position:relative;
+  display:block;
+  padding:0;
+  color:var(--p-text);
+  cursor:zoom-in;
+  text-align:left;
+  appearance:none;
+}
+.question-visual::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:linear-gradient(180deg,transparent 48%,rgba(7,11,27,.68));
+}
+.question-visual>span{
+  position:absolute;
+  z-index:1;
+  right:12px;
+  bottom:10px;
+  padding:6px 9px;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:7px;
+  background:rgba(7,11,27,.72);
+  color:#fff;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.04em;
+  text-transform:capitalize;
+  backdrop-filter:blur(10px);
+}
+.question-visual-modal{
+  position:fixed;
+  z-index:120;
+  inset:0;
+  padding:clamp(18px,4vw,64px);
+  display:grid;
+  place-items:center;
+  background:rgba(3,6,16,.88);
+  backdrop-filter:blur(12px);
+}
+.question-visual-modal>img{
+  display:block;
+  width:min(1200px,94vw);
+  max-height:84vh;
+  object-fit:contain;
+  border:1px solid color-mix(in srgb,var(--p-teal) 35%,var(--p-line));
+  border-radius:16px;
+  box-shadow:0 32px 90px rgba(0,0,0,.5);
+}
+.question-visual-modal>button{
+  position:fixed;
+  top:20px;
+  right:24px;
+  width:42px;
+  height:42px;
+  border:1px solid rgba(255,255,255,.22);
+  border-radius:50%;
+  background:rgba(13,19,39,.86);
+  color:#fff;
+  font-size:25px;
+  line-height:1;
+  cursor:pointer;
+}
+html[data-theme=light] .question-visual img{
+  filter:saturate(.76) contrast(.94) brightness(1.1);
+}
+html[data-theme=light] .question-visual--anatomy img,
+html[data-theme=light] .question-visual--neurology img,
+html[data-theme=light] .question-visual--nephrology img{
+  filter:saturate(.68) contrast(.9) brightness(1.18);
+}
+@media(max-width:720px){
+  .question-visual>span{right:8px;bottom:7px;font-size:9px}
+  .question-visual-modal{padding:12px}
+  .question-visual-modal>button{top:12px;right:12px}
+}
