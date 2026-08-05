@@ -63,3 +63,15 @@
 @media(max-width:640px){.analytics-metrics{grid-template-columns:1fr}}
 .bundle-tabs{display:flex;gap:4px;overflow:auto;border-bottom:1px solid var(--line);margin:18px 0}.bundle-tabs button{border:0;background:transparent;color:var(--muted);padding:13px 16px;white-space:nowrap;border-bottom:3px solid transparent}.bundle-tabs button.active{color:var(--teal);border-color:var(--teal);font-weight:700}.bundle-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}.bundle-summary-grid .pp-panel{display:grid}.bundle-summary-grid b{font-family:var(--font-serif);font-size:30px;color:var(--teal)}.bundle-summary-grid small,.bundle-row small{color:var(--muted);text-transform:capitalize}.bundle-row{display:flex;align-items:center;gap:12px;padding:14px 4px;border-bottom:1px solid var(--line)}.bundle-row>svg{color:var(--teal);font-size:20px}.bundle-row span{display:grid;flex:1}.bundle-row strong{color:var(--teal)}
 @media(max-width:900px){.bundle-summary-grid{grid-template-columns:repeat(2,1fr)}}
+
+/* Bundle-scoped rounds and persisted assessment workspaces */
+.round-filters{display:flex;gap:10px;align-items:end}.round-filters label{min-width:210px}.round-filters select{display:block}
+.tutor-workspace .exam-strip{background:linear-gradient(120deg,color-mix(in srgb,var(--p-teal) 10%,var(--p-panel)),var(--p-panel))}
+.tutor-workspace .mock-layout{grid-template-columns:250px minmax(0,1fr) 290px}
+.tutor-workspace .question-card h2{font-size:22px;line-height:1.55}
+.tutor-explanation{margin-top:16px;padding:16px;border:1px solid var(--p-line);border-radius:10px;background:var(--p-panel2)}
+.tutor-explanation.correct{border-color:var(--p-teal)}.tutor-explanation.incorrect{border-color:var(--p-orange)}
+.tutor-explanation b{font:700 17px Georgia,serif}.tutor-explanation p{margin-bottom:0}
+.review-answer{padding:13px 0;border-bottom:1px solid var(--p-line)}.review-answer:last-of-type{border-bottom:0}
+.exam-strip .pp-progress{min-width:160px;margin-top:7px}
+@media(max-width:900px){.round-filters{display:grid;width:100%}.round-filters label{min-width:0}.tutor-workspace .mock-layout{grid-template-columns:1fr}.tutor-workspace .navigator{order:2}}
