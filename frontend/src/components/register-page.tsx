@@ -28,8 +28,8 @@ export function RegisterPage() {
   return <main className="registration-page">
     <section className="registration-story">
       <Brand />
-      <figure className="auth-story-image microscope-story-image">
-        <img src="/media/register-microscope.jpeg" alt="Microscope and molecular science visualization" />
+      <figure className="auth-organ-visual digestive-story-image">
+        <img src="/media/register-digestive-processed.webp" alt="Luminous digestive system anatomy illustration" />
       </figure>
     </section>
     <section className="registration-form-side">

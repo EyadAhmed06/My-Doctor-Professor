@@ -22,8 +22,8 @@ export function LoginPage(){
   return <main className="auth-page login-page">
     <section className="story-side">
       <Brand/>
-      <figure className="auth-story-image dna-story-image">
-        <img src="/media/login-dna.jpeg" alt="DNA and molecular medicine visualization" />
+      <figure className="auth-organ-visual kidney-story-image">
+        <img src="/media/login-kidneys-processed.webp" alt="Luminous anatomical kidneys representing renal medicine" />
       </figure>
       <TrustStrip/><PageFooter/>
     </section>

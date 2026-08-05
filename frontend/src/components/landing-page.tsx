@@ -81,7 +81,7 @@ export function LandingPage() {
       </div>
       <div className="organ-image-grid">
         <figure><img src="/media/home-brain.jpeg" alt="Brain medical illustration" /><figcaption>Neuroscience &amp; cognition</figcaption></figure>
-        <figure><img src="/media/home-heart.jpeg" alt="Heart and electrocardiogram medical illustration" /><figcaption>Cardiovascular reasoning</figcaption></figure>
+        <figure><img src="/media/home-heart-processed.webp" alt="Heart and electrocardiogram medical illustration" /><figcaption>Cardiovascular reasoning</figcaption></figure>
       </div>
     </section>
 
