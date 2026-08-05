@@ -119,3 +119,30 @@
 .rounds-refresh{min-height:44px;color:var(--accent);font-weight:800;cursor:pointer}
 @media(max-width:1120px){.rounds-reference-layout{grid-template-columns:280px minmax(0,1fr)}.rounds-context-rail{grid-column:1/-1;grid-template-columns:repeat(2,minmax(0,1fr));position:static}.rounds-refresh{display:none}}
 @media(max-width:780px){.rounds-reference-header{display:grid}.rounds-reference-selectors{min-width:0;width:100%;display:grid}.rounds-reference-layout{display:grid;grid-template-columns:1fr}.rounds-week-nav{position:static}.rounds-learning-stage{min-height:0;padding:14px}.rounds-action-grid{grid-template-columns:1fr}.rounds-primary-action{display:grid}.rounds-primary-action .pp-button{width:100%}.rounds-context-rail{grid-template-columns:1fr}.rounds-secondary-actions{display:grid}}
+
+
+/* Screenshot restoration: Questions, Question Banks, and Past Exams */
+.assessment-reference-page{max-width:1720px;margin:0 auto}
+.assessment-reference-header{display:grid;grid-template-columns:minmax(340px,.72fr) minmax(560px,1fr);gap:28px;align-items:center;padding:10px 0 20px;border-bottom:1px solid var(--line)}
+.assessment-reference-header h1{font-family:var(--font-display,Georgia,serif);font-size:clamp(2.1rem,3.2vw,3.8rem);line-height:1;margin:7px 0 10px;color:var(--ink)}
+.assessment-reference-header p{margin:0;color:var(--muted);max-width:680px}
+.assessment-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);border-radius:13px;background:var(--surface);box-shadow:0 12px 36px color-mix(in srgb,var(--ink) 5%,transparent)}
+.assessment-summary>div{display:flex;align-items:center;gap:12px;min-height:92px;padding:16px}.assessment-summary>div+div{border-left:1px solid var(--line)}
+.assessment-summary svg{font-size:1.5rem;color:var(--accent);flex:0 0 auto}.assessment-summary span{display:grid;gap:2px}.assessment-summary b{font-family:var(--font-display,Georgia,serif);font-size:1.65rem}.assessment-summary small{font-size:.7rem;color:var(--muted)}
+.assessment-tabs{display:flex;gap:32px;border-bottom:1px solid var(--line);margin:0 0 15px;padding:0 18px}
+.assessment-tabs button{min-height:57px;padding:0 3px;border:0;border-bottom:3px solid transparent;background:transparent;color:var(--muted);font-weight:850;cursor:pointer}
+.assessment-tabs button.active{color:var(--ink);border-bottom-color:var(--accent)}
+.assessment-reference-page .question-bank-layout{grid-template-columns:minmax(255px,300px) minmax(0,1fr) minmax(290px,330px);gap:14px;align-items:start}
+.assessment-reference-page .academic-filter,.assessment-reference-page .bank-main,.assessment-reference-page .quiz-builder{border:1px solid var(--line);border-radius:13px;background:var(--surface);box-shadow:0 10px 30px color-mix(in srgb,var(--ink) 4%,transparent)}
+.assessment-reference-page .academic-filter{padding:15px;position:sticky;top:92px;max-height:calc(100vh - 112px);overflow:auto}
+.assessment-reference-page .bank-main{padding:20px;min-height:650px}.assessment-reference-page .quiz-builder{position:sticky;top:92px;margin:0}
+.assessment-reference-page .bank-heading{border-bottom:1px solid var(--line);padding-bottom:17px;margin-bottom:15px}
+.assessment-reference-page .bank-heading h2{font-family:var(--font-display,Georgia,serif);font-size:clamp(1.55rem,2vw,2.25rem);margin:5px 0}.assessment-reference-page .bank-heading p{color:var(--muted)}
+.assessment-reference-page .selected-scope article{border:1px solid var(--line);background:var(--soft);border-radius:10px}
+.assessment-reference-page .quiz-builder .builder-count{border-radius:12px;background:color-mix(in srgb,var(--accent) 8%,var(--soft));padding:20px;text-align:center}
+.assessment-reference-page .quiz-builder .builder-count b{font-family:var(--font-display,Georgia,serif);font-size:3.1rem;color:var(--accent)}
+.real-exams-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,340px);gap:14px}.real-exams-layout>.panel{position:sticky;top:92px}
+.real-exams-layout .exam-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.real-exam-card{min-height:330px;display:flex;flex-direction:column}.real-exam-card>p{color:var(--muted);line-height:1.6;flex:1}.real-exam-card dl{border-top:1px solid var(--line)}.real-exam-card dl div{display:flex;justify-content:space-between;padding:9px 0}.real-exam-card dd{font-weight:800}
+@media(max-width:1180px){.assessment-reference-header{grid-template-columns:1fr}.assessment-reference-page .question-bank-layout{grid-template-columns:270px minmax(0,1fr)}.assessment-reference-page .quiz-builder{grid-column:1/-1;position:static}.real-exams-layout .exam-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.assessment-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.assessment-summary>div:nth-child(3){border-left:0;border-top:1px solid var(--line)}.assessment-summary>div:nth-child(4){border-top:1px solid var(--line)}.assessment-tabs{overflow:auto;gap:20px}.assessment-reference-page .question-bank-layout,.real-exams-layout{grid-template-columns:1fr}.assessment-reference-page .academic-filter{position:static;max-height:none}.real-exams-layout .exam-grid{grid-template-columns:1fr}.real-exams-layout>.panel{position:static}}
