@@ -19,7 +19,7 @@ export class TestsController {
  @Get()
  list(@Query() query:TestQueryDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.list(query,actor);}
  @Get('practice/catalog') @Roles(UserRole.STUDENT)
- practiceCatalog(@Query() query:PracticeCatalogQueryDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.practiceCatalog(query.course_id,actor);}
+ practiceCatalog(@Query() query:PracticeCatalogQueryDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.practiceCatalog(query.bundle_id,query.course_id,actor);}
  @Post('practice/generate') @Roles(UserRole.STUDENT)
  generatePractice(@Body() dto:GeneratePracticeTestDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.generatePractice(dto,actor);}
  @Get(':testId')
