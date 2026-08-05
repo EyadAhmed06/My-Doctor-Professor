@@ -257,3 +257,229 @@
 .guide-resource-empty{min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:25px;text-align:center;color:var(--muted)}.guide-resource-empty>svg{font-size:2rem;color:var(--accent)}.guide-resource-empty strong{font-family:var(--font-display,Georgia,serif);font-size:1.25rem;color:var(--ink)}.guide-resource-empty p{max-width:460px;margin:0;line-height:1.6}
 @media(max-width:900px){.study-guides-title{display:grid;align-items:start}.study-guide-course-select{min-width:0;width:100%}.study-guide-layout{grid-template-columns:1fr}.guide-course-nav{border-right:0;border-bottom:1px solid var(--line)}.guide-resource-grid{grid-template-columns:1fr}}
 @media(max-width:600px){.guide-content{padding:14px}.guide-hero{grid-template-columns:1fr;padding:17px}.guide-resource-card{grid-template-columns:36px minmax(0,1fr)}}
+
+/* Pixel-accurate product workspace geometry — 2026-08-05 */
+.product-app{
+  overflow-x:hidden;
+}
+.pp-topbar{
+  width:100%;
+  min-width:0;
+  height:76px;
+  padding-inline:clamp(18px,2.3vw,44px);
+  gap:clamp(12px,1.7vw,32px);
+}
+.pp-brand{flex:0 0 auto;min-width:max-content}
+.pp-topbar nav{min-width:0;gap:clamp(0px,.35vw,7px)}
+.pp-topbar nav a{padding-inline:clamp(7px,.7vw,13px)}
+.pp-search{flex:0 1 320px;min-width:180px}
+.pp-profile{flex:0 0 auto}
+.pp-page{
+  width:100%;
+  max-width:1800px;
+  min-width:0;
+  min-height:calc(100vh - 76px);
+  padding:clamp(24px,2vw,38px);
+  margin:0 auto;
+}
+.pp-title{
+  min-width:0;
+  margin-bottom:26px;
+}
+.pp-title h1{
+  font-size:clamp(34px,2.55vw,52px);
+  line-height:1.04;
+  letter-spacing:-.025em;
+}
+.pp-title p{font-size:15px;max-width:760px}
+.pp-panel{border-radius:14px}
+.pp-metrics{gap:14px}
+
+/* Keep large dashboard headings below the sticky application bar. */
+.analytics-page>.pp-title:first-child,
+.study-plan-page>.pp-title:first-child,
+.settings-page>.pp-title:first-child,
+.notebook-page>.pp-title:first-child,
+.bundle-page>.pp-title:first-child{
+  margin-top:0;
+}
+
+/* Flashcards: three-column reference composition without intrinsic button collapse. */
+.flashcards-page{max-width:1800px}
+.flashcards-page .pp-title.hero{margin-bottom:24px}
+.flashcards-layout.connected{
+  display:grid;
+  grid-template-columns:minmax(250px,300px) minmax(520px,1fr) minmax(270px,340px);
+  gap:24px;
+  align-items:start;
+  width:100%;
+  min-width:0;
+}
+.flashcards-layout.connected>*{min-width:0}
+.flashcards-layout.connected .deck-sidebar{
+  width:100%;
+  max-height:calc(100vh - 124px);
+  overflow:auto;
+}
+.flashcards-layout.connected .deck-sidebar>button{
+  width:100%;
+  overflow:hidden;
+}
+.flashcards-layout.connected .deck-sidebar>button span{
+  display:block;
+  min-width:0;
+  overflow:hidden;
+}
+.flashcards-layout.connected .deck-sidebar>button b,
+.flashcards-layout.connected .deck-sidebar>button em{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.flashcards-layout.connected .review-workspace{
+  width:100%;
+  min-width:0;
+}
+.flashcards-layout.connected .review-heading{
+  min-height:72px;
+  gap:18px;
+}
+.flashcards-layout.connected .review-heading>div:first-child{min-width:0}
+.flashcards-layout.connected .review-heading h2{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:clamp(27px,2vw,38px);
+}
+.study-card.single-face{
+  display:block;
+  position:relative;
+  width:100%;
+  min-width:0;
+  max-width:none;
+  min-height:500px;
+  padding:0;
+  margin:0;
+  overflow:visible;
+  text-align:inherit;
+  appearance:none;
+}
+.study-card.single-face .study-card-inner{
+  width:100%;
+  min-width:0;
+  min-height:500px;
+}
+.study-card.single-face .card-face{
+  width:100%;
+  min-width:0;
+  min-height:500px;
+  padding:clamp(34px,4vw,68px);
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+.study-card.single-face .card-face h2,
+.study-card.single-face .card-face p{
+  width:min(760px,100%);
+  max-width:100%;
+  overflow-wrap:anywhere;
+  word-break:normal;
+  white-space:normal;
+}
+.study-card.single-face .card-front h2{
+  margin:24px auto;
+  font-size:clamp(30px,3vw,52px);
+  line-height:1.18;
+}
+.study-card.single-face .card-back>p{
+  width:min(760px,100%);
+  max-width:100%;
+}
+.flashcards-layout.connected .flashcard-insights{
+  width:100%;
+  min-width:0;
+}
+.review-rating{width:100%;margin-top:18px}
+
+/* Content-heavy reference pages use the full frame and stable columns. */
+.notebook-workspace,
+.analytics-grid,
+.study-plan-layout,
+.settings-grid,
+.bundle-workspace,
+.guides-layout{
+  min-width:0;
+}
+.notebook-workspace>*,
+.analytics-grid>*,
+.study-plan-layout>*,
+.settings-grid>*,
+.bundle-workspace>*,
+.guides-layout>*{min-width:0}
+
+/* Reference pages stay dense on common laptop widths instead of clipping. */
+@media (max-width:1500px){
+  .pp-topbar{gap:12px;padding-inline:18px}
+  .pp-brand strong{font-size:16px}
+  .pp-topbar nav a{padding-inline:7px;font-size:11px}
+  .pp-search{flex-basis:250px}
+  .pp-profile span{display:none}
+  .flashcards-layout.connected{
+    grid-template-columns:240px minmax(460px,1fr) 270px;
+    gap:16px;
+  }
+}
+@media (max-width:1180px){
+  .pp-topbar nav{
+    position:fixed;
+    inset:0 auto 0 0;
+    width:min(360px,88vw);
+    padding:84px 24px 24px;
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:4px;
+    background:var(--p-panel);
+    border-right:1px solid var(--p-line);
+    transform:translateX(-105%);
+    transition:transform .25s ease;
+    z-index:80;
+  }
+  .pp-topbar nav.open{transform:translateX(0)}
+  .pp-topbar nav a{min-height:48px;padding:0 16px;border:0;border-radius:8px}
+  .pp-topbar nav a.active{background:color-mix(in srgb,var(--p-teal) 10%,var(--p-panel))}
+  .pp-menu,.pp-nav-close{display:grid;place-items:center}
+  .pp-menu{order:-1;border:0;background:transparent;font-size:22px}
+  .pp-nav-close{position:absolute;top:22px;right:20px;width:38px;height:38px;border:1px solid var(--p-line);border-radius:8px;background:var(--p-panel2)}
+  .pp-search{margin-left:auto}
+  .flashcards-layout.connected{
+    grid-template-columns:minmax(230px,280px) minmax(0,1fr);
+  }
+  .flashcards-layout.connected .flashcard-insights{
+    grid-column:1/-1;
+    position:static;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media (max-width:780px){
+  .pp-topbar{height:66px;padding-inline:12px}
+  .pp-brand strong{display:none}
+  .pp-search{display:none}
+  .pp-profile .pp-logout,.pp-profile>svg{display:none}
+  .pp-page{padding:18px 14px;min-height:calc(100vh - 66px)}
+  .pp-title h1{font-size:34px}
+  .pp-title.hero{display:block}
+  .pp-title.hero>.pp-metrics{width:100%;margin-top:16px}
+  .flashcards-layout.connected{grid-template-columns:1fr}
+  .flashcards-layout.connected .deck-sidebar{position:static;max-height:300px}
+  .flashcards-layout.connected .flashcard-insights{grid-template-columns:1fr}
+  .study-card.single-face,
+  .study-card.single-face .study-card-inner,
+  .study-card.single-face .card-face{min-height:400px}
+  .study-card.single-face .card-face{padding:28px 22px}
+  .study-card.single-face .card-front h2{font-size:28px}
+}
