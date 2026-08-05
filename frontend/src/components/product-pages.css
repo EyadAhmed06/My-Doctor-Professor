@@ -566,3 +566,24 @@
   .study-plan-layout.connected .calendar-grid{grid-template-columns:1fr}
   .product-account-copy,.product-search{display:none}
 }
+
+
+/* Theme contract: reference screenshots control geometry, never product colors. */
+.product-app{
+  --surface:var(--p-panel);
+  --panel:var(--p-panel);
+  --soft:var(--p-panel2);
+  --soft-teal:color-mix(in srgb,var(--p-teal) 10%,var(--p-panel2));
+  --ink:var(--p-text);
+  --text:var(--p-text);
+  --muted:var(--p-muted);
+  --line:var(--p-line);
+  --accent:var(--p-teal);
+  --accent-2:var(--p-violet);
+  --teal:var(--p-teal);
+  --violet:var(--p-violet);
+  --shadow:0 8px 28px color-mix(in srgb,#000 10%,transparent);
+  --font-display:Georgia,serif;
+  --font-serif:Georgia,serif;
+  --font-sans:Arial,sans-serif;
+}
