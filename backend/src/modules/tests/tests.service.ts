@@ -89,7 +89,20 @@ export class TestsService {
       const now = new Date();
       builder.andWhere('test.is_published = TRUE')
         .andWhere('(test.available_from IS NULL OR test.available_from <= :now)', { now })
-        .andWhere('(test.available_until IS NULL OR test.available_until > :now)', { now });
+        .andWhere('(test.available_until IS NULL OR test.available_until > :now)', { now })
+        .andWhere(`(
+          test.created_by = :actorId OR EXISTS (
+            SELECT 1 FROM bundle_tests bundle_test
+            INNER JOIN bundle_enrollments enrollment
+              ON enrollment.bundle_id = bundle_test.bundle_id
+            INNER JOIN bundles bundle ON bundle.id = bundle_test.bundle_id
+            WHERE bundle_test.test_id = test.id
+              AND enrollment.student_id = :actorId
+              AND enrollment.status <> 'REVOKED'
+              AND bundle.status IN ('PUBLISHED', 'ARCHIVED')
+              AND (bundle.available_from IS NULL OR bundle.available_from <= :now)
+          )
+        )`, { actorId: actor.userId });
     } else if (actor.role === UserRole.INSTRUCTOR) {
       builder.andWhere('test.created_by = :actorId', { actorId: actor.userId });
     }
@@ -104,19 +117,24 @@ export class TestsService {
 
   async getOne(id: string, actor: AuthenticatedUser) {
     const test = await this.requireTest(id);
-    this.assertCanViewTest(test, actor);
+    await this.assertCanViewTest(test, actor);
     if (actor.role === UserRole.STUDENT) this.assertAvailable(test);
     return test;
   }
 
-  async practiceCatalog(courseId: string, actor: AuthenticatedUser) {
+  async practiceCatalog(bundleId: string, courseId: string, actor: AuthenticatedUser) {
     if (actor.role !== UserRole.STUDENT) throw new ForbiddenException('Student access is required');
+    const accessibleLectureIds = await this.requireBundleLectureAccess(
+      bundleId, actor.userId, undefined, false, courseId,
+    );
     const course = await this.courses.findOne({ where: { id: courseId } });
     if (!course) throw new NotFoundException('Course not found');
     const weeks = await this.weeks.find({
       where: { courseId }, relations: { lectures: true },
       order: { weekNumber: 'ASC', lectures: { lectureNumber: 'ASC' } },
     });
+    const allowed = new Set(accessibleLectureIds);
+    for (const week of weeks) week.lectures = week.lectures.filter((lecture) => allowed.has(lecture.id));
     const counts = await this.questions.createQueryBuilder('question')
       .innerJoin('question.topic', 'topic')
       .select('topic.lecture_id', 'lecture_id')
@@ -141,6 +159,9 @@ export class TestsService {
     if (dto.test_mode === TestMode.TIMED && !dto.duration_minutes) {
       throw new BadRequestException('Timed practice requires duration_minutes');
     }
+    await this.requireBundleLectureAccess(
+      dto.bundle_id, actor.userId, dto.lecture_ids, true,
+    );
     const lectures = await this.lectures.createQueryBuilder('lecture')
       .leftJoinAndSelect('lecture.week', 'week')
       .leftJoinAndSelect('week.course', 'course')
@@ -255,7 +276,7 @@ export class TestsService {
 
   async listQuestions(testId: string, actor: AuthenticatedUser) {
     const test = await this.requireTest(testId);
-    this.assertCanViewTest(test, actor);
+    await this.assertCanViewTest(test, actor);
     if (actor.role === UserRole.STUDENT) {
       this.assertAvailable(test);
       const activeAttempt = await this.attempts.findOne({
@@ -296,6 +317,7 @@ export class TestsService {
   async startAttempt(testId: string, dto: StartTestAttemptDto, actor: AuthenticatedUser) {
     const test = await this.requireTest(testId);
     this.assertAvailable(test);
+    await this.assertStudentTestAccess(test, actor.userId, true);
     if (!(await this.students.exists({ where: { userId: actor.userId } }))) {
       throw new ForbiddenException('Student profile is required to start an attempt');
     }
@@ -501,9 +523,81 @@ export class TestsService {
     }
   }
 
-  private assertCanViewTest(test: Test, actor: AuthenticatedUser): void {
-    if (actor.role === UserRole.STUDENT && !test.isPublished) throw new NotFoundException('Test not found');
+  private async assertCanViewTest(test: Test, actor: AuthenticatedUser): Promise<void> {
+    if (actor.role === UserRole.STUDENT) {
+      if (!test.isPublished) throw new NotFoundException('Test not found');
+      await this.assertStudentTestAccess(test, actor.userId, false);
+    }
     if (actor.role === UserRole.INSTRUCTOR) this.assertOwner(test, actor);
+  }
+
+  private async assertStudentTestAccess(
+    test: Test,
+    studentId: string,
+    requireWritable: boolean,
+  ): Promise<void> {
+    if (test.createdBy === studentId) return;
+    const rows = await this.dataSource.query<Array<{ read_only: boolean }>>(`
+      SELECT (
+        bundle.status = 'ARCHIVED'
+        OR enrollment.status = 'EXPIRED'
+        OR (enrollment.expires_at IS NOT NULL AND enrollment.expires_at <= CURRENT_TIMESTAMP)
+        OR (bundle.available_until IS NOT NULL AND bundle.available_until <= CURRENT_TIMESTAMP)
+      ) AS read_only
+      FROM bundle_tests bundle_test
+      INNER JOIN bundles bundle ON bundle.id = bundle_test.bundle_id
+      INNER JOIN bundle_enrollments enrollment
+        ON enrollment.bundle_id = bundle.id AND enrollment.student_id = $2
+      WHERE bundle_test.test_id = $1
+        AND enrollment.status <> 'REVOKED'
+        AND bundle.status IN ('PUBLISHED', 'ARCHIVED')
+        AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+      LIMIT 1
+    `, [test.id, studentId]);
+    if (!rows.length) throw new ForbiddenException('This test is not available in your bundles');
+    if (requireWritable && rows[0].read_only) {
+      throw new ForbiddenException('This bundle is read-only');
+    }
+  }
+
+  private async requireBundleLectureAccess(
+    bundleId: string,
+    studentId: string,
+    lectureIds?: string[],
+    requireWritable = false,
+    courseId?: string,
+  ): Promise<string[]> {
+    const rows = await this.dataSource.query<Array<{ lecture_id:string; read_only:boolean }>>(`
+      SELECT lecture.id AS lecture_id, (
+        bundle.status = 'ARCHIVED'
+        OR enrollment.status = 'EXPIRED'
+        OR (enrollment.expires_at IS NOT NULL AND enrollment.expires_at <= CURRENT_TIMESTAMP)
+        OR (bundle.available_until IS NOT NULL AND bundle.available_until <= CURRENT_TIMESTAMP)
+      ) AS read_only
+      FROM bundles bundle
+      INNER JOIN bundle_enrollments enrollment
+        ON enrollment.bundle_id = bundle.id AND enrollment.student_id = $2
+      INNER JOIN bundle_courses bundle_course ON bundle_course.bundle_id = bundle.id
+      INNER JOIN bundle_weeks bundle_week ON bundle_week.bundle_id = bundle.id
+      INNER JOIN weeks week
+        ON week.id = bundle_week.week_id AND week.course_id = bundle_course.course_id
+      INNER JOIN lectures lecture ON lecture.week_id = week.id
+      WHERE bundle.id = $1
+        AND enrollment.status <> 'REVOKED'
+        AND bundle.status IN ('PUBLISHED', 'ARCHIVED')
+        AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+        AND ($3::uuid IS NULL OR bundle_course.course_id = $3::uuid)
+        AND lecture.is_published = TRUE
+    `, [bundleId, studentId, courseId ?? null]);
+    if (!rows.length) throw new ForbiddenException('This bundle does not grant access to the selected content');
+    if (requireWritable && rows[0].read_only) {
+      throw new ForbiddenException('This bundle is read-only');
+    }
+    const accessible = new Set(rows.map((row) => row.lecture_id));
+    if (lectureIds?.some((lectureId) => !accessible.has(lectureId))) {
+      throw new ForbiddenException('One or more lectures are outside this bundle');
+    }
+    return [...accessible];
   }
 
   private assertAvailable(test: Test): void {
