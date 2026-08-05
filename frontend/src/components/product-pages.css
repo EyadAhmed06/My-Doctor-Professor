@@ -483,3 +483,86 @@
   .study-card.single-face .card-face{padding:28px 22px}
   .study-card.single-face .card-front h2{font-size:28px}
 }
+
+
+/* Pixel-density pass — 2026-08-05
+   Recreates the reference layouts while keeping every value API-driven. */
+@media (min-width:1181px){
+  .product-topbar{min-height:76px;padding:0 28px;gap:28px}
+  .product-brand{min-width:265px}
+  .product-nav{gap:28px}
+  .product-page{max-width:none;padding:30px}
+  .product-page-header{margin-bottom:26px}
+  .product-page-header h1{font-size:42px;line-height:1.05}
+  .product-page-header p{font-size:16px}
+
+  .notebook-layout.connected{display:grid;grid-template-columns:270px minmax(0,1fr) 360px;gap:0;min-height:650px}
+  .notebook-layout.connected>.library-sidebar{border-right:1px solid var(--line);padding:22px}
+  .notebook-layout.connected>.notes-workspace{padding:22px;min-width:0}
+  .notebook-layout.connected>.note-detail{border-left:1px solid var(--line);padding:22px}
+  .notebook-layout.connected .notes-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  .notebook-layout.connected .note-card{min-height:250px}
+  .notebook-layout.connected .notebook-tabs{display:flex;gap:32px;overflow:auto}
+  .notebook-layout.connected .notebook-toolbar{display:flex;justify-content:space-between;align-items:center;gap:20px}
+
+  .analytics-metrics{grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+  .analytics-layout.connected{grid-template-columns:minmax(0,1.35fr) minmax(340px,.65fr);gap:16px}
+  .analytics-layout.connected .analytics-panel{min-height:350px}
+  .analytics-layout.connected .analytics-panel.wide{grid-column:1/-1}
+  .analytics-layout.connected .readiness-panel{min-height:520px}
+
+  .study-plan-metrics{grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+  .study-plan-layout.connected{grid-template-columns:minmax(0,1.45fr) 420px;gap:18px;align-items:start}
+  .study-plan-layout.connected .calendar-panel{min-height:620px}
+  .study-plan-layout.connected .plan-sidebar{display:grid;gap:16px}
+  .study-plan-layout.connected .calendar-grid{grid-template-columns:repeat(7,minmax(130px,1fr));overflow:auto}
+  .study-plan-layout.connected .calendar-day{min-height:245px}
+  .study-plan-layout.connected .plan-form{grid-template-columns:repeat(2,minmax(0,1fr))}
+
+  .settings-layout.connected{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+  .settings-layout.connected>.settings-card{min-height:300px}
+  .settings-layout.connected .appearance-options{grid-template-columns:repeat(3,1fr)}
+
+  .bundle-layout.connected{grid-template-columns:360px minmax(0,1fr);gap:20px}
+  .bundle-layout.connected .bundle-stat-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .guides-layout.connected{grid-template-columns:410px minmax(0,1fr)}
+  .guides-layout.connected .guide-detail{padding:30px}
+}
+
+@media (max-width:1450px) and (min-width:1181px){
+  .product-topbar{padding-inline:18px;gap:18px}
+  .product-brand{min-width:230px}
+  .product-nav{gap:18px}
+  .product-search{max-width:300px}
+  .notebook-layout.connected{grid-template-columns:230px minmax(0,1fr) 310px}
+  .study-plan-layout.connected{grid-template-columns:minmax(0,1fr) 350px}
+  .study-plan-layout.connected .calendar-grid{grid-template-columns:repeat(4,minmax(150px,1fr))}
+}
+
+@media (max-width:1180px){
+  .product-topbar{flex-wrap:wrap;height:auto;padding:14px 20px}
+  .product-brand{min-width:0}
+  .product-nav{order:3;width:100%;overflow:auto;padding-top:10px}
+  .product-account{margin-left:auto}
+  .product-page{padding:22px}
+  .notebook-layout.connected,
+  .analytics-layout.connected,
+  .study-plan-layout.connected,
+  .settings-layout.connected,
+  .bundle-layout.connected,
+  .guides-layout.connected{grid-template-columns:1fr}
+  .notebook-layout.connected>.library-sidebar,
+  .notebook-layout.connected>.note-detail{border:0}
+  .analytics-metrics,.study-plan-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .notebook-layout.connected .notes-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .study-plan-layout.connected .calendar-grid{grid-template-columns:repeat(3,minmax(150px,1fr));overflow:auto}
+}
+
+@media (max-width:680px){
+  .product-page{padding:16px}
+  .product-page-header h1{font-size:34px}
+  .analytics-metrics,.study-plan-metrics{grid-template-columns:1fr 1fr}
+  .notebook-layout.connected .notes-grid{grid-template-columns:1fr}
+  .study-plan-layout.connected .calendar-grid{grid-template-columns:1fr}
+  .product-account-copy,.product-search{display:none}
+}
