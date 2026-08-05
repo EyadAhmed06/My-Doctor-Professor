@@ -6,7 +6,6 @@ import {
   FiClipboard, FiLayers, FiMenu, FiShield, FiTarget, FiUsers, FiX,
 } from "react-icons/fi";
 import { useState } from "react";
-import { HERO_MEDICAL_LEARNING } from "./medical-image-assets";
 import { BRAND_NAME, BRAND_TAGLINE, BrandLockup } from "./brand";
 
 const years = [
@@ -52,19 +51,26 @@ export function LandingPage() {
         <div className="hero-actions"><Link className="public-button" href="/register">Start learning <FiArrowRight /></Link><a className="public-button ghost" href="#curriculum">Explore the curriculum</a></div>
         <div className="hero-proof"><span><FiCheckCircle /> Organized by academic year</span><span><FiCheckCircle /> Case-based reasoning</span><span><FiCheckCircle /> Personal progress</span></div>
       </div>
-      <figure className="hero-learning" aria-label="An integrated medical learning illustration">
-        <img src={HERO_MEDICAL_LEARNING} alt="Anatomy, neuroscience, and genetics organized as one learning system" />
-        <figcaption>
-          <span><FiCpu /><b>Understand</b><small>Connect mechanisms</small></span>
-          <span><FiClipboard /><b>Practice</b><small>Apply with questions</small></span>
-          <span><FiBarChart2 /><b>Improve</b><small>Track real mastery</small></span>
-        </figcaption>
+      <figure className="hero-duo" aria-label="The Doctor and The Professor">
+        <img src="/media/hero-doctor-professor.webp" alt="The Doctor representing clinical precision and The Professor representing academic wisdom" />
       </figure>
     </section>
 
     <section className="public-section story-section" id="about">
       <div className="section-heading"><span>ABOUT US</span><h2>Created from the same challenges you face.</h2></div>
       <div className="story-copy"><p>We are a group of doctors who were once exactly in your place. We understand how challenging it can be to find reliable, high-quality study materials—especially when it comes to high-yield questions and the tricky details that professors love to test.</p><p>That struggle is what drove us to make a change. Five years ago, we launched My Doctor. Two years ago, we took a giant leap forward by releasing a completely redesigned version of our platform, alongside the very first weekly structured essay booklets that filled a huge gap for students.</p><p>Today, we continue that work through My Doctor &amp; The Professor, becoming a trusted primary source for both MCQs and essays.</p></div>
+    </section>
+
+    <section className="public-section thyroid-spotlight" aria-labelledby="thyroid-title">
+      <figure className="thyroid-visual">
+        <img src="/media/thyroid-learning.webp" alt="Thyroid gland medical visualization" />
+      </figure>
+      <div className="thyroid-copy">
+        <span className="section-kicker">VISUAL LEARNING</span>
+        <h2 id="thyroid-title">See the structure. Understand the system.</h2>
+        <p>Medical concepts become easier to retain when anatomy, mechanisms, and clinical reasoning are connected visually.</p>
+        <a href="#curriculum">Explore the curriculum <FiArrowRight /></a>
+      </div>
     </section>
 
     <section className="public-goal" id="goal"><span><FiTarget /></span><div><small>OUR GOAL</small><h2>Make studying medicine clearer, smarter, and more reliable.</h2><p>Our goal has always been to make your life easier, helping you study smarter, master your courses, and excel in your exams. We continuously improve our content, listen to your feedback, and provide the reliable academic support you deserve.</p></div></section>
