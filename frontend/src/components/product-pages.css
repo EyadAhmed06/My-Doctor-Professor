@@ -593,3 +593,25 @@ html[data-theme=light] .featured-note>div,
 html[data-theme=light] .featured-quiz>div{background:linear-gradient(120deg,#5d46d8,#7652e8)}
 html[data-theme=light] .featured-note p,
 html[data-theme=light] .featured-quiz p{color:#f1edff}
+
+
+/* Contextual media inside real question templates */
+.question-visual{
+  width:100%;
+  aspect-ratio:16/6;
+  margin:0 0 18px;
+  overflow:hidden;
+  border:1px solid var(--p-line);
+  border-radius:12px;
+  background:var(--p-panel2);
+}
+.question-visual img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center;
+}
+@media(max-width:720px){
+  .question-visual{aspect-ratio:16/8;margin-bottom:14px}
+}
