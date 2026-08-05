@@ -146,3 +146,28 @@
 .real-exam-card{min-height:330px;display:flex;flex-direction:column}.real-exam-card>p{color:var(--muted);line-height:1.6;flex:1}.real-exam-card dl{border-top:1px solid var(--line)}.real-exam-card dl div{display:flex;justify-content:space-between;padding:9px 0}.real-exam-card dd{font-weight:800}
 @media(max-width:1180px){.assessment-reference-header{grid-template-columns:1fr}.assessment-reference-page .question-bank-layout{grid-template-columns:270px minmax(0,1fr)}.assessment-reference-page .quiz-builder{grid-column:1/-1;position:static}.real-exams-layout .exam-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.assessment-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.assessment-summary>div:nth-child(3){border-left:0;border-top:1px solid var(--line)}.assessment-summary>div:nth-child(4){border-top:1px solid var(--line)}.assessment-tabs{overflow:auto;gap:20px}.assessment-reference-page .question-bank-layout,.real-exams-layout{grid-template-columns:1fr}.assessment-reference-page .academic-filter{position:static;max-height:none}.real-exams-layout .exam-grid{grid-template-columns:1fr}.real-exams-layout>.panel{position:static}}
+
+
+/* Screenshot restoration: persisted Study Plan */
+.study-plan-restored{max-width:1660px;margin:0 auto}
+.study-plan-restored .workspace-heading{display:flex;justify-content:space-between;align-items:flex-end;padding:8px 0 18px;border-bottom:1px solid var(--line)}
+.study-plan-restored .workspace-heading h1{font-family:var(--font-display,Georgia,serif);font-size:clamp(2rem,3vw,3.25rem);margin:5px 0}.study-plan-restored .workspace-heading p{color:var(--muted);margin:0;max-width:780px}
+.plan-metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin:16px 0}
+.plan-metric{min-height:132px;margin:0!important;padding:15px!important;display:flex;gap:11px;align-items:flex-start}
+.plan-metric>span{width:38px;height:38px;display:grid;place-items:center;border-radius:9px;background:color-mix(in srgb,var(--accent) 12%,var(--soft));color:var(--accent);font-size:1.1rem;flex:0 0 auto}
+.plan-metric>div{display:grid;gap:4px}.plan-metric small{font-size:.69rem;color:var(--muted);font-weight:800}.plan-metric b{font-family:var(--font-display,Georgia,serif);font-size:1.45rem;color:var(--ink)}.plan-metric p{font-size:.67rem;color:var(--muted);margin:0}
+.plan-dashboard{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,370px);gap:14px;align-items:start}
+.plan-dashboard>section>.panel,.plan-dashboard>aside>.panel{margin:0;border-radius:14px}.plan-dashboard>aside{display:grid;gap:14px;position:sticky;top:92px}
+.study-calendar{display:grid;grid-template-columns:repeat(7,minmax(125px,1fr));gap:0;border:1px solid var(--line);border-radius:12px;overflow:auto}
+.study-calendar article{min-height:230px;padding:12px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--surface)}
+.study-calendar article header{display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;margin-bottom:9px;border-bottom:1px solid var(--line)}.study-calendar article header small{color:var(--muted);font-size:.65rem}
+.study-calendar article button{width:100%;display:grid;grid-template-columns:22px minmax(0,1fr);gap:7px;text-align:left;padding:8px;margin-bottom:6px;border:1px solid var(--line);border-radius:8px;background:var(--soft);color:var(--ink);cursor:pointer}
+.study-calendar article button.completed{background:color-mix(in srgb,var(--accent) 10%,var(--soft));border-color:color-mix(in srgb,var(--accent) 48%,var(--line))}
+.study-calendar article button i{width:20px;height:20px;display:grid;place-items:center;border-radius:6px;border:1px solid var(--line);color:transparent}.study-calendar article button.completed i{background:var(--accent);color:white;border-color:var(--accent)}
+.study-calendar article button span{display:grid;gap:2px}.study-calendar article button b{font-size:.72rem}.study-calendar article button small{font-size:.61rem;color:var(--muted)}
+.plan-target-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}.plan-target-form label{display:grid;gap:6px;font-size:.72rem;font-weight:850;color:var(--muted)}
+.plan-target-form input,.plan-target-form select{width:100%;min-height:42px;border:1px solid var(--line);border-radius:9px;background:var(--soft);color:var(--ink);padding:0 10px}.plan-target-form .pp-button{grid-column:1/-1}
+.plan-dashboard .readiness-score{margin:0 auto 18px}
+@media(max-width:1280px){.plan-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.study-calendar{grid-template-columns:repeat(4,minmax(150px,1fr))}}
+@media(max-width:920px){.plan-dashboard{grid-template-columns:1fr}.plan-dashboard>aside{position:static;grid-template-columns:1fr 1fr}}
+@media(max-width:680px){.study-plan-restored .workspace-heading{display:grid;gap:16px}.plan-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.study-calendar{grid-template-columns:1fr}.plan-dashboard>aside{grid-template-columns:1fr}.plan-target-form{grid-template-columns:1fr}.plan-target-form .pp-button{grid-column:auto}}
