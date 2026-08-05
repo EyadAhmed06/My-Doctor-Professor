@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FiArrowLeft, FiBookOpen, FiCheckCircle, FiLayers, FiShield, FiTarget } from "react-icons/fi";
+import { FiArrowLeft, FiCheckCircle } from "react-icons/fi";
 import { Brand, Field, icons, SubmitForm } from "./ui";
 import { apiRequest } from "@/lib/api";
 import { useState } from "react";
@@ -28,10 +28,9 @@ export function RegisterPage() {
   return <main className="registration-page">
     <section className="registration-story">
       <Brand />
-      <div><span className="public-eyebrow"><FiBookOpen /> Your learning workspace</span><h1>Start where you are.<br /><em>Build forward.</em></h1><p>Create one account for your courses, cases, notes, practice, and progress—from your current semester to clinical training.</p>
-        <ul><li><FiLayers /><span><b>Organized around your curriculum</b><small>Choose your year, semester, university, and areas of focus.</small></span></li><li><FiTarget /><span><b>A plan that adapts with you</b><small>Keep weak topics, deadlines, and review priorities visible.</small></span></li><li><FiShield /><span><b>Your academic workspace</b><small>Your profile and learning history stay connected to your account.</small></span></li></ul>
-      </div>
-      <p className="registration-quote">“Learn the science, practice the reasoning, and carry both into every clinical decision.”</p>
+      <figure className="auth-story-image microscope-story-image">
+        <img src="/media/register-microscope.jpeg" alt="Microscope and molecular science visualization" />
+      </figure>
     </section>
     <section className="registration-form-side">
       <div className="registration-top"><Link href="/"><FiArrowLeft /> Back to home</Link><span>Already registered? <Link href="/login">Log in</Link></span></div>
