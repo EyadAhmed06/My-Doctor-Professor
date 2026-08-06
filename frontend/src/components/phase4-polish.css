@@ -118,10 +118,10 @@ html[data-theme] body,
   gap: 10px;
 }
 .bundle-course details {
-  border: 1px solid var(--line);
+  border: 1px solid var(--p-line, var(--db-line));
   border-radius: 12px;
   overflow: clip;
-  background: color-mix(in srgb, var(--surface, transparent) 94%, transparent);
+  background: var(--p-panel2, var(--db-surface-2, transparent));
 }
 .bundle-course details + details { margin-top: 9px; }
 .bundle-course details summary {
@@ -147,14 +147,14 @@ html[data-theme] body,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.bundle-course details summary > small { color: var(--muted); }
+.bundle-course details summary > small { color: var(--p-muted, var(--db-muted)); }
 .bundle-course details summary > svg {
   transition: transform var(--phase4-fast) var(--phase4-ease);
 }
 .bundle-course details[open] summary > svg { transform: rotate(180deg); }
 .bundle-course details[open] summary {
-  border-bottom: 1px solid var(--line);
-  background: color-mix(in srgb, var(--teal) 6%, transparent);
+  border-bottom: 1px solid var(--p-line, var(--db-line));
+  background: color-mix(in srgb, var(--p-teal, var(--db-teal, #49d2c6)) 7%, transparent);
 }
 .bundle-course details > div {
   animation: phase4-rise 220ms var(--phase4-ease) both;
@@ -201,10 +201,10 @@ html[data-theme] body,
   width: max-content;
   max-width: 220px;
   transform: translate(-50%, 5px);
-  border: 1px solid var(--line);
+  border: 1px solid var(--p-line, var(--db-line));
   border-radius: 8px;
-  background: var(--surface, #0d1327);
-  color: var(--text);
+  background: var(--p-panel, var(--db-surface, #0d1327));
+  color: var(--p-text, var(--db-text, #f7f7fb));
   box-shadow: 0 12px 30px rgba(0,0,0,.24);
   padding: 7px 9px;
   font-size: 11px;
@@ -242,7 +242,7 @@ html[data-theme] body,
 .dash-sidebar a:focus-visible,
 .dash-card a:focus-visible,
 .dash-card button:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--teal, #49d2c6) 42%, transparent);
+  outline: 3px solid color-mix(in srgb, var(--p-teal, var(--db-teal, #49d2c6)) 42%, transparent);
   outline-offset: 3px;
 }
 
