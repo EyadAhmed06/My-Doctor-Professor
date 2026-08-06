@@ -78,6 +78,8 @@ export class StudyPlanCalendarQueryDto {
 export class UpdateStudyPlanItemDto {
  @IsOptional() @IsIn(['COMPLETED','SKIPPED','PLANNED']) status?:string;
  @IsOptional() @IsDateString() scheduled_date?:string;
+ @IsOptional() @Transform(({value})=>Number(value)) @IsInt() @Min(5) @Max(1440) duration_minutes?:number;
+ @IsOptional() @IsBoolean() is_locked?:boolean;
 }
 export class DrugReferenceQueryDto {
  @IsOptional() @IsString() @MaxLength(100) search?:string;
