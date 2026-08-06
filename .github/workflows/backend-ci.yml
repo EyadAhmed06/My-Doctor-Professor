@@ -99,6 +99,8 @@ jobs:
             echo "Applying current ${schema}"
             psql -h localhost -U postgres -d clean_test -v ON_ERROR_STOP=1 -f "${schema}"
           done < <(find database/schemas -maxdepth 1 -type f -name '*.sql' | sort)
+      - name: Prove fresh-install migration baseline is complete
+        run: DB_NAME=clean_test npm run migration:run
       - name: Require zero drift after clean bootstrap
         run: DB_NAME=clean_test npm run schema:check
       - name: Bootstrap deployment baseline from Eyad
@@ -107,9 +109,14 @@ jobs:
           git fetch origin Eyad
           while IFS= read -r schema; do
             echo "Applying baseline ${schema}"
-            git show "origin/Eyad:backend/${schema}" |
+            git show "origin/Eyad:${schema}" |
               psql -h localhost -U postgres -d upgrade_test -v ON_ERROR_STOP=1
-          done < <(find database/schemas -maxdepth 1 -type f -name '*.sql' ! -name '11_permissions.sql' | sort)
+          done < <(
+            git ls-tree -r --name-only origin/Eyad -- backend/database/schemas |
+              grep -E '\.sql$' |
+              grep -v '/11_permissions\.sql$' |
+              sort
+          )
       - name: Apply forward SQL and TypeORM migrations
         run: |
           set -euo pipefail
@@ -122,7 +129,7 @@ jobs:
         run: |
           set -euo pipefail
           psql -h localhost -U postgres -d upgrade_test -c \
-            "SELECT id, timestamp, name FROM migrations ORDER BY timestamp"
+            "SELECT id, timestamp, name FROM migrations ORDER BY timestamp, name"
           expected_count="$(psql -h localhost -U postgres -d upgrade_test -Atc "
             SELECT count(*)
             FROM migrations
@@ -135,10 +142,13 @@ jobs:
               'AddCourseInstructorOwnership1810000000000',
               'AddResourceStorageMetadata1820000000000',
               'ReconcileDatabaseContract1830000000000',
-              'RevokeLegacyRefreshSessions1840000000000'
+              'RevokeLegacyRefreshSessions1840000000000',
+              'AddStudentWorkspace1845000000000',
+              'AddBundleAccessLayer1850000000000',
+              'AddNotebookAnalyticsScheduler1860000000000'
             )
           ")"
-          test "${expected_count}" -eq 9
+          test "${expected_count}" -eq 12
       - name: Apply current database permissions
         run: >-
           psql -h localhost -U postgres -d upgrade_test
