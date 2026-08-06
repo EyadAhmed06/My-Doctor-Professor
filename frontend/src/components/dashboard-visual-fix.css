@@ -1,0 +1,175 @@
+/* Dashboard-specific final pass. Kept separate so the legacy dashboard sheet
+   cannot silently reintroduce its compressed 8px typography and fixed heights. */
+
+html[data-theme] body .dashboard-embedded .dash-card > header {
+  min-height: 54px !important;
+  height: auto !important;
+  padding: 12px 18px !important;
+  gap: 12px;
+}
+
+html[data-theme] body .dashboard-embedded .dash-card h2 {
+  font-size: clamp(17px, 1.15vw, 21px) !important;
+  line-height: 1.2 !important;
+}
+
+html[data-theme] body .dashboard-embedded .card-subtitle {
+  margin: -5px 18px 8px !important;
+  font-size: 11px !important;
+}
+
+html[data-theme] body .dashboard-embedded .welcome h1 {
+  font-size: clamp(34px, 3vw, 52px) !important;
+  line-height: 1.05 !important;
+}
+
+html[data-theme] body .dashboard-embedded .welcome > div > p:not(.eyebrow) {
+  font-size: 15px !important;
+  margin-top: 9px !important;
+}
+
+html[data-theme] body .dashboard-embedded .welcome .eyebrow {
+  font-size: 11px !important;
+  letter-spacing: .06em;
+}
+
+html[data-theme] body .dashboard-embedded .welcome > div > strong {
+  font-size: 14px !important;
+  color: var(--app-text) !important;
+}
+
+html[data-theme] body .dashboard-embedded .metric {
+  padding: 18px 16px !important;
+  gap: 13px !important;
+  align-items: flex-start !important;
+}
+
+html[data-theme] body .dashboard-embedded .metric small {
+  font-size: 11px !important;
+  line-height: 1.35;
+}
+
+html[data-theme] body .dashboard-embedded .metric b {
+  font-size: clamp(27px, 2vw, 36px) !important;
+  margin: 9px 0 6px !important;
+}
+
+html[data-theme] body .dashboard-embedded .metric span,
+html[data-theme] body .dashboard-embedded .metric em {
+  font-size: 10px !important;
+  line-height: 1.35;
+}
+
+html[data-theme] body .dashboard-embedded .metric-icon {
+  width: 48px !important;
+  height: 48px !important;
+}
+
+html[data-theme] body .dashboard-embedded .retention-ring {
+  width: 68px !important;
+  height: 68px !important;
+  font-size: 14px !important;
+}
+
+html[data-theme] body .dashboard-embedded .plan-list,
+html[data-theme] body .dashboard-embedded .deadline-list {
+  padding: 0 16px 14px !important;
+}
+
+html[data-theme] body .dashboard-embedded .plan-row,
+html[data-theme] body .dashboard-embedded .deadline {
+  min-height: 66px !important;
+  height: auto !important;
+}
+
+html[data-theme] body .dashboard-embedded .plan-row time,
+html[data-theme] body .dashboard-embedded .deadline small {
+  font-size: 10px !important;
+}
+
+html[data-theme] body .dashboard-embedded .plan-row strong,
+html[data-theme] body .dashboard-embedded .deadline strong {
+  font-size: 12px !important;
+  line-height: 1.35;
+}
+
+html[data-theme] body .dashboard-embedded .plan-row small {
+  font-size: 10px !important;
+}
+
+html[data-theme] body .dashboard-embedded .learning-grid {
+  padding: 4px 14px 16px !important;
+  gap: 10px !important;
+}
+
+html[data-theme] body .dashboard-embedded .learning-grid button {
+  min-height: 128px;
+  padding: 14px !important;
+}
+
+html[data-theme] body .dashboard-embedded .learning-grid button > strong {
+  font-size: 12px !important;
+}
+
+html[data-theme] body .dashboard-embedded .learning-grid button > small,
+html[data-theme] body .dashboard-embedded .learning-grid button > span {
+  font-size: 9px !important;
+}
+
+html[data-theme] body .dashboard-embedded .review-body {
+  padding: 8px 20px 14px !important;
+}
+
+html[data-theme] body .dashboard-embedded .review-body > div > b {
+  font-size: 40px !important;
+}
+
+html[data-theme] body .dashboard-embedded .review-body > div > span,
+html[data-theme] body .dashboard-embedded .review-body li {
+  font-size: 11px !important;
+}
+
+html[data-theme] body .dashboard-embedded .review-button {
+  min-height: 42px;
+  font-size: 12px !important;
+  margin-bottom: 16px !important;
+}
+
+html[data-theme] body .dashboard-embedded .progress-content,
+html[data-theme] body .dashboard-embedded .mastery-list,
+html[data-theme] body .dashboard-embedded .pearl-card blockquote {
+  font-size: 12px !important;
+}
+
+html[data-theme] body .dashboard-embedded .mastery-list button {
+  padding: 12px 0 !important;
+}
+
+html[data-theme] body .dashboard-embedded .mastery-list button > b {
+  font-size: 13px !important;
+}
+
+@media (min-width: 1500px) {
+  html[data-theme] body .dashboard-embedded .dashboard-embedded-content {
+    width: min(100%, 1680px) !important;
+    max-width: 1680px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  html[data-theme] body .dashboard-embedded .dash-card > header {
+    padding: 11px 14px !important;
+  }
+
+  html[data-theme] body .dashboard-embedded .metrics {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  html[data-theme] body .dashboard-embedded .metric {
+    min-height: 0 !important;
+  }
+
+  html[data-theme] body .dashboard-embedded .review-body {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
