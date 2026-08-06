@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FiBell,
   FiCheck,
@@ -134,7 +134,7 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
   const displayName=user.fullName||user.full_name||user.email;
   const roleLabel=user.role==="SYSTEM_ADMIN"?"System Administrator":user.role==="INSTRUCTOR"?"Instructor":"Medical Student";
   const initials=displayName.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join("").toUpperCase();
-  const unreadPreview=useMemo(()=>preview.filter(item=>item.status==="UNREAD").length,[preview]);
+  const unreadPreview=preview.filter(item=>item.status==="UNREAD").length;
   function navigate(href:string){setProfileOpen(false);setNotificationsOpen(false);startNavigation();router.push(href);}
   return <div className="product-app">
     <header className="pp-topbar">
