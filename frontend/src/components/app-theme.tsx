@@ -10,7 +10,6 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
   useEffect(() => {
     const saved = localStorage.getItem("mdp-theme");
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTheme(saved === "dark" ? "dark" : "light");
   }, []);
   useEffect(() => {
