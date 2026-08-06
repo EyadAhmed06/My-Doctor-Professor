@@ -1,5 +1,5 @@
-import { AssessmentsPage } from "@/components/content-workspaces";
+import { AdvancedAssessmentsPage } from "@/components/advanced-assessments-page";
 
 export default function Page() {
-  return <AssessmentsPage />;
+  return <AdvancedAssessmentsPage />;
 }
