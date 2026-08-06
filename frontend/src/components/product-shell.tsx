@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { FiBell, FiChevronDown, FiMenu, FiSearch, FiX } from "react-icons/fi";
 import { ThemeToggle } from "./app-theme";
 import { BrandLockup } from "./brand";
 import { useAuth } from "./auth-provider";
+import { CommandPalette } from "./command-palette";
+import "./interaction-foundations.css";
 
 const nav = [["My Bundles","/bundles"],["Flashcards","/flashcards"],["Notebook","/notebook"],["Study Guides","/guidelines"],["Analytics","/analytics"],["Study Plan","/study-plan"]];
 
@@ -16,7 +17,10 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
   const router = useRouter();
   const {user,loading,logout,request}=useAuth();
   const [open,setOpen] = useState(false);
+  const [paletteOpen,setPaletteOpen] = useState(false);
   const [unread,setUnread] = useState(0);
+  const openPalette=useCallback(()=>setPaletteOpen(true),[]);
+  const closePalette=useCallback(()=>setPaletteOpen(false),[]);
   useEffect(()=>{if(!loading&&!user)router.replace(`/login?next=${encodeURIComponent(path)}`);},[loading,user,router,path]);
   useEffect(()=>{
     if(!user)return;
@@ -34,10 +38,11 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
       <BrandLockup className="pp-brand" href="/dashboard" />
       <button className="pp-menu" onClick={()=>setOpen(true)} aria-label="Open menu"><FiMenu /></button>
       <nav className={open ? "open" : ""}><button className="pp-nav-close" onClick={()=>setOpen(false)}><FiX /></button>{nav.map(([label,href])=><Link key={href} className={path.startsWith(href) ? "active" : ""} href={href} onClick={()=>setOpen(false)}>{label}</Link>)}{user.role!=="STUDENT"&&<Link href="/instructor/quizzes">Instructor</Link>}<Link href="/settings">Settings</Link></nav>
-      <label className="pp-search"><FiSearch/><input placeholder={search}/></label>
+      <button className="pp-search-command" type="button" onClick={openPalette} aria-label={`Open command palette. ${search}`}><FiSearch/><span>{search}</span><kbd>⌘ K</kbd></button>
       <div className="pp-profile"><ThemeToggle compact/><button aria-label={`${unread} unread notifications`} onClick={()=>router.push("/notifications")}><FiBell/>{unread>0&&<i>{unread>99?"99+":unread}</i>}</button><span className="avatar-fallback">{displayName.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join("").toUpperCase()}</span><span><b>{displayName}</b><small>{roleLabel}</small></span><button className="pp-logout" onClick={()=>void logout().then(()=>router.replace("/login"))}>Log out</button><FiChevronDown/></div>
     </header>
     {children}
+    <CommandPalette open={paletteOpen} onOpen={openPalette} onClose={closePalette} role={user.role}/>
   </div>;
 }
 
