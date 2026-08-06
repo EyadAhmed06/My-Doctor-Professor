@@ -1,0 +1,270 @@
+import { expect, Page, test } from '@playwright/test';
+
+const student = {
+  id: 'student-1',
+  email: 'student@example.test',
+  full_name: 'Browser Test Student',
+  role: 'STUDENT',
+  status: 'ACTIVE',
+  emailVerified: true,
+};
+
+const bundle = {
+  id: 'bundle-1',
+  title: 'Clinical Foundations',
+  slug: 'clinical-foundations',
+  description: 'A deterministic browser-test bundle.',
+  academicYear: 1,
+  status: 'PUBLISHED',
+  isFree: true,
+};
+
+const bundleContent = {
+  bundle,
+  courses: [
+    {
+      id: 'course-1',
+      courseCode: 'MED101',
+      courseName: 'Medicine I',
+      weeks: [
+        {
+          id: 'week-1',
+          weekNumber: 1,
+          title: 'Cardiovascular foundations',
+          lectures: [
+            {
+              id: 'lecture-1',
+              title: 'Cardiac cycle',
+              lectureNumber: 1,
+              question_count: 12,
+              flashcard_deck_count: 2,
+              resource_count: 1,
+            },
+          ],
+        },
+        {
+          id: 'week-2',
+          weekNumber: 2,
+          title: 'Respiratory foundations',
+          lectures: [
+            {
+              id: 'lecture-2',
+              title: 'Gas exchange',
+              lectureNumber: 2,
+              question_count: 8,
+              flashcard_deck_count: 1,
+              resource_count: 2,
+            },
+          ],
+        },
+      ],
+    },
+  ],
+  past_exams: [],
+  totals: {
+    courses: 1,
+    weeks: 2,
+    lectures: 2,
+    questions: 20,
+    flashcard_decks: 3,
+    resources: 3,
+    past_exams: 0,
+  },
+};
+
+const analytics = {
+  summary: {
+    questions_answered: 120,
+    accuracy: 68,
+    bookmarked: 4,
+    calibrated_confidence: 61,
+    flashcards_mastered: 33,
+    flashcards_due: 7,
+  },
+  accuracy_over_time: [
+    { date: '2026-08-01', answered: 20, accuracy: 60 },
+    { date: '2026-08-02', answered: 30, accuracy: 72 },
+  ],
+  topic_mastery: [
+    {
+      id: 'topic-1',
+      name: 'Cardiac physiology',
+      course: 'Medicine I',
+      mastery: 54,
+      confidence: 59,
+      questions_attempted: 18,
+    },
+  ],
+  study_activity: [
+    { date: '2026-08-01', completed: 2, skipped: 1, planned: 3 },
+    { date: '2026-08-02', completed: 3, skipped: 0, planned: 3 },
+  ],
+  readiness: {
+    score: 63,
+    band: 'ON_TRACK',
+    components: { accuracy: 68, curriculum: 55, flashcards: 70, consistency: 61 },
+  },
+};
+
+async function mockApi(page: Page) {
+  await page.addInitScript(() => {
+    localStorage.setItem('mdp_access_token', 'browser-test-token');
+    localStorage.setItem('mdp-theme', 'light');
+  });
+
+  await page.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const endpoint = url.pathname.split('/api/v1')[1] || '/';
+    const headers = {
+      'access-control-allow-origin': '*',
+      'access-control-allow-headers': 'authorization,content-type',
+      'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+    };
+
+    if (request.method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers });
+      return;
+    }
+
+    const respond = async (body: unknown, status = 200) =>
+      route.fulfill({
+        status,
+        headers,
+        contentType: 'application/json',
+        body: JSON.stringify(body),
+      });
+
+    if (endpoint === '/auth/me') return respond(student);
+    if (endpoint === '/notifications/unread/count') return respond({ count: 2 });
+    if (endpoint.startsWith('/notifications?')) {
+      return respond({
+        data: [
+          {
+            id: 'notification-1',
+            title: 'Upcoming review',
+            message: 'Seven flashcards are due.',
+            target_url: '/flashcards',
+            notification_type: 'STUDY',
+            status: 'UNREAD',
+            created_at: '2026-08-06T16:00:00.000Z',
+          },
+        ],
+      });
+    }
+    if (endpoint === '/users/student-1') {
+      return respond({
+        ...student,
+        phoneNumber: '+201000000000',
+        createdAt: '2026-01-01T00:00:00.000Z',
+      });
+    }
+    if (endpoint === '/bundles/mine') return respond([bundle]);
+    if (endpoint === '/catalog/bundles') return respond([]);
+    if (endpoint === '/bundles/bundle-1/content') return respond(bundleContent);
+    if (endpoint === '/analytics/student') return respond(analytics);
+
+    return respond({});
+  });
+}
+
+async function expectNoHorizontalOverflow(page: Page) {
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+      ),
+    )
+    .toBe(true);
+}
+
+for (const pathname of ['/', '/login', '/register']) {
+  test(`public page ${pathname} renders without horizontal overflow`, async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+
+    await page.goto(pathname);
+    await expect(page.locator('body')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    expect(pageErrors).toEqual([]);
+  });
+}
+
+test('authenticated shell menus, theme, and command palette are keyboard usable', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/settings');
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+
+  await page.locator('.profile-menu-trigger').click();
+  await expect(page.getByRole('menu')).toBeVisible();
+  await page.getByRole('button', { name: /Switch to dark theme/i }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+  await page.keyboard.press('Control+K');
+  const palette = page.getByRole('dialog', { name: 'Workspace command palette' });
+  await expect(palette).toBeVisible();
+  await palette.getByPlaceholder('Search pages and actions…').fill('bundles');
+  await expect(palette.getByRole('option', { name: /Open bundles/i })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(palette).toBeHidden();
+
+  await page.getByRole('button', { name: /unread notifications/i }).click();
+  await expect(page.getByRole('dialog', { name: 'Notification preview' })).toContainText(
+    'Upcoming review',
+  );
+  await expectNoHorizontalOverflow(page);
+});
+
+test('Bundle curriculum disclosures preserve hierarchy and deep links', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/bundles?id=bundle-1&tab=curriculum');
+  await expect(page.getByRole('heading', { name: 'Clinical Foundations' })).toBeVisible();
+
+  const weeks = page.locator('.bundle-course details');
+  await expect(weeks).toHaveCount(2);
+  await expect(weeks.nth(0)).toHaveAttribute('open', '');
+  await expect(weeks.nth(1)).not.toHaveAttribute('open', '');
+
+  await weeks.nth(1).locator('summary').click();
+  await expect(weeks.nth(1)).toHaveAttribute('open', '');
+  await expect(
+    weeks.nth(1).getByRole('link', { name: /Gas exchange/i }),
+  ).toHaveAttribute('href', '/guidelines?course=course-1&lecture=lecture-2');
+  await expectNoHorizontalOverflow(page);
+});
+
+test('Analytics counters and chart points expose real values to keyboard users', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/analytics');
+  await expect(page.getByRole('heading', { name: 'Analytics Dashboard' })).toBeVisible();
+
+  const questionsMetric = page.locator('.analytics-metric').filter({
+    hasText: 'Questions answered',
+  });
+  await expect(questionsMetric.locator('b')).toHaveText('120');
+
+  const chartPoint = page.locator('.chart-bar-point').first();
+  await chartPoint.focus();
+  await expect(chartPoint).toBeFocused();
+  await expect(chartPoint).toHaveAttribute(
+    'data-tooltip',
+    /accuracy across 20 answered/,
+  );
+  await expectNoHorizontalOverflow(page);
+});
+
+test('reduced motion resolves animated values immediately', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockApi(page);
+  await page.goto('/analytics');
+
+  const questionsMetric = page.locator('.analytics-metric').filter({
+    hasText: 'Questions answered',
+  });
+  await expect(questionsMetric.locator('b')).toHaveText('120');
+  await expect
+    .poll(() =>
+      questionsMetric.evaluate((element) => getComputedStyle(element).animationName),
+    )
+    .toBe('none');
+});
