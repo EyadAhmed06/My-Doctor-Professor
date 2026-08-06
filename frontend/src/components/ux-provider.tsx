@@ -58,6 +58,25 @@ function readAchievements(): UnlockedAchievement[] {
   }
 }
 
+function confirmationCopy(label: string) {
+  const normalized = label.toLowerCase();
+  if (normalized.includes("log out") || normalized.includes("logout")) return {
+    title: "Log out?",
+    description: "Your current session on this device will end. Unsaved form changes may be lost.",
+    confirmLabel: "Log out",
+  };
+  if (normalized.includes("reset")) return {
+    title: "Start the reset workflow?",
+    description: "This can revoke active sessions and send recovery instructions to the affected account.",
+    confirmLabel: "Continue reset",
+  };
+  return {
+    title: "Confirm destructive action",
+    description: `${label || "This action"} may permanently remove data or access and cannot always be reversed.`,
+    confirmLabel: normalized.includes("remove") ? "Remove" : "Delete",
+  };
+}
+
 export function UxProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -70,6 +89,7 @@ export function UxProvider({ children }: { children: React.ReactNode }) {
   const achievementTimer = useRef<number | null>(null);
   const confirmationRef = useRef<Confirmation | null>(null);
   const unlockedIds = useRef(new Set<string>());
+  const approvedDangerClick = useRef(false);
   const offlineToast = useRef<string | null>(null);
   const confirmationButton = useRef<HTMLButtonElement>(null);
 
@@ -112,11 +132,16 @@ export function UxProvider({ children }: { children: React.ReactNode }) {
   }), []);
 
   const celebrate = useCallback((input: AchievementInput) => {
-    if (unlockedIds.current.has(input.id)) return false;
+    const stored = readAchievements();
+    if (unlockedIds.current.has(input.id) || stored.some(item => item.id === input.id)) {
+      unlockedIds.current.add(input.id);
+      return false;
+    }
     unlockedIds.current.add(input.id);
     const unlocked: UnlockedAchievement = { ...input, unlockedAt: new Date().toISOString() };
     setAchievements(current => {
-      const next = [unlocked, ...current].slice(0, 100);
+      const existing = current.length ? current : stored;
+      const next = [unlocked, ...existing.filter(item => item.id !== unlocked.id)].slice(0, 100);
       localStorage.setItem(ACHIEVEMENT_KEY, JSON.stringify(next));
       return next;
     });
@@ -160,6 +185,39 @@ export function UxProvider({ children }: { children: React.ReactNode }) {
     document.addEventListener("click", captureInternalNavigation, true);
     return () => document.removeEventListener("click", captureInternalNavigation, true);
   }, [startNavigation]);
+
+  useEffect(() => {
+    const originalConfirm = window.confirm.bind(window);
+    window.confirm = (message?: string) => approvedDangerClick.current ? true : originalConfirm(message);
+    const captureDangerousAction = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0) return;
+      const target = event.target instanceof Element
+        ? event.target.closest<HTMLButtonElement>("button.danger,button[title*='delete' i],button[title*='remove' i],button[title*='reset' i],button[aria-label*='delete' i],button[aria-label*='remove' i],button[aria-label*='reset' i]")
+        : null;
+      if (!target || target.disabled || target.dataset.phase5Confirmed === "true" || target.closest(".phase5-confirm")) return;
+      const label = (target.getAttribute("title") || target.getAttribute("aria-label") || target.textContent || "This action").replace(/\s+/g, " ").trim();
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      const copy = confirmationCopy(label);
+      void confirm({ ...copy, cancelLabel: "Cancel", tone: "danger" }).then(accepted => {
+        if (!accepted || !target.isConnected) return;
+        target.dataset.phase5Confirmed = "true";
+        approvedDangerClick.current = true;
+        try {
+          target.click();
+        } finally {
+          approvedDangerClick.current = false;
+          delete target.dataset.phase5Confirmed;
+        }
+      });
+    };
+    document.addEventListener("click", captureDangerousAction, true);
+    return () => {
+      document.removeEventListener("click", captureDangerousAction, true);
+      window.confirm = originalConfirm;
+    };
+  }, [confirm]);
 
   useEffect(() => {
     if (!routeBusy) return;
