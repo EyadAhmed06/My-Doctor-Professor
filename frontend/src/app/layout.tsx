@@ -21,12 +21,29 @@ import "@/components/bundles-completion.css";
 import "@/components/settings-completion.css";
 import "@/components/assessment-authoring-completion.css";
 import "@/components/admin-operations-completion.css";
+import "@/components/frontend-route-theme-audit.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
   description: BRAND_TAGLINE,
 };
 
+const themeBootstrap = `(() => {
+  try {
+    const preference = localStorage.getItem("mdp-theme") || "system";
+    const systemDark = matchMedia("(prefers-color-scheme: dark)").matches;
+    const theme = preference === "system" ? (systemDark ? "dark" : "light") : preference;
+    document.documentElement.dataset.theme = theme === "dark" ? "dark" : "light";
+    document.documentElement.dataset.themePreference = preference;
+  } catch {
+    document.documentElement.dataset.theme = "dark";
+    document.documentElement.dataset.themePreference = "system";
+  }
+})();`;
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en" suppressHydrationWarning><body><AppThemeProvider><UxProvider><AuthProvider>{children}</AuthProvider></UxProvider></AppThemeProvider></body></html>;
+  return <html lang="en" suppressHydrationWarning>
+    <head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }} /></head>
+    <body><AppThemeProvider><UxProvider><AuthProvider>{children}</AuthProvider></UxProvider></AppThemeProvider></body>
+  </html>;
 }
