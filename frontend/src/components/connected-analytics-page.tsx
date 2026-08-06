@@ -86,7 +86,7 @@ export function ConnectedAnalyticsPage() {
   }, [user, request]);
 
   const recommendations = useMemo(() => data ? buildRecommendations(data) : [], [data]);
-  const window = useMemo(() => {
+  const dateWindow = useMemo(() => {
     const end = range === "CUSTOM" ? new Date(`${customTo}T23:59:59`) : new Date();
     const days = range === "7D" ? 7 : range === "30D" ? 30 : range === "SEMESTER" ? 120 : Math.max(1, Math.ceil((end.getTime() - new Date(`${customFrom}T00:00:00`).getTime()) / 86400000) + 1);
     const start = range === "CUSTOM" ? new Date(`${customFrom}T00:00:00`) : subtractDays(end, days - 1);
@@ -97,20 +97,20 @@ export function ConnectedAnalyticsPage() {
 
   const filteredAccuracy = useMemo(() => data?.accuracy_over_time.filter((point) => {
     const date = new Date(point.date);
-    return date >= window.start && date <= window.end;
-  }) || [], [data, window]);
+    return date >= dateWindow.start && date <= dateWindow.end;
+  }) || [], [data, dateWindow]);
   const previousAccuracy = useMemo(() => data?.accuracy_over_time.filter((point) => {
     const date = new Date(point.date);
-    return date >= window.previousStart && date <= window.previousEnd;
-  }) || [], [data, window]);
+    return date >= dateWindow.previousStart && date <= dateWindow.previousEnd;
+  }) || [], [data, dateWindow]);
   const filteredActivity = useMemo(() => data?.study_activity.filter((point) => {
     const date = new Date(point.date);
-    return date >= window.start && date <= window.end;
-  }) || [], [data, window]);
+    return date >= dateWindow.start && date <= dateWindow.end;
+  }) || [], [data, dateWindow]);
   const previousActivity = useMemo(() => data?.study_activity.filter((point) => {
     const date = new Date(point.date);
-    return date >= window.previousStart && date <= window.previousEnd;
-  }) || [], [data, window]);
+    return date >= dateWindow.previousStart && date <= dateWindow.previousEnd;
+  }) || [], [data, dateWindow]);
 
   const comparison = useMemo(() => {
     const currentAccuracy = weightedAccuracy(filteredAccuracy);
@@ -144,11 +144,11 @@ export function ConnectedAnalyticsPage() {
   return <ProductShell><main className="pp-page analytics-page analytics-exploration-page">
     <header className="workspace-heading"><div><span className="page-eyebrow">LEARNING INTELLIGENCE</span><h1>Analytics Dashboard</h1><p>Track learning quality, retention, confidence, and exam readiness from your real activity.</p></div></header>
 
-    {user?.role !== "STUDENT" ? <Panel title="Student analytics"><p>This dashboard is calculated for student accounts.</p></Panel> : loading ? <PageSkeleton variant="chart" label="Calculating analytics" /> : error ? <ErrorState description={error} onRetry={() => window.location.reload()} /> : data ? <>
+    {user?.role !== "STUDENT" ? <Panel title="Student analytics"><p>This dashboard is calculated for student accounts.</p></Panel> : loading ? <PageSkeleton variant="chart" label="Calculating analytics" /> : error ? <ErrorState description={error} onRetry={() => globalThis.location.reload()} /> : data ? <>
       <section className="analytics-range-bar" aria-label="Analytics date range">
         <div role="group" aria-label="Preset ranges">{(["7D", "30D", "SEMESTER", "CUSTOM"] as Range[]).map((value) => <button type="button" className={range === value ? "active" : ""} key={value} onClick={() => setRange(value)}>{value === "7D" ? "7 days" : value === "30D" ? "30 days" : value === "SEMESTER" ? "Semester" : "Custom"}</button>)}</div>
         {range === "CUSTOM" && <div className="analytics-custom-range"><label>From<input type="date" value={customFrom} max={customTo} onChange={(event) => setCustomFrom(event.target.value)} /></label><label>To<input type="date" value={customTo} min={customFrom} max={dateKey(new Date())} onChange={(event) => setCustomTo(event.target.value)} /></label></div>}
-        <small>{window.start.toLocaleDateString()} – {window.end.toLocaleDateString()} compared with the preceding {window.days} days</small>
+        <small>{dateWindow.start.toLocaleDateString()} – {dateWindow.end.toLocaleDateString()} compared with the preceding {dateWindow.days} days</small>
       </section>
 
       <section className="analytics-metrics">
@@ -184,13 +184,13 @@ export function ConnectedAnalyticsPage() {
 
         <Panel title="Topic mastery" className="analytics-topics">{data.topic_mastery.length ? data.topic_mastery.map((topic) => <Link href="/bundles?tab=questions" key={topic.id}><span><b>{topic.name}</b><small>{topic.course} · {topic.questions_attempted} questions{topic.confidence === null ? "" : ` · ${Math.round(topic.confidence)}% confidence`}</small></span><strong><AnimatedNumber value={topic.mastery} />%</strong><Progress value={topic.mastery} /></Link>) : <p>Practice questions to build your topic map.</p>}</Panel>
 
-        <Panel title="Study consistency"><div className="activity-bars">{filteredActivity.map((day) => {
+        <Panel title="Study consistency"><div className="activity-bars">{filteredActivity.length ? filteredActivity.map((day) => {
           const percentage = Math.max(5, 100 * day.completed / Math.max(1, day.planned));
           const label = new Date(day.date).toLocaleDateString(undefined, { weekday: "short" });
           const fullDate = new Date(day.date).toLocaleDateString(undefined, { month: "short", day: "numeric" });
           const tooltip = `${fullDate}: ${day.completed} completed, ${day.skipped} skipped, ${day.planned} planned`;
           return <ChartBar key={day.date} height={percentage} label={label} tooltip={tooltip} />;
-        })}</div><p>Completed sessions are measured from your generated schedule—not estimated data.</p></Panel>
+        }) : <p>No scheduled activity in this range.</p>}</div><p>Completed sessions are measured from your generated schedule—not estimated data.</p></Panel>
       </div>
     </> : null}
   </main></ProductShell>;
@@ -204,7 +204,7 @@ function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string
     const startValue = previous.current;
     previous.current = value;
     if (frame.current) cancelAnimationFrame(frame.current);
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setDisplay(value);
       return;
     }
