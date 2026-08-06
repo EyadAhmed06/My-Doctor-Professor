@@ -1,45 +1,47 @@
-# Design QA
+# Authentication visual QA
+
+- Source visual truth:
+  - Login: `ChatGPT Image Aug 6, 2026 at 03_12_27 AM(1).png` (1448 × 1086)
+  - Registration: `WhatsApp Image 2026-08-06 at 10.59.46 AM(1)(1).jpeg` (1373 × 1145)
+- Current-state evidence:
+  - Login: `Screenshot 2026-08-06 170219.png` (1852 × 1002)
+  - Registration: `Screenshot 2026-08-06 170244.png` (1851 × 996)
+- Intended desktop state: dark theme, unauthenticated, empty form.
+- Density normalization: not completed; source and implementation captures have different dimensions.
+- Browser-rendered implementation screenshot after the latest commit: unavailable.
+- Primary interactions tested after latest commit: blocked.
+- Console errors checked after latest commit: blocked.
+
+## Full-view comparison evidence
+
+The supplied pre-fix captures showed a missing login artwork asset, excessive empty space, an auth card positioned too far right, registration artwork cropped at the wrong scale, and registration content extending below the viewport. The latest changes replace both auth artworks and reconstruct the desktop geometry.
+
+## Focused-region evidence
+
+Focused comparison after the latest commit is blocked because this Work Mode workspace has no runnable repository checkout and the shell cannot clone it due an execution-environment `/dev/null` failure.
+
+## Changes made
+
+- Replaced the broken login heart asset with a clean reference-matched heart/ECG background.
+- Replaced the registration lung asset with a clean reference-matched respiratory background.
+- Rebuilt the login split, card, form density, and proof strip geometry.
+- Removed the registration gap between artwork and card.
+- Rebuilt registration card sizing, form rhythm, CTA, and proof strip.
+- Preserved the existing theme variables and added light-theme treatments.
+- Added tablet and mobile fallbacks.
+
+## Findings
+
+- [P1] Post-change visual capture unavailable.
+  - Impact: exact crop, density, and responsive behavior cannot be certified.
+  - Fix: pull the branch, render both routes at the target viewport, capture, and compare against the source visuals.
+
+## Comparison history
+
+1. Pre-fix evidence: missing login artwork; mismatched authentication geometry.
+2. Fix: new assets, component references, and deterministic responsive layout overrides.
+3. Post-fix evidence: blocked by unavailable runnable checkout/browser preview.
+
+## Final result
 
 final result: blocked
-
-## Implemented scope
-
-- Rounds: bundle/course/week/lecture navigator, lecture workspace, real content counts, Tutor launch, entitlement states.
-- Question Banks: bundle-scoped academic tree, lecture selection, real coverage, custom quiz generation.
-- Past Exams: bundle-assigned exams, availability/read-only behavior, real exam cards.
-- Study Plan: persisted settings, generated calendar, completion state, overdue state, readiness calculation.
-- Notebook: real library/search/filter/collection/tag CRUD presentation and inspector.
-- New Note: real structured note editor using supported note fields, collections, tags, favorites, and review date.
-- Analytics: real question, confidence, flashcard, topic, schedule, and readiness data.
-- Settings: authenticated profile update, account state, password change, and appearance only.
-- Mock Exam visual restoration remains intentionally excluded from this pass. Its persisted runtime logic is preserved.
-
-## Source-level checks completed
-
-- The connected page components contain no `mockData`, `hardcoded`, or fixture-domain imports.
-- Primary values are sourced from authenticated requests or deterministic calculations from those responses.
-- Bundle entitlement and read-only access remain part of the Rounds and Assessments flows.
-- Responsive layout rules were added for desktop, tablet, and narrow mobile widths.
-
-## Blocking condition
-
-This environment has the reference screenshots and GitHub connector access, but no runnable repository checkout and no cloud browser attached to the application. Therefore it cannot:
-
-1. install/build the exact branch,
-2. open the application with seeded data,
-3. capture the implementation at matching viewports,
-4. compare source and implementation screenshots,
-5. verify browser console and interactions.
-
-The GitHub combined-status endpoint currently reports no status contexts for the latest pushed commits, so CI success is not inferred.
-
-## Required visual gate
-
-1. Run backend and frontend with the seeded student and bundle content.
-2. Capture each route at the reference desktop viewport and a mobile viewport.
-3. Compare each capture against its assigned screenshot.
-4. Fix every P0/P1/P2 visual and interaction difference.
-5. Run build, lint, and HTTP flow checks.
-6. Change this document to `final result: passed` only after those checks succeed.
-
-No pixel-perfect or fully verified claim is made while this gate remains blocked.
