@@ -2,7 +2,7 @@
 
 import { useAuth } from "./auth-provider";
 import { Panel, ProductShell, Progress } from "./product-shell";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FiArrowLeft, FiArrowRight, FiCheck, FiClock, FiFlag, FiSave } from "react-icons/fi";
 import { useRouter } from "next/navigation";
 import { getQuestionVisual } from "./medical-image-assets";
@@ -22,7 +22,7 @@ export function ConnectedAssessmentSession({attemptId,testId,source="assessments
  const [attempt,setAttempt]=useState<Attempt|null>(null),[items,setItems]=useState<Assignment[]>([]),[index,setIndex]=useState(0);
  const [answers,setAnswers]=useState<Record<string,string>>({}),[flags,setFlags]=useState<string[]>([]);
  const [notes,setNotes]=useState<Record<string,string>>({}),[feedback,setFeedback]=useState<Record<string,TutorFeedback>>({});
- const [review,setReview]=useState<Review|null>(null),[visualOpen,setVisualOpen]=useState(false),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState<string|null>(null),[now,setNow]=useState(Date.now());
+ const [review,setReview]=useState<Review|null>(null),[visualOpen,setVisualOpen]=useState(false),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState<string|null>(null),[now,setNow]=useState<number|null>(null);
  const autoSubmitStarted=useRef(false);
  useEffect(()=>{if(!attemptId||!testId)return;let active=true;void Promise.all([
   request<WorkspaceState>(`/tests/attempts/${attemptId}/workspace-state`),
@@ -31,9 +31,14 @@ export function ConnectedAssessmentSession({attemptId,testId,source="assessments
  setFlags(state.flagged_question_ids);setNotes(Object.fromEntries(state.notes.map(item=>[item.question_id,item.note])));}})
  .catch(cause=>{if(active)setError(cause instanceof Error?cause.message:"Unable to load this attempt.");}).finally(()=>{if(active)setLoading(false)});
  return()=>{active=false};},[attemptId,testId,request]);
- useEffect(()=>{if(!attempt?.deadline)return;const timer=window.setInterval(()=>setNow(Date.now()),1000);return()=>window.clearInterval(timer);},[attempt?.deadline]);
+ useEffect(()=>{
+  if(!attempt?.deadline){setNow(null);return;}
+  setNow(Date.now());
+  const timer=window.setInterval(()=>setNow(Date.now()),1000);
+  return()=>window.clearInterval(timer);
+ },[attempt?.deadline]);
  const current=items[index];const questionVisual=current?getQuestionVisual(current.question.questionText):null;const answered=Object.keys(answers).length;const progress=items.length?Math.round(answered/items.length*100):0;
- const secondsLeft=useMemo(()=>attempt?.deadline?Math.max(0,Math.floor((new Date(attempt.deadline).getTime()-now)/1000)):null,[attempt?.deadline,now]);
+ const secondsLeft=attempt?.deadline&&now!==null?Math.max(0,Math.floor((new Date(attempt.deadline).getTime()-now)/1000)):null;
  const clock=secondsLeft===null?"Untimed":`${String(Math.floor(secondsLeft/3600)).padStart(2,"0")}:${String(Math.floor(secondsLeft%3600/60)).padStart(2,"0")}:${String(secondsLeft%60).padStart(2,"0")}`;
  const tutor=attempt?.testMode==="TUTOR"||source==="rounds";
  const expired=attempt?.testMode==="TIMED"&&secondsLeft===0;
