@@ -1,9 +1,9 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';import { Roles } from '../auth/decorators/roles.decorator';import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';import { RolesGuard } from '../auth/guards/roles.guard';import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';import { UserRole } from '../users/entities/user.entity';
-import { AddNotebookAttachmentDto, ConvertNoteToFlashcardDto, CreateNotebookNoteDto, DrugReferenceQueryDto, NotebookQueryDto, SaveDrugReferenceDto, SaveNotebookCollectionDto, SaveNotebookTagDto, StudyPlanCalendarQueryDto, UpdateDrugReferenceDto, UpdateNotebookCollectionDto, UpdateNotebookNoteDto, UpdateStudyPlanDto, UpdateStudyPlanItemDto } from './dtos/workspace.dto';import { WorkspaceService } from './workspace.service';
+import { AddNotebookAttachmentDto, ConvertNoteToFlashcardDto, CreateNotebookNoteDto, DrugReferenceQueryDto, NotebookQueryDto, SaveDrugReferenceDto, SaveNotebookCollectionDto, SaveNotebookTagDto, StudyPlanCalendarQueryDto, UpdateDrugReferenceDto, UpdateNotebookCollectionDto, UpdateNotebookNoteDto, UpdateStudyPlanDto, UpdateStudyPlanItemDto } from './dtos/workspace.dto';import { StudyPlanItemActionsService } from './study-plan-item-actions.service';import { WorkspaceService } from './workspace.service';
 const uuid=new ParseUUIDPipe({version:'4'});
 @Controller() @UseGuards(JwtAuthGuard,RolesGuard)
-export class WorkspaceController {constructor(private readonly workspace:WorkspaceService){}
+export class WorkspaceController {constructor(private readonly workspace:WorkspaceService,private readonly studyPlanActions:StudyPlanItemActionsService){}
  @Get('notebook/notes') listNotes(@CurrentUser() actor:AuthenticatedUser,@Query() query:NotebookQueryDto){return this.workspace.listNotes(actor.userId,query);}
  @Get('notebook/notes/:noteId') getNote(@CurrentUser() actor:AuthenticatedUser,@Param('noteId',uuid) id:string){return this.workspace.getNote(actor.userId,id);}
  @Post('notebook/notes') createNote(@CurrentUser() actor:AuthenticatedUser,@Body() dto:CreateNotebookNoteDto){return this.workspace.createNote(actor.userId,dto);}
@@ -21,10 +21,11 @@ export class WorkspaceController {constructor(private readonly workspace:Workspa
  @Delete('notebook/tags/:tagId') @HttpCode(HttpStatus.NO_CONTENT) async removeTag(@CurrentUser() actor:AuthenticatedUser,@Param('tagId',uuid) id:string){await this.workspace.removeTag(actor.userId,id);}
  @Get('study-plan') @Roles(UserRole.STUDENT) getPlan(@CurrentUser() actor:AuthenticatedUser){return this.workspace.getPlan(actor.userId);}
  @Put('study-plan') @Roles(UserRole.STUDENT) updatePlan(@CurrentUser() actor:AuthenticatedUser,@Body() dto:UpdateStudyPlanDto){return this.workspace.updatePlan(actor.userId,dto);}
- @Post('study-plan/generate') @Roles(UserRole.STUDENT) generatePlan(@CurrentUser() actor:AuthenticatedUser){return this.workspace.generatePlan(actor.userId);}
+ @Post('study-plan/preview') @Roles(UserRole.STUDENT) previewPlan(@CurrentUser() actor:AuthenticatedUser){return this.studyPlanActions.preview(actor.userId);}
+ @Post('study-plan/generate') @Roles(UserRole.STUDENT) generatePlan(@CurrentUser() actor:AuthenticatedUser){return this.studyPlanActions.generate(actor.userId);}
  @Get('study-plan/calendar') @Roles(UserRole.STUDENT) getCalendar(@CurrentUser() actor:AuthenticatedUser,@Query() query:StudyPlanCalendarQueryDto){return this.workspace.getCalendar(actor.userId,query);}
  @Get('study-plan/readiness') @Roles(UserRole.STUDENT) readiness(@CurrentUser() actor:AuthenticatedUser){return this.workspace.readiness(actor.userId);}
- @Put('study-plan/items/:itemId') @Roles(UserRole.STUDENT) updatePlanItem(@CurrentUser() actor:AuthenticatedUser,@Param('itemId',uuid) id:string,@Body() dto:UpdateStudyPlanItemDto){return this.workspace.updatePlanItem(actor.userId,id,dto);}
+ @Put('study-plan/items/:itemId') @Roles(UserRole.STUDENT) updatePlanItem(@CurrentUser() actor:AuthenticatedUser,@Param('itemId',uuid) id:string,@Body() dto:UpdateStudyPlanItemDto){return this.studyPlanActions.update(actor.userId,id,dto);}
  @Get('drug-references') listDrugs(@CurrentUser() actor:AuthenticatedUser,@Query() query:DrugReferenceQueryDto){return this.workspace.listDrugs(actor,query);}
  @Get('drug-references/:slug') getDrug(@CurrentUser() actor:AuthenticatedUser,@Param('slug') slug:string){return this.workspace.getDrug(actor,slug);}
  @Post('drug-references') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) createDrug(@CurrentUser() actor:AuthenticatedUser,@Body() dto:SaveDrugReferenceDto){return this.workspace.createDrug(actor,dto);}
