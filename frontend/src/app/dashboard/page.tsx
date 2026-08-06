@@ -1,5 +1,5 @@
-import { ConnectedDashboardPage } from "@/components/connected-dashboard-page";
+import { RoleAwareDashboardEntry } from "@/components/role-aware-dashboard-entry";
 
 export default function Page() {
-  return <ConnectedDashboardPage />;
+  return <RoleAwareDashboardEntry />;
 }
