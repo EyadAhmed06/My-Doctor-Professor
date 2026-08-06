@@ -19,11 +19,11 @@ const eslintConfig = defineConfig([
       "src/components/login-page.tsx",
       "src/components/register-page.tsx",
       "src/components/connected-assessment-session.tsx",
+      "src/components/advanced-study-guides-page.tsx",
     ],
     rules: {
-      // These components use approved public medical illustrations whose exact intrinsic
-      // sizing and existing layout must remain stable. They are intentionally not migrated
-      // to next/image as part of the interaction/release-stabilization scope.
+      // These screens render approved public illustrations or authenticated/dynamic
+      // resource URLs whose hosts and intrinsic dimensions are not known at build time.
       "@next/next/no-img-element": "off",
     },
   },
@@ -44,9 +44,7 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Override default ignores of eslint-config-next.
   globalIgnores([
-    // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
     "build/**",
