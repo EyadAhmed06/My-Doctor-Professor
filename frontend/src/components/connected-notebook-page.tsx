@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FiBookOpen, FiEdit3, FiFileText, FiFolder, FiPlus, FiSearch, FiStar, FiTag, FiTrash2 } from "react-icons/fi";
 import { useAuth } from "./auth-provider";
 import { EmptyState, PageSkeleton } from "./async-state";
-import { Panel, ProductShell } from "./product-shell";
+import { ProductShell } from "./product-shell";
 import { useUx } from "./ux-provider";
 import "./product-pages.css";
 
@@ -22,6 +22,7 @@ export function ConnectedNotebookPage(){
  const {request}=useAuth();const {startNavigation}=useUx();const router=useRouter();const pathname=usePathname();const searchParams=useSearchParams();
  const requestedNote=searchParams.get("note");const requestedType=validFilter(searchParams.get("type"));const requestedCollection=searchParams.get("collection")||"ALL";const requestedQuery=searchParams.get("q")||"";
  const [notes,setNotes]=useState<Note[]>([]);const [collections,setCollections]=useState<Collection[]>([]);const [tags,setTags]=useState<Tag[]>([]);const [selected,setSelected]=useState<Note|null>(null);const [filter,setFilter]=useState<NoteFilter>(requestedType);const [collection,setCollection]=useState<string>(requestedCollection);const [query,setQuery]=useState(requestedQuery);const [loading,setLoading]=useState(true);const [error,setError]=useState<string|null>(null);
+ const queryTimer=useRef(0);
 
  const setUrl=useCallback((updates:{note?:string|null;type?:NoteFilter;collection?:string;q?:string},replace=false)=>{
   const params=new URLSearchParams(searchParams.toString());
@@ -34,6 +35,7 @@ export function ConnectedNotebookPage(){
 
  const load=useCallback(async()=>{setLoading(true);setError(null);try{const [noteRows,collectionRows,tagRows]=await Promise.all([request<Page<Note>>("/notebook/notes?limit=100"),request<Collection[]>("/notebook/collections"),request<Tag[]>("/notebook/tags")]);setNotes(noteRows.data);setCollections(collectionRows);setTags(tagRows);}catch(cause){setError(cause instanceof Error?cause.message:"Unable to load notebook.");}finally{setLoading(false)}},[request]);
  useEffect(()=>{void load();},[load]);
+ useEffect(()=>()=>window.clearTimeout(queryTimer.current),[]);
  useEffect(()=>{setFilter(requestedType);setCollection(requestedCollection);setQuery(requestedQuery);},[requestedCollection,requestedQuery,requestedType]);
  useEffect(()=>{
   if(loading)return;
@@ -46,7 +48,7 @@ export function ConnectedNotebookPage(){
  function selectNote(note:Note){setSelected(note);setUrl({note:note.id});}
  function chooseFilter(value:NoteFilter){setFilter(value);setUrl({type:value},true);}
  function chooseCollection(value:string){setCollection(value);setUrl({collection:value},true);}
- function updateQuery(value:string){setQuery(value);window.clearTimeout((updateQuery as unknown as {timer?:number}).timer);(updateQuery as unknown as {timer?:number}).timer=window.setTimeout(()=>setUrl({q:value},true),250);}
+ function updateQuery(value:string){setQuery(value);window.clearTimeout(queryTimer.current);queryTimer.current=window.setTimeout(()=>setUrl({q:value},true),250);}
  async function remove(id:string){try{await request(`/notebook/notes/${id}`,{method:"DELETE"});await load();setUrl({note:null},true);}catch(cause){setError(cause instanceof Error?cause.message:"Unable to delete note.")}}
  async function createCollection(event:FormEvent<HTMLFormElement>){event.preventDefault();const form=event.currentTarget;const data=new FormData(form);try{await request("/notebook/collections",{method:"POST",body:{name:String(data.get("name"))}});form.reset();await load()}catch(cause){setError(cause instanceof Error?cause.message:"Unable to create collection.")}}
  async function createTag(event:FormEvent<HTMLFormElement>){event.preventDefault();const form=event.currentTarget;const data=new FormData(form);try{await request("/notebook/tags",{method:"POST",body:{name:String(data.get("name"))}});form.reset();await load()}catch(cause){setError(cause instanceof Error?cause.message:"Unable to create tag.")}}
