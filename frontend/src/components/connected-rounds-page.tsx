@@ -40,7 +40,7 @@ export function ConnectedRoundsPage(){
   },[bundleId,request]);
 
   const course=useMemo(()=>courses.find(item=>item.id===courseId),[courseId,courses]);
-  const weeks=course?.weeks||[];
+  const weeks=useMemo(()=>course?.weeks??[],[course]);
   const lectureRows=useMemo(()=>weeks.flatMap(week=>week.lectures.map(lecture=>({week,lecture}))),[weeks]);
   const totals=useMemo(()=>lectureRows.reduce((value,row)=>({
     questions:value.questions+row.lecture.question_count,
@@ -54,7 +54,7 @@ export function ConnectedRoundsPage(){
     setSelected(first);
     const firstWeek=first?weeks.find(item=>item.lectures.some(lecture=>lecture.id===first.id)):undefined;
     setOpenWeeks(firstWeek?[firstWeek.id]:[]);
-  },[courseId,weeks]);
+  },[weeks]);
 
   function toggleWeek(id:string){setOpenWeeks(current=>current.includes(id)?current.filter(item=>item!==id):[...current,id]);}
 
