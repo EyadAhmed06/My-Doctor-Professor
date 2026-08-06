@@ -1,3 +1,5 @@
-import { ConnectedInstructorFlashcardsPage } from "@/components/connected-instructor-flashcards-page";
+import { FlashcardStudioPage } from "@/components/content-workspaces";
 
-export default function Page(){return <ConnectedInstructorFlashcardsPage/>;}
+export default function Page() {
+  return <FlashcardStudioPage />;
+}
