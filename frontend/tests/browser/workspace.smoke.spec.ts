@@ -133,9 +133,13 @@ async function mockApi(page: Page) {
     const request = route.request();
     const url = new URL(request.url());
     const endpoint = apiEndpoint(request.url());
-    const apiLikeRequest = isMockedEndpoint(endpoint)
+    const resourceType = request.resourceType();
+    const isDataRequest = resourceType === 'fetch' || resourceType === 'xhr';
+    const apiLikeRequest = isDataRequest && (
+      isMockedEndpoint(endpoint)
       || url.pathname.includes('/api/v1')
-      || url.port === '3000';
+      || url.port === '3000'
+    );
 
     if (!apiLikeRequest) {
       await route.fallback();
