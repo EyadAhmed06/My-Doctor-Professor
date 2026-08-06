@@ -24,7 +24,9 @@
     "migration:show": "npm run typeorm -- migration:show -d src/database/data-source.ts",
     "schema:log": "npm run typeorm -- schema:log -d src/database/data-source.ts",
     "schema:check": "node scripts/check-schema-compatibility.cjs",
-    "postman:generate": "node scripts/generate-postman.mjs",
+    "postman:generate": "node scripts/generate-postman-safe.mjs",
+    "postman:extractor:test": "node scripts/test-controller-route-extractor.mjs",
+    "postman:verify-inventory": "node scripts/verify-generated-route-inventory.mjs",
     "postman:verify-report": "node scripts/verify-newman-report.mjs",
     "seed:demo": "ts-node scripts/seed-demo.ts"
   },
@@ -78,19 +80,13 @@
     "typescript-eslint": "^8.20.0"
   },
   "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
+    "moduleFileExtensions": ["js", "json", "ts"],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
-    "collectCoverageFrom": [
-      "**/*.(t|j)s"
-    ],
+    "collectCoverageFrom": ["**/*.(t|j)s"],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   }
