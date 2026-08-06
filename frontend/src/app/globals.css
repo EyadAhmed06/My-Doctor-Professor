@@ -1413,3 +1413,50 @@ html[data-theme="light"] .auth-organ-visual img{filter:saturate(.82) brightness(
   .registration-proof-strip{height:auto;grid-template-columns:1fr 1fr}
   .registration-proof-strip>div{min-height:110px;border-bottom:1px solid var(--pub-line)}
 }
+
+
+/* Auth visual-diff correction for 1850×1000 desktop captures */
+.reference-login{padding-bottom:150px}
+.reference-login .heart-story-image img{
+  width:100%;height:calc(100% - 150px);object-fit:cover;object-position:center top;
+}
+.reference-login .form-side{padding:70px 64px 24px 0}
+.reference-login .login-card{min-height:700px;padding:50px 52px}
+.reference-login .login-card h2{font-size:40px}
+.reference-login .subhead{margin-bottom:34px}
+.reference-login .login-form{gap:24px}
+.reference-login .input-shell{height:54px}
+.reference-login .primary-button{height:58px}
+.reference-login .or{margin:23px 0}
+.reference-login .google-button{height:52px}
+.reference-login .switch-copy{margin:20px}
+.reference-login .auth-proof-strip{bottom:28px;height:118px}
+
+.reference-register .registration-form-side{padding:34px 38px}
+.reference-register .registration-card{min-height:918px}
+.reference-register .registration-top{height:70px;padding-top:25px}
+.reference-register .registration-content{padding:14px 51px 20px}
+.reference-register .registration-card h2{font-size:38px;margin:16px 0 10px}
+.reference-register .registration-form{margin-top:28px}
+.reference-register .registration-form .form-grid{gap:20px 28px}
+.reference-register .registration-form .input-shell{height:54px}
+.reference-register .registration-divider{margin:21px 0 16px}
+.reference-register .terms{margin:16px 0 14px}
+.reference-register .registration-form>.primary-button{height:56px}
+.reference-register .registration-proof-strip{height:108px;margin-top:20px}
+.reference-register .lungs-story-image img{
+  width:100%;height:100%;object-fit:cover;object-position:center top;
+}
+
+.reference-login input:-webkit-autofill,
+.reference-login input:-webkit-autofill:hover,
+.reference-login input:-webkit-autofill:focus,
+.reference-register input:-webkit-autofill,
+.reference-register input:-webkit-autofill:hover,
+.reference-register input:-webkit-autofill:focus{
+  -webkit-text-fill-color:#f7f5ff!important;
+  -webkit-box-shadow:0 0 0 1000px #111e31 inset!important;
+  box-shadow:0 0 0 1000px #111e31 inset!important;
+  caret-color:#f7f5ff;
+  transition:background-color 9999s ease-out 0s;
+}
