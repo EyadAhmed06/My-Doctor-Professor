@@ -8,37 +8,224 @@ import { ErrorState, PageSkeleton } from "./async-state";
 import { Panel, ProductShell, Progress } from "./product-shell";
 import "./product-pages.css";
 
-type Analytics={summary:{questions_answered:number;accuracy:number;bookmarked:number;calibrated_confidence:number;flashcards_mastered:number;flashcards_due:number};accuracy_over_time:{date:string;answered:number;accuracy:number}[];topic_mastery:{id:string;name:string;course:string;mastery:number;confidence:number|null;questions_attempted:number}[];study_activity:{date:string;completed:number;skipped:number;planned:number}[];readiness:{score:number;band:string;components:{accuracy:number;curriculum:number;flashcards:number;consistency:number}}};
-type Recommendation={id:string;priority:"HIGH"|"MEDIUM"|"LOW";title:string;reason:string;action:string;href:string;metric:string};
+type Analytics = {
+  summary: { questions_answered: number; accuracy: number; bookmarked: number; calibrated_confidence: number; flashcards_mastered: number; flashcards_due: number };
+  accuracy_over_time: { date: string; answered: number; accuracy: number }[];
+  topic_mastery: { id: string; name: string; course: string; mastery: number; confidence: number | null; questions_attempted: number }[];
+  study_activity: { date: string; completed: number; skipped: number; planned: number }[];
+  readiness: { score: number; band: string; components: { accuracy: number; curriculum: number; flashcards: number; consistency: number } };
+};
 
-function buildRecommendations(data:Analytics):Recommendation[]{
- const result:Recommendation[]=[];const weakest=Object.entries(data.readiness.components).sort((a,b)=>a[1]-b[1])[0];
- if(data.summary.flashcards_due>0)result.push({id:"due-cards",priority:data.summary.flashcards_due>=20?"HIGH":"MEDIUM",title:"Clear the due flashcard queue",reason:`${data.summary.flashcards_due} card${data.summary.flashcards_due===1?" is":"s are"} due. Delaying them weakens spaced-repetition timing.`,action:"Review flashcards",href:"/flashcards",metric:`${data.summary.flashcards_due} due`});
- if(data.summary.questions_answered===0)result.push({id:"start-questions",priority:"HIGH",title:"Create an accuracy baseline",reason:"Readiness cannot distinguish strengths from weaknesses until you complete questions.",action:"Open Question Bank",href:"/bundles?tab=questions",metric:"No attempts yet"});
- else if(data.summary.accuracy<70)result.push({id:"accuracy",priority:data.summary.accuracy<50?"HIGH":"MEDIUM",title:"Prioritize question practice",reason:`Current accuracy is ${Math.round(data.summary.accuracy)}%. More targeted attempts will improve the highest-weight readiness component.`,action:"Practice questions",href:"/bundles?tab=questions",metric:`${Math.round(data.summary.accuracy)}% accuracy`});
- const weakestTopic=[...data.topic_mastery].filter(topic=>topic.questions_attempted>0).sort((a,b)=>a.mastery-b.mastery)[0];
- if(weakestTopic&&weakestTopic.mastery<70)result.push({id:`topic-${weakestTopic.id}`,priority:weakestTopic.mastery<45?"HIGH":"MEDIUM",title:`Revisit ${weakestTopic.name}`,reason:`This is your lowest measured topic in ${weakestTopic.course}, based on ${weakestTopic.questions_attempted} attempted questions.`,action:"Open study guides",href:"/guidelines",metric:`${Math.round(weakestTopic.mastery)}% mastery`});
- if(weakest){const [name,value]=weakest;const map:Record<string,{title:string;reason:string;action:string;href:string}>={curriculum:{title:"Advance lecture completion",reason:"Curriculum completion is the weakest readiness input.",action:"Continue a lecture",href:"/guidelines"},consistency:{title:"Repair schedule consistency",reason:"Completed versus skipped study sessions is limiting readiness.",action:"Open Study Plan",href:"/study-plan"},flashcards:{title:"Build retention coverage",reason:"Flashcard mastery is the weakest readiness input.",action:"Review flashcards",href:"/flashcards"},accuracy:{title:"Strengthen answer accuracy",reason:"Question accuracy is the weakest and most heavily weighted readiness input.",action:"Practice questions",href:"/bundles?tab=questions"}};const entry=map[name];if(entry&&!result.some(item=>item.href===entry.href))result.push({id:`weakest-${name}`,priority:value<40?"HIGH":"MEDIUM",...entry,metric:`${Math.round(value)}% ${name}`});}
- if(data.readiness.score>=80&&result.length<3)result.push({id:"maintain",priority:"LOW",title:"Maintain readiness without overloading",reason:"Your readiness score is already strong. Keep the due queue clear and follow the generated plan rather than adding random work.",action:"Review today’s plan",href:"/study-plan",metric:`${data.readiness.score}/100 ready`});
- const priorityOrder:Record<Recommendation["priority"],number>={HIGH:0,MEDIUM:1,LOW:2};
- return result.sort((a,b)=>priorityOrder[a.priority]-priorityOrder[b.priority]).slice(0,4);
+type Recommendation = { id: string; priority: "HIGH" | "MEDIUM" | "LOW"; title: string; reason: string; action: string; href: string; metric: string };
+type Range = "7D" | "30D" | "SEMESTER" | "CUSTOM";
+type AccuracySeries = "ACCURACY" | "ANSWERED";
+
+function buildRecommendations(data: Analytics): Recommendation[] {
+  const result: Recommendation[] = [];
+  const weakest = Object.entries(data.readiness.components).sort((a, b) => a[1] - b[1])[0];
+  if (data.summary.flashcards_due > 0) result.push({ id: "due-cards", priority: data.summary.flashcards_due >= 20 ? "HIGH" : "MEDIUM", title: "Clear the due flashcard queue", reason: `${data.summary.flashcards_due} card${data.summary.flashcards_due === 1 ? " is" : "s are"} due. Delaying them weakens spaced-repetition timing.`, action: "Review flashcards", href: "/flashcards", metric: `${data.summary.flashcards_due} due` });
+  if (data.summary.questions_answered === 0) result.push({ id: "start-questions", priority: "HIGH", title: "Create an accuracy baseline", reason: "Readiness cannot distinguish strengths from weaknesses until you complete questions.", action: "Open Question Bank", href: "/bundles?tab=questions", metric: "No attempts yet" });
+  else if (data.summary.accuracy < 70) result.push({ id: "accuracy", priority: data.summary.accuracy < 50 ? "HIGH" : "MEDIUM", title: "Prioritize question practice", reason: `Current accuracy is ${Math.round(data.summary.accuracy)}%. More targeted attempts will improve the highest-weight readiness component.`, action: "Practice questions", href: "/bundles?tab=questions", metric: `${Math.round(data.summary.accuracy)}% accuracy` });
+  const weakestTopic = [...data.topic_mastery].filter((topic) => topic.questions_attempted > 0).sort((a, b) => a.mastery - b.mastery)[0];
+  if (weakestTopic && weakestTopic.mastery < 70) result.push({ id: `topic-${weakestTopic.id}`, priority: weakestTopic.mastery < 45 ? "HIGH" : "MEDIUM", title: `Revisit ${weakestTopic.name}`, reason: `This is your lowest measured topic in ${weakestTopic.course}, based on ${weakestTopic.questions_attempted} attempted questions.`, action: "Open study guides", href: "/guidelines", metric: `${Math.round(weakestTopic.mastery)}% mastery` });
+  if (weakest) {
+    const [name, value] = weakest;
+    const map: Record<string, { title: string; reason: string; action: string; href: string }> = {
+      curriculum: { title: "Advance lecture completion", reason: "Curriculum completion is the weakest readiness input.", action: "Continue a lecture", href: "/guidelines" },
+      consistency: { title: "Repair schedule consistency", reason: "Completed versus skipped study sessions is limiting readiness.", action: "Open Study Plan", href: "/study-plan" },
+      flashcards: { title: "Build retention coverage", reason: "Flashcard mastery is the weakest readiness input.", action: "Review flashcards", href: "/flashcards" },
+      accuracy: { title: "Strengthen answer accuracy", reason: "Question accuracy is the weakest and most heavily weighted readiness input.", action: "Practice questions", href: "/bundles?tab=questions" },
+    };
+    const entry = map[name];
+    if (entry && !result.some((item) => item.href === entry.href)) result.push({ id: `weakest-${name}`, priority: value < 40 ? "HIGH" : "MEDIUM", ...entry, metric: `${Math.round(value)}% ${name}` });
+  }
+  if (data.readiness.score >= 80 && result.length < 3) result.push({ id: "maintain", priority: "LOW", title: "Maintain readiness without overloading", reason: "Your readiness score is already strong. Keep the due queue clear and follow the generated plan rather than adding random work.", action: "Review today’s plan", href: "/study-plan", metric: `${data.readiness.score}/100 ready` });
+  const priorityOrder: Record<Recommendation["priority"], number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+  return result.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]).slice(0, 4);
 }
 
-export function ConnectedAnalyticsPage(){
- const {user,request}=useAuth();const [data,setData]=useState<Analytics|null>(null);const [error,setError]=useState<string|null>(null);const [loading,setLoading]=useState(true);
- useEffect(()=>{if(user?.role!=="STUDENT"){setLoading(false);return;}let active=true;setLoading(true);setError(null);void request<Analytics>("/analytics/student").then(value=>{if(active)setData(value)}).catch(cause=>{if(active)setError(cause instanceof Error?cause.message:"Unable to load analytics.")}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[user,request]);
- const recommendations=useMemo(()=>data?buildRecommendations(data):[],[data]);
- return <ProductShell><main className="pp-page analytics-page"><header className="workspace-heading"><div><span className="page-eyebrow">LEARNING INTELLIGENCE</span><h1>Analytics Dashboard</h1><p>Track learning quality, retention, confidence, and exam readiness from your real activity.</p></div></header>{user?.role!=="STUDENT"?<Panel title="Student analytics"><p>This dashboard is calculated for student accounts.</p></Panel>:loading?<PageSkeleton variant="chart" label="Calculating analytics"/>:error?<ErrorState description={error} onRetry={()=>window.location.reload()}/>:data?<><section className="analytics-metrics"><Metric icon={<FiActivity/>} label="Questions answered" value={data.summary.questions_answered}/><Metric icon={<FiCheckCircle/>} label="Accuracy" value={data.summary.accuracy} suffix="%"/><Metric icon={<FiTarget/>} label="Calibrated confidence" value={data.summary.calibrated_confidence??0} suffix="%"/><Metric icon={<FiBookmark/>} label="Saved questions" value={data.summary.bookmarked}/><Metric icon={<FiLayers/>} label="Flashcards mastered" value={data.summary.flashcards_mastered}/><Metric icon={<FiClock/>} label="Flashcards due" value={data.summary.flashcards_due}/></section><Panel title="Recommended next actions" className="analytics-recommendations"><p className="recommendation-intro">These actions are derived from the weakest measured readiness inputs and current due work—not generic study advice.</p><div>{recommendations.map(item=><article data-priority={item.priority} key={item.id}><span>{item.priority}</span><div><small>{item.metric}</small><h3>{item.title}</h3><p>{item.reason}</p></div><Link className="pp-button secondary" href={item.href}>{item.action}<FiArrowRight/></Link></article>)}</div></Panel><div className="analytics-grid"><Panel title="Accuracy over time"><div className="trend-chart">{data.accuracy_over_time.length?data.accuracy_over_time.map(point=>{const date=new Date(point.date).toLocaleDateString(undefined,{month:"short",day:"numeric"});const tooltip=`${date}: ${Math.round(point.accuracy)}% accuracy across ${point.answered} answered`;return <ChartBar key={point.date} height={Math.max(8,point.accuracy)} label={date} tooltip={tooltip}/>;}):<p>No completed answers yet.</p>}</div></Panel><Panel title="Exam readiness"><div className="readiness-score"><b><AnimatedNumber value={data.readiness.score}/></b><span>/100</span><small>{data.readiness.band.replaceAll("_"," ")}</small></div>{Object.entries(data.readiness.components).map(([label,value])=><div className="readiness-component" key={label}><span>{label}</span><b><AnimatedNumber value={value}/>%</b><Progress value={value}/></div>)}</Panel><Panel title="Topic mastery" className="analytics-topics">{data.topic_mastery.length?data.topic_mastery.map(topic=><div key={topic.id}><span><b>{topic.name}</b><small>{topic.course} · {topic.questions_attempted} questions{topic.confidence===null?"":` · ${Math.round(topic.confidence)}% confidence`}</small></span><strong><AnimatedNumber value={topic.mastery}/>%</strong><Progress value={topic.mastery}/></div>):<p>Practice questions to build your topic map.</p>}</Panel><Panel title="Study consistency"><div className="activity-bars">{data.study_activity.slice(-14).map(day=>{const percentage=Math.max(5,100*day.completed/Math.max(1,day.planned));const label=new Date(day.date).toLocaleDateString(undefined,{weekday:"short"});const fullDate=new Date(day.date).toLocaleDateString(undefined,{month:"short",day:"numeric"});const tooltip=`${fullDate}: ${day.completed} completed, ${day.skipped} skipped, ${day.planned} planned`;return <ChartBar key={day.date} height={percentage} label={label} tooltip={tooltip}/>;})}</div><p>Completed sessions are measured from your generated schedule—not estimated data.</p></Panel></div></>:null}</main></ProductShell>;
+function dateKey(value: Date) {
+  return value.toISOString().slice(0, 10);
 }
 
-function AnimatedNumber({value,suffix=""}:{value:number;suffix?:string}){
- const [display,setDisplay]=useState(0);const frame=useRef<number|null>(null);const previous=useRef(0);
- useEffect(()=>{const startValue=previous.current;previous.current=value;if(frame.current)cancelAnimationFrame(frame.current);if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){setDisplay(value);return;}const started=performance.now();const duration=560;const animate=(now:number)=>{const progress=Math.min(1,(now-started)/duration);const eased=1-Math.pow(1-progress,3);setDisplay(startValue+(value-startValue)*eased);if(progress<1)frame.current=requestAnimationFrame(animate);};frame.current=requestAnimationFrame(animate);return()=>{if(frame.current)cancelAnimationFrame(frame.current);};},[value]);
- return <>{Math.round(display)}{suffix}</>;
+function subtractDays(value: Date, days: number) {
+  const result = new Date(value);
+  result.setDate(result.getDate() - days);
+  return result;
 }
 
-function ChartBar({height,label,tooltip}:{height:number;label:string;tooltip:string}){
- return <span className="chart-bar-point" data-tooltip={tooltip} aria-label={tooltip} role="img" tabIndex={0}><i style={{height:`${Math.min(100,Math.max(5,height))}%`}}/><small>{label}</small></span>;
+function weightedAccuracy(points: Analytics["accuracy_over_time"]) {
+  const answered = points.reduce((sum, point) => sum + point.answered, 0);
+  if (!answered) return 0;
+  return points.reduce((sum, point) => sum + point.accuracy * point.answered, 0) / answered;
 }
 
-function Metric({icon,label,value,suffix=""}:{icon:React.ReactNode;label:string;value:number;suffix?:string}){return <Panel className="analytics-metric"><span>{icon}</span><div><small>{label}</small><b><AnimatedNumber value={value} suffix={suffix}/></b></div></Panel>}
+export function ConnectedAnalyticsPage() {
+  const { user, request } = useAuth();
+  const [data, setData] = useState<Analytics | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState<Range>("30D");
+  const [customFrom, setCustomFrom] = useState(() => dateKey(subtractDays(new Date(), 29)));
+  const [customTo, setCustomTo] = useState(() => dateKey(new Date()));
+  const [series, setSeries] = useState<AccuracySeries>("ACCURACY");
+
+  useEffect(() => {
+    if (user?.role !== "STUDENT") {
+      setLoading(false);
+      return;
+    }
+    let active = true;
+    setLoading(true);
+    setError(null);
+    void request<Analytics>("/analytics/student")
+      .then((value) => { if (active) setData(value); })
+      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "Unable to load analytics."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [user, request]);
+
+  const recommendations = useMemo(() => data ? buildRecommendations(data) : [], [data]);
+  const window = useMemo(() => {
+    const end = range === "CUSTOM" ? new Date(`${customTo}T23:59:59`) : new Date();
+    const days = range === "7D" ? 7 : range === "30D" ? 30 : range === "SEMESTER" ? 120 : Math.max(1, Math.ceil((end.getTime() - new Date(`${customFrom}T00:00:00`).getTime()) / 86400000) + 1);
+    const start = range === "CUSTOM" ? new Date(`${customFrom}T00:00:00`) : subtractDays(end, days - 1);
+    const previousEnd = subtractDays(start, 1);
+    const previousStart = subtractDays(previousEnd, days - 1);
+    return { start, end, previousStart, previousEnd, days };
+  }, [customFrom, customTo, range]);
+
+  const filteredAccuracy = useMemo(() => data?.accuracy_over_time.filter((point) => {
+    const date = new Date(point.date);
+    return date >= window.start && date <= window.end;
+  }) || [], [data, window]);
+  const previousAccuracy = useMemo(() => data?.accuracy_over_time.filter((point) => {
+    const date = new Date(point.date);
+    return date >= window.previousStart && date <= window.previousEnd;
+  }) || [], [data, window]);
+  const filteredActivity = useMemo(() => data?.study_activity.filter((point) => {
+    const date = new Date(point.date);
+    return date >= window.start && date <= window.end;
+  }) || [], [data, window]);
+  const previousActivity = useMemo(() => data?.study_activity.filter((point) => {
+    const date = new Date(point.date);
+    return date >= window.previousStart && date <= window.previousEnd;
+  }) || [], [data, window]);
+
+  const comparison = useMemo(() => {
+    const currentAccuracy = weightedAccuracy(filteredAccuracy);
+    const priorAccuracy = weightedAccuracy(previousAccuracy);
+    const currentCompleted = filteredActivity.reduce((sum, day) => sum + day.completed, 0);
+    const priorCompleted = previousActivity.reduce((sum, day) => sum + day.completed, 0);
+    return {
+      currentAccuracy,
+      accuracyDelta: currentAccuracy - priorAccuracy,
+      currentCompleted,
+      completionDelta: currentCompleted - priorCompleted,
+      currentAnswered: filteredAccuracy.reduce((sum, point) => sum + point.answered, 0),
+    };
+  }, [filteredAccuracy, filteredActivity, previousAccuracy, previousActivity]);
+
+  const explanation = useMemo(() => {
+    if (!data) return [];
+    const statements: string[] = [];
+    if (comparison.currentAnswered === 0) statements.push("No questions were answered in this range, so accuracy movement is not statistically meaningful.");
+    else if (comparison.accuracyDelta > 2) statements.push(`Accuracy improved by ${Math.round(comparison.accuracyDelta)} points while you answered ${comparison.currentAnswered} questions.`);
+    else if (comparison.accuracyDelta < -2) statements.push(`Accuracy fell by ${Math.abs(Math.round(comparison.accuracyDelta))} points; revisit the lowest-mastery topic before increasing volume.`);
+    else statements.push("Accuracy was broadly stable compared with the preceding period.");
+    if (comparison.completionDelta > 0) statements.push(`You completed ${comparison.completionDelta} more scheduled session${comparison.completionDelta === 1 ? "" : "s"} than the previous period.`);
+    else if (comparison.completionDelta < 0) statements.push(`You completed ${Math.abs(comparison.completionDelta)} fewer scheduled sessions than the previous period, which can reduce consistency readiness.`);
+    if (data.summary.flashcards_due > 0) statements.push(`${data.summary.flashcards_due} due flashcards are currently pulling down retention coverage until reviewed.`);
+    return statements;
+  }, [comparison, data]);
+
+  const maxAnswered = Math.max(1, ...filteredAccuracy.map((point) => point.answered));
+
+  return <ProductShell><main className="pp-page analytics-page analytics-exploration-page">
+    <header className="workspace-heading"><div><span className="page-eyebrow">LEARNING INTELLIGENCE</span><h1>Analytics Dashboard</h1><p>Track learning quality, retention, confidence, and exam readiness from your real activity.</p></div></header>
+
+    {user?.role !== "STUDENT" ? <Panel title="Student analytics"><p>This dashboard is calculated for student accounts.</p></Panel> : loading ? <PageSkeleton variant="chart" label="Calculating analytics" /> : error ? <ErrorState description={error} onRetry={() => window.location.reload()} /> : data ? <>
+      <section className="analytics-range-bar" aria-label="Analytics date range">
+        <div role="group" aria-label="Preset ranges">{(["7D", "30D", "SEMESTER", "CUSTOM"] as Range[]).map((value) => <button type="button" className={range === value ? "active" : ""} key={value} onClick={() => setRange(value)}>{value === "7D" ? "7 days" : value === "30D" ? "30 days" : value === "SEMESTER" ? "Semester" : "Custom"}</button>)}</div>
+        {range === "CUSTOM" && <div className="analytics-custom-range"><label>From<input type="date" value={customFrom} max={customTo} onChange={(event) => setCustomFrom(event.target.value)} /></label><label>To<input type="date" value={customTo} min={customFrom} max={dateKey(new Date())} onChange={(event) => setCustomTo(event.target.value)} /></label></div>}
+        <small>{window.start.toLocaleDateString()} – {window.end.toLocaleDateString()} compared with the preceding {window.days} days</small>
+      </section>
+
+      <section className="analytics-metrics">
+        <Metric href="/bundles?tab=questions" icon={<FiActivity />} label="Questions answered" value={data.summary.questions_answered} explanation="Count of submitted question attempts across your account." />
+        <Metric href="/bundles?tab=questions" icon={<FiCheckCircle />} label="Accuracy" value={data.summary.accuracy} suffix="%" explanation="Correct attempts divided by all answered questions." />
+        <Metric href="/analytics#confidence" icon={<FiTarget />} label="Calibrated confidence" value={data.summary.calibrated_confidence ?? 0} suffix="%" explanation="How closely confidence judgments align with actual correctness." />
+        <Metric href="/notebook" icon={<FiBookmark />} label="Saved questions" value={data.summary.bookmarked} explanation="Questions bookmarked for later review." />
+        <Metric href="/flashcards" icon={<FiLayers />} label="Flashcards mastered" value={data.summary.flashcards_mastered} explanation="Cards currently classified as mastered by the review scheduler." />
+        <Metric href="/flashcards" icon={<FiClock />} label="Flashcards due" value={data.summary.flashcards_due} explanation="Cards whose scheduled next-review time has arrived." />
+      </section>
+
+      <Panel title="Period comparison" className="analytics-comparison">
+        <div><small>Weighted accuracy</small><b>{Math.round(comparison.currentAccuracy)}%</b><span className={comparison.accuracyDelta >= 0 ? "positive" : "negative"}>{comparison.accuracyDelta >= 0 ? "+" : ""}{Math.round(comparison.accuracyDelta)} pts vs previous</span></div>
+        <div><small>Questions in range</small><b>{comparison.currentAnswered}</b><span>Actual answered volume</span></div>
+        <div><small>Completed sessions</small><b>{comparison.currentCompleted}</b><span className={comparison.completionDelta >= 0 ? "positive" : "negative"}>{comparison.completionDelta >= 0 ? "+" : ""}{comparison.completionDelta} vs previous</span></div>
+      </Panel>
+
+      <Panel title="Why did this change?" className="analytics-explanation"><ul>{explanation.map((item) => <li key={item}>{item}</li>)}</ul></Panel>
+
+      <Panel title="Recommended next actions" className="analytics-recommendations"><p className="recommendation-intro">These actions are derived from the weakest measured readiness inputs and current due work—not generic study advice.</p><div>{recommendations.map((item) => <article data-priority={item.priority} key={item.id}><span>{item.priority}</span><div><small>{item.metric}</small><h3>{item.title}</h3><p>{item.reason}</p></div><Link className="pp-button secondary" href={item.href}>{item.action}<FiArrowRight /></Link></article>)}</div></Panel>
+
+      <div className="analytics-grid">
+        <Panel title="Accuracy over time" action={<div className="analytics-series-toggle"><button className={series === "ACCURACY" ? "active" : ""} onClick={() => setSeries("ACCURACY")}>Accuracy</button><button className={series === "ANSWERED" ? "active" : ""} onClick={() => setSeries("ANSWERED")}>Answered</button></div>}>
+          <div className="trend-chart">{filteredAccuracy.length ? filteredAccuracy.map((point) => {
+            const date = new Date(point.date).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+            const tooltip = `${date}: ${Math.round(point.accuracy)}% accuracy across ${point.answered} answered`;
+            const height = series === "ACCURACY" ? Math.max(8, point.accuracy) : Math.max(8, point.answered / maxAnswered * 100);
+            return <ChartBar key={point.date} height={height} label={date} tooltip={tooltip} />;
+          }) : <p>No completed answers in this range.</p>}</div>
+        </Panel>
+
+        <Panel title="Exam readiness"><div className="readiness-score"><b><AnimatedNumber value={data.readiness.score} /></b><span>/100</span><small>{data.readiness.band.replaceAll("_", " ")}</small></div>{Object.entries(data.readiness.components).map(([label, value]) => <div className="readiness-component" key={label}><span>{label}</span><b><AnimatedNumber value={value} />%</b><Progress value={value} /></div>)}</Panel>
+
+        <Panel title="Topic mastery" className="analytics-topics">{data.topic_mastery.length ? data.topic_mastery.map((topic) => <Link href="/bundles?tab=questions" key={topic.id}><span><b>{topic.name}</b><small>{topic.course} · {topic.questions_attempted} questions{topic.confidence === null ? "" : ` · ${Math.round(topic.confidence)}% confidence`}</small></span><strong><AnimatedNumber value={topic.mastery} />%</strong><Progress value={topic.mastery} /></Link>) : <p>Practice questions to build your topic map.</p>}</Panel>
+
+        <Panel title="Study consistency"><div className="activity-bars">{filteredActivity.map((day) => {
+          const percentage = Math.max(5, 100 * day.completed / Math.max(1, day.planned));
+          const label = new Date(day.date).toLocaleDateString(undefined, { weekday: "short" });
+          const fullDate = new Date(day.date).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+          const tooltip = `${fullDate}: ${day.completed} completed, ${day.skipped} skipped, ${day.planned} planned`;
+          return <ChartBar key={day.date} height={percentage} label={label} tooltip={tooltip} />;
+        })}</div><p>Completed sessions are measured from your generated schedule—not estimated data.</p></Panel>
+      </div>
+    </> : null}
+  </main></ProductShell>;
+}
+
+function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string }) {
+  const [display, setDisplay] = useState(0);
+  const frame = useRef<number | null>(null);
+  const previous = useRef(0);
+  useEffect(() => {
+    const startValue = previous.current;
+    previous.current = value;
+    if (frame.current) cancelAnimationFrame(frame.current);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setDisplay(value);
+      return;
+    }
+    const started = performance.now();
+    const duration = 560;
+    const animate = (now: number) => {
+      const progress = Math.min(1, (now - started) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplay(startValue + (value - startValue) * eased);
+      if (progress < 1) frame.current = requestAnimationFrame(animate);
+    };
+    frame.current = requestAnimationFrame(animate);
+    return () => { if (frame.current) cancelAnimationFrame(frame.current); };
+  }, [value]);
+  return <>{Math.round(display)}{suffix}</>;
+}
+
+function ChartBar({ height, label, tooltip }: { height: number; label: string; tooltip: string }) {
+  return <span className="chart-bar-point" data-tooltip={tooltip} aria-label={tooltip} role="img" tabIndex={0}><i style={{ height: `${Math.min(100, Math.max(5, height))}%` }} /><small>{label}</small></span>;
+}
+
+function Metric({ icon, label, value, suffix = "", href, explanation }: { icon: React.ReactNode; label: string; value: number; suffix?: string; href: string; explanation: string }) {
+  return <Panel className="analytics-metric analytics-metric-explained"><Link href={href}><span>{icon}</span><div><small>{label}</small><b><AnimatedNumber value={value} suffix={suffix} /></b><em>{explanation}</em></div></Link></Panel>;
+}
