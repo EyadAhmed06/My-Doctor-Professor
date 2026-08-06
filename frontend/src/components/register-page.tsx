@@ -8,10 +8,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 const registrationProof=[
-  {Icon:FiShield,title:"Secure & Private",copy:"Your data is safe with us"},
+  {Icon:FiShield,title:"Secure & Private",copy:"Your account actions use protected links"},
   {Icon:FiBookOpen,title:"For Medical Students",copy:"Built specially for your journey"},
-  {Icon:FiCloud,title:"Access Anywhere",copy:"Learn and access anytime"},
-  {Icon:FiUsers,title:"Trusted by Students",copy:"Join thousands of medical students"},
+  {Icon:FiCloud,title:"Access Anywhere",copy:"Continue from your signed-in browser"},
+  {Icon:FiUsers,title:"Structured Learning",copy:"Courses, questions, notes, and review"},
 ];
 
 export function RegisterPage() {
@@ -23,6 +23,7 @@ export function RegisterPage() {
   const update=(key:keyof typeof form)=>(event:React.ChangeEvent<HTMLInputElement>)=>setForm(current=>({...current,[key]:event.target.value}));
   async function submit(){
     setError(null);
+    if(!form.student_number.trim()){setError("Student number is required for a student account.");return;}
     if(form.password!==form.confirm_password){setError("Passwords do not match.");return;}
     if(!accepted){setError("You must agree to the Terms of Service and Privacy Policy.");return;}
     setLoading(true);
@@ -45,7 +46,7 @@ export function RegisterPage() {
         <div className="registration-content">
           <span className="step-label">ACCOUNT SETUP</span><h2>Create your account</h2><p>Tell us where you are in your medical journey.<br/>You can update these details later.</p>
           <SubmitForm className="registration-form" buttonText="Create account" onSubmit={submit} loading={loading} error={error}>
-            <div className="form-grid"><Field label="Full name" icon={icons.User} placeholder="Enter your full name" value={form.full_name} onChange={update("full_name")} required autoComplete="name"/><Field label="Email address" icon={icons.Mail} placeholder="you@example.com" type="email" value={form.email} onChange={update("email")} required autoComplete="email"/><Field label="Phone number" placeholder="+201001234567" type="tel" value={form.phone_number} onChange={update("phone_number")} required autoComplete="tel"/><Field label="Student number (optional)" placeholder="Your university student ID" value={form.student_number} onChange={update("student_number")}/><Field label="Password" icon={icons.Lock} placeholder="12+ characters with upper, lower, and number" type="password" value={form.password} onChange={update("password")} required autoComplete="new-password"/><Field label="Confirm password" icon={icons.Lock} placeholder="Repeat your password" type="password" value={form.confirm_password} onChange={update("confirm_password")} required autoComplete="new-password"/></div>
+            <div className="form-grid"><Field label="Full name" icon={icons.User} placeholder="Enter your full name" value={form.full_name} onChange={update("full_name")} required autoComplete="name"/><Field label="Email address" icon={icons.Mail} placeholder="you@example.com" type="email" value={form.email} onChange={update("email")} required autoComplete="email"/><Field label="Phone number" placeholder="+201001234567" type="tel" value={form.phone_number} onChange={update("phone_number")} required autoComplete="tel"/><Field label="Student number" placeholder="Your university student ID" value={form.student_number} onChange={update("student_number")} required/><Field label="Password" icon={icons.Lock} placeholder="12+ characters with upper, lower, and number" type="password" value={form.password} onChange={update("password")} required autoComplete="new-password"/><Field label="Confirm password" icon={icons.Lock} placeholder="Repeat your password" type="password" value={form.confirm_password} onChange={update("confirm_password")} required autoComplete="new-password"/></div>
             <div className="registration-divider"><span>Academic information</span></div>
             <div className="form-grid academic-grid"><Field label="Current semester" placeholder="1" type="number" value={form.current_semester} onChange={update("current_semester")} required/></div>
             <label className="checkline terms"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/><span>I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</span></label>
