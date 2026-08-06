@@ -5,6 +5,7 @@ import { PageSkeleton } from "./async-state";
 import { useAuth } from "./auth-provider";
 import { ConnectedDashboardPage } from "./connected-dashboard-page";
 import { RoleDashboardPage } from "./management-workspaces";
+import { ProductShell } from "./product-shell";
 import { useUx } from "./ux-provider";
 
 export function RoleAwareDashboardEntry() {
@@ -25,6 +26,9 @@ export function RoleAwareDashboardEntry() {
     return <main className="product-auth-loading"><PageSkeleton variant="workspace" label="Loading your dashboard" /></main>;
   }
 
-  if (user.role === "STUDENT") return <ConnectedDashboardPage />;
+  if (user.role === "STUDENT") {
+    return <ProductShell search="Search cases, topics, or concepts"><ConnectedDashboardPage /></ProductShell>;
+  }
+
   return <RoleDashboardPage />;
 }
