@@ -37,7 +37,7 @@ function AnimatedNumber({value,suffix=""}:{value:number;suffix?:string}){
 }
 
 function ChartBar({height,label,tooltip}:{height:number;label:string;tooltip:string}){
- return <button type="button" className="chart-bar-point" data-tooltip={tooltip} aria-label={tooltip}><i style={{height:`${Math.min(100,Math.max(5,height))}%`}}/><small>{label}</small></button>;
+ return <span className="chart-bar-point" data-tooltip={tooltip} aria-label={tooltip} role="img" tabIndex={0}><i style={{height:`${Math.min(100,Math.max(5,height))}%`}}/><small>{label}</small></span>;
 }
 
 function Metric({icon,label,value,suffix=""}:{icon:React.ReactNode;label:string;value:number;suffix?:string}){return <Panel className="analytics-metric"><span>{icon}</span><div><small>{label}</small><b><AnimatedNumber value={value} suffix={suffix}/></b></div></Panel>}
