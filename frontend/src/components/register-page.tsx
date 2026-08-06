@@ -1,11 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { FiArrowLeft, FiCheckCircle } from "react-icons/fi";
+import { FiArrowLeft, FiBookOpen, FiCloud, FiShield, FiUsers } from "react-icons/fi";
 import { Brand, Field, icons, SubmitForm } from "./ui";
 import { apiRequest } from "@/lib/api";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+
+const registrationProof=[
+  {Icon:FiShield,title:"Secure & Private",copy:"Your data is safe with us"},
+  {Icon:FiBookOpen,title:"For Medical Students",copy:"Built specially for your journey"},
+  {Icon:FiCloud,title:"Access Anywhere",copy:"Learn and access anytime"},
+  {Icon:FiUsers,title:"Trusted by Students",copy:"Join thousands of medical students"},
+];
 
 export function RegisterPage() {
   const router=useRouter();
@@ -25,24 +32,28 @@ export function RegisterPage() {
     }catch(cause){setError(cause instanceof Error?cause.message:"Unable to create your account. Please try again.");}
     finally{setLoading(false);}
   }
-  return <main className="registration-page">
+  return <main className="registration-page reference-register">
     <section className="registration-story">
       <Brand />
-      <figure className="auth-organ-visual digestive-story-image">
-        <img src="/media/register-digestive-processed.webp" alt="Luminous digestive system anatomy illustration" />
+      <figure className="auth-organ-visual lungs-story-image">
+        <img src="/media/register-lungs-reference.webp" alt="Luminous respiratory system anatomy illustration" />
       </figure>
     </section>
     <section className="registration-form-side">
-      <div className="registration-top"><Link href="/"><FiArrowLeft /> Back to home</Link><span>Already registered? <Link href="/login">Log in</Link></span></div>
       <div className="registration-card">
-        <span className="step-label">ACCOUNT SETUP</span><h2>Create your account</h2><p>Tell us where you are in your medical journey. You can update these details later.</p>
-        <SubmitForm className="registration-form" buttonText="Create account" onSubmit={submit} loading={loading} error={error}>
-          <div className="form-grid"><Field label="Full name" icon={icons.User} placeholder="Enter your full name" value={form.full_name} onChange={update("full_name")} required autoComplete="name"/><Field label="Email address" icon={icons.Mail} placeholder="you@example.com" type="email" value={form.email} onChange={update("email")} required autoComplete="email"/><Field label="Phone number" placeholder="+201001234567" type="tel" value={form.phone_number} onChange={update("phone_number")} required autoComplete="tel"/><Field label="Student number" placeholder="Your university student ID" value={form.student_number} onChange={update("student_number")} required/><Field label="Password" icon={icons.Lock} placeholder="12+ characters with upper, lower, and number" type="password" value={form.password} onChange={update("password")} required autoComplete="new-password"/><Field label="Confirm password" icon={icons.Lock} placeholder="Repeat your password" type="password" value={form.confirm_password} onChange={update("confirm_password")} required autoComplete="new-password"/></div>
-          <div className="registration-divider"><span>Academic information</span></div>
-          <div className="form-grid"><Field label="Current semester" placeholder="1" type="number" value={form.current_semester} onChange={update("current_semester")} required/></div>
-          <label className="checkline terms"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/><span>I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</span></label>
-        </SubmitForm>
-        <div className="registration-note"><FiCheckCircle /><span><b>Your profile stays flexible.</b><small>Update your academic year, semester, and areas of focus whenever they change.</small></span></div>
+        <div className="registration-top"><Link href="/"><FiArrowLeft /> Back to home</Link><span>Already registered? <Link href="/login">Log in</Link></span></div>
+        <div className="registration-content">
+          <span className="step-label">ACCOUNT SETUP</span><h2>Create your account</h2><p>Tell us where you are in your medical journey.<br/>You can update these details later.</p>
+          <SubmitForm className="registration-form" buttonText="Create account" onSubmit={submit} loading={loading} error={error}>
+            <div className="form-grid"><Field label="Full name" icon={icons.User} placeholder="Enter your full name" value={form.full_name} onChange={update("full_name")} required autoComplete="name"/><Field label="Email address" icon={icons.Mail} placeholder="you@example.com" type="email" value={form.email} onChange={update("email")} required autoComplete="email"/><Field label="Phone number" placeholder="+201001234567" type="tel" value={form.phone_number} onChange={update("phone_number")} required autoComplete="tel"/><Field label="Student number (optional)" placeholder="Your university student ID" value={form.student_number} onChange={update("student_number")}/><Field label="Password" icon={icons.Lock} placeholder="12+ characters with upper, lower, and number" type="password" value={form.password} onChange={update("password")} required autoComplete="new-password"/><Field label="Confirm password" icon={icons.Lock} placeholder="Repeat your password" type="password" value={form.confirm_password} onChange={update("confirm_password")} required autoComplete="new-password"/></div>
+            <div className="registration-divider"><span>Academic information</span></div>
+            <div className="form-grid academic-grid"><Field label="Current semester" placeholder="1" type="number" value={form.current_semester} onChange={update("current_semester")} required/></div>
+            <label className="checkline terms"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/><span>I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</span></label>
+          </SubmitForm>
+          <footer className="registration-proof-strip">
+            {registrationProof.map(({Icon,title,copy})=><div key={title}><Icon/><b>{title}</b><small>{copy}</small></div>)}
+          </footer>
+        </div>
       </div>
     </section>
   </main>;
