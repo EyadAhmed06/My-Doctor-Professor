@@ -89,8 +89,8 @@ async function installApi(page: Page, role: Role, theme: 'light' | 'dark') {
     if (endpoint === '/bundles/bundle-1/content') return respond({ courses: [course] });
     if (endpoint === '/academic/lectures/lecture-1/resources') return respond([{
       id: 'resource-1', resourceName: 'Cardiac cycle diagram', resourceType: 'IMAGE',
-      uploadStatus: 'READY', fileUrl: '/brand/medical-logo.svg',
-      description: 'A previewable cardiac diagram.', mimeType: 'image/svg+xml',
+      uploadStatus: 'READY', fileUrl: '/brand/my-doctor-professor-emblem.png',
+      description: 'A previewable cardiac diagram.', mimeType: 'image/png',
     }]);
     if (endpoint === '/progress/lectures/lecture-1') return respond({
       studentId: 'student-1', lectureId: 'lecture-1', isCompleted: false,
