@@ -6,6 +6,7 @@ import { AuthProvider } from "@/components/auth-provider";
 import { UxProvider } from "@/components/ux-provider";
 import "@/components/interaction-foundations.css";
 import "@/components/notification-interactions.css";
+import "@/components/continuity.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
