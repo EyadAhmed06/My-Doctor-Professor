@@ -1,7 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { Question } from '../../common/entities/question.entity';
 import { TestAttempt } from '../../common/entities/test-attempt.entity';
 import { TestQuestion } from '../../common/entities/test-question.entity';
 import { Test } from '../../common/entities/test.entity';
@@ -21,7 +20,6 @@ export class AssessmentAuthoringService {
     @InjectRepository(Test) private readonly tests: Repository<Test>,
     @InjectRepository(TestQuestion) private readonly testQuestions: Repository<TestQuestion>,
     @InjectRepository(TestAttempt) private readonly attempts: Repository<TestAttempt>,
-    @InjectRepository(Question) private readonly questions: Repository<Question>,
     private readonly dataSource: DataSource,
   ) {}
 
