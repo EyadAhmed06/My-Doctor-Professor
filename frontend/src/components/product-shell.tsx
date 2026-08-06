@@ -1,19 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  FiBell,
-  FiCheck,
-  FiChevronDown,
-  FiLogOut,
-  FiMenu,
-  FiSearch,
-  FiSettings,
-  FiUser,
-  FiX,
-} from "react-icons/fi";
+import { FiBell, FiCheck, FiChevronDown, FiLogOut, FiMenu, FiSearch, FiSettings, FiUser, FiX } from "react-icons/fi";
 import { ThemeToggle } from "./app-theme";
 import { BrandLockup } from "./brand";
 import { useAuth } from "./auth-provider";
@@ -23,29 +13,16 @@ import { useUx } from "./ux-provider";
 import { useWorkspaceContinuity } from "./workspace-continuity";
 
 const nav = [["My Bundles","/bundles"],["Flashcards","/flashcards"],["Notebook","/notebook"],["Study Guides","/guidelines"],["Analytics","/analytics"],["Study Plan","/study-plan"]];
-
 type NotificationPreview={id:string;title:string;message:string;target_url:string|null;notification_type:string;status:"READ"|"UNREAD";created_at:string};
 type Page<T>={data:T[]};
-
-function workspaceLabel(path:string){
-  const match=nav.find(([,href])=>path.startsWith(href));
-  if(match)return match[0];
-  if(path.startsWith("/notifications"))return "Notifications";
-  if(path.startsWith("/settings"))return "Settings";
-  if(path.startsWith("/instructor"))return "Instructor Workspace";
-  if(path.startsWith("/dashboard"))return "Dashboard";
-  return "Workspace";
-}
+function workspaceLabel(path:string){const match=nav.find(([,href])=>path.startsWith(href));if(match)return match[0];if(path.startsWith("/notifications"))return "Notifications";if(path.startsWith("/settings"))return "Settings";if(path.startsWith("/instructor"))return "Instructor Workspace";if(path.startsWith("/dashboard"))return "Dashboard";return "Workspace";}
 
 export function ProductShell({ children, search = "Search cases, topics, or concepts" }: { children: React.ReactNode; search?: string }) {
-  const path = usePathname();const searchParams=useSearchParams();const router = useRouter();
-  const {startNavigation,notify}=useUx();const {user,loading,logout,request}=useAuth();
-  const [open,setOpen] = useState(false);const [paletteOpen,setPaletteOpen] = useState(false);const [profileOpen,setProfileOpen]=useState(false);const [notificationsOpen,setNotificationsOpen]=useState(false);const [previewLoading,setPreviewLoading]=useState(false);const [preview,setPreview]=useState<NotificationPreview[]>([]);const [unread,setUnread] = useState(0);
+  const path=usePathname();const router=useRouter();const {startNavigation,notify}=useUx();const {user,loading,logout,request}=useAuth();
+  const [open,setOpen]=useState(false);const [paletteOpen,setPaletteOpen]=useState(false);const [profileOpen,setProfileOpen]=useState(false);const [notificationsOpen,setNotificationsOpen]=useState(false);const [previewLoading,setPreviewLoading]=useState(false);const [preview,setPreview]=useState<NotificationPreview[]>([]);const [unread,setUnread]=useState(0);
   const profileRef=useRef<HTMLDivElement>(null);const notificationsRef=useRef<HTMLDivElement>(null);const profileButtonRef=useRef<HTMLButtonElement>(null);const notificationsButtonRef=useRef<HTMLButtonElement>(null);
   const openPalette=useCallback(()=>setPaletteOpen(true),[]);const closePalette=useCallback(()=>setPaletteOpen(false),[]);
-  const query=searchParams.toString();const continuityHref=query?`${path}?${query}`:path;
-  useWorkspaceContinuity(path,workspaceLabel(path),continuityHref);
-
+  useWorkspaceContinuity(path,workspaceLabel(path));
   const loadUnread=useCallback(async()=>{if(!user)return;try{setUnread((await request<{count:number}>("/notifications/unread/count")).count);}catch{setUnread(0);}},[user,request]);
   const loadPreview=useCallback(async()=>{if(!user)return;setPreviewLoading(true);try{setPreview((await request<Page<NotificationPreview>>("/notifications?limit=5")).data);}catch(cause){notify({title:"Could not load notifications",description:cause instanceof Error?cause.message:undefined,tone:"error"});}finally{setPreviewLoading(false);}},[notify,request,user]);
 
