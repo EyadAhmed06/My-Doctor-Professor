@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FiBell, FiCheck, FiTrash2 } from "react-icons/fi";
+import { FiCheck, FiTrash2 } from "react-icons/fi";
 import { useAuth } from "./auth-provider";
 import { EmptyState, ErrorState, PageSkeleton } from "./async-state";
 import { ProductShell } from "./product-shell";
@@ -33,7 +33,11 @@ export function ConnectedNotificationsPage(){
   catch(cause){setError(cause instanceof Error?cause.message:"Unable to load notifications.");}
   finally{setLoading(false);}
  },[request]);
- useEffect(()=>{void load();return()=>{for(const timer of deleteTimers.current.values())window.clearTimeout(timer);deleteTimers.current.clear();};},[load]);
+ useEffect(()=>{
+  const loadTimer=window.setTimeout(()=>void load(),0);
+  const activeDeleteTimers=deleteTimers.current;
+  return()=>{window.clearTimeout(loadTimer);for(const timer of activeDeleteTimers.values())window.clearTimeout(timer);activeDeleteTimers.clear();};
+ },[load]);
 
  async function read(item:Notification){
   if(item.status==="READ")return;
