@@ -1,5 +1,5 @@
-import { Transform } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 import { QuestionDifficulty } from '../../../common/entities/question.entity';
 import { TestMode } from '../../../common/entities/test-attempt.entity';
 import { TestType } from '../../../common/entities/test.entity';
@@ -37,6 +37,15 @@ export class AddTestQuestionDto {
  @IsInt() @Min(1) display_order:number;
  @IsNumber({maxDecimalPlaces:2}) @Min(0.01) marks:number;
  @IsOptional() @IsInt() @Min(1) time_limit_seconds?:number;
+}
+export class ReorderTestQuestionDto {
+ @IsUUID() question_id:string;
+ @IsInt() @Min(1) display_order:number;
+}
+export class ReorderTestQuestionsDto {
+ @IsArray() @ArrayMinSize(1) @ArrayMaxSize(500)
+ @ValidateNested({each:true}) @Type(()=>ReorderTestQuestionDto)
+ items:ReorderTestQuestionDto[];
 }
 export class StartTestAttemptDto { @IsEnum(TestMode) test_mode:TestMode; }
 export class PracticeCatalogQueryDto { @IsUUID() bundle_id:string; @IsUUID() course_id:string; }
