@@ -24,7 +24,9 @@ export function ConnectedStudyGuidesPage(){
     const endpoint=user.role==="STUDENT"?"/bundles/mine":"/bundles/managed";
     const bundleRows=await request<Bundle[]>(endpoint);
     const visibleBundles=user.role==="STUDENT"?bundleRows.filter(bundle=>bundle.status==="PUBLISHED"):bundleRows;
-    const contents=await Promise.all(visibleBundles.map(bundle=>request<BundleContent>(`/bundles/${bundle.id}/content`)));
+    const results=await Promise.allSettled(visibleBundles.map(bundle=>request<BundleContent>(`/bundles/${bundle.id}/content`)));
+    const contents=results.flatMap(result=>result.status==="fulfilled"?[result.value]:[]);
+    if(!contents.length){const failed=results.find(result=>result.status==="rejected");if(failed&&failed.status==="rejected")throw failed.reason;}
     const merged=new Map<string,Course>();
     for(const content of contents){for(const course of content.courses){const existing=merged.get(course.id);if(!existing){merged.set(course.id,{...course,weeks:[...course.weeks]});continue;}const weekIds=new Set(existing.weeks.map(week=>week.id));existing.weeks.push(...course.weeks.filter(week=>!weekIds.has(week.id)));}}
     if(!active)return;const available=[...merged.values()];setCourses(available);setCourseId(current=>available.some(course=>course.id===current)?current:available[0]?.id||"");
