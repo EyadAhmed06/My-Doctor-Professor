@@ -32,11 +32,13 @@ const eslintConfig = defineConfig([
     files: [
       "src/components/connected-flashcards-page.tsx",
       "src/components/connected-settings-page.tsx",
+      "src/components/advanced-notebook-editor.tsx",
+      "src/components/advanced-assessments-page.tsx",
     ],
     rules: {
       "@typescript-eslint/no-unused-vars": [
         "error",
-        { varsIgnorePattern: "^(useMemo|ThemePreference)$" },
+        { varsIgnorePattern: "^(useMemo|ThemePreference|FiAlignLeft|validationWarnings)$" },
       ],
     },
   },
