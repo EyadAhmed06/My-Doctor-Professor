@@ -7,6 +7,7 @@ import { UxProvider } from "@/components/ux-provider";
 import "@/components/interaction-foundations.css";
 import "@/components/notification-interactions.css";
 import "@/components/continuity.css";
+import "@/components/phase3-learning.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
