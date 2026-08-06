@@ -26,6 +26,7 @@ type Toast = ToastInput & { id: string; tone: ToastTone };
 type UxContextValue = {
   notify(input: ToastInput): string;
   dismiss(id: string): void;
+  startNavigation(): void;
 };
 
 const UxContext = createContext<UxContextValue | null>(null);
@@ -38,7 +39,6 @@ export function UxProvider({ children }: { children: React.ReactNode }) {
   const [requestCount, setRequestCount] = useState(0);
   const [routeBusy, setRouteBusy] = useState(false);
   const timers = useRef(new Map<string, number>());
-  const previousPath = useRef(pathname);
   const offlineToast = useRef<string | null>(null);
 
   const dismiss = useCallback((id: string) => {
@@ -52,7 +52,7 @@ export function UxProvider({ children }: { children: React.ReactNode }) {
     (input: ToastInput) => {
       const id = crypto.randomUUID();
       const toast: Toast = { ...input, id, tone: input.tone ?? "info" };
-      setToasts((current) => [...current.filter((item) => item.id !== id), toast].slice(-4));
+      setToasts((current) => [...current, toast].slice(-4));
       const duration = input.duration === undefined ? 5000 : input.duration;
       if (duration > 0) {
         const timer = window.setTimeout(() => dismiss(id), duration);
@@ -62,6 +62,8 @@ export function UxProvider({ children }: { children: React.ReactNode }) {
     },
     [dismiss],
   );
+
+  const startNavigation = useCallback(() => setRouteBusy(true), []);
 
   useEffect(() => {
     const start = () => setRequestCount((count) => count + 1);
@@ -75,12 +77,22 @@ export function UxProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (previousPath.current === pathname) return;
-    previousPath.current = pathname;
-    setRouteBusy(true);
-    const timer = window.setTimeout(() => setRouteBusy(false), 260);
+    const captureInternalNavigation = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const target = event.target instanceof Element ? event.target.closest("a[href]") : null;
+      if (!(target instanceof HTMLAnchorElement) || target.target === "_blank" || target.hasAttribute("download")) return;
+      const destination = new URL(target.href, window.location.href);
+      if (destination.origin === window.location.origin && destination.pathname !== window.location.pathname) startNavigation();
+    };
+    document.addEventListener("click", captureInternalNavigation, true);
+    return () => document.removeEventListener("click", captureInternalNavigation, true);
+  }, [startNavigation]);
+
+  useEffect(() => {
+    if (!routeBusy) return;
+    const timer = window.setTimeout(() => setRouteBusy(false), 320);
     return () => window.clearTimeout(timer);
-  }, [pathname]);
+  }, [pathname, routeBusy]);
 
   useEffect(() => {
     const goOffline = () => {
@@ -99,7 +111,7 @@ export function UxProvider({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener("offline", goOffline);
     window.addEventListener("online", goOnline);
-    if (!navigator.onLine) goOffline();
+    if (!navigator.onLine) window.setTimeout(goOffline, 0);
     return () => {
       window.removeEventListener("offline", goOffline);
       window.removeEventListener("online", goOnline);
@@ -114,7 +126,7 @@ export function UxProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const value = useMemo(() => ({ notify, dismiss }), [dismiss, notify]);
+  const value = useMemo(() => ({ notify, dismiss, startNavigation }), [dismiss, notify, startNavigation]);
   const busy = requestCount > 0 || routeBusy;
 
   return (
