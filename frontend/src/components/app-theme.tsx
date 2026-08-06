@@ -13,17 +13,24 @@ type ThemeContextValue = {
 };
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-function systemTheme(): Theme {
-  return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+function initialPreference(): ThemePreference {
+  if (typeof document === "undefined") return "system";
+  const value = document.documentElement.dataset.themePreference;
+  return value === "light" || value === "dark" || value === "system" ? value : "system";
+}
+
+function initialTheme(): Theme {
+  if (typeof document === "undefined") return "dark";
+  return document.documentElement.dataset.theme === "light" ? "light" : "dark";
 }
 
 export function AppThemeProvider({ children }: { children: React.ReactNode }) {
-  const [preference, setPreference] = useState<ThemePreference>("system");
-  const [theme, setResolvedTheme] = useState<Theme>("light");
+  const [preference, setPreference] = useState<ThemePreference>(initialPreference);
+  const [theme, setResolvedTheme] = useState<Theme>(initialTheme);
 
   useEffect(() => {
     const saved = localStorage.getItem("mdp-theme");
-    setPreference(saved === "dark" || saved === "light" || saved === "system" ? saved : "system");
+    setPreference(saved === "dark" || saved === "light" || saved === "system" ? saved : initialPreference());
   }, []);
 
   useEffect(() => {
@@ -54,7 +61,7 @@ export function useAppTheme() {
 
 export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   const { theme, toggleTheme } = useAppTheme();
-  return <button className={`global-theme-toggle ${compact ? "compact" : ""}`} onClick={toggleTheme} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} title={`Use ${theme === "dark" ? "light" : "dark"} theme`}>
+  return <button type="button" className={`global-theme-toggle ${compact ? "compact" : ""}`} onClick={toggleTheme} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} title={`Use ${theme === "dark" ? "light" : "dark"} theme`}>
     <FiSun /><span><i /></span><FiMoon />
   </button>;
 }
