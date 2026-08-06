@@ -35,10 +35,10 @@ export function recordRecentWorkspacePage(page: Omit<RecentWorkspacePage, "visit
   }
 }
 
-export function useWorkspaceContinuity(pathname: string, label: string) {
+export function useWorkspaceContinuity(pathname: string, label: string, href = pathname) {
   useEffect(() => {
-    recordRecentWorkspacePage({ href: pathname, label });
-  }, [label, pathname]);
+    recordRecentWorkspacePage({ href, label });
+  }, [href, label]);
 
   useEffect(() => {
     const key = `${SCROLL_PREFIX}${pathname}`;
