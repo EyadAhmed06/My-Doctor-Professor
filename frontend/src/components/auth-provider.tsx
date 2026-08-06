@@ -24,6 +24,7 @@ type AuthContextValue = {
   loading: boolean;
   login(input: LoginInput): Promise<AuthUser>;
   logout(): Promise<void>;
+  refreshUser(): Promise<AuthUser | null>;
   request<T>(path: string, options?: Omit<Parameters<typeof apiRequest<T>>[1], "accessToken">): Promise<T>;
 };
 
@@ -60,23 +61,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async (): Promise<string | null> => {
     if (refreshPromise.current) return refreshPromise.current;
     refreshPromise.current = (async () => {
-    const localRefresh = localStorage.getItem(REFRESH_KEY);
-    const sessionRefresh = sessionStorage.getItem(REFRESH_KEY);
-    const refreshToken = localRefresh || sessionRefresh;
-    if (!refreshToken) return null;
-    try {
-      const auth = await apiRequest<AuthResponse>("/auth/refresh", {
-        method: "POST",
-        body: { refresh_token: refreshToken },
-      });
-      persist(auth, Boolean(localRefresh));
-      return auth.access_token;
-    } catch {
-      clearTokens();
-      setAccessToken(null);
-      setUser(null);
-      return null;
-    }
+      const localRefresh = localStorage.getItem(REFRESH_KEY);
+      const sessionRefresh = sessionStorage.getItem(REFRESH_KEY);
+      const refreshToken = localRefresh || sessionRefresh;
+      if (!refreshToken) return null;
+      try {
+        const auth = await apiRequest<AuthResponse>("/auth/refresh", {
+          method: "POST",
+          body: { refresh_token: refreshToken },
+        });
+        persist(auth, Boolean(localRefresh));
+        return auth.access_token;
+      } catch {
+        clearTokens();
+        setAccessToken(null);
+        setUser(null);
+        return null;
+      }
     })();
     try {
       return await refreshPromise.current;
@@ -84,6 +85,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refreshPromise.current = null;
     }
   }, [persist]);
+
+  const refreshUser = useCallback(async (): Promise<AuthUser | null> => {
+    let token = accessToken;
+    if (!token) token = await refresh();
+    if (!token) {
+      setUser(null);
+      return null;
+    }
+    try {
+      const profile = await apiRequest<AuthUser>("/auth/me", { accessToken: token });
+      setUser(profile);
+      setAccessToken(token);
+      return profile;
+    } catch {
+      token = await refresh();
+      if (!token) return null;
+      const profile = await apiRequest<AuthUser>("/auth/me", { accessToken: token });
+      setUser(profile);
+      setAccessToken(token);
+      return profile;
+    }
+  }, [accessToken, refresh]);
 
   useEffect(() => {
     void (async () => {
@@ -100,7 +123,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (usableToken) {
             try {
               setUser(await apiRequest<AuthUser>("/auth/me", { accessToken: usableToken }));
-            } catch { clearTokens(); setUser(null); setAccessToken(null); }
+            } catch {
+              clearTokens();
+              setUser(null);
+              setAccessToken(null);
+            }
           }
         }
       }
@@ -139,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [accessToken, refresh]);
 
-  const value = useMemo(() => ({ user, accessToken, loading, login, logout, request }), [user, accessToken, loading, login, logout, request]);
+  const value = useMemo(() => ({ user, accessToken, loading, login, logout, refreshUser, request }), [user, accessToken, loading, login, logout, refreshUser, request]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
