@@ -3,6 +3,7 @@ import "./globals.css";
 import { AppThemeProvider } from "@/components/app-theme";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/components/brand";
 import { AuthProvider } from "@/components/auth-provider";
+import { PublicThemeAccess } from "@/components/public-theme-access";
 import { UxProvider } from "@/components/ux-provider";
 import "@/components/interaction-foundations.css";
 import "@/components/notification-interactions.css";
@@ -45,6 +46,6 @@ const themeBootstrap = `(() => {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en" suppressHydrationWarning>
     <head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }} /></head>
-    <body><AppThemeProvider><UxProvider><AuthProvider>{children}</AuthProvider></UxProvider></AppThemeProvider></body>
+    <body><AppThemeProvider><PublicThemeAccess /><UxProvider><AuthProvider>{children}</AuthProvider></UxProvider></AppThemeProvider></body>
   </html>;
 }
