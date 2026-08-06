@@ -3,6 +3,8 @@ import "./globals.css";
 import { AppThemeProvider } from "@/components/app-theme";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/components/brand";
 import { AuthProvider } from "@/components/auth-provider";
+import { UxProvider } from "@/components/ux-provider";
+import "@/components/interaction-foundations.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
@@ -10,5 +12,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en" suppressHydrationWarning><body><AppThemeProvider><AuthProvider>{children}</AuthProvider></AppThemeProvider></body></html>;
+  return <html lang="en" suppressHydrationWarning><body><AppThemeProvider><UxProvider><AuthProvider>{children}</AuthProvider></UxProvider></AppThemeProvider></body></html>;
 }
