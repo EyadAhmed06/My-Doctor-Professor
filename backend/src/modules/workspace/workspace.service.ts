@@ -151,8 +151,16 @@ export class WorkspaceService {
   return{from,to,data};
  }
  async updatePlanItem(studentId:string,id:string,dto:UpdateStudyPlanItemDto){
+  if(dto.status===undefined&&dto.scheduled_date===undefined)throw new BadRequestException('Provide a status or scheduled date');
   const item=await this.planItems.findOne({where:{id,studentId}});if(!item)throw new NotFoundException('Study plan item not found');
-  item.status=dto.status as StudyPlanItemStatus;item.completedAt=item.status===StudyPlanItemStatus.COMPLETED?new Date():null;return this.planItems.save(item);
+  if(dto.scheduled_date!==undefined){
+   if(item.status===StudyPlanItemStatus.COMPLETED)throw new ConflictException('Completed study sessions cannot be rescheduled');
+   const today=this.isoDate(new Date());if(dto.scheduled_date<today)throw new BadRequestException('Study sessions cannot be moved into the past');
+   const plan=await this.getPlan(studentId);if(plan.examDate&&dto.scheduled_date>=plan.examDate)throw new BadRequestException('Study sessions must be scheduled before the exam date');
+   item.scheduledDate=dto.scheduled_date;
+  }
+  if(dto.status!==undefined){item.status=dto.status as StudyPlanItemStatus;item.completedAt=item.status===StudyPlanItemStatus.COMPLETED?new Date():null;}
+  return this.planItems.save(item);
  }
  async readiness(studentId:string){
   await this.getPlan(studentId);const rows=await this.dataSource.query(`
