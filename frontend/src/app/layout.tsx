@@ -20,6 +20,7 @@ import "@/components/study-guides-completion.css";
 import "@/components/bundles-completion.css";
 import "@/components/settings-completion.css";
 import "@/components/assessment-authoring-completion.css";
+import "@/components/admin-operations-completion.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
