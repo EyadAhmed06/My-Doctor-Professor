@@ -38,6 +38,12 @@ jobs:
       - run: npm run build
       - run: npm run lint
       - run: npm test -- --runInBand
+      - name: Verify multi-controller route extraction
+        run: node scripts/test-controller-route-extractor.mjs
+      - name: Generate complete Postman contract
+        run: node scripts/generate-postman-safe.mjs
+      - name: Verify generated route inventory
+        run: node scripts/verify-generated-route-inventory.mjs
       - run: npm audit --omit=dev --audit-level=high
 
   postgres:
