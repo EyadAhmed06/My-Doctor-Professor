@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FiBookOpen, FiChevronDown, FiDownload, FiExternalLink, FiFileText } from "react-icons/fi";
 import { useAuth } from "./auth-provider";
+import { PageSkeleton } from "./async-state";
 import { Panel, ProductShell } from "./product-shell";
+import { useUx } from "./ux-provider";
 import "./product-pages.css";
 
 type Lecture={id:string;lectureNumber:number;title:string;description:string|null;isPublished?:boolean};
@@ -15,8 +18,15 @@ type BundleContent={courses:Course[]};
 type Resource={id:string;resourceName:string;resourceType:string;uploadStatus:string;fileUrl:string;description:string|null;mimeType:string|null};
 
 export function ConnectedStudyGuidesPage(){
- const {user,request}=useAuth();
+ const {user,request}=useAuth();const {startNavigation}=useUx();const router=useRouter();const pathname=usePathname();const searchParams=useSearchParams();
+ const requestedCourse=searchParams.get("course");const requestedLecture=searchParams.get("lecture");
  const [courses,setCourses]=useState<Course[]>([]);const [courseId,setCourseId]=useState("");const [selected,setSelected]=useState<Lecture|null>(null);const [expandedWeeks,setExpandedWeeks]=useState<Set<string>>(new Set());const [resources,setResources]=useState<Resource[]>([]);const [loading,setLoading]=useState(true);const [loadingResources,setLoadingResources]=useState(false);const [error,setError]=useState<string|null>(null);
+
+ const setUrl=useCallback((nextCourse:string,nextLecture:string|null,replace=false)=>{
+  const params=new URLSearchParams(searchParams.toString());params.set("course",nextCourse);if(nextLecture)params.set("lecture",nextLecture);else params.delete("lecture");
+  const href=`${pathname}?${params.toString()}`;startNavigation();if(replace)router.replace(href,{scroll:false});else router.push(href,{scroll:false});
+ },[pathname,router,searchParams,startNavigation]);
+
  useEffect(()=>{
   if(!user)return;let active=true;setLoading(true);setError(null);
   void (async()=>{
@@ -29,21 +39,32 @@ export function ConnectedStudyGuidesPage(){
     if(!contents.length){const failed=results.find(result=>result.status==="rejected");if(failed&&failed.status==="rejected")throw failed.reason;}
     const merged=new Map<string,Course>();
     for(const content of contents){for(const course of content.courses){const existing=merged.get(course.id);if(!existing){merged.set(course.id,{...course,weeks:[...course.weeks]});continue;}const weekIds=new Set(existing.weeks.map(week=>week.id));existing.weeks.push(...course.weeks.filter(week=>!weekIds.has(week.id)));}}
-    if(!active)return;const available=[...merged.values()];setCourses(available);setCourseId(current=>available.some(course=>course.id===current)?current:available[0]?.id||"");
+    if(active)setCourses([...merged.values()]);
    }catch(cause){if(active)setError(cause instanceof Error?cause.message:"Unable to load bundle study guides.");}
    finally{if(active)setLoading(false);}
   })();
   return()=>{active=false};
  },[user,request]);
+
+ useEffect(()=>{
+  if(!courses.length)return;
+  const lectureCourse=requestedLecture?courses.find(course=>course.weeks.some(week=>week.lectures.some(lecture=>lecture.id===requestedLecture))):null;
+  const target=lectureCourse||courses.find(course=>course.id===requestedCourse)||courses[0];
+  const lectures=target.weeks.flatMap(week=>week.lectures);const lecture=lectures.find(item=>item.id===requestedLecture)||lectures[0]||null;
+  setCourseId(target.id);setSelected(lecture);setExpandedWeeks(new Set(target.weeks.map(week=>week.id)));
+  if(requestedCourse!==target.id||requestedLecture!==lecture?.id)setUrl(target.id,lecture?.id||null,true);
+ },[courses,requestedCourse,requestedLecture,setUrl]);
+
  const course=useMemo(()=>courses.find(item=>item.id===courseId)||null,[courses,courseId]);
  const weeks=useMemo(()=>course?.weeks??[],[course]);
- useEffect(()=>{const first=weeks.flatMap(week=>week.lectures)[0]||null;setSelected(first);setExpandedWeeks(new Set(weeks.map(week=>week.id)));setResources([]);},[courseId,weeks]);
  useEffect(()=>{if(!selected){setResources([]);return;}let active=true;setLoadingResources(true);setError(null);void request<Resource[]>(`/academic/lectures/${selected.id}/resources`).then(value=>{if(active)setResources(Array.isArray(value)?value:[])}).catch(cause=>{if(active)setError(cause instanceof Error?cause.message:"Unable to load lecture resources.")}).finally(()=>{if(active)setLoadingResources(false)});return()=>{active=false};},[selected,request]);
  const selectedWeek=useMemo(()=>weeks.find(week=>week.lectures.some(lecture=>lecture.id===selected?.id)),[selected?.id,weeks]);
+ function chooseCourse(id:string){const next=courses.find(item=>item.id===id);if(!next)return;const first=next.weeks.flatMap(week=>week.lectures)[0]||null;setUrl(id,first?.id||null);}
+ function chooseLecture(lecture:Lecture){setUrl(courseId,lecture.id);}
  function toggleWeek(id:string){setExpandedWeeks(current=>{const next=new Set(current);if(next.has(id))next.delete(id);else next.add(id);return next})}
- return <ProductShell search="Search lecture guides"><main className="pp-page study-guides-page"><header className="pp-title study-guides-title"><div><span className="pp-eyebrow">Bundle curriculum</span><h1>Study Guides</h1><p>Browse only the weeks and published lectures available through your bundles.</p></div><label className="study-guide-course-select">Course<select value={courseId} onChange={event=>setCourseId(event.target.value)} disabled={loading}>{courses.map(item=><option value={item.id} key={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label></header>
+ return <ProductShell search="Search lecture guides"><main className="pp-page study-guides-page"><header className="pp-title study-guides-title"><div><span className="pp-eyebrow">Bundle curriculum</span><h1>Study Guides</h1><p>Browse only the weeks and published lectures available through your bundles.</p></div><label className="study-guide-course-select">Course<select value={courseId} onChange={event=>chooseCourse(event.target.value)} disabled={loading}>{courses.map(item=><option value={item.id} key={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label></header>
  {error&&<div className="pp-inline-error" role="alert"><strong>We could not load this part of your bundle.</strong><span>{error}</span></div>}
- {loading?<div className="product-auth-loading">Loading your bundle curriculum…</div>:!courses.length?<Panel title="No study guides available"><p>Your account does not currently have a published course in an accessible bundle.</p></Panel>:<div className="study-guide-layout"><aside className="guide-course-nav" aria-label="Course weeks and lectures"><div className="guide-nav-heading"><span>Course content</span><small>{weeks.length} {weeks.length===1?"week":"weeks"}</small></div>{weeks.length?weeks.map(week=>{const open=expandedWeeks.has(week.id);return <section className="guide-week" key={week.id}><button className="guide-week-toggle" type="button" onClick={()=>toggleWeek(week.id)} aria-expanded={open}><span><small>WEEK {week.weekNumber}</small><strong>{week.title||`Week ${week.weekNumber}`}</strong></span><span className="guide-week-count">{week.lectures.length}</span><FiChevronDown className={open?"expanded":""}/></button>{open&&<div className="guide-lecture-list">{week.lectures.length?week.lectures.map(lecture=><button className={selected?.id===lecture.id?"active":""} type="button" onClick={()=>setSelected(lecture)} key={lecture.id}><span className="guide-lecture-number">{lecture.lectureNumber}</span><span><strong>{lecture.title}</strong><small>{lecture.description?"Guide and resources":"Resources"}</small></span></button>):<p className="guide-nav-empty">No published lectures in this week.</p>}</div>}</section>}):<p className="guide-nav-empty">No selected weeks are available in this bundle course.</p>}</aside>
- <article className="guide-content">{selected?<><section className="guide-hero"><span className="guide-hero-icon"><FiBookOpen/></span><div><small>WEEK {selectedWeek?.weekNumber??"—"} · LECTURE {selected.lectureNumber}</small><h1>{selected.title}</h1><p>{selected.description||"The instructor has not published a written lecture description yet."}</p></div></section><section className="guide-resource-section"><div className="guide-section-heading"><div><span className="pp-eyebrow">Published by your instructor</span><h2>Lecture resources</h2></div><span className="guide-resource-total">{resources.length} {resources.length===1?"resource":"resources"}</span></div>{loadingResources?<p className="guide-resource-empty">Loading resources…</p>:resources.length?<div className="guide-resource-grid">{resources.map(resource=><article className="guide-resource-card" key={resource.id}><span className="guide-resource-icon"><FiFileText/></span><div><small>{resource.resourceType} · {resource.uploadStatus}</small><h3>{resource.resourceName}</h3><p>{resource.description||"No description was provided."}</p></div>{resource.fileUrl.startsWith("/")?<Link className="pp-button secondary" href={resource.fileUrl}><FiDownload/> Open</Link>:<a className="pp-button secondary" href={resource.fileUrl} target="_blank" rel="noreferrer"><FiExternalLink/> Open</a>}</article>)}</div>:<div className="guide-resource-empty"><FiBookOpen/><strong>No resources published yet</strong><p>This lecture is in your bundle, but its instructor has not published a resource for it.</p></div>}</section></>:<div className="guide-resource-empty"><FiBookOpen/><strong>Select a lecture</strong><p>Choose a published lecture from a week to open its study guide.</p></div>}</article></div>}
+ {loading?<PageSkeleton variant="workspace" label="Loading your bundle curriculum"/>:!courses.length?<Panel title="No study guides available"><p>Your account does not currently have a published course in an accessible bundle.</p></Panel>:<><nav className="workspace-breadcrumb" aria-label="Breadcrumb"><Link href="/bundles">Bundles</Link><span>›</span><button type="button" onClick={()=>course&&chooseCourse(course.id)}>{course?.courseName}</button>{selectedWeek&&<><span>›</span><span>Week {selectedWeek.weekNumber}</span></>}{selected&&<><span>›</span><span aria-current="page">{selected.title}</span></>}</nav><div className="study-guide-layout"><aside className="guide-course-nav" aria-label="Course weeks and lectures"><div className="guide-nav-heading"><span>Course content</span><small>{weeks.length} {weeks.length===1?"week":"weeks"}</small></div>{weeks.length?weeks.map(week=>{const open=expandedWeeks.has(week.id);return <section className="guide-week" key={week.id}><button className="guide-week-toggle" type="button" onClick={()=>toggleWeek(week.id)} aria-expanded={open}><span><small>WEEK {week.weekNumber}</small><strong>{week.title||`Week ${week.weekNumber}`}</strong></span><span className="guide-week-count">{week.lectures.length}</span><FiChevronDown className={open?"expanded":""}/></button>{open&&<div className="guide-lecture-list">{week.lectures.length?week.lectures.map(lecture=><button className={selected?.id===lecture.id?"active":""} type="button" onClick={()=>chooseLecture(lecture)} key={lecture.id}><span className="guide-lecture-number">{lecture.lectureNumber}</span><span><strong>{lecture.title}</strong><small>{lecture.description?"Guide and resources":"Resources"}</small></span></button>):<p className="guide-nav-empty">No published lectures in this week.</p>}</div>}</section>}):<p className="guide-nav-empty">No selected weeks are available in this bundle course.</p>}</aside>
+ <article className="guide-content">{selected?<><section className="guide-hero"><span className="guide-hero-icon"><FiBookOpen/></span><div><small>WEEK {selectedWeek?.weekNumber??"—"} · LECTURE {selected.lectureNumber}</small><h1>{selected.title}</h1><p>{selected.description||"The instructor has not published a written lecture description yet."}</p></div></section><section className="guide-resource-section"><div className="guide-section-heading"><div><span className="pp-eyebrow">Published by your instructor</span><h2>Lecture resources</h2></div><span className="guide-resource-total">{resources.length} {resources.length===1?"resource":"resources"}</span></div>{loadingResources?<PageSkeleton variant="list" label="Loading lecture resources"/>:resources.length?<div className="guide-resource-grid">{resources.map(resource=><article className="guide-resource-card" key={resource.id}><span className="guide-resource-icon"><FiFileText/></span><div><small>{resource.resourceType} · {resource.uploadStatus}</small><h3>{resource.resourceName}</h3><p>{resource.description||"No description was provided."}</p></div>{resource.fileUrl.startsWith("/")?<Link className="pp-button secondary" href={resource.fileUrl}><FiDownload/> Open</Link>:<a className="pp-button secondary" href={resource.fileUrl} target="_blank" rel="noreferrer"><FiExternalLink/> Open</a>}</article>)}</div>:<div className="guide-resource-empty"><FiBookOpen/><strong>No resources published yet</strong><p>This lecture is in your bundle, but its instructor has not published a resource for it.</p></div>}</section></>:<div className="guide-resource-empty"><FiBookOpen/><strong>Select a lecture</strong><p>Choose a published lecture from a week to open its study guide.</p></div>}</article></div></>}
  </main></ProductShell>
 }
