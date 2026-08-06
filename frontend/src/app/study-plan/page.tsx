@@ -1,1 +1,5 @@
-import { ConnectedStudyPlanPage } from "@/components/connected-study-plan-page"; export default function Page(){return <ConnectedStudyPlanPage/>}
+import { AdvancedStudyPlanPage } from "@/components/advanced-study-plan-page";
+
+export default function Page() {
+  return <AdvancedStudyPlanPage />;
+}
