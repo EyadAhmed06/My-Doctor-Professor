@@ -5,14 +5,15 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
-import { AddTestQuestionDto, CreateTestDto, GeneratePracticeTestDto, GradeEssayDto, PracticeCatalogQueryDto, QuestionNoteDto, SaveAnswerDto, StartTestAttemptDto, TestQueryDto, UpdateTestDto } from './dtos/tests.dto';
+import { AssessmentAuthoringService } from './assessment-authoring.service';
+import { AddTestQuestionDto, CreateTestDto, GeneratePracticeTestDto, GradeEssayDto, PracticeCatalogQueryDto, QuestionNoteDto, ReorderTestQuestionsDto, SaveAnswerDto, StartTestAttemptDto, TestQueryDto, UpdateTestDto } from './dtos/tests.dto';
 import { TestsService } from './tests.service';
 const uuid = new ParseUUIDPipe({version:'4'});
 
 @Controller('tests')
 @UseGuards(JwtAuthGuard,RolesGuard)
 export class TestsController {
- constructor(private readonly tests:TestsService){}
+ constructor(private readonly tests:TestsService,private readonly authoring:AssessmentAuthoringService){}
 
  @Post() @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
  create(@Body() dto:CreateTestDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.create(dto,actor);}
@@ -28,11 +29,17 @@ export class TestsController {
  update(@Param('testId',uuid) id:string,@Body() dto:UpdateTestDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.update(id,dto,actor);}
  @Delete(':testId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) @HttpCode(HttpStatus.NO_CONTENT)
  async remove(@Param('testId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){await this.tests.remove(id,actor);}
+ @Get(':testId/authoring-state') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
+ authoringState(@Param('testId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.authoring.getAuthoringState(id,actor);}
+ @Post(':testId/duplicate') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
+ duplicate(@Param('testId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.authoring.duplicate(id,actor);}
 
  @Post(':testId/questions') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
  addQuestion(@Param('testId',uuid) id:string,@Body() dto:AddTestQuestionDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.addQuestion(id,dto,actor);}
  @Get(':testId/questions')
  listQuestions(@Param('testId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.listQuestions(id,actor);}
+ @Put(':testId/questions/reorder') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
+ reorderQuestions(@Param('testId',uuid) id:string,@Body() dto:ReorderTestQuestionsDto,@CurrentUser() actor:AuthenticatedUser){return this.authoring.reorder(id,dto,actor);}
  @Delete(':testId/questions/:questionId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) @HttpCode(HttpStatus.NO_CONTENT)
  async removeQuestion(@Param('testId',uuid) testId:string,@Param('questionId',uuid) questionId:string,@CurrentUser() actor:AuthenticatedUser){await this.tests.removeQuestion(testId,questionId,actor);}
 
