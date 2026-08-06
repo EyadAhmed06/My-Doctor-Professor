@@ -10,6 +10,7 @@ import "@/components/continuity.css";
 import "@/components/phase3-learning.css";
 import "@/components/phase4-polish.css";
 import "@/components/phase-five-ux.css";
+import "@/components/phase-five-shell.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
