@@ -33,7 +33,8 @@ export function ConnectedStudyGuidesPage(){
   })();
   return()=>{active=false};
  },[user,request]);
- const course=useMemo(()=>courses.find(item=>item.id===courseId)||null,[courses,courseId]);const weeks=course?.weeks||[];
+ const course=useMemo(()=>courses.find(item=>item.id===courseId)||null,[courses,courseId]);
+ const weeks=useMemo(()=>course?.weeks??[],[course]);
  useEffect(()=>{const first=weeks.flatMap(week=>week.lectures)[0]||null;setSelected(first);setExpandedWeeks(new Set(weeks.map(week=>week.id)));setResources([]);},[courseId,weeks]);
  useEffect(()=>{if(!selected){setResources([]);return;}let active=true;setLoadingResources(true);setError(null);void request<Resource[]>(`/academic/lectures/${selected.id}/resources`).then(value=>{if(active)setResources(Array.isArray(value)?value:[])}).catch(cause=>{if(active)setError(cause instanceof Error?cause.message:"Unable to load lecture resources.")}).finally(()=>{if(active)setLoadingResources(false)});return()=>{active=false};},[selected,request]);
  const selectedWeek=useMemo(()=>weeks.find(week=>week.lectures.some(lecture=>lecture.id===selected?.id)),[selected?.id,weeks]);
