@@ -31,7 +31,7 @@ export function ConnectedAnalyticsPage(){
 }
 
 function AnimatedNumber({value,suffix=""}:{value:number;suffix?:string}){
- const [display,setDisplay]=useState(value);const frame=useRef<number|null>(null);const previous=useRef(value);
+ const [display,setDisplay]=useState(0);const frame=useRef<number|null>(null);const previous=useRef(0);
  useEffect(()=>{const startValue=previous.current;previous.current=value;if(frame.current)cancelAnimationFrame(frame.current);if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){setDisplay(value);return;}const started=performance.now();const duration=560;const animate=(now:number)=>{const progress=Math.min(1,(now-started)/duration);const eased=1-Math.pow(1-progress,3);setDisplay(startValue+(value-startValue)*eased);if(progress<1)frame.current=requestAnimationFrame(animate);};frame.current=requestAnimationFrame(animate);return()=>{if(frame.current)cancelAnimationFrame(frame.current);};},[value]);
  return <>{Math.round(display)}{suffix}</>;
 }
