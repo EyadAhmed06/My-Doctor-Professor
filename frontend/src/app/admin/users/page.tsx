@@ -1,5 +1,5 @@
-import { AdminUsersPage } from "@/components/management-workspaces";
+import { AdvancedAdminUsersPage } from "@/components/advanced-admin-operations";
 
 export default function Page() {
-  return <AdminUsersPage />;
+  return <AdvancedAdminUsersPage />;
 }
