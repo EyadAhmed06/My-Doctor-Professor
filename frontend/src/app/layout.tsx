@@ -16,6 +16,7 @@ import "@/components/notifications-completion.css";
 import "@/components/analytics-completion.css";
 import "@/components/study-plan-completion.css";
 import "@/components/notebook-completion.css";
+import "@/components/study-guides-completion.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
