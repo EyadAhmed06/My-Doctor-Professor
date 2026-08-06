@@ -22,6 +22,7 @@ import "@/components/settings-completion.css";
 import "@/components/assessment-authoring-completion.css";
 import "@/components/admin-operations-completion.css";
 import "@/components/frontend-route-theme-audit.css";
+import "@/components/dashboard-visual-fix.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
