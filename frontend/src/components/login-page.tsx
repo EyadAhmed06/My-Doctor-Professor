@@ -31,7 +31,7 @@ export function LoginPage(){
     <section className="story-side">
       <Brand/>
       <figure className="auth-organ-visual heart-story-image">
-        <img src="/media/login-heart-clean.png" alt="Luminous anatomical heart with an electrocardiogram trace" />
+        <img src="/media/login-heart-reference.png" alt="Luminous anatomical heart with an electrocardiogram trace" />
       </figure>
     </section>
     <section className="form-side">
