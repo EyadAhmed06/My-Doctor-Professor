@@ -118,13 +118,13 @@ export function UxProvider({ children }: { children: React.ReactNode }) {
     };
   }, [dismiss, notify]);
 
-  useEffect(
-    () => () => {
-      for (const timer of timers.current.values()) window.clearTimeout(timer);
-      timers.current.clear();
-    },
-    [],
-  );
+  useEffect(() => {
+    const activeTimers = timers.current;
+    return () => {
+      for (const timer of activeTimers.values()) window.clearTimeout(timer);
+      activeTimers.clear();
+    };
+  }, []);
 
   const value = useMemo(() => ({ notify, dismiss, startNavigation }), [dismiss, notify, startNavigation]);
   const busy = requestCount > 0 || routeBusy;
