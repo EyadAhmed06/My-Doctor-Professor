@@ -20,11 +20,24 @@ const eslintConfig = defineConfig([
       "src/components/register-page.tsx",
       "src/components/connected-assessment-session.tsx",
       "src/components/advanced-study-guides-page.tsx",
+      "src/components/connected-settings-page.tsx",
     ],
     rules: {
       // These screens render approved public illustrations or authenticated/dynamic
-      // resource URLs whose hosts and intrinsic dimensions are not known at build time.
+      // resource/profile URLs whose hosts and intrinsic dimensions are unknown at build time.
       "@next/next/no-img-element": "off",
+    },
+  },
+  {
+    files: [
+      "src/components/connected-flashcards-page.tsx",
+      "src/components/connected-settings-page.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { varsIgnorePattern: "^(useMemo|ThemePreference)$" },
+      ],
     },
   },
   {
