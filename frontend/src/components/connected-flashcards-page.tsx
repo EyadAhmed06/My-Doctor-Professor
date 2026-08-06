@@ -45,9 +45,11 @@ export function ConnectedFlashcardsPage(){
   useEffect(()=>{void load();},[load]);
   useEffect(()=>{
     if(loading||!cards.length)return;
-    const targetIndex=Math.max(0,cards.findIndex(item=>item.id===requestedCard)||(requestedLecture?cards.findIndex(item=>item.deck.lecture?.id===requestedLecture):-1));
-    const safeIndex=targetIndex>=0?targetIndex:0;setIndex(safeIndex);setRevealed(false);
-    if(requestedCard!==cards[safeIndex]?.id)setUrl(cards[safeIndex],true);
+    const cardIndex=requestedCard?cards.findIndex(item=>item.id===requestedCard):-1;
+    const lectureIndex=requestedLecture?cards.findIndex(item=>item.deck.lecture?.id===requestedLecture):-1;
+    const targetIndex=cardIndex>=0?cardIndex:lectureIndex>=0?lectureIndex:0;
+    setIndex(targetIndex);setRevealed(false);
+    if(requestedCard!==cards[targetIndex]?.id)setUrl(cards[targetIndex],true);
   },[cards,loading,requestedCard,requestedLecture,setUrl]);
   useEffect(()=>{
     setOnline(navigator.onLine);
