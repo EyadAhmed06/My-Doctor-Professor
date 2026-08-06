@@ -106,16 +106,42 @@ const analytics = {
   },
 };
 
+function apiEndpoint(requestUrl: string) {
+  const pathname = new URL(requestUrl).pathname;
+  const marker = '/api/v1';
+  const markerIndex = pathname.indexOf(marker);
+  if (markerIndex >= 0) return pathname.slice(markerIndex + marker.length) || '/';
+  return pathname;
+}
+
+function isMockedEndpoint(endpoint: string) {
+  return endpoint === '/auth/me'
+    || endpoint.startsWith('/notifications')
+    || endpoint.startsWith('/users/')
+    || endpoint.startsWith('/bundles')
+    || endpoint === '/catalog/bundles'
+    || endpoint === '/analytics/student';
+}
+
 async function mockApi(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem('mdp_access_token', 'browser-test-token');
     localStorage.setItem('mdp-theme', 'light');
   });
 
-  await page.route('**/api/v1/**', async (route) => {
+  await page.route('**/*', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
-    const endpoint = url.pathname.split('/api/v1')[1] || '/';
+    const endpoint = apiEndpoint(request.url());
+    const apiLikeRequest = isMockedEndpoint(endpoint)
+      || url.pathname.includes('/api/v1')
+      || url.port === '3000';
+
+    if (!apiLikeRequest) {
+      await route.fallback();
+      return;
+    }
+
     const headers = {
       'access-control-allow-origin': '*',
       'access-control-allow-headers': 'authorization,content-type',
@@ -137,7 +163,7 @@ async function mockApi(page: Page) {
 
     if (endpoint === '/auth/me') return respond(student);
     if (endpoint === '/notifications/unread/count') return respond({ count: 2 });
-    if (endpoint.startsWith('/notifications?')) {
+    if (endpoint === '/notifications') {
       return respond({
         data: [
           {
