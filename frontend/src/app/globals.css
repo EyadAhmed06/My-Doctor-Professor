@@ -1292,3 +1292,124 @@ html[data-theme="light"] .auth-organ-visual::before{background:radial-gradient(c
 html[data-theme="light"] .auth-organ-visual img{filter:saturate(.82) brightness(1.02) drop-shadow(0 20px 30px rgba(20,33,61,.16))}
 @media(max-width:1050px){.hero-duo{width:min(820px,108%);margin-inline:auto}.auth-organ-visual{min-height:380px;max-width:760px}}
 @media(max-width:700px){.hero-duo{width:106%;margin-left:-3%}.hero-duo img{transform:scale(1.035)}.auth-organ-visual,.registration-story .digestive-story-image{min-height:300px;margin-top:24px}.auth-organ-visual img{max-height:390px}}
+
+
+/* Pixel-reference authentication layouts — 2026-08-06 */
+.reference-login{
+  min-height:100svh;
+  grid-template-columns:55.5% 44.5%;
+  padding-bottom:174px;
+  position:relative;
+  background:#020d1d;
+}
+.reference-login .story-side{padding:42px 40px;overflow:hidden}
+.reference-login .story-side>.brand{position:relative;z-index:2}
+.reference-login .heart-story-image{
+  position:absolute;inset:0;margin:0;overflow:hidden;z-index:0;
+}
+.reference-login .heart-story-image img{
+  position:absolute;left:0;top:0;width:180.2%;height:auto;max-width:none;
+}
+.reference-login .form-side{padding:98px 64px 44px 0;justify-content:center}
+.reference-login .login-card{
+  width:min(580px,100%);max-width:none;min-height:766px;
+  border-radius:32px;padding:71px 52px;
+  background:rgba(9,23,42,.96);border-color:#2a405a;
+}
+.reference-login .login-card h2{font-size:42px}
+.reference-login .subhead{margin:14px 0 43px}
+.reference-login .login-form{gap:28px}
+.reference-login .input-shell{height:60px;border-radius:11px;background:#111e31}
+.reference-login .primary-button{height:64px;font-size:19px}
+.reference-login .google-button{height:56px;background:transparent}
+.reference-login .institution,.reference-login .secure-note{display:none}
+.auth-proof-strip{
+  position:absolute;left:4%;right:4%;bottom:51px;height:132px;
+  border:1px solid #25354b;border-radius:22px;background:rgba(7,21,39,.94);
+  display:grid;grid-template-columns:repeat(4,1fr);align-items:center;overflow:hidden;
+}
+.auth-proof-strip>div{
+  height:70px;border-right:1px solid #25354b;display:flex;gap:20px;
+  align-items:center;justify-content:center;padding:0 22px;
+}
+.auth-proof-strip>div:last-child{border-right:0}
+.auth-proof-strip svg{font-size:34px;color:var(--teal);flex:none}
+.auth-proof-strip b,.auth-proof-strip small{display:block}
+.auth-proof-strip b{font-size:15px}
+.auth-proof-strip small{color:var(--muted);font-size:12px;margin-top:8px;white-space:nowrap}
+
+.reference-register{
+  min-height:100svh;grid-template-columns:38.8% 61.2%;background:#020d1d;
+}
+.reference-register .registration-story{
+  padding:42px 9%;border-right:0;overflow:hidden;position:relative;
+}
+.reference-register .registration-story:after{display:none}
+.reference-register .registration-story>.brand{position:relative;z-index:2}
+.reference-register .lungs-story-image{
+  position:absolute;inset:0;margin:0;overflow:hidden;z-index:0;
+}
+.reference-register .lungs-story-image img{
+  position:absolute;left:0;top:0;width:257.8%;height:auto;max-width:none;
+}
+.reference-register .registration-form-side{padding:42px 38px;justify-content:center}
+.reference-register .registration-card{
+  width:min(804px,100%);margin:0;min-height:1058px;border-radius:22px;padding:0;
+  background:rgba(10,23,42,.97);border-color:#25354b;overflow:hidden;
+}
+.reference-register .registration-top{
+  height:82px;padding:31px 34px 0;font-size:13px;
+}
+.reference-register .registration-content{padding:21px 51px 24px}
+.reference-register .registration-card h2{font-size:40px;margin:20px 0 14px}
+.reference-register .registration-card>.registration-content>p{
+  color:var(--pub-muted);font-size:14px;line-height:1.55;margin:0;
+}
+.reference-register .registration-form{margin-top:36px}
+.reference-register .registration-form .form-grid{gap:26px 28px}
+.reference-register .registration-form .field{font-size:13px}
+.reference-register .registration-form .input-shell{height:62px;border-radius:9px}
+.reference-register .registration-divider{margin:26px 0 19px}
+.reference-register .academic-grid{grid-template-columns:1fr 1fr}
+.reference-register .terms{margin:20px 0 17px}
+.reference-register .registration-form>.primary-button{
+  height:64px;font-size:18px;padding:0 25px;justify-content:center;position:relative;
+}
+.reference-register .registration-form>.primary-button svg{position:absolute;right:25px}
+.registration-proof-strip{
+  height:126px;margin-top:30px;border:1px solid var(--pub-line);
+  display:grid;grid-template-columns:repeat(4,1fr);overflow:hidden;
+}
+.registration-proof-strip>div{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border-right:1px solid var(--pub-line);text-align:center;
+}
+.registration-proof-strip>div:last-child{border-right:0}
+.registration-proof-strip svg{font-size:28px;color:var(--pub-teal)}
+.registration-proof-strip b{font-size:12px;margin:9px 0}
+.registration-proof-strip small{font-size:10px;color:var(--pub-muted);line-height:1.4;max-width:120px}
+
+@media(max-width:1050px){
+  .reference-login{grid-template-columns:1fr;padding-bottom:0}
+  .reference-login .story-side{min-height:620px}
+  .reference-login .heart-story-image img{width:100%;height:100%;object-fit:cover}
+  .reference-login .form-side{padding:28px;min-height:auto}
+  .auth-proof-strip{position:relative;left:auto;right:auto;bottom:auto;margin:0 28px 28px;height:auto;min-height:132px}
+  .reference-register{grid-template-columns:1fr}
+  .reference-register .registration-story{min-height:620px;border-bottom:1px solid var(--pub-line)}
+  .reference-register .lungs-story-image img{width:100%;height:100%;object-fit:cover}
+}
+@media(max-width:720px){
+  .reference-login .story-side,.reference-register .registration-story{min-height:330px;padding:24px}
+  .reference-login .login-card{padding:38px 24px;min-height:0;border-radius:20px}
+  .reference-login .login-card h2{font-size:35px}
+  .auth-proof-strip{grid-template-columns:1fr 1fr}
+  .auth-proof-strip>div{min-height:96px;border-bottom:1px solid #25354b}
+  .reference-register .registration-form-side{padding:16px}
+  .reference-register .registration-card{min-height:0}
+  .reference-register .registration-top{height:auto;padding:22px}
+  .reference-register .registration-content{padding:18px 22px 24px}
+  .reference-register .registration-form .form-grid,.reference-register .academic-grid{grid-template-columns:1fr}
+  .registration-proof-strip{height:auto;grid-template-columns:1fr 1fr}
+  .registration-proof-strip>div{min-height:110px;border-bottom:1px solid var(--pub-line)}
+}
