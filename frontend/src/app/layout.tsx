@@ -13,6 +13,7 @@ import "@/components/phase-five-ux.css";
 import "@/components/phase-five-shell.css";
 import "@/components/completion-ux.css";
 import "@/components/notifications-completion.css";
+import "@/components/analytics-completion.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
