@@ -36,7 +36,7 @@ export function RegisterPage() {
     <section className="registration-story">
       <Brand />
       <figure className="auth-organ-visual lungs-story-image">
-        <img src="/media/register-lungs-clean.png" alt="Luminous respiratory system anatomy illustration" />
+        <img src="/media/register-lungs-reference.png" alt="Luminous respiratory system anatomy illustration" />
       </figure>
     </section>
     <section className="registration-form-side">
