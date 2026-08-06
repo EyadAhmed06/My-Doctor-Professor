@@ -40,15 +40,19 @@ export function useWorkspaceContinuity(pathname: string, label: string) {
     try {
       const stored = Number(sessionStorage.getItem(key));
       if (Number.isFinite(stored) && stored > 0) window.requestAnimationFrame(() => window.scrollTo({ top: stored, behavior: "auto" }));
-    } catch { /* Ignore unavailable session storage. */ }
+    } catch { /* Session storage may be disabled by the browser. */ }
     const save = () => {
       window.clearTimeout(saveTimer);
-      saveTimer = window.setTimeout(() => { try { sessionStorage.setItem(key, String(window.scrollY)); } catch {} }, 120);
+      saveTimer = window.setTimeout(() => {
+        try { sessionStorage.setItem(key, String(window.scrollY)); }
+        catch { /* Scroll restoration remains best-effort. */ }
+      }, 120);
     };
     window.addEventListener("scroll", save, { passive: true });
     return () => {
       window.clearTimeout(saveTimer);window.removeEventListener("scroll", save);
-      try { sessionStorage.setItem(key, String(window.scrollY)); } catch {}
+      try { sessionStorage.setItem(key, String(window.scrollY)); }
+      catch { /* Scroll restoration remains best-effort. */ }
       history.scrollRestoration = previousRestoration;
     };
   }, [pathname]);
