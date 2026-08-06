@@ -22,7 +22,7 @@ import { PageSkeleton } from "./async-state";
 import { useUx } from "./ux-provider";
 import { useWorkspaceContinuity } from "./workspace-continuity";
 
-type NavItem = { label: string; href: string };
+type NavItem = { label: string; href: string; exact?: boolean };
 type NotificationPreview = {
   id: string;
   title: string;
@@ -44,7 +44,7 @@ const studentNav: NavItem[] = [
 ];
 
 const instructorNav: NavItem[] = [
-  { label: "Overview", href: "/instructor" },
+  { label: "Overview", href: "/instructor", exact: true },
   { label: "Courses", href: "/instructor/courses" },
   { label: "Questions", href: "/instructor/questions" },
   { label: "Assessments", href: "/instructor/assessments" },
@@ -54,11 +54,14 @@ const instructorNav: NavItem[] = [
 ];
 
 const adminNav: NavItem[] = [
-  { label: "Overview", href: "/admin" },
+  { label: "Overview", href: "/admin", exact: true },
   { label: "Users", href: "/admin/users" },
   { label: "Academics", href: "/admin/academics" },
   { label: "Questions", href: "/admin/questions" },
   { label: "Assessments", href: "/admin/assessments" },
+  { label: "Grading", href: "/admin/grading" },
+  { label: "Flashcards", href: "/admin/flashcards" },
+  { label: "Bundles", href: "/bundles" },
   { label: "Audit", href: "/admin/audit" },
 ];
 
@@ -74,8 +77,14 @@ function homeFor(role: UserRole): string {
   return "/dashboard";
 }
 
+function isActivePath(path: string, item: NavItem): boolean {
+  return item.exact ? path === item.href : path === item.href || path.startsWith(`${item.href}/`);
+}
+
 function workspaceLabel(path: string, items: NavItem[]) {
-  const match = items.find(item => path === item.href || path.startsWith(`${item.href}/`));
+  const match = [...items]
+    .sort((left, right) => right.href.length - left.href.length)
+    .find(item => isActivePath(path, item));
   if (match) return match.label;
   if (path.startsWith("/notifications")) return "Notifications";
   if (path.startsWith("/settings")) return "Settings";
@@ -120,7 +129,11 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
     try {
       setPreview((await request<Page<NotificationPreview>>("/notifications?limit=5")).data);
     } catch (cause) {
-      notify({ title: "Could not load notifications", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+      notify({
+        title: "Could not load notifications",
+        description: cause instanceof Error ? cause.message : undefined,
+        tone: "error",
+      });
     } finally {
       setPreviewLoading(false);
     }
@@ -145,7 +158,9 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
     if (!open) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
     window.addEventListener("keydown", close);
     return () => {
       document.body.style.overflow = previous;
@@ -202,7 +217,11 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
     } catch (cause) {
       setPreview(previous);
       void loadUnread();
-      notify({ title: "Could not mark notifications as read", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+      notify({
+        title: "Could not mark notifications as read",
+        description: cause instanceof Error ? cause.message : undefined,
+        tone: "error",
+      });
     }
   }
 
@@ -231,7 +250,53 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
     router.push(href);
   }
 
-  return <div className="product-app"><header className="pp-topbar"><BrandLockup className="pp-brand" href={homeFor(user.role)} /><button className="pp-menu" onClick={() => setOpen(true)} aria-label="Open menu" aria-expanded={open} aria-controls="product-navigation"><FiMenu /></button>{open && <button className="pp-mobile-overlay" type="button" aria-label="Close navigation" onClick={() => setOpen(false)} />}<nav id="product-navigation" className={open ? "open" : ""} aria-label="Primary navigation"><button className="pp-nav-close" type="button" onClick={() => setOpen(false)} aria-label="Close menu"><FiX /></button>{nav.map(item => <Link key={item.href} className={path === item.href || path.startsWith(`${item.href}/`) ? "active" : ""} href={item.href} onClick={() => { setOpen(false); startNavigation(); }}>{item.label}</Link>)}<Link href="/settings" className={path.startsWith("/settings") ? "active" : ""} onClick={() => { setOpen(false); startNavigation(); }}>Settings</Link></nav><button className="pp-search-command" type="button" onClick={openPalette} aria-label={`Open command palette. ${search}`}><FiSearch /><span>{search}</span><kbd>⌘ K</kbd></button><div className="pp-profile"><div className="header-popover-anchor" ref={notificationsRef}><button ref={notificationsButtonRef} aria-label={`${unread} unread notifications`} aria-expanded={notificationsOpen} aria-haspopup="dialog" onClick={() => { const next = !notificationsOpen; setNotificationsOpen(next); setProfileOpen(false); if (next) void loadPreview(); }}><FiBell />{unread > 0 && <i>{unread > 99 ? "99+" : unread}</i>}</button>{notificationsOpen && <section className="header-popover notification-preview" role="dialog" aria-label="Notification preview"><header><div><b>Notifications</b><small>{unreadPreview} unread in preview</small></div><button type="button" disabled={!unread} onClick={() => void markAllPreviewRead()}><FiCheck /> Mark all read</button></header>{previewLoading ? <PageSkeleton variant="list" label="Loading notification preview" /> : preview.length ? <div className="notification-preview-list">{preview.map(item => <button type="button" className={item.status === "UNREAD" ? "unread" : ""} key={item.id} onClick={() => void openNotification(item)}><span /><div><b>{item.title}</b><p>{item.message}</p><small>{new Date(item.created_at).toLocaleString()}</small></div></button>)}</div> : <p className="header-popover-empty">No notifications yet.</p>}<footer><button type="button" onClick={() => navigate("/notifications")}>View all notifications</button></footer></section>}</div><div className="header-popover-anchor profile-menu-anchor" ref={profileRef}><button ref={profileButtonRef} className="profile-menu-trigger" type="button" aria-expanded={profileOpen} aria-haspopup="menu" onClick={() => { setProfileOpen(value => !value); setNotificationsOpen(false); }}><span className="avatar-fallback">{initials}</span><span><b>{displayName}</b><small>{roleLabel}</small></span><FiChevronDown /></button>{profileOpen && <div className="header-popover profile-menu" role="menu"><div className="profile-menu-summary"><span className="avatar-fallback">{initials}</span><div><b>{displayName}</b><small>{user.email}</small></div></div><button type="button" role="menuitem" onClick={() => navigate("/settings#profile")}><FiUser /> Profile</button><button type="button" role="menuitem" onClick={() => navigate("/settings")}><FiSettings /> Settings</button><div className="profile-theme-row"><span>Theme</span><ThemeToggle compact /></div><button className="danger" type="button" role="menuitem" onClick={() => void logout().then(() => { setProfileOpen(false); startNavigation(); router.replace("/login"); })}><FiLogOut /> Log out</button></div>}</div></div></header>{children}<CommandPalette open={paletteOpen} onOpen={openPalette} onClose={closePalette} role={user.role} /></div>;
+  return <div className="product-app">
+    <header className="pp-topbar">
+      <BrandLockup className="pp-brand" href={homeFor(user.role)} />
+      <button className="pp-menu" onClick={() => setOpen(true)} aria-label="Open menu" aria-expanded={open} aria-controls="product-navigation"><FiMenu /></button>
+      {open && <button className="pp-mobile-overlay" type="button" aria-label="Close navigation" onClick={() => setOpen(false)} />}
+      <nav id="product-navigation" className={open ? "open" : ""} aria-label="Primary navigation">
+        <button className="pp-nav-close" type="button" onClick={() => setOpen(false)} aria-label="Close menu"><FiX /></button>
+        {nav.map(item => <Link key={item.href} className={isActivePath(path, item) ? "active" : ""} href={item.href} onClick={() => { setOpen(false); startNavigation(); }}>{item.label}</Link>)}
+        <Link href="/settings" className={path.startsWith("/settings") ? "active" : ""} onClick={() => { setOpen(false); startNavigation(); }}>Settings</Link>
+      </nav>
+      <button className="pp-search-command" type="button" onClick={openPalette} aria-label={`Open command palette. ${search}`}><FiSearch /><span>{search}</span><kbd>⌘ K</kbd></button>
+      <div className="pp-profile">
+        <div className="header-popover-anchor" ref={notificationsRef}>
+          <button ref={notificationsButtonRef} aria-label={`${unread} unread notifications`} aria-expanded={notificationsOpen} aria-haspopup="dialog" onClick={() => {
+            const next = !notificationsOpen;
+            setNotificationsOpen(next);
+            setProfileOpen(false);
+            if (next) void loadPreview();
+          }}><FiBell />{unread > 0 && <i>{unread > 99 ? "99+" : unread}</i>}</button>
+          {notificationsOpen && <section className="header-popover notification-preview" role="dialog" aria-label="Notification preview">
+            <header><div><b>Notifications</b><small>{unreadPreview} unread in preview</small></div><button type="button" disabled={!unread} onClick={() => void markAllPreviewRead()}><FiCheck /> Mark all read</button></header>
+            {previewLoading ? <PageSkeleton variant="list" label="Loading notification preview" /> : preview.length ? <div className="notification-preview-list">{preview.map(item => <button type="button" className={item.status === "UNREAD" ? "unread" : ""} key={item.id} onClick={() => void openNotification(item)}><span /><div><b>{item.title}</b><p>{item.message}</p><small>{new Date(item.created_at).toLocaleString()}</small></div></button>)}</div> : <p className="header-popover-empty">No notifications yet.</p>}
+            <footer><button type="button" onClick={() => navigate("/notifications")}>View all notifications</button></footer>
+          </section>}
+        </div>
+        <div className="header-popover-anchor profile-menu-anchor" ref={profileRef}>
+          <button ref={profileButtonRef} className="profile-menu-trigger" type="button" aria-expanded={profileOpen} aria-haspopup="menu" onClick={() => {
+            setProfileOpen(value => !value);
+            setNotificationsOpen(false);
+          }}><span className="avatar-fallback">{initials}</span><span><b>{displayName}</b><small>{roleLabel}</small></span><FiChevronDown /></button>
+          {profileOpen && <div className="header-popover profile-menu" role="menu">
+            <div className="profile-menu-summary"><span className="avatar-fallback">{initials}</span><div><b>{displayName}</b><small>{user.email}</small></div></div>
+            <button type="button" role="menuitem" onClick={() => navigate("/settings#profile")}><FiUser /> Profile</button>
+            <button type="button" role="menuitem" onClick={() => navigate("/settings")}><FiSettings /> Settings</button>
+            <div className="profile-theme-row"><span>Theme</span><ThemeToggle compact /></div>
+            <button className="danger" type="button" role="menuitem" onClick={() => void logout().then(() => {
+              setProfileOpen(false);
+              startNavigation();
+              router.replace("/login");
+            })}><FiLogOut /> Log out</button>
+          </div>}
+        </div>
+      </div>
+    </header>
+    {children}
+    <CommandPalette open={paletteOpen} onOpen={openPalette} onClose={closePalette} role={user.role} />
+  </div>;
 }
 
 export function Panel({ title, action, children, className = "", id }: { title?: string; action?: React.ReactNode; children: React.ReactNode; className?: string; id?: string }) {
