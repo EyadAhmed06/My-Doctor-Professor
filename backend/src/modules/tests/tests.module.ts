@@ -13,6 +13,7 @@ import { Test } from '../../common/entities/test.entity';
 import { Week } from '../../common/entities/week.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { Student } from '../users/entities/student.entity';
+import { AssessmentAuthoringService } from './assessment-authoring.service';
 import { TestsController } from './tests.controller';
 import { TestsService } from './tests.service';
 
@@ -22,7 +23,7 @@ import { TestsService } from './tests.service';
   Question,McqOption,Course,Week,Lecture,Student,
  ])],
  controllers:[TestsController],
- providers:[TestsService],
+ providers:[TestsService,AssessmentAuthoringService],
  exports:[TestsService,TypeOrmModule],
 })
 export class TestsModule {}
