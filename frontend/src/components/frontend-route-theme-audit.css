@@ -1,0 +1,645 @@
+/* Final frontend-wide theme, layout, state, and responsive audit.
+   Loaded after the existing phase styles and intentionally maps both the
+   legacy --bg/--panel variables and the authenticated product variables. */
+
+:root,
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --app-bg: #070b1b;
+  --app-surface: #0d1327;
+  --app-surface-soft: #11182d;
+  --app-surface-raised: #151d34;
+  --app-border: #26314f;
+  --app-text: #f7f7fb;
+  --app-muted: #a5aec8;
+  --app-accent: #49d2c6;
+  --app-accent-strong: #198f8c;
+  --app-accent-2: #8b5cf6;
+  --app-success: #45c879;
+  --app-warning: #f3a850;
+  --app-danger: #ff6b76;
+  --app-shadow: 0 16px 42px rgba(0, 0, 0, .28);
+  --bg: var(--app-bg);
+  --panel: var(--app-surface);
+  --panel-2: var(--app-surface-soft);
+  --line: var(--app-border);
+  --text: var(--app-text);
+  --muted: var(--app-muted);
+  --teal: var(--app-accent);
+  --violet: var(--app-accent-2);
+  --background: var(--app-bg);
+  --surface: var(--app-surface);
+  --surface-soft: var(--app-surface-soft);
+  --border: var(--app-border);
+  --accent: var(--app-accent);
+  --accent-2: var(--app-accent-2);
+  --success: var(--app-success);
+  --warning: var(--app-warning);
+  --danger: var(--app-danger);
+  --shadow: var(--app-shadow);
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --app-bg: #f4f7fb;
+  --app-surface: #ffffff;
+  --app-surface-soft: #f0f4fa;
+  --app-surface-raised: #ffffff;
+  --app-border: #d8e1ee;
+  --app-text: #15213b;
+  --app-muted: #64708a;
+  --app-accent: #176e79;
+  --app-accent-strong: #0d5f69;
+  --app-accent-2: #6f4bd8;
+  --app-success: #238652;
+  --app-warning: #a96012;
+  --app-danger: #c83f50;
+  --app-shadow: 0 12px 34px rgba(35, 55, 88, .09);
+  --bg: var(--app-bg);
+  --panel: var(--app-surface);
+  --panel-2: var(--app-surface-soft);
+  --line: var(--app-border);
+  --text: var(--app-text);
+  --muted: var(--app-muted);
+  --teal: var(--app-accent);
+  --violet: var(--app-accent-2);
+  --background: var(--app-bg);
+  --surface: var(--app-surface);
+  --surface-soft: var(--app-surface-soft);
+  --border: var(--app-border);
+  --accent: var(--app-accent);
+  --accent-2: var(--app-accent-2);
+  --success: var(--app-success);
+  --warning: var(--app-warning);
+  --danger: var(--app-danger);
+  --shadow: var(--app-shadow);
+}
+
+html,
+body {
+  max-width: 100%;
+  background-color: var(--app-bg) !important;
+  color: var(--app-text);
+}
+
+body {
+  overflow-x: hidden;
+  transition: background-color .2s ease, color .2s ease;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--app-accent) 32%, transparent);
+  color: var(--app-text);
+}
+
+/* Public/auth pages: keep their geometry, but make their existing controls
+   honor the same light/dark theme instead of remaining permanently dark. */
+html[data-theme="light"] .auth-page,
+html[data-theme="light"] .landing-page,
+html[data-theme="light"] .login-page,
+html[data-theme="light"] .story-side,
+html[data-theme="light"] .form-side {
+  background-color: var(--app-bg);
+  color: var(--app-text);
+}
+
+html[data-theme="light"] .panel,
+html[data-theme="light"] .login-card,
+html[data-theme="light"] .signup-card,
+html[data-theme="light"] .plan-summary,
+html[data-theme="light"] .trust-strip,
+html[data-theme="light"] .benefit-icon,
+html[data-theme="light"] .institution {
+  background: var(--app-surface) !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-text) !important;
+  box-shadow: var(--app-shadow) !important;
+}
+
+html[data-theme="light"] .story-copy h1,
+html[data-theme="light"] .plan-area > h1,
+html[data-theme="light"] .panel h2,
+html[data-theme="light"] .field,
+html[data-theme="light"] .access-line,
+html[data-theme="light"] .institution strong,
+html[data-theme="light"] .google-button {
+  color: var(--app-text) !important;
+}
+
+html[data-theme="light"] .lead,
+html[data-theme="light"] .benefit p,
+html[data-theme="light"] .subhead,
+html[data-theme="light"] .form-row,
+html[data-theme="light"] .switch-copy,
+html[data-theme="light"] .secure-note,
+html[data-theme="light"] .institution span,
+html[data-theme="light"] .trust-strip span {
+  color: var(--app-muted) !important;
+}
+
+html[data-theme="light"] .input-shell,
+html[data-theme="light"] .google-button,
+html[data-theme="light"] .checkline input {
+  background: var(--app-surface-soft) !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-text) !important;
+}
+
+html[data-theme="light"] .input-shell input {
+  color: var(--app-text) !important;
+}
+
+/* Authenticated application token bridge. */
+.product-app,
+.dashboard-shell {
+  --p-bg: var(--app-bg) !important;
+  --p-panel: var(--app-surface) !important;
+  --p-panel2: var(--app-surface-soft) !important;
+  --p-line: var(--app-border) !important;
+  --p-text: var(--app-text) !important;
+  --p-muted: var(--app-muted) !important;
+  --p-teal: var(--app-accent) !important;
+  --p-teal2: var(--app-accent-strong) !important;
+  --p-violet: var(--app-accent-2) !important;
+  --p-orange: var(--app-warning) !important;
+  --p-danger: var(--app-danger) !important;
+  --db-bg: var(--app-bg) !important;
+  --db-sidebar: var(--app-surface) !important;
+  --db-surface: var(--app-surface) !important;
+  --db-surface-2: var(--app-surface-soft) !important;
+  --db-line: var(--app-border) !important;
+  --db-text: var(--app-text) !important;
+  --db-muted: var(--app-muted) !important;
+  --db-soft: var(--app-surface-soft) !important;
+  --db-shadow: var(--app-shadow) !important;
+  --db-teal: var(--app-accent) !important;
+  --db-violet: var(--app-accent-2) !important;
+  background: var(--app-bg) !important;
+  color: var(--app-text) !important;
+}
+
+.product-app,
+.phase5-workspace-main,
+.pp-page,
+.role-workspace,
+.study-guides-page,
+.advanced-guides-page,
+.advanced-assessments-page {
+  width: 100%;
+  min-width: 0;
+}
+
+.pp-topbar,
+.header-popover,
+.pp-panel,
+.role-modal,
+.role-master-list,
+.role-detail,
+.phase5-drawer,
+.phase5-confirm,
+.resource-preview-drawer,
+.assessment-student-preview li,
+.guide-progress-panel,
+.guide-resource-card,
+.guide-course-nav,
+.guide-content,
+.app-state-card {
+  background-color: var(--app-surface) !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-text) !important;
+}
+
+.pp-topbar {
+  box-shadow: 0 1px 0 var(--app-border);
+}
+
+.pp-panel,
+.role-modal,
+.header-popover,
+.resource-preview-drawer,
+.app-state-card {
+  box-shadow: var(--app-shadow);
+}
+
+.product-app input,
+.product-app select,
+.product-app textarea,
+.role-form input,
+.role-form select,
+.role-form textarea,
+.attempt-filters > div,
+.attempt-filters select,
+.guide-global-search,
+.study-guide-course-select select {
+  background-color: var(--app-surface-soft) !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-text) !important;
+}
+
+.product-app input::placeholder,
+.product-app textarea::placeholder {
+  color: color-mix(in srgb, var(--app-muted) 82%, transparent);
+}
+
+.product-app option {
+  background: var(--app-surface);
+  color: var(--app-text);
+}
+
+.product-app p,
+.product-app small,
+.role-workspace small,
+.guide-content p,
+.resource-preview-drawer p {
+  color: var(--app-muted);
+}
+
+.form-error,
+.error-state,
+[role="alert"] {
+  overflow-wrap: anywhere;
+}
+
+/* Dashboard: replace the legacy sidebar-era positioning contract. The high
+   specificity and !important declarations are deliberate because dashboard.css
+   is page-loaded and otherwise reintroduces absolute positioning. */
+html[data-theme] body .product-app .phase5-workspace-main .dashboard-shell.dashboard-embedded {
+  display: block !important;
+  grid-template-columns: none !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  min-width: 0 !important;
+  background: transparent !important;
+}
+
+html[data-theme] body .product-app .phase5-workspace-main .dashboard-shell.dashboard-embedded .dashboard-embedded-content {
+  display: block !important;
+  width: min(100%, 1600px) !important;
+  max-width: 1600px !important;
+  min-width: 0 !important;
+  margin: 0 auto !important;
+  padding: clamp(18px, 2.2vw, 34px) clamp(16px, 3vw, 48px) 64px !important;
+}
+
+html[data-theme] body .dashboard-embedded .workspace-resume-strip {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 0 22px !important;
+}
+
+html[data-theme] body .dashboard-embedded .welcome.dashboard-welcome-actions {
+  position: static !important;
+  inset: auto !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  margin: 0 0 22px !important;
+  padding: 12px 8px !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 24px !important;
+}
+
+html[data-theme] body .dashboard-embedded .welcome .eyebrow,
+html[data-theme] body .dashboard-embedded .welcome > div > strong {
+  margin-top: 0 !important;
+}
+
+html[data-theme] body .dashboard-embedded .welcome > div > strong {
+  display: block;
+  padding-top: 8px;
+}
+
+html[data-theme] body .dashboard-embedded .momentum-card {
+  width: 100% !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+}
+
+html[data-theme] body .dashboard-embedded .metrics {
+  width: 100% !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+  padding: 12px 16px 18px !important;
+}
+
+html[data-theme] body .dashboard-embedded .metric {
+  min-width: 0 !important;
+  min-height: 142px !important;
+  overflow: hidden;
+}
+
+html[data-theme] body .dashboard-embedded .main-grid {
+  width: 100% !important;
+  min-width: 0 !important;
+  grid-template-columns: minmax(0, 2fr) minmax(300px, .82fr) !important;
+  gap: 18px !important;
+  margin-top: 18px !important;
+  align-items: start;
+}
+
+html[data-theme] body .dashboard-embedded .column-main,
+html[data-theme] body .dashboard-embedded .column-side,
+html[data-theme] body .dashboard-embedded .two-col,
+html[data-theme] body .dashboard-embedded .dash-card {
+  min-width: 0 !important;
+}
+
+html[data-theme] body .dashboard-embedded .two-col {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+}
+
+html[data-theme] body .dashboard-embedded .column-side {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 16px !important;
+}
+
+html[data-theme] body .dashboard-embedded .dash-card {
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+html[data-theme] body .dashboard-embedded .plan-card,
+html[data-theme] body .dashboard-embedded .deadlines-card,
+html[data-theme] body .dashboard-embedded .learning-card,
+html[data-theme] body .dashboard-embedded .review-card,
+html[data-theme] body .dashboard-embedded .activity-card {
+  min-height: 0 !important;
+  height: auto !important;
+}
+
+html[data-theme] body .dashboard-embedded .plan-row,
+html[data-theme] body .dashboard-embedded .deadline {
+  min-width: 0;
+}
+
+html[data-theme] body .dashboard-embedded .plan-row > div,
+html[data-theme] body .dashboard-embedded .deadline > div,
+html[data-theme] body .dashboard-embedded .learning-grid button,
+html[data-theme] body .dashboard-embedded .mastery-list button {
+  min-width: 0;
+}
+
+html[data-theme] body .dashboard-embedded .plan-row strong,
+html[data-theme] body .dashboard-embedded .deadline strong,
+html[data-theme] body .dashboard-embedded .learning-grid strong,
+html[data-theme] body .dashboard-embedded .mastery-list span {
+  overflow-wrap: anywhere;
+}
+
+html[data-theme] body .dashboard-embedded .activity-card {
+  padding-bottom: 10px;
+}
+
+html[data-theme] body .dashboard-embedded .chart-legend {
+  position: static !important;
+  justify-content: flex-end;
+  padding: 0 18px 6px;
+}
+
+html[data-theme] body .dashboard-embedded .bar-chart {
+  min-height: 128px;
+  height: auto !important;
+}
+
+/* Assessment authoring and student preview state hardening. */
+.assessment-validation,
+.assessment-bank-list label,
+.draggable-question,
+.preview-options label,
+.assessment-student-preview textarea,
+.draft-autosave-status,
+.assessment-bulk-bar {
+  background-color: var(--app-surface-soft) !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-text) !important;
+}
+
+.assessment-validation.valid {
+  border-color: color-mix(in srgb, var(--app-success) 48%, var(--app-border)) !important;
+}
+
+.assessment-validation.invalid {
+  border-color: color-mix(in srgb, var(--app-danger) 48%, var(--app-border)) !important;
+}
+
+.assessment-student-preview {
+  color: var(--app-text);
+}
+
+.assessment-student-preview ol,
+.assessment-bank-list,
+.role-stack,
+.role-table-scroll {
+  scrollbar-color: color-mix(in srgb, var(--app-accent) 40%, var(--app-border)) transparent;
+}
+
+/* Study guides and resource preview. */
+.guide-course-nav,
+.guide-content,
+.resource-preview-drawer {
+  min-width: 0;
+}
+
+.guide-week,
+.guide-resource-card,
+.guide-progress-panel,
+.resource-preview-body,
+.external-resource-preview {
+  background: var(--app-surface-soft) !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-text) !important;
+}
+
+.guide-week-toggle,
+.guide-lecture-list button,
+.resource-complete-toggle,
+.guide-progress-actions button {
+  color: var(--app-text) !important;
+}
+
+.guide-lecture-list button.active,
+.guide-resource-card.completed {
+  background: color-mix(in srgb, var(--app-accent) 9%, var(--app-surface)) !important;
+  border-color: color-mix(in srgb, var(--app-accent) 52%, var(--app-border)) !important;
+}
+
+.resource-preview-backdrop,
+.role-modal-backdrop,
+.phase5-drawer-backdrop,
+.phase5-confirm-backdrop {
+  background: rgba(3, 7, 18, .68) !important;
+  backdrop-filter: blur(5px);
+}
+
+.resource-preview-body iframe,
+.resource-preview-body video,
+.resource-preview-body img {
+  max-width: 100%;
+  border-color: var(--app-border) !important;
+  background: var(--app-surface-soft);
+}
+
+/* Common route-state surfaces. */
+.product-auth-loading,
+.app-loading,
+.app-error,
+.app-not-found,
+.role-empty,
+.guide-nav-empty,
+.header-popover-empty {
+  color: var(--app-muted) !important;
+}
+
+.product-auth-loading,
+.app-loading,
+.app-error,
+.app-not-found {
+  background: var(--app-bg) !important;
+}
+
+@media (max-width: 1180px) {
+  html[data-theme] body .dashboard-embedded .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  html[data-theme] body .dashboard-embedded .main-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  html[data-theme] body .dashboard-embedded .column-side {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .study-guide-layout,
+  .role-master-detail,
+  .role-grading-layout,
+  .settings-layout,
+  .notebook-layout,
+  .editor-layout,
+  .exam-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .guide-course-nav,
+  .role-master-list,
+  .note-detail,
+  .exam-detail {
+    position: static !important;
+    width: 100% !important;
+    max-height: none !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .pp-page,
+  .role-workspace,
+  .study-guides-page {
+    padding: 14px 12px 88px !important;
+  }
+
+  html[data-theme] body .dashboard-embedded .dashboard-embedded-content {
+    padding: 14px 12px 92px !important;
+  }
+
+  html[data-theme] body .dashboard-embedded .welcome.dashboard-welcome-actions {
+    display: grid !important;
+    gap: 14px !important;
+  }
+
+  html[data-theme] body .dashboard-embedded .welcome .pp-button {
+    width: 100%;
+  }
+
+  html[data-theme] body .dashboard-embedded .metrics,
+  html[data-theme] body .dashboard-embedded .two-col,
+  html[data-theme] body .dashboard-embedded .column-side {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  html[data-theme] body .dashboard-embedded .metric {
+    min-height: 116px !important;
+  }
+
+  html[data-theme] body .dashboard-embedded .plan-row {
+    grid-template-columns: 42px 8px 32px minmax(0, 1fr) !important;
+    height: auto !important;
+    min-height: 58px;
+    padding-block: 7px;
+  }
+
+  html[data-theme] body .dashboard-embedded .dashboard-plan-actions {
+    grid-column: 1 / -1 !important;
+    margin-left: 82px !important;
+    flex-wrap: wrap;
+  }
+
+  .validation-summary,
+  .draft-autosave-status,
+  .assessment-question-stack .draggable-question,
+  .guide-sequence-nav,
+  .guide-section-heading,
+  .guide-progress-panel,
+  .role-heading,
+  .pp-title {
+    grid-template-columns: minmax(0, 1fr) !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .role-heading-actions,
+  .role-hero-actions,
+  .guide-header-actions,
+  .guide-progress-actions,
+  .guide-sequence-nav {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .role-heading-actions .pp-button,
+  .role-hero-actions .pp-button,
+  .guide-header-actions .pp-button,
+  .guide-progress-actions button,
+  .guide-sequence-nav button {
+    width: 100%;
+  }
+
+  .assessment-student-preview {
+    padding: 10px !important;
+  }
+
+  .assessment-student-preview ol {
+    padding-left: 18px;
+  }
+
+  .resource-preview-drawer {
+    inset: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    border-radius: 0 !important;
+  }
+
+  .resource-preview-body iframe,
+  .resource-preview-body video {
+    min-height: 54vh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html,
+  body,
+  .product-app,
+  .dashboard-shell,
+  .pp-panel,
+  .dash-card,
+  .role-modal,
+  .resource-preview-drawer {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
