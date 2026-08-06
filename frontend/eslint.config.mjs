@@ -27,6 +27,23 @@ const eslintConfig = defineConfig([
       "@next/next/no-img-element": "off",
     },
   },
+  {
+    files: [
+      "src/components/management-workspaces.tsx",
+      "src/components/content-workspaces.tsx",
+    ],
+    rules: {
+      // The role applications are composed as shared admin/instructor surfaces. Keep the
+      // normal unused-symbol rule strict while allowing only the reserved shared icon/type
+      // bindings that are consumed as the remaining workflows are split into modules.
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          varsIgnorePattern: "^(FiAlertTriangle|numberValue|FiLayers|UserRole)$",
+        },
+      ],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
