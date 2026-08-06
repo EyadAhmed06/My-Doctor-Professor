@@ -9,12 +9,14 @@ import { BrandLockup } from "./brand";
 import { useAuth } from "./auth-provider";
 import { CommandPalette } from "./command-palette";
 import { PageSkeleton } from "./async-state";
+import { useUx } from "./ux-provider";
 
 const nav = [["My Bundles","/bundles"],["Flashcards","/flashcards"],["Notebook","/notebook"],["Study Guides","/guidelines"],["Analytics","/analytics"],["Study Plan","/study-plan"]];
 
 export function ProductShell({ children, search = "Search cases, topics, or concepts" }: { children: React.ReactNode; search?: string }) {
   const path = usePathname();
   const router = useRouter();
+  const {startNavigation}=useUx();
   const {user,loading,logout,request}=useAuth();
   const [open,setOpen] = useState(false);
   const [paletteOpen,setPaletteOpen] = useState(false);
@@ -53,7 +55,7 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
       {open&&<button className="pp-mobile-overlay" type="button" aria-label="Close navigation" onClick={()=>setOpen(false)}/>} 
       <nav className={open ? "open" : ""} aria-label="Primary navigation"><button className="pp-nav-close" type="button" onClick={()=>setOpen(false)} aria-label="Close menu"><FiX /></button>{nav.map(([label,href])=><Link key={href} className={path.startsWith(href) ? "active" : ""} href={href} onClick={()=>setOpen(false)}>{label}</Link>)}{user.role!=="STUDENT"&&<Link href="/instructor/quizzes" onClick={()=>setOpen(false)}>Instructor</Link>}<Link href="/settings" onClick={()=>setOpen(false)}>Settings</Link></nav>
       <button className="pp-search-command" type="button" onClick={openPalette} aria-label={`Open command palette. ${search}`}><FiSearch/><span>{search}</span><kbd>⌘ K</kbd></button>
-      <div className="pp-profile"><ThemeToggle compact/><button aria-label={`${unread} unread notifications`} onClick={()=>router.push("/notifications")}><FiBell/>{unread>0&&<i>{unread>99?"99+":unread}</i>}</button><span className="avatar-fallback">{displayName.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join("").toUpperCase()}</span><span><b>{displayName}</b><small>{roleLabel}</small></span><button className="pp-logout" onClick={()=>void logout().then(()=>router.replace("/login"))}>Log out</button><FiChevronDown/></div>
+      <div className="pp-profile"><ThemeToggle compact/><button aria-label={`${unread} unread notifications`} onClick={()=>{startNavigation();router.push("/notifications")}}><FiBell/>{unread>0&&<i>{unread>99?"99+":unread}</i>}</button><span className="avatar-fallback">{displayName.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join("").toUpperCase()}</span><span><b>{displayName}</b><small>{roleLabel}</small></span><button className="pp-logout" onClick={()=>void logout().then(()=>{startNavigation();router.replace("/login")})}>Log out</button><FiChevronDown/></div>
     </header>
     {children}
     <CommandPalette open={paletteOpen} onOpen={openPalette} onClose={closePalette} role={user.role}/>
