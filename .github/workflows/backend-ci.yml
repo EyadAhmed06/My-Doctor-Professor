@@ -38,6 +38,8 @@ jobs:
       - run: npm run build
       - run: npm run lint
       - run: npm test -- --runInBand
+      - name: Verify migration timestamps and fresh-install ledger
+        run: node scripts/verify-migration-ledger.mjs
       - name: Verify multi-controller route extraction
         run: node scripts/test-controller-route-extractor.mjs
       - name: Generate complete Postman contract
