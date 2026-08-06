@@ -6,7 +6,9 @@ const scriptsDirectory = path.join(process.cwd(), 'scripts');
 const sourcePath = path.join(scriptsDirectory, 'generate-postman.mjs');
 const runtimePath = path.join(scriptsDirectory, '.generate-postman-runtime.mjs');
 const routeMarker = '\n\nconst routes = controllerFiles.flatMap(extractRoutes);';
-const source = fs.readFileSync(sourcePath, 'utf8');
+// Git may check this file out with CRLF on Windows. Normalize before applying
+// deterministic source patches so local and CI generation behave identically.
+const source = fs.readFileSync(sourcePath, 'utf8').replace(/\r\n/g, '\n');
 const extractorStart = source.indexOf('function extractRoutes(file) {');
 const extractorEnd = source.indexOf(routeMarker, extractorStart);
 
