@@ -1,0 +1,287 @@
+/* Phase 4: restrained, data-driven polish. */
+
+:root {
+  --phase4-fast: 180ms;
+  --phase4-standard: 240ms;
+  --phase4-ease: cubic-bezier(.2, .72, .2, 1);
+}
+
+html[data-theme] body,
+.product-app,
+.pp-topbar,
+.pp-panel,
+.pp-button,
+.pp-search-command,
+.header-popover,
+.dashboard-shell,
+.dash-sidebar,
+.dash-topbar,
+.dash-card,
+.metric,
+.learning-grid article,
+.bundle-list > button,
+.bundle-content,
+.bundle-course details,
+.analytics-metric,
+.analytics-recommendations article {
+  transition:
+    background-color var(--phase4-standard) var(--phase4-ease),
+    border-color var(--phase4-standard) var(--phase4-ease),
+    color var(--phase4-standard) var(--phase4-ease),
+    box-shadow var(--phase4-standard) var(--phase4-ease),
+    transform var(--phase4-fast) var(--phase4-ease),
+    opacity var(--phase4-fast) var(--phase4-ease);
+}
+
+@keyframes phase4-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes phase4-grow-x {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes phase4-grow-y {
+  from { transform: scaleY(.08); opacity: .45; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+
+@keyframes phase4-soft-pop {
+  from { opacity: 0; transform: scale(.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Dashboard progress and staggered information hierarchy. */
+.dashboard-shell .welcome,
+.dashboard-shell .momentum-card,
+.dashboard-shell .main-grid > *,
+.dashboard-shell .dash-card {
+  animation: phase4-rise 420ms var(--phase4-ease) both;
+}
+.dashboard-shell .momentum-card { animation-delay: 55ms; }
+.dashboard-shell .main-grid { animation: phase4-rise 420ms 90ms var(--phase4-ease) both; }
+.dashboard-shell .column-main > :nth-child(1) { animation-delay: 110ms; }
+.dashboard-shell .column-main > :nth-child(2) { animation-delay: 145ms; }
+.dashboard-shell .column-main > :nth-child(3) { animation-delay: 180ms; }
+.dashboard-shell .column-side > :nth-child(1) { animation-delay: 120ms; }
+.dashboard-shell .column-side > :nth-child(2) { animation-delay: 155ms; }
+.dashboard-shell .column-side > :nth-child(3) { animation-delay: 190ms; }
+
+.dashboard-shell .mini-progress i,
+.dashboard-shell .xp-bar i,
+.dashboard-shell .progress i,
+.dashboard-shell .mastery-list > div > div i,
+.pp-progress i {
+  transform-origin: left center;
+  animation: phase4-grow-x 720ms 120ms var(--phase4-ease) both;
+}
+.dashboard-shell .retention-ring,
+.dashboard-shell .level-badge.large,
+.readiness-score {
+  animation: phase4-soft-pop 520ms 120ms var(--phase4-ease) both;
+}
+
+/* Numeric cards and analytics sections reveal in reading order. */
+.analytics-metrics > *,
+.bundle-summary-grid > *,
+.pp-metrics > * {
+  animation: phase4-rise 360ms var(--phase4-ease) both;
+}
+.analytics-metrics > :nth-child(2),
+.bundle-summary-grid > :nth-child(2),
+.pp-metrics > :nth-child(2) { animation-delay: 35ms; }
+.analytics-metrics > :nth-child(3),
+.bundle-summary-grid > :nth-child(3),
+.pp-metrics > :nth-child(3) { animation-delay: 70ms; }
+.analytics-metrics > :nth-child(4),
+.bundle-summary-grid > :nth-child(4),
+.pp-metrics > :nth-child(4) { animation-delay: 105ms; }
+.analytics-metrics > :nth-child(5),
+.bundle-summary-grid > :nth-child(5),
+.pp-metrics > :nth-child(5) { animation-delay: 140ms; }
+.analytics-metrics > :nth-child(6),
+.bundle-summary-grid > :nth-child(6),
+.pp-metrics > :nth-child(6) { animation-delay: 175ms; }
+.analytics-metric b,
+.bundle-summary-grid b,
+.pp-metric b,
+.readiness-score b,
+.analytics-topics strong {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Accessible Bundle curriculum accordions. */
+.bundle-accordion-stack {
+  display: grid;
+  gap: 10px;
+}
+.bundle-course details {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: clip;
+  background: color-mix(in srgb, var(--surface, transparent) 94%, transparent);
+}
+.bundle-course details + details { margin-top: 9px; }
+.bundle-course details summary {
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 13px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.bundle-course details summary::-webkit-details-marker { display: none; }
+.bundle-course details summary > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.bundle-course details summary > span b,
+.bundle-course details summary > span small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bundle-course details summary > small { color: var(--muted); }
+.bundle-course details summary > svg {
+  transition: transform var(--phase4-fast) var(--phase4-ease);
+}
+.bundle-course details[open] summary > svg { transform: rotate(180deg); }
+.bundle-course details[open] summary {
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--teal) 6%, transparent);
+}
+.bundle-course details > div {
+  animation: phase4-rise 220ms var(--phase4-ease) both;
+}
+
+/* Focusable chart bars with custom tooltips. */
+.trend-chart .chart-bar-point,
+.activity-bars .chart-bar-point {
+  position: relative;
+  min-width: 30px;
+  align-self: stretch;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  padding: 0 3px;
+  cursor: default;
+}
+.trend-chart .chart-bar-point > i,
+.activity-bars .chart-bar-point > i {
+  width: 14px;
+  min-height: 5px;
+  transform-origin: center bottom;
+  animation: phase4-grow-y 560ms var(--phase4-ease) both;
+}
+.trend-chart .chart-bar-point:nth-child(2) > i,
+.activity-bars .chart-bar-point:nth-child(2) > i { animation-delay: 35ms; }
+.trend-chart .chart-bar-point:nth-child(3) > i,
+.activity-bars .chart-bar-point:nth-child(3) > i { animation-delay: 70ms; }
+.trend-chart .chart-bar-point:nth-child(4) > i,
+.activity-bars .chart-bar-point:nth-child(4) > i { animation-delay: 105ms; }
+.trend-chart .chart-bar-point:nth-child(5) > i,
+.activity-bars .chart-bar-point:nth-child(5) > i { animation-delay: 140ms; }
+.chart-bar-point::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  z-index: 30;
+  left: 50%;
+  bottom: calc(100% + 9px);
+  width: max-content;
+  max-width: 220px;
+  transform: translate(-50%, 5px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface, #0d1327);
+  color: var(--text);
+  box-shadow: 0 12px 30px rgba(0,0,0,.24);
+  padding: 7px 9px;
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--phase4-fast) var(--phase4-ease), transform var(--phase4-fast) var(--phase4-ease);
+}
+.chart-bar-point:hover::after,
+.chart-bar-point:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* Hover and focus affordances are only used where the element is actionable. */
+@media (hover:hover) and (pointer:fine) {
+  .dash-card:has(a:hover),
+  .dash-card:has(button:hover),
+  .analytics-recommendations article:hover,
+  .bundle-list > button:hover,
+  .bundle-course details:hover,
+  .learning-grid article:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 34px rgba(0,0,0,.16);
+  }
+}
+
+.pp-button:focus-visible,
+.pp-search-command:focus-visible,
+.bundle-list > button:focus-visible,
+.bundle-tabs button:focus-visible,
+.bundle-course summary:focus-visible,
+.chart-bar-point:focus-visible,
+.dash-sidebar a:focus-visible,
+.dash-card a:focus-visible,
+.dash-card button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--teal, #49d2c6) 42%, transparent);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme] body,
+  .product-app,
+  .pp-topbar,
+  .pp-panel,
+  .pp-button,
+  .header-popover,
+  .dashboard-shell,
+  .dash-sidebar,
+  .dash-topbar,
+  .dash-card,
+  .metric,
+  .bundle-list > button,
+  .bundle-course details,
+  .analytics-metric,
+  .analytics-recommendations article {
+    transition: none !important;
+  }
+  .dashboard-shell .welcome,
+  .dashboard-shell .momentum-card,
+  .dashboard-shell .main-grid,
+  .dashboard-shell .dash-card,
+  .analytics-metrics > *,
+  .bundle-summary-grid > *,
+  .pp-metrics > *,
+  .dashboard-shell .mini-progress i,
+  .dashboard-shell .xp-bar i,
+  .dashboard-shell .progress i,
+  .dashboard-shell .mastery-list > div > div i,
+  .pp-progress i,
+  .dashboard-shell .retention-ring,
+  .dashboard-shell .level-badge.large,
+  .readiness-score,
+  .bundle-course details > div,
+  .trend-chart .chart-bar-point > i,
+  .activity-bars .chart-bar-point > i {
+    animation: none !important;
+  }
+}
