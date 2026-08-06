@@ -76,7 +76,8 @@ export class StudyPlanCalendarQueryDto {
  @IsOptional() @IsDateString() to?:string;
 }
 export class UpdateStudyPlanItemDto {
- @IsIn(['COMPLETED','SKIPPED','PLANNED']) status:string;
+ @IsOptional() @IsIn(['COMPLETED','SKIPPED','PLANNED']) status?:string;
+ @IsOptional() @IsDateString() scheduled_date?:string;
 }
 export class DrugReferenceQueryDto {
  @IsOptional() @IsString() @MaxLength(100) search?:string;
