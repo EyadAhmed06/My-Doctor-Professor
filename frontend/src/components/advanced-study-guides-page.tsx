@@ -335,15 +335,48 @@ export function AdvancedStudyGuidesPage() {
 }
 
 function ResourcePreviewDrawer({ resource, completed, onToggleComplete, onClose }: { resource: Resource; completed: boolean; onToggleComplete: () => void; onClose: () => void }) {
+  const { request } = useAuth();
   const kind = resourceKind(resource);
+  const managed = resource.fileUrl.startsWith("/");
+  const [secureUrl, setSecureUrl] = useState<string | null>(managed ? null : resource.fileUrl);
+  const [loading, setLoading] = useState(managed);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!managed) {
+      setSecureUrl(resource.fileUrl);
+      setLoading(false);
+      return;
+    }
+    let active = true;
+    let objectUrl: string | null = null;
+    setSecureUrl(null);
+    setLoading(true);
+    setError(null);
+    void request<Blob>(`/academic/resources/${resource.id}/file`, { responseType: "blob" })
+      .then((blob) => {
+        if (!active) return;
+        objectUrl = URL.createObjectURL(blob);
+        setSecureUrl(objectUrl);
+      })
+      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "Unable to open this protected resource."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [managed, request, resource.fileUrl, resource.id]);
+
   return <><button className="resource-preview-backdrop" type="button" aria-label="Close resource preview" onClick={onClose} /><aside className="resource-preview-drawer" role="dialog" aria-modal="true" aria-label={`Preview ${resource.resourceName}`}>
     <header><div><small>{resource.resourceType} · {resource.mimeType || "Unknown format"}</small><h2>{resource.resourceName}</h2><p>{resource.description || "No resource description was provided."}</p></div><button type="button" onClick={onClose}><FiX /></button></header>
     <div className={`resource-preview-body ${kind}`}>
-      {kind === "image" && <img src={resource.fileUrl} alt={resource.resourceName} />}
-      {kind === "video" && <video src={resource.fileUrl} controls preload="metadata" />}
-      {kind === "pdf" && <iframe src={resource.fileUrl} title={resource.resourceName} />}
-      {kind === "external" && <div className="external-resource-preview"><FiFileText /><h3>Preview unavailable inside the app</h3><p>This file type must be opened with its original viewer.</p></div>}
+      {loading && <PageSkeleton variant="cards" label="Loading protected resource" />}
+      {error && <ErrorState title="Resource preview unavailable" description={error} />}
+      {!loading && !error && secureUrl && kind === "image" && <img src={secureUrl} alt={resource.resourceName} />}
+      {!loading && !error && secureUrl && kind === "video" && <video src={secureUrl} controls preload="metadata" />}
+      {!loading && !error && secureUrl && kind === "pdf" && <iframe src={secureUrl} title={resource.resourceName} />}
+      {!loading && !error && kind === "external" && <div className="external-resource-preview"><FiFileText /><h3>Preview unavailable inside the app</h3><p>This file type must be opened with its original viewer.</p></div>}
     </div>
-    <footer><button className={`pp-button secondary ${completed ? "active" : ""}`} type="button" onClick={onToggleComplete}>{completed ? <FiCheckCircle /> : <FiCheck />} {completed ? "Completed" : "Mark complete"}</button>{resource.fileUrl.startsWith("/") ? <Link className="pp-button" href={resource.fileUrl}><FiDownload /> Open file</Link> : <a className="pp-button" href={resource.fileUrl} target="_blank" rel="noreferrer"><FiExternalLink /> Open original</a>}</footer>
+    <footer><button className={`pp-button secondary ${completed ? "active" : ""}`} type="button" onClick={onToggleComplete}>{completed ? <FiCheckCircle /> : <FiCheck />} {completed ? "Completed" : "Mark complete"}</button>{managed ? <a className="pp-button" href={secureUrl || undefined} download={resource.resourceName} aria-disabled={!secureUrl}><FiDownload /> Download file</a> : <a className="pp-button" href={resource.fileUrl} target="_blank" rel="noreferrer"><FiExternalLink /> Open original</a>}</footer>
   </aside></>;
 }
