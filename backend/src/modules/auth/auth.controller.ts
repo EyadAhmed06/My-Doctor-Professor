@@ -5,10 +5,12 @@ import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthResponseDto, UserProfileDto } from './dtos/auth-response.dto';
 import { ConfirmEmailVerificationDto, RequestEmailVerificationDto } from './dtos/email-verification.dto';
+import { CompleteGoogleSignupDto, GoogleCredentialDto, GoogleOnboardingResponseDto } from './dtos/google-auth.dto';
 import { LoginDto } from './dtos/login.dto';
 import { ForgotPasswordDto, ResetPasswordDto } from './dtos/password-reset.dto';
 import { RefreshTokenDto } from './dtos/refresh-token.dto';
 import { SignupDto } from './dtos/signup.dto';
+import { GoogleAuthService } from './google-auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import type { AuthenticatedUser } from './strategies/jwt.strategy';
 
@@ -18,6 +20,7 @@ interface MessageResponse { message: string }
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
+    private readonly googleAuthService: GoogleAuthService,
     private readonly usersService: UsersService,
   ) {}
 
@@ -28,6 +31,32 @@ export class AuthController {
     @Req() request: Request,
   ): Promise<AuthResponseDto> {
     return this.authService.login(dto, request.ip ?? request.socket.remoteAddress ?? 'unknown');
+  }
+
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  @Header('Cache-Control', 'no-store')
+  googleSignIn(
+    @Body() dto: GoogleCredentialDto,
+    @Req() request: Request,
+  ): Promise<AuthResponseDto | GoogleOnboardingResponseDto> {
+    return this.googleAuthService.signIn(
+      dto.credential,
+      request.ip ?? request.socket.remoteAddress ?? 'unknown',
+    );
+  }
+
+  @Post('google/signup')
+  @HttpCode(HttpStatus.CREATED)
+  @Header('Cache-Control', 'no-store')
+  completeGoogleSignup(
+    @Body() dto: CompleteGoogleSignupDto,
+    @Req() request: Request,
+  ): Promise<AuthResponseDto> {
+    return this.googleAuthService.completeSignup(
+      dto,
+      request.ip ?? request.socket.remoteAddress ?? 'unknown',
+    );
   }
 
   @Post('signup')
