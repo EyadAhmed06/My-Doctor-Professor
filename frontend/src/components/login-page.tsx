@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { FiBarChart2, FiBookOpen, FiShield, FiTrendingUp } from "react-icons/fi";
 import { Brand, Field, icons, SubmitForm } from "./ui";
-import { GoogleOnboardingResult, useAuth } from "./auth-provider";
+import { useAuth } from "./auth-provider";
 import { GoogleSignInButton } from "./google-sign-in-button";
 
 const loginProof=[
@@ -44,7 +44,7 @@ export function LoginPage(){
     try{
       const result=await googleLogin(credential);
       if("requires_onboarding" in result){
-        sessionStorage.setItem(GOOGLE_ONBOARDING_KEY,JSON.stringify(result satisfies GoogleOnboardingResult));
+        sessionStorage.setItem(GOOGLE_ONBOARDING_KEY,JSON.stringify(result));
         router.push("/register?provider=google");
       }else{
         router.replace("/dashboard");
