@@ -73,6 +73,20 @@ const exactArabic = new Map<string, string>([
   ["Question bank", "بنك الأسئلة"], ["Assessment builder", "منشئ الاختبارات"], ["Essay grading", "تصحيح الأسئلة المقالية"],
   ["Flashcard studio", "استوديو البطاقات"], ["User administration", "إدارة المستخدمين"], ["Academic structure", "الهيكل الأكاديمي"],
   ["Audit trail", "سجل التدقيق"], ["Loading settings…", "جارٍ تحميل الإعدادات…"], ["Loading assessment…", "جارٍ تحميل الاختبار…"],
+  ["Identity", "الهوية"], ["Security", "الأمان"], ["Appearance & language", "المظهر واللغة"], ["Profile & identity", "الملف الشخصي والهوية"],
+  ["Security & sessions", "الأمان والجلسات"], ["Email verification", "تأكيد البريد الإلكتروني"], ["Verified", "مؤكد"], ["Not verified", "غير مؤكد"],
+  ["Active sessions", "الجلسات النشطة"], ["This browser", "هذا المتصفح"], ["Active session", "جلسة نشطة"], ["Current", "الحالية"],
+  ["Google identity", "حساب Google المرتبط"], ["Not linked", "غير مرتبط"], ["Sign out other sessions", "تسجيل خروج الجلسات الأخرى"], ["Signing out…", "جارٍ تسجيل الخروج…"],
+  ["Save profile", "حفظ الملف الشخصي"], ["Saving…", "جارٍ الحفظ…"], ["Discard", "تجاهل التغييرات"], ["Profile picture URL", "رابط صورة الملف الشخصي"],
+  ["Not set", "غير محدد"], ["Male", "ذكر"], ["Female", "أنثى"], ["Reduce motion", "تقليل الحركة"], ["Caps Lock is on.", "زر Caps Lock مفعّل."],
+  ["At least 12 characters", "12 حرفًا على الأقل"], ["Lowercase letter", "حرف إنجليزي صغير"], ["Uppercase letter", "حرف إنجليزي كبير"], ["Number", "رقم"],
+  ["Resource upload", "رفع الموارد"], ["Destination", "الوجهة"], ["Course", "المقرر"], ["Lecture", "المحاضرة"], ["Upload managed file", "رفع ملف مُدار"],
+  ["Resource name", "اسم المورد"], ["Description", "الوصف"], ["Upload resource", "رفع المورد"], ["Uploading…", "جارٍ الرفع…"], ["Lecture is published", "المحاضرة منشورة"],
+  ["No resources in this lecture", "لا توجد موارد في هذه المحاضرة"], ["Keyboard shortcuts", "اختصارات لوحة المفاتيح"], ["Command navigation manual", "دليل الأوامر والاختصارات"],
+  ["Global navigation", "التنقل العام"], ["Command palette", "لوحة الأوامر"], ["Learning workspaces", "مساحات التعلم"], ["Keyboard rules", "قواعد لوحة المفاتيح"],
+  ["Open command palette", "فتح لوحة الأوامر"], ["Search pages and actions…", "ابحث في الصفحات والأوامر…"], ["No matching workspace action.", "لا يوجد أمر مطابق."],
+  ["Open study guides", "فتح أدلة المذاكرة"], ["Open settings", "فتح الإعدادات"], ["Upload lecture resources", "رفع موارد المحاضرة"],
+  ["Resource preview unavailable", "معاينة المورد غير متاحة"], ["Loading protected resource", "جارٍ تحميل المورد المحمي"], ["Download file", "تنزيل الملف"], ["Open original", "فتح المصدر"],
 ]);
 
 function translateExact(value: string) {
@@ -80,7 +94,14 @@ function translateExact(value: string) {
   const trailing = value.match(/\s*$/)?.[0] || "";
   const core = value.trim();
   const translated = exactArabic.get(core);
-  return translated ? `${leading}${translated}${trailing}` : value;
+  if (translated) return `${leading}${translated}${trailing}`;
+  const week = core.match(/^Week\s+(\d+)$/i);
+  if (week) return `${leading}الأسبوع ${week[1]}${trailing}`;
+  const lecture = core.match(/^Lecture\s+(\d+)$/i);
+  if (lecture) return `${leading}المحاضرة ${lecture[1]}${trailing}`;
+  const year = core.match(/^Year\s+(\d+)$/i);
+  if (year) return `${leading}السنة ${year[1]}${trailing}`;
+  return value;
 }
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
@@ -147,8 +168,6 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
   function choose(next: AppLocale) {
     if (next === locale) return;
     setLocale(next);
-    // Reload gives every route a clean source-language render before applying the
-    // persisted locale. This avoids stale text nodes after client-side mutations.
     window.location.reload();
   }
   return <div className={`language-switcher ${compact ? "compact" : ""}`} role="group" aria-label="Language">
