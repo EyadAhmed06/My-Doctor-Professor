@@ -54,7 +54,6 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponseDto> {
     const auth = await this.authService.login(dto, request.ip ?? request.socket.remoteAddress ?? 'unknown');
-    if (!auth.refresh_token) throw new UnauthorizedException('Refresh session was not issued');
     this.writeRefreshCookies(response, auth.refresh_token, dto.remember !== false);
     return this.forTransport(auth, request);
   }
@@ -71,7 +70,7 @@ export class AuthController {
       dto.credential,
       request.ip ?? request.socket.remoteAddress ?? 'unknown',
     );
-    if ('refresh_token' in result && result.refresh_token) {
+    if ('refresh_token' in result) {
       this.writeRefreshCookies(response, result.refresh_token, dto.remember !== false);
       return this.forTransport(result, request);
     }
@@ -90,7 +89,6 @@ export class AuthController {
       dto,
       request.ip ?? request.socket.remoteAddress ?? 'unknown',
     );
-    if (!auth.refresh_token) throw new UnauthorizedException('Refresh session was not issued');
     this.writeRefreshCookies(response, auth.refresh_token, true);
     return this.forTransport(auth, request);
   }
@@ -156,7 +154,6 @@ export class AuthController {
     if (!refreshToken) throw new UnauthorizedException('Refresh session is required');
     const persistent = this.readCookie(request, REFRESH_MODE_COOKIE) === 'persistent';
     const auth = await this.authService.refreshAccessToken(refreshToken);
-    if (!auth.refresh_token) throw new UnauthorizedException('Refresh session was not rotated');
     this.writeRefreshCookies(response, auth.refresh_token, persistent);
     return this.forTransport(auth, request);
   }
@@ -202,7 +199,7 @@ export class AuthController {
     if (!this.isFrontendBrowserRequest(request)) return auth;
     const { refresh_token: refreshToken, ...browserAuth } = auth;
     void refreshToken;
-    return browserAuth;
+    return browserAuth as AuthResponseDto;
   }
 
   private isFrontendBrowserRequest(request: Request): boolean {
