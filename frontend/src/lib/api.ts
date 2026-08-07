@@ -54,6 +54,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     try {
       response = await fetch(`${API_URL}${path.startsWith("/") ? path : `/${path}`}`, {
         ...requestInit,
+        credentials: requestInit.credentials ?? "include",
         headers,
         body: requestBody,
       });
