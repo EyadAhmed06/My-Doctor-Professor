@@ -8,6 +8,7 @@ import { Lecture } from '../../common/entities/lecture.entity';
 import { StudentFlashcardProgress } from '../../common/entities/student-flashcard-progress.entity';
 import { Topic } from '../../common/entities/topic.entity';
 import { Student } from '../users/entities/student.entity';
+import { FlashcardAccessService } from './flashcard-access.service';
 import { FlashcardsController } from './flashcards.controller';
 import { FlashcardsService } from './flashcards.service';
 
@@ -16,7 +17,7 @@ import { FlashcardsService } from './flashcards.service';
   FlashcardDeck,Flashcard,StudentFlashcardProgress,Course,CourseInstructor,Lecture,Topic,Student,
  ])],
  controllers:[FlashcardsController],
- providers:[FlashcardsService],
+ providers:[FlashcardsService,FlashcardAccessService],
  exports:[FlashcardsService,TypeOrmModule],
 })
 export class FlashcardsModule {}
