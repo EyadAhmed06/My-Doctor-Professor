@@ -46,17 +46,18 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 const ACCESS_KEY = "mdp_access_token";
-const REFRESH_KEY = "mdp_refresh_token";
+const LEGACY_REFRESH_KEY = "mdp_refresh_token";
 
-function storageForRemember(remember: boolean) {
-  return remember ? localStorage : sessionStorage;
-}
-
-function clearTokens() {
+function clearClientAuth() {
   for (const storage of [localStorage, sessionStorage]) {
     storage.removeItem(ACCESS_KEY);
-    storage.removeItem(REFRESH_KEY);
+    storage.removeItem(LEGACY_REFRESH_KEY);
   }
+}
+
+function clearLegacyRefreshStorage() {
+  localStorage.removeItem(LEGACY_REFRESH_KEY);
+  sessionStorage.removeItem(LEGACY_REFRESH_KEY);
 }
 
 function isGoogleOnboarding(value: AuthResponse | GoogleOnboardingResult): value is GoogleOnboardingResult {
@@ -69,11 +70,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const refreshPromise = useRef<Promise<string | null> | null>(null);
 
-  const persist = useCallback((auth: AuthResponse, remember: boolean) => {
-    clearTokens();
-    const storage = storageForRemember(remember);
-    storage.setItem(ACCESS_KEY, auth.access_token);
-    storage.setItem(REFRESH_KEY, auth.refresh_token);
+  const persistAccess = useCallback((auth: AuthResponse) => {
+    localStorage.removeItem(ACCESS_KEY);
+    sessionStorage.setItem(ACCESS_KEY, auth.access_token);
+    clearLegacyRefreshStorage();
     setAccessToken(auth.access_token);
     setUser(auth.user);
   }, []);
@@ -81,19 +81,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async (): Promise<string | null> => {
     if (refreshPromise.current) return refreshPromise.current;
     refreshPromise.current = (async () => {
-      const localRefresh = localStorage.getItem(REFRESH_KEY);
-      const sessionRefresh = sessionStorage.getItem(REFRESH_KEY);
-      const refreshToken = localRefresh || sessionRefresh;
-      if (!refreshToken) return null;
       try {
         const auth = await apiRequest<AuthResponse>("/auth/refresh", {
           method: "POST",
-          body: { refresh_token: refreshToken },
+          body: {},
         });
-        persist(auth, Boolean(localRefresh));
+        persistAccess(auth);
         return auth.access_token;
       } catch {
-        clearTokens();
+        clearClientAuth();
         setAccessToken(null);
         setUser(null);
         return null;
@@ -104,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       refreshPromise.current = null;
     }
-  }, [persist]);
+  }, [persistAccess]);
 
   const refreshUser = useCallback(async (): Promise<AuthUser | null> => {
     let token = accessToken;
@@ -130,7 +126,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     void (async () => {
-      const token = localStorage.getItem(ACCESS_KEY) || sessionStorage.getItem(ACCESS_KEY);
+      clearLegacyRefreshStorage();
+      const token = sessionStorage.getItem(ACCESS_KEY) || localStorage.getItem(ACCESS_KEY);
       let usableToken = token;
       if (!usableToken) usableToken = await refresh();
       if (usableToken) {
@@ -138,13 +135,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const profile = await apiRequest<AuthUser>("/auth/me", { accessToken: usableToken });
           setUser(profile);
           setAccessToken(usableToken);
+          if (localStorage.getItem(ACCESS_KEY)) {
+            localStorage.removeItem(ACCESS_KEY);
+            sessionStorage.setItem(ACCESS_KEY, usableToken);
+          }
         } catch {
           usableToken = await refresh();
           if (usableToken) {
             try {
               setUser(await apiRequest<AuthUser>("/auth/me", { accessToken: usableToken }));
             } catch {
-              clearTokens();
+              clearClientAuth();
               setUser(null);
               setAccessToken(null);
             }
@@ -158,40 +159,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (input: LoginInput) => {
     const auth = await apiRequest<AuthResponse>("/auth/login", {
       method: "POST",
-      body: { email: input.email, password: input.password },
+      body: { email: input.email, password: input.password, remember: input.remember },
     });
-    persist(auth, input.remember);
+    persistAccess(auth);
     return auth.user;
-  }, [persist]);
+  }, [persistAccess]);
 
   const googleLogin = useCallback(async (credential: string): Promise<AuthUser | GoogleOnboardingResult> => {
     const result = await apiRequest<AuthResponse | GoogleOnboardingResult>("/auth/google", {
       method: "POST",
-      body: { credential },
+      body: { credential, remember: true },
     });
     if (isGoogleOnboarding(result)) return result;
-    persist(result, true);
+    persistAccess(result);
     return result.user;
-  }, [persist]);
+  }, [persistAccess]);
 
   const completeGoogleSignup = useCallback(async (input: CompleteGoogleSignupInput): Promise<AuthUser> => {
     const auth = await apiRequest<AuthResponse>("/auth/google/signup", {
       method: "POST",
       body: input,
     });
-    persist(auth, true);
+    persistAccess(auth);
     return auth.user;
-  }, [persist]);
+  }, [persistAccess]);
 
   const logout = useCallback(async () => {
     try {
-      if (accessToken) await apiRequest<void>("/auth/logout", { method: "POST", accessToken });
+      let token = accessToken;
+      if (!token) token = await refresh();
+      if (token) await apiRequest<void>("/auth/logout", { method: "POST", accessToken: token });
     } finally {
-      clearTokens();
+      clearClientAuth();
       setAccessToken(null);
       setUser(null);
     }
-  }, [accessToken]);
+  }, [accessToken, refresh]);
 
   const request = useCallback(async <T,>(path: string, options: Omit<Parameters<typeof apiRequest<T>>[1], "accessToken"> = {}) => {
     let token = accessToken;
