@@ -1,6 +1,6 @@
-import { ConnectedAssessmentSession } from "@/components/connected-assessment-session";
+import { AssessmentSessionEntry } from "@/components/assessment-session-entry";
 
 export default async function Page({searchParams}:{searchParams:Promise<{attempt?:string;test?:string;source?:string}>}){
  const params=await searchParams;
- return <ConnectedAssessmentSession attemptId={params.attempt||""} testId={params.test||""} source={params.source||"assessments"}/>;
+ return <AssessmentSessionEntry attemptId={params.attempt} testId={params.test} source={params.source||"assessments"}/>;
 }
