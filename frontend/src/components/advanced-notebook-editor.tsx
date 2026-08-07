@@ -10,7 +10,7 @@ import {
   FiCode,
   FiEdit3,
   FiFileText,
-  FiGripVertical,
+  FiMoreVertical,
   FiImage,
   FiLink,
   FiList,
@@ -452,10 +452,10 @@ export function AdvancedNotebookEditor() {
       <section className="block-editor-canvas" onDragOver={(event: DragEvent) => event.preventDefault()}>
         <div className="block-editor-toolbar"><span><FiEdit3 /> Blocks are stored as plain text separated by blank lines.</span><button type="button" onClick={() => addBlock()}><FiPlus /> Add block</button></div>
         {blocks.map((block, index) => <article className={`editor-block ${activeSlashBlock === block.id ? "slash-open" : ""}`} draggable onDragStart={() => setDraggedBlock(block.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => dropBlock(block.id)} onDragEnd={() => setDraggedBlock(null)} key={block.id}>
-          <div className="block-handle"><FiGripVertical /><span>{index + 1}</span></div>
+          <div className="block-handle"><FiMoreVertical /><span>{index + 1}</span></div>
           <textarea value={block.text} rows={Math.max(3, Math.min(16, block.text.split("\n").length + Math.ceil(block.text.length / 85)))} placeholder={index === 0 ? "Start writing, or type / for commands…" : "Continue writing…"} onFocus={beginBlockEdit} onBlur={endBlockEdit} onChange={(event) => updateBlock(block.id, event.target.value)} onKeyDown={(event) => editorKey(event, block)} onPaste={handlePaste} />
           <div className="block-actions"><button type="button" title="Add block below" onClick={() => addBlock(block.id)}><FiPlus /></button><button type="button" title="Delete block" onClick={() => removeBlock(block.id)}><FiTrash2 /></button></div>
-          {activeSlashBlock === block.id && <div className="slash-command-menu" role="listbox" aria-label="Block commands">{commands.filter((command) => command.label.toLowerCase().includes(block.text.slice(1).toLowerCase().trim())).map((command) => <button type="button" role="option" key={command.id} onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand(block.id, command)}><span>{command.icon}</span><div><b>{command.label}</b><small>{command.description}</small></div></button>)}</div>}
+          {activeSlashBlock === block.id && <div className="slash-command-menu" role="listbox" aria-label="Block commands">{commands.filter((command) => command.label.toLowerCase().includes(block.text.slice(1).toLowerCase().trim())).map((command) => <button type="button" role="option" aria-selected={false} key={command.id} onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand(block.id, command)}><span>{command.icon}</span><div><b>{command.label}</b><small>{command.description}</small></div></button>)}</div>}
         </article>)}
         <button className="add-final-block" type="button" onClick={() => addBlock()}><FiPlus /> Add another block</button>
       </section>
