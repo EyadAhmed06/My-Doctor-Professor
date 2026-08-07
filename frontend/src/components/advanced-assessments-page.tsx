@@ -11,7 +11,7 @@ import {
   FiClipboard,
   FiCopy,
   FiEye,
-  FiGripVertical,
+  FiMoreVertical,
   FiPlus,
   FiRefreshCw,
   FiSave,
@@ -413,7 +413,7 @@ export function AdvancedAssessmentsPage({ admin = false }: { admin?: boolean }) 
             {selectedAttached.size > 0 && <div className="assessment-bulk-bar"><b>{selectedAttached.size} selected</b><button type="button" disabled={busy} onClick={() => void detachQuestions([...selectedAttached])}><FiTrash2 /> Remove</button><button type="button" onClick={() => setSelectedAttached(new Set())}><FiX /> Cancel</button></div>}
             {selectionLoading ? <PageSkeleton variant="list" label="Loading questions" /> : testQuestions.length ? <div className="role-stack assessment-question-stack">{testQuestions.map((item, index) => <article className={`role-stack-row draggable-question ${selectedAttached.has(item.questionId) ? "selected" : ""}`} draggable={Boolean(authoring?.permissions.mutable)} onDragStart={() => setDraggedQuestionId(item.questionId)} onDragOver={(event) => { if (draggedQuestionId) event.preventDefault(); }} onDrop={() => dropQuestion(item.questionId)} onDragEnd={() => setDraggedQuestionId(null)} key={item.id}>
               <button className="assessment-question-select" type="button" onClick={() => setSelectedAttached((current) => { const next = new Set(current); if (next.has(item.questionId)) next.delete(item.questionId); else next.add(item.questionId); return next; })}>{selectedAttached.has(item.questionId) ? <FiCheckCircle /> : <span>{index + 1}</span>}</button>
-              <FiGripVertical className="drag-handle" />
+              <FiMoreVertical className="drag-handle" />
               <div><b>{item.question.title || item.question.questionText}</b><small>{item.question.questionType} · {item.marks || item.question.marks} marks · {item.question.difficulty}</small></div>
               <div className="question-order-actions"><button type="button" disabled={!authoring?.permissions.mutable || index === 0 || busy} onClick={() => moveQuestion(item.questionId, -1)}><FiChevronUp /></button><button type="button" disabled={!authoring?.permissions.mutable || index === testQuestions.length - 1 || busy} onClick={() => moveQuestion(item.questionId, 1)}><FiChevronDown /></button><button className="danger" type="button" disabled={!authoring?.permissions.mutable || busy} onClick={() => void detachQuestions([item.questionId])}><FiTrash2 /></button></div>
             </article>)}</div> : <EmptyState title="No questions attached" description="Add active questions from the question bank." />}
