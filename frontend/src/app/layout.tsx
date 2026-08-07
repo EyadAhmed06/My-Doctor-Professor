@@ -3,6 +3,7 @@ import "./globals.css";
 import { AppThemeProvider } from "@/components/app-theme";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/components/brand";
 import { AuthProvider } from "@/components/auth-provider";
+import { GlobalKeyboardShortcuts } from "@/components/global-keyboard-shortcuts";
 import { LocaleProvider } from "@/components/locale-provider";
 import { PublicThemeAccess } from "@/components/public-theme-access";
 import { UxProvider } from "@/components/ux-provider";
@@ -29,6 +30,7 @@ import "@/components/internal-medical-visuals.css";
 import "@/components/flashcard-3d.css";
 import "@/components/google-auth.css";
 import "@/components/locale.css";
+import "@/components/platform-completion.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
@@ -58,6 +60,6 @@ const preferenceBootstrap = `(() => {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en" suppressHydrationWarning>
     <head><script dangerouslySetInnerHTML={{ __html: preferenceBootstrap }} /></head>
-    <body><LocaleProvider><AppThemeProvider><PublicThemeAccess /><UxProvider><AuthProvider>{children}</AuthProvider></UxProvider></AppThemeProvider></LocaleProvider></body>
+    <body><LocaleProvider><AppThemeProvider><PublicThemeAccess /><UxProvider><AuthProvider><GlobalKeyboardShortcuts />{children}</AuthProvider></UxProvider></AppThemeProvider></LocaleProvider></body>
   </html>;
 }
