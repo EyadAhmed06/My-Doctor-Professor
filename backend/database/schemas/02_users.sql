@@ -90,7 +90,7 @@ CREATE TABLE instructors (
     biography TEXT,
 
     FOREIGN KEY (user_id)
-        REFERENCES instructors(user_id)
+        REFERENCES users(id)
         ON DELETE CASCADE
 
 );
