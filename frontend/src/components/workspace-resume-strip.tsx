@@ -14,6 +14,7 @@ export function WorkspaceResumeStrip() {
   const { startNavigation } = useUx();
   const [recent, setRecent] = useState<RecentWorkspacePage[]>([]);
   const [dismissedHref, setDismissedHref] = useState<string | null>(null);
+  const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
     const sync = () => setRecent(readRecentWorkspacePages());
@@ -26,14 +27,21 @@ export function WorkspaceResumeStrip() {
     };
   }, []);
 
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    tick();
+    const timer = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const target = useMemo(() => recent.find((item) => {
     const targetPath = item.href.split("?")[0].split("#")[0];
     return targetPath !== pathname && !excluded.includes(targetPath);
   }) || null, [pathname, recent]);
 
-  if (!target || dismissedHref === target.href) return null;
+  if (!target || dismissedHref === target.href || now === null) return null;
 
-  const ageMinutes = Math.max(1, Math.round((Date.now() - target.visitedAt) / 60000));
+  const ageMinutes = Math.max(1, Math.round((now - target.visitedAt) / 60000));
   const age = ageMinutes < 60 ? `${ageMinutes}m ago` : ageMinutes < 1440 ? `${Math.round(ageMinutes / 60)}h ago` : `${Math.round(ageMinutes / 1440)}d ago`;
 
   return <section className="workspace-resume-strip" aria-label="Resume recent work">
