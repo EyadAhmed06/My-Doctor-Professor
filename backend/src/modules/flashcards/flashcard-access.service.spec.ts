@@ -2,7 +2,6 @@ import { NotFoundException } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { FlashcardDeck } from '../../common/entities/flashcard-deck.entity';
 import { Flashcard } from '../../common/entities/flashcard.entity';
-import { StudentFlashcardProgress } from '../../common/entities/student-flashcard-progress.entity';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
 import { FlashcardAccessService } from './flashcard-access.service';
@@ -21,7 +20,6 @@ describe('FlashcardAccessService', () => {
     const service = new FlashcardAccessService(
       {} as Repository<FlashcardDeck>,
       {} as Repository<Flashcard>,
-      {} as Repository<StudentFlashcardProgress>,
       { query } as unknown as DataSource,
     );
     return { service, query };
