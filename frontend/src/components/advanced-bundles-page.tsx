@@ -15,6 +15,7 @@ import {
   FiRefreshCw,
   FiSearch,
 } from "react-icons/fi";
+import { courseRouteKey, lectureRouteKey, weekRouteKey } from "@/lib/routes";
 import { useAuth } from "./auth-provider";
 import { EmptyState, ErrorState, PageSkeleton } from "./async-state";
 import { Panel, ProductShell } from "./product-shell";
@@ -65,6 +66,10 @@ function bundleBadge(bundle: Bundle, visited: Set<string>) {
   return { label: "In progress", className: "progress" };
 }
 
+function guideHref(course: Course, lecture: Lecture) {
+  return `/guidelines?course=${encodeURIComponent(courseRouteKey(course))}&lecture=${encodeURIComponent(lectureRouteKey(lecture))}`;
+}
+
 export function AdvancedBundlesPage() {
   const { user, request } = useAuth();
   const { notify, startNavigation } = useUx();
@@ -72,7 +77,7 @@ export function AdvancedBundlesPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const requestedId = searchParams.get("id");
+  const requestedBundle = searchParams.get("bundle") || searchParams.get("id");
   const requestedTab = validTab(searchParams.get("tab"));
   const requestedWeek = searchParams.get("week");
   const [tab, setTab] = useState<Tab>(requestedTab);
@@ -88,10 +93,15 @@ export function AdvancedBundlesPage() {
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState<Set<string>>(new Set());
 
-  const setUrl = useCallback((bundleId: string | null, nextTab: Tab, week: string | null = null, replace = false) => {
+  const setUrl = useCallback((bundleRef: string | null, nextTab: Tab, week: string | null = null, replace = false) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (bundleId) params.set("id", bundleId);
-    else params.delete("id");
+    const targetBundle = bundleRef
+      ? bundles.find((item) => item.id === bundleRef || item.slug === bundleRef)
+        || (selected && (selected.bundle.id === bundleRef || selected.bundle.slug === bundleRef) ? selected.bundle : null)
+      : null;
+    if (bundleRef) params.set("bundle", targetBundle?.slug || bundleRef);
+    else params.delete("bundle");
+    params.delete("id");
     params.set("tab", nextTab);
     if (week) params.set("week", week);
     else params.delete("week");
@@ -99,7 +109,7 @@ export function AdvancedBundlesPage() {
     startNavigation();
     if (replace) router.replace(href, { scroll: false });
     else router.push(href, { scroll: false });
-  }, [pathname, router, searchParams, startNavigation]);
+  }, [bundles, pathname, router, searchParams, selected, startNavigation]);
 
   useEffect(() => {
     try {
@@ -137,8 +147,12 @@ export function AdvancedBundlesPage() {
     }
     let stored: string | null = null;
     try { stored = localStorage.getItem(`mdp:last-bundle:${user?.id || "anonymous"}`); } catch { /* best-effort */ }
-    const target = bundles.find((item) => item.id === requestedId) || bundles.find((item) => item.id === stored) || bundles[0];
-    if (!requestedId || requestedId !== target.id) setUrl(target.id, requestedTab, requestedWeek, true);
+    const target = bundles.find((item) => item.id === requestedBundle || item.slug === requestedBundle)
+      || bundles.find((item) => item.id === stored || item.slug === stored)
+      || bundles[0];
+    if (!requestedBundle || requestedBundle !== target.slug || searchParams.has("id")) {
+      setUrl(target.id, requestedTab, requestedWeek, true);
+    }
     if (selected?.bundle.id === target.id) return;
     let active = true;
     setBundleLoading(true);
@@ -147,19 +161,25 @@ export function AdvancedBundlesPage() {
       .then((content) => {
         if (!active) return;
         setSelected(content);
-        const weekIds = content.courses.flatMap((course) => course.weeks.map((week) => week.id));
-        setOpenWeeks(new Set(requestedWeek && weekIds.includes(requestedWeek) ? [requestedWeek] : weekIds.slice(0, 1)));
+        const allWeeks = content.courses.flatMap((course) => course.weeks);
+        const requestedWeekRecord = requestedWeek
+          ? allWeeks.find((week) => week.id === requestedWeek || weekRouteKey(week) === requestedWeek)
+          : null;
+        setOpenWeeks(new Set(requestedWeekRecord ? [requestedWeekRecord.id] : allWeeks.slice(0, 1).map((week) => week.id)));
+        if (requestedWeekRecord && requestedWeek !== weekRouteKey(requestedWeekRecord)) {
+          setUrl(target.id, requestedTab, weekRouteKey(requestedWeekRecord), true);
+        }
         setVisited((current) => {
           const next = new Set(current).add(target.id);
           try { localStorage.setItem(`mdp:visited-bundles:${user?.id || "anonymous"}`, JSON.stringify([...next])); } catch { /* best-effort */ }
           return next;
         });
-        try { localStorage.setItem(`mdp:last-bundle:${user?.id || "anonymous"}`, target.id); } catch { /* best-effort */ }
+        try { localStorage.setItem(`mdp:last-bundle:${user?.id || "anonymous"}`, target.slug); } catch { /* best-effort */ }
       })
       .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "Unable to open bundle."); })
       .finally(() => { if (active) setBundleLoading(false); });
     return () => { active = false; };
-  }, [bundles, loading, requestedId, requestedTab, requestedWeek, request, selected?.bundle.id, setUrl, user?.id]);
+  }, [bundles, loading, requestedBundle, requestedTab, requestedWeek, request, searchParams, selected?.bundle.id, setUrl, user?.id]);
 
   useEffect(() => { setTab(requestedTab); }, [requestedTab]);
 
@@ -172,7 +192,7 @@ export function AdvancedBundlesPage() {
   function changeTab(value: Tab) {
     setTab(value);
     try { if (selected) localStorage.setItem(`mdp:bundle-tab:${selected.bundle.id}`, value); } catch { /* best-effort */ }
-    setUrl(selected?.bundle.id || requestedId, value);
+    setUrl(selected?.bundle.id || requestedBundle, value);
   }
 
   async function enroll(bundle: Bundle) {
@@ -274,7 +294,7 @@ function BundleWorkspaceTab({ content, tab, courses, lectures, openWeeks, setOpe
   setOpenWeeks: React.Dispatch<React.SetStateAction<Set<string>>>;
   setUrl: (bundleId: string | null, tab: Tab, week?: string | null, replace?: boolean) => void;
 }) {
-  if (tab === "overview") return <><section className="bundle-summary-grid">{Object.entries(content.totals).map(([label, value]) => <Panel key={label}><b>{value}</b><small>{label.replaceAll("_", " ")}</small></Panel>)}</section><Panel title="Continue your curriculum">{lectures.slice(0, 5).map(({ course, week, lecture }) => <Link className="bundle-row" key={lecture.id} href={`/guidelines?course=${course.id}&lecture=${lecture.id}`}><FiBookOpen /><span><b>{lecture.title}</b><small>Week {week.weekNumber} · {lecture.question_count} questions · {lecture.flashcard_deck_count} decks</small></span></Link>)}</Panel></>;
+  if (tab === "overview") return <><section className="bundle-summary-grid">{Object.entries(content.totals).map(([label, value]) => <Panel key={label}><b>{value}</b><small>{label.replaceAll("_", " ")}</small></Panel>)}</section><Panel title="Continue your curriculum">{lectures.slice(0, 5).map(({ course, week, lecture }) => <Link className="bundle-row" key={lecture.id} href={guideHref(course, lecture)}><FiBookOpen /><span><b>{lecture.title}</b><small>Week {week.weekNumber} · {lecture.question_count} questions · {lecture.flashcard_deck_count} decks</small></span></Link>)}</Panel></>;
 
   if (tab === "curriculum") return <section className="bundle-accordion-stack"><div className="bundle-expand-actions"><button type="button" onClick={() => setOpenWeeks(new Set(courses.flatMap((course) => course.weeks.map((week) => week.id))))}>Expand all</button><button type="button" onClick={() => setOpenWeeks(new Set())}>Collapse all</button></div>{courses.map((course) => <Panel key={course.id} title={`${course.courseCode} · ${course.courseName}`} className="bundle-course">{course.weeks.map((week) => {
     const questions = week.lectures.reduce((sum, lecture) => sum + lecture.question_count, 0);
@@ -288,15 +308,15 @@ function BundleWorkspaceTab({ content, tab, courses, lectures, openWeeks, setOpe
         else next.add(week.id);
         return next;
       });
-      setUrl(content.bundle.id, "curriculum", week.id, true);
-    }}><span><b>Week {week.weekNumber}: {week.title || "Untitled week"}</b><small>{questions} questions · {decks} decks · {resources} resources</small></span><small>{week.lectures.length} lectures</small><FiChevronDown /></button>{open && <div>{week.lectures.map((lecture) => <Link href={`/guidelines?course=${course.id}&lecture=${lecture.id}`} key={lecture.id}><FiBookOpen /><span><b>{lecture.lectureNumber}. {lecture.title}</b><small>{lecture.question_count} questions · {lecture.flashcard_deck_count} decks · {lecture.resource_count} resources</small></span></Link>)}</div>}</section>;
+      setUrl(content.bundle.id, "curriculum", weekRouteKey(week), true);
+    }}><span><b>Week {week.weekNumber}: {week.title || "Untitled week"}</b><small>{questions} questions · {decks} decks · {resources} resources</small></span><small>{week.lectures.length} lectures</small><FiChevronDown /></button>{open && <div>{week.lectures.map((lecture) => <Link href={guideHref(course, lecture)} key={lecture.id}><FiBookOpen /><span><b>{lecture.lectureNumber}. {lecture.title}</b><small>{lecture.question_count} questions · {lecture.flashcard_deck_count} decks · {lecture.resource_count} resources</small></span></Link>)}</div>}</section>;
   })}</Panel>)}</section>;
 
-  if (tab === "questions") return <Panel title="Bundle Question Bank"><p>Choose a lecture to define exactly what the practice covers.</p>{lectures.map(({ course, week, lecture }) => <Link className="bundle-row" href={`/guidelines?course=${course.id}&lecture=${lecture.id}`} key={lecture.id}><FiFileText /><span><b>{lecture.title}</b><small>Week {week.weekNumber}</small></span><strong>{lecture.question_count} Qs</strong></Link>)}</Panel>;
+  if (tab === "questions") return <Panel title="Bundle Question Bank"><p>Choose a lecture to define exactly what the practice covers.</p>{lectures.map(({ course, week, lecture }) => <Link className="bundle-row" href={guideHref(course, lecture)} key={lecture.id}><FiFileText /><span><b>{lecture.title}</b><small>Week {week.weekNumber}</small></span><strong>{lecture.question_count} Qs</strong></Link>)}</Panel>;
 
   if (tab === "exams") return <Panel title="Bundle Past Exams">{content.past_exams.length ? content.past_exams.map((exam) => <article className="bundle-row" key={exam.id}><FiClock /><span><b>{exam.title}</b><small>{exam.durationMinutes ? `${exam.durationMinutes} minutes` : "Untimed"}</small></span></article>) : <EmptyState title="No past exams" description="No past exams are assigned to this bundle." />}</Panel>;
 
-  if (tab === "flashcards") return <Panel title="Bundle Flashcards">{lectures.filter((item) => item.lecture.flashcard_deck_count).map(({ week, lecture }) => <Link className="bundle-row" href={`/flashcards?lecture=${lecture.id}`} key={lecture.id}><FiLayers /><span><b>{lecture.title}</b><small>Week {week.weekNumber}</small></span><strong>{lecture.flashcard_deck_count} decks</strong></Link>)}</Panel>;
+  if (tab === "flashcards") return <Panel title="Bundle Flashcards">{lectures.filter((item) => item.lecture.flashcard_deck_count).map(({ week, lecture }) => <Link className="bundle-row" href="/flashcards" key={lecture.id}><FiLayers /><span><b>{lecture.title}</b><small>Week {week.weekNumber} · open your enrolled review queue</small></span><strong>{lecture.flashcard_deck_count} decks</strong></Link>)}</Panel>;
 
-  return <Panel title="Bundle Resources">{lectures.filter((item) => item.lecture.resource_count).map(({ course, week, lecture }) => <Link className="bundle-row" href={`/guidelines?course=${course.id}&lecture=${lecture.id}`} key={lecture.id}><FiBookOpen /><span><b>{lecture.title}</b><small>Week {week.weekNumber}</small></span><strong>{lecture.resource_count} files</strong></Link>)}</Panel>;
+  return <Panel title="Bundle Resources">{lectures.filter((item) => item.lecture.resource_count).map(({ course, week, lecture }) => <Link className="bundle-row" href={guideHref(course, lecture)} key={lecture.id}><FiBookOpen /><span><b>{lecture.title}</b><small>Week {week.weekNumber}</small></span><strong>{lecture.resource_count} files</strong></Link>)}</Panel>;
 }
