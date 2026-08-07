@@ -1,6 +1,7 @@
 import { Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createPublicKey, verify as verifySignature } from 'crypto';
+import type { JsonWebKey } from 'crypto';
 
 type GoogleJwtHeader = {
   alg?: string;
