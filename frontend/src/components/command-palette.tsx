@@ -10,12 +10,14 @@ import {
   FiCheckCircle,
   FiClipboard,
   FiClock,
+  FiCommand,
   FiEdit3,
   FiFileText,
   FiLayers,
   FiPlus,
   FiSettings,
   FiShield,
+  FiUploadCloud,
   FiUsers,
 } from "react-icons/fi";
 import type { IconType } from "react-icons";
@@ -43,6 +45,7 @@ const commands: Command[] = [
   { label: "Open study plan", description: "Review or regenerate your learning calendar", href: "/study-plan", icon: FiCalendar, keywords: ["schedule", "exam", "calendar"], roles: ["STUDENT"] },
   { label: "Instructor overview", description: "Open the teaching control center", href: "/instructor", icon: FiBarChart2, keywords: ["dashboard", "teaching"], roles: ["INSTRUCTOR"] },
   { label: "Course studio", description: "Build weeks, lectures, topics, and published curriculum", href: "/instructor/courses", icon: FiBookOpen, keywords: ["academic", "lecture", "topic"], roles: ["INSTRUCTOR"] },
+  { label: "Upload lecture resources", description: "Upload verified PDFs, images, and videos to draft lectures", href: "/resources/upload", icon: FiUploadCloud, keywords: ["resource", "upload", "pdf", "video", "image"], roles: ["INSTRUCTOR", "SYSTEM_ADMIN"] },
   { label: "Instructor question bank", description: "Create MCQ and essay questions", href: "/instructor/questions", icon: FiEdit3, keywords: ["questions", "mcq", "essay"], roles: ["INSTRUCTOR"] },
   { label: "Assessment builder", description: "Create, assemble, and publish assessments", href: "/instructor/assessments", icon: FiClipboard, keywords: ["tests", "quizzes", "attempts"], roles: ["INSTRUCTOR"] },
   { label: "Essay grading", description: "Review attempts and grade submitted essays", href: "/instructor/grading", icon: FiCheckCircle, keywords: ["grade", "feedback", "answers"], roles: ["INSTRUCTOR"] },
@@ -55,7 +58,8 @@ const commands: Command[] = [
   { label: "Admin flashcard studio", description: "Manage teaching decks and cards", href: "/admin/flashcards", icon: FiLayers, keywords: ["decks", "cards"], roles: ["SYSTEM_ADMIN"] },
   { label: "Audit trail", description: "Inspect privileged platform events", href: "/admin/audit", icon: FiShield, keywords: ["logs", "governance", "security"], roles: ["SYSTEM_ADMIN"] },
   { label: "Open notifications", description: "Read your notification inbox", href: "/notifications", icon: FiBell, keywords: ["inbox", "alerts", "updates"] },
-  { label: "Open settings", description: "Manage profile, security, and appearance", href: "/settings", icon: FiSettings, keywords: ["profile", "password", "theme"] },
+  { label: "Open settings", description: "Manage identity, sessions, language, and appearance", href: "/settings", icon: FiSettings, keywords: ["profile", "password", "theme", "language", "sessions"] },
+  { label: "Keyboard shortcuts", description: "Open the command navigation manual", href: "/shortcuts", icon: FiCommand, keywords: ["manual", "keyboard", "hotkeys", "shortcuts", "command"] },
 ];
 
 export function CommandPalette({ open, onOpen, onClose, role }: { open: boolean; onOpen: () => void; onClose: () => void; role: Role }) {
@@ -137,5 +141,5 @@ export function CommandPalette({ open, onOpen, onClose, role }: { open: boolean;
   }
 
   if (!open) return null;
-  return <div className="command-palette-backdrop" role="presentation" onMouseDown={onClose}><section ref={dialogRef} className="command-palette" role="dialog" aria-modal="true" aria-label="Workspace command palette" onMouseDown={event => event.stopPropagation()}><label className="command-palette-search"><FiBookOpen /><input ref={inputRef} value={query} onChange={event => { setQuery(event.target.value); setActiveIndex(0); }} onKeyDown={handleKeyDown} placeholder="Search pages and actions…" aria-controls="command-palette-results" aria-activedescendant={filtered[activeIndex] ? `command-${activeIndex}` : undefined} /><kbd>Esc</kbd></label><div className="command-palette-results" id="command-palette-results" role="listbox">{filtered.length ? filtered.map((command, index) => { const Icon = command.icon; return <button id={`command-${index}`} type="button" role="option" aria-selected={activeIndex === index} className={activeIndex === index ? "active" : ""} onMouseEnter={() => setActiveIndex(index)} onClick={() => execute(command)} key={`${command.href}-${command.label}`}><span><Icon /></span><span><b>{command.label}</b><small>{command.description}</small></span><kbd>{command.recent ? "Recent" : "↵"}</kbd></button>; }) : <p className="command-palette-empty">No matching workspace action.</p>}</div><footer><span>↑↓ Navigate</span><span>Enter Open</span><span>Esc Close</span></footer></section></div>;
+  return <div className="command-palette-backdrop" role="presentation" onMouseDown={onClose}><section ref={dialogRef} className="command-palette" role="dialog" aria-modal="true" aria-label="Workspace command palette" onMouseDown={event => event.stopPropagation()}><label className="command-palette-search"><FiBookOpen /><input ref={inputRef} value={query} onChange={event => { setQuery(event.target.value); setActiveIndex(0); }} onKeyDown={handleKeyDown} placeholder="Search pages and actions…" aria-controls="command-palette-results" aria-activedescendant={filtered[activeIndex] ? `command-${activeIndex}` : undefined} /><kbd>Esc</kbd></label><div className="command-palette-results" id="command-palette-results" role="listbox">{filtered.length ? filtered.map((command, index) => { const Icon = command.icon; return <button id={`command-${index}`} type="button" role="option" aria-selected={activeIndex === index} className={activeIndex === index ? "active" : ""} onMouseEnter={() => setActiveIndex(index)} onClick={() => execute(command)} key={`${command.href}-${command.label}`}><span><Icon /></span><span><b>{command.label}</b><small>{command.description}</small></span><kbd>{command.recent ? "Recent" : "↵"}</kbd></button>; }) : <p className="command-palette-empty">No matching workspace action.</p>}</div><footer><span>↑↓ Navigate</span><span>Enter Open</span><span>Esc Close</span><span>Ctrl/⌘ + / Manual</span></footer></section></div>;
 }
