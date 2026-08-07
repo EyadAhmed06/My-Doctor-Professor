@@ -1,5 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
+const frontendOrigin = 'http://127.0.0.1:3001';
+
 const student = {
   id: 'student-1',
   email: 'student@example.test',
@@ -32,14 +34,7 @@ const bundleContent = {
           weekNumber: 1,
           title: 'Cardiovascular foundations',
           lectures: [
-            {
-              id: 'lecture-1',
-              title: 'Cardiac cycle',
-              lectureNumber: 1,
-              question_count: 12,
-              flashcard_deck_count: 2,
-              resource_count: 1,
-            },
+            { id: 'lecture-1', title: 'Cardiac cycle', lectureNumber: 1, question_count: 12, flashcard_deck_count: 2, resource_count: 1 },
           ],
         },
         {
@@ -47,63 +42,28 @@ const bundleContent = {
           weekNumber: 2,
           title: 'Respiratory foundations',
           lectures: [
-            {
-              id: 'lecture-2',
-              title: 'Gas exchange',
-              lectureNumber: 2,
-              question_count: 8,
-              flashcard_deck_count: 1,
-              resource_count: 2,
-            },
+            { id: 'lecture-2', title: 'Gas exchange', lectureNumber: 2, question_count: 8, flashcard_deck_count: 1, resource_count: 2 },
           ],
         },
       ],
     },
   ],
   past_exams: [],
-  totals: {
-    courses: 1,
-    weeks: 2,
-    lectures: 2,
-    questions: 20,
-    flashcard_decks: 3,
-    resources: 3,
-    past_exams: 0,
-  },
+  totals: { courses: 1, weeks: 2, lectures: 2, questions: 20, flashcard_decks: 3, resources: 3, past_exams: 0 },
 };
 
 const analytics = {
-  summary: {
-    questions_answered: 120,
-    accuracy: 68,
-    bookmarked: 4,
-    calibrated_confidence: 61,
-    flashcards_mastered: 33,
-    flashcards_due: 7,
-  },
+  summary: { questions_answered: 120, accuracy: 68, bookmarked: 4, calibrated_confidence: 61, flashcards_mastered: 33, flashcards_due: 7 },
   accuracy_over_time: [
     { date: '2026-08-01', answered: 20, accuracy: 60 },
     { date: '2026-08-02', answered: 30, accuracy: 72 },
   ],
-  topic_mastery: [
-    {
-      id: 'topic-1',
-      name: 'Cardiac physiology',
-      course: 'Medicine I',
-      mastery: 54,
-      confidence: 59,
-      questions_attempted: 18,
-    },
-  ],
+  topic_mastery: [{ id: 'topic-1', name: 'Cardiac physiology', course: 'Medicine I', mastery: 54, confidence: 59, questions_attempted: 18 }],
   study_activity: [
     { date: '2026-08-01', completed: 2, skipped: 1, planned: 3 },
     { date: '2026-08-02', completed: 3, skipped: 0, planned: 3 },
   ],
-  readiness: {
-    score: 63,
-    band: 'ON_TRACK',
-    components: { accuracy: 68, curriculum: 55, flashcards: 70, consistency: 61 },
-  },
+  readiness: { score: 63, band: 'ON_TRACK', components: { accuracy: 68, curriculum: 55, flashcards: 70, consistency: 61 } },
 };
 
 function apiEndpoint(requestUrl: string) {
@@ -127,6 +87,7 @@ function isMockedEndpoint(endpoint: string) {
 async function mockApi(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem('mdp_access_token', 'browser-test-token');
+    localStorage.removeItem('mdp_refresh_token');
     localStorage.setItem('mdp-theme', 'light');
     localStorage.setItem('mdp-locale', 'en');
   });
@@ -137,11 +98,7 @@ async function mockApi(page: Page) {
     const endpoint = apiEndpoint(request.url());
     const resourceType = request.resourceType();
     const isDataRequest = resourceType === 'fetch' || resourceType === 'xhr';
-    const apiLikeRequest = isDataRequest && (
-      isMockedEndpoint(endpoint)
-      || url.pathname.includes('/api/v1')
-      || url.port === '3000'
-    );
+    const apiLikeRequest = isDataRequest && (isMockedEndpoint(endpoint) || url.pathname.includes('/api/v1') || url.port === '3000');
 
     if (!apiLikeRequest) {
       await route.fallback();
@@ -149,7 +106,8 @@ async function mockApi(page: Page) {
     }
 
     const headers = {
-      'access-control-allow-origin': '*',
+      'access-control-allow-origin': frontendOrigin,
+      'access-control-allow-credentials': 'true',
       'access-control-allow-headers': 'authorization,content-type',
       'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
     };
@@ -159,53 +117,21 @@ async function mockApi(page: Page) {
       return;
     }
 
-    const respond = async (body: unknown, status = 200) =>
-      route.fulfill({
-        status,
-        headers,
-        contentType: 'application/json',
-        body: JSON.stringify(body),
-      });
+    const respond = async (body: unknown, status = 200) => route.fulfill({ status, headers, contentType: 'application/json', body: JSON.stringify(body) });
 
     if (endpoint === '/auth/me') return respond(student);
     if (endpoint === '/auth/security') {
       return respond({
-        sessions: [{
-          id: 'session-current',
-          current: true,
-          created_at: '2026-08-07T08:00:00.000Z',
-          last_used_at: null,
-          expires_at: '2026-08-14T08:00:00.000Z',
-        }],
+        sessions: [{ id: 'session-current', current: true, created_at: '2026-08-07T08:00:00.000Z', last_used_at: null, expires_at: '2026-08-14T08:00:00.000Z' }],
         providers: [],
       });
     }
     if (endpoint === '/notifications/unread/count') return respond({ count: 2 });
     if (endpoint === '/notifications') {
-      return respond({
-        data: [
-          {
-            id: 'notification-1',
-            title: 'Upcoming review',
-            message: 'Seven flashcards are due.',
-            target_url: '/flashcards',
-            notification_type: 'STUDY',
-            status: 'UNREAD',
-            created_at: '2026-08-06T16:00:00.000Z',
-          },
-        ],
-      });
+      return respond({ data: [{ id: 'notification-1', title: 'Upcoming review', message: 'Seven flashcards are due.', target_url: '/flashcards', notification_type: 'STUDY', status: 'UNREAD', created_at: '2026-08-06T16:00:00.000Z' }] });
     }
     if (endpoint === '/users/student-1') {
-      return respond({
-        ...student,
-        fullName: 'Browser Test Student',
-        phoneNumber: '+201000000000',
-        profilePictureUrl: null,
-        dateOfBirth: null,
-        gender: null,
-        createdAt: '2026-01-01T00:00:00.000Z',
-      });
+      return respond({ ...student, fullName: 'Browser Test Student', phoneNumber: '+201000000000', profilePictureUrl: null, dateOfBirth: null, gender: null, createdAt: '2026-01-01T00:00:00.000Z' });
     }
     if (endpoint === '/bundles/mine') return respond([bundle]);
     if (endpoint === '/catalog/bundles') return respond([]);
@@ -217,20 +143,13 @@ async function mockApi(page: Page) {
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => document.documentElement.scrollWidth <= window.innerWidth + 1,
-      ),
-    )
-    .toBe(true);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 }
 
 for (const pathname of ['/', '/login', '/register']) {
   test(`public page ${pathname} renders without horizontal overflow`, async ({ page }) => {
     const pageErrors: string[] = [];
     page.on('pageerror', (error) => pageErrors.push(error.message));
-
     await page.goto(pathname);
     await expect(page.locator('body')).toBeVisible();
     await expectNoHorizontalOverflow(page);
@@ -257,9 +176,7 @@ test('authenticated shell menus, theme, and command palette are keyboard usable'
   await expect(palette).toBeHidden();
 
   await page.getByRole('button', { name: /unread notifications/i }).click();
-  await expect(page.getByRole('dialog', { name: 'Notification preview' })).toContainText(
-    'Upcoming review',
-  );
+  await expect(page.getByRole('dialog', { name: 'Notification preview' })).toContainText('Upcoming review');
   await expectNoHorizontalOverflow(page);
 });
 
@@ -277,9 +194,7 @@ test('Bundle curriculum preserves hierarchy and canonical deep links', async ({ 
 
   await weeks.nth(1).locator('button').first().click();
   await expect(weeks.nth(1)).toHaveClass(/open/);
-  await expect(
-    weeks.nth(1).getByRole('link', { name: /Gas exchange/i }),
-  ).toHaveAttribute('href', '/guidelines?course=med101&lecture=2-gas-exchange');
+  await expect(weeks.nth(1).getByRole('link', { name: /Gas exchange/i })).toHaveAttribute('href', '/guidelines?course=med101&lecture=2-gas-exchange');
   await expectNoHorizontalOverflow(page);
 });
 
@@ -288,18 +203,13 @@ test('Analytics counters and chart points expose real values to keyboard users',
   await page.goto('/analytics');
   await expect(page.getByRole('heading', { name: 'Analytics Dashboard' })).toBeVisible();
 
-  const questionsMetric = page.locator('.analytics-metric').filter({
-    hasText: 'Questions answered',
-  });
+  const questionsMetric = page.locator('.analytics-metric').filter({ hasText: 'Questions answered' });
   await expect(questionsMetric.locator('b')).toHaveText('120');
 
   const chartPoint = page.locator('.chart-bar-point').first();
   await chartPoint.focus();
   await expect(chartPoint).toBeFocused();
-  await expect(chartPoint).toHaveAttribute(
-    'data-tooltip',
-    /accuracy across 20 answered/,
-  );
+  await expect(chartPoint).toHaveAttribute('data-tooltip', /accuracy across 20 answered/);
   await expectNoHorizontalOverflow(page);
 });
 
@@ -308,13 +218,7 @@ test('reduced motion resolves animated values immediately', async ({ page }) => 
   await mockApi(page);
   await page.goto('/analytics');
 
-  const questionsMetric = page.locator('.analytics-metric').filter({
-    hasText: 'Questions answered',
-  });
+  const questionsMetric = page.locator('.analytics-metric').filter({ hasText: 'Questions answered' });
   await expect(questionsMetric.locator('b')).toHaveText('120');
-  await expect
-    .poll(() =>
-      questionsMetric.evaluate((element) => getComputedStyle(element).animationName),
-    )
-    .toBe('none');
+  await expect.poll(() => questionsMetric.evaluate((element) => getComputedStyle(element).animationName)).toBe('none');
 });
