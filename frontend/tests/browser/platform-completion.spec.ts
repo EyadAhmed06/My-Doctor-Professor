@@ -49,23 +49,70 @@ async function routeApi(page: Page, handler: (requestEndpoint: string, method: s
   });
 }
 
-test('language switcher persists Arabic RTL and can return to English LTR', async ({ page }) => {
+test('language switcher persists Arabic RTL and can return to English LTR without reloading', async ({ page }) => {
   await page.goto('/');
   const language = page.locator('.global-language-access');
   await expect(language).toBeVisible();
-  await Promise.all([
-    page.waitForEvent('load'),
-    language.getByRole('button', { name: 'ع' }).click(),
-  ]);
+  await language.getByRole('button', { name: 'ع' }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'ar');
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
 
-  await Promise.all([
-    page.waitForEvent('load'),
-    page.locator('.global-language-access').getByRole('button', { name: 'EN' }).click(),
-  ]);
+  await page.locator('.global-language-access').getByRole('button', { name: 'EN' }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+});
+
+test('Arabic dashboard translates dynamic learning copy instead of only changing direction', async ({ page }) => {
+  const user = await authenticated(page, 'STUDENT');
+  await page.addInitScript(() => localStorage.setItem('mdp-locale', 'ar'));
+  await routeApi(page, async path => {
+    if (path === '/auth/me') return { body: user };
+    if (path === '/notifications/unread/count') return { body: { count: 0 } };
+    if (path === '/notifications') return { body: { data: [] } };
+    if (path === '/dashboard/student') return { body: {
+      courses: [{ id: 'student-course-1', completionPercentage: '50', lecturesCompleted: 3, totalLectures: 6, averageScore: '75', course: { id: 'course-1', courseName: 'Cardiovascular Medicine', courseCode: 'CVS-301' } }],
+      recent_attempts: [{ id: 'attempt-1', status: 'SUBMITTED', score: '8', submitted_at: '2026-07-28T10:00:00.000Z', test_id: 'test-1', title: 'Week 1 Cardiovascular Review', total_marks: '10', passing_marks: '5' }],
+      questions: { attempts: 8, correct_attempts: 6, accuracy: '75', bookmarked: 0 },
+      flashcards: { reviewed: 8, mastered: 3, due: 6 },
+    } };
+    if (path.startsWith('/notebook/notes')) return { body: { data: [] } };
+    if (path === '/study-plan/calendar') return { body: { from: '2026-08-07', to: '2026-08-13', data: [] } };
+    return null;
+  });
+
+  await page.goto('/dashboard');
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  await expect(page.getByRole('heading', { name: /مرحبًا بعودتك، Test/ })).toBeVisible();
+  await expect(page.getByText('التقدم السريري')).toBeVisible();
+  await expect(page.getByText('خطة اليوم')).toBeVisible();
+  await expect(page.getByText('تابع التعلم')).toBeVisible();
+  await expect(page.getByText('Clinical Momentum')).toHaveCount(0);
+});
+
+test('logout navigates immediately even when server revocation is slow', async ({ page }) => {
+  const user = await authenticated(page, 'STUDENT');
+  await routeApi(page, async (path, method) => {
+    if (path === '/auth/me') return { body: user };
+    if (path === '/auth/security') return { body: { sessions: [], providers: [] } };
+    if (path === '/users/student-1') return { body: { ...user, fullName: 'Test Student', phoneNumber: '+201000000000', profilePictureUrl: null, gender: null, dateOfBirth: null } };
+    if (path === '/notifications/unread/count') return { body: { count: 0 } };
+    if (path === '/notifications') return { body: { data: [] } };
+    if (path === '/auth/logout' && method === 'POST') {
+      await new Promise(resolve => setTimeout(resolve, 4000));
+      return { status: 204 };
+    }
+    if (path === '/auth/logout/browser' && method === 'POST') return { status: 204 };
+    return null;
+  });
+
+  await page.goto('/settings');
+  await page.locator('.profile-menu-trigger').click();
+  const startedAt = Date.now();
+  await page.getByRole('menuitem', { name: /Log out/i }).click();
+  await expect(page).toHaveURL(/\/login/, { timeout: 1500 });
+  expect(Date.now() - startedAt).toBeLessThan(1500);
+  await page.reload();
+  await expect(page).toHaveURL(/\/login/);
 });
 
 test('settings exposes session security and keyboard manual navigation', async ({ page }) => {
