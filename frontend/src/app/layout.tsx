@@ -26,6 +26,7 @@ import "@/components/frontend-route-theme-audit.css";
 import "@/components/dashboard-visual-fix.css";
 import "@/components/internal-medical-visuals.css";
 import "@/components/flashcard-3d.css";
+import "@/components/google-auth.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
