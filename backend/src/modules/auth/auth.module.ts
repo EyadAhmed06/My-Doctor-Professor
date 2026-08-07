@@ -11,6 +11,7 @@ import { EmailService } from './email.service';
 import { AccountActionToken } from './entities/account-action-token.entity';
 import { AuthRateLimit } from './entities/auth-rate-limit.entity';
 import { EmailOutbox } from './entities/email-outbox.entity';
+import { GoogleAuthService } from './google-auth.service';
 import { GoogleIdentityService } from './google-identity.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
@@ -34,6 +35,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     AuthRateLimitService,
     EmailService,
     GoogleIdentityService,
+    GoogleAuthService,
     JwtStrategy,
     JwtAuthGuard,
     RolesGuard,
