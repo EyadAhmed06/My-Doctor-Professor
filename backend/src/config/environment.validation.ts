@@ -6,6 +6,7 @@ const POSITIVE_INTEGER_KEYS = [
   'JWT_REFRESH_TTL_SECONDS',
   'EMAIL_VERIFICATION_TTL_SECONDS',
   'PASSWORD_RESET_TTL_SECONDS',
+  'GOOGLE_ONBOARDING_TTL_SECONDS',
   'SMTP_PORT',
   'MAX_FILE_SIZE',
 ] as const;
@@ -18,6 +19,7 @@ const PRODUCTION_REQUIRED_KEYS = [
   'DB_NAME',
   'JWT_SECRET',
   'JWT_REFRESH_SECRET',
+  'GOOGLE_CLIENT_ID',
   'FRONTEND_URL',
   'SMTP_HOST',
   'SMTP_PORT',
@@ -89,6 +91,14 @@ export function validateEnvironment(input: Record<string, unknown>): Record<stri
   }
   if (accessSecret && refreshSecret && accessSecret === refreshSecret) {
     throw new Error('JWT_SECRET and JWT_REFRESH_SECRET must be different');
+  }
+
+  if (environment.GOOGLE_CLIENT_ID) {
+    const clientId = String(environment.GOOGLE_CLIENT_ID).trim();
+    if (!/^[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$/.test(clientId)) {
+      throw new Error('GOOGLE_CLIENT_ID must be a Google OAuth web client ID');
+    }
+    environment.GOOGLE_CLIENT_ID = clientId;
   }
 
   if (environment.FRONTEND_URL) {
