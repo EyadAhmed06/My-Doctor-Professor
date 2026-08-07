@@ -188,6 +188,14 @@ export class AuthController {
     this.clearRefreshCookies(response);
   }
 
+  @Post('logout/browser')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  clearBrowserLogoutCookies(@Res({ passthrough: true }) response: Response): void {
+    // Cookie cleanup is intentionally unauthenticated. It grants no access and lets a browser
+    // terminate a stale local refresh session even when its access token is missing or expired.
+    this.clearRefreshCookies(response);
+  }
+
   private writeRefreshCookies(response: Response, refreshToken: string, persistent: boolean) {
     const base: CookieOptions = {
       httpOnly: true,
