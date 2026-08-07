@@ -2,8 +2,9 @@ import { createHash } from 'crypto';
 import { readFile } from 'fs/promises';
 import path from 'path';
 
-const snapshot=path.resolve(process.env.BACKUP_SNAPSHOT||process.argv[2]||'');
-if(!snapshot||snapshot===path.parse(snapshot).root)throw new Error('Provide BACKUP_SNAPSHOT or a snapshot path argument');
+const rawSnapshot=process.env.BACKUP_SNAPSHOT||process.argv[2];
+if(!rawSnapshot)throw new Error('Provide BACKUP_SNAPSHOT or a snapshot path argument');
+const snapshot=path.resolve(rawSnapshot);
 const manifest=JSON.parse(await readFile(path.join(snapshot,'manifest.json'),'utf8'));
 async function sha256(file){return createHash('sha256').update(await readFile(file)).digest('hex');}
 const dump=path.join(snapshot,manifest.database.dump);
