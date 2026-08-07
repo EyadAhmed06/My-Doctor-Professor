@@ -47,7 +47,7 @@ function passwordChecks(value: string) {
 }
 
 export function ConnectedSettingsPage() {
-  const { user, request, refreshUser } = useAuth();
+  const { user, request, refreshUser, logout } = useAuth();
   const { theme, preference, setTheme } = useAppTheme();
   const { locale } = useLocale();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -175,7 +175,8 @@ export function ConnectedSettingsPage() {
     try {
       await request(`/users/${user.id}/change-password`, { method: "POST", body: { current_password: currentPassword, new_password: newPassword } });
       setCurrentPassword(""); setNewPassword(""); setCapsLock(false);
-      setMessage("Password changed. Existing refresh sessions were revoked for safety.");
+      try { await logout(); } catch { /* session is intentionally revoked by the password change */ }
+      window.location.assign("/login?password=changed");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to change your password."); }
     finally { setSaving(false); }
   }
