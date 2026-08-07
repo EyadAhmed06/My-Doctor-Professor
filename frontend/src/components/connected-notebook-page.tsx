@@ -19,6 +19,7 @@ import {
 } from "react-icons/fi";
 import { useAuth } from "./auth-provider";
 import { EmptyState, PageSkeleton } from "./async-state";
+import { useLocale } from "./locale-provider";
 import { ProductShell } from "./product-shell";
 import { useUx } from "./ux-provider";
 import "./product-pages.css";
@@ -47,8 +48,14 @@ function validFilter(value: string | null): NoteFilter {
   return types.includes(value as NoteFilter) ? value as NoteFilter : "ALL";
 }
 
+function noteTypeLabel(type: string, translate: (value: string) => string) {
+  if (type === "ALL") return translate("All");
+  return translate(type.replaceAll("_", " "));
+}
+
 export function ConnectedNotebookPage() {
   const { request } = useAuth();
+  const { translate, locale } = useLocale();
   const { startNavigation, notify } = useUx();
   const router = useRouter();
   const pathname = usePathname();
@@ -112,22 +119,15 @@ export function ConnectedNotebookPage() {
       setCollections(collectionRows);
       setTags(tagRows);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to load notebook.");
+      setError(cause instanceof Error ? cause.message : translate("Unable to load notebook."));
     } finally {
       setLoading(false);
     }
-  }, [request]);
+  }, [request, translate]);
 
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => () => {
-    window.clearTimeout(queryTimer.current);
-    window.clearTimeout(deleteTimer.current);
-  }, []);
-  useEffect(() => {
-    setFilter(requestedType);
-    setCollection(requestedCollection);
-    setQuery(requestedQuery);
-  }, [requestedCollection, requestedQuery, requestedType]);
+  useEffect(() => () => { window.clearTimeout(queryTimer.current); window.clearTimeout(deleteTimer.current); }, []);
+  useEffect(() => { setFilter(requestedType); setCollection(requestedCollection); setQuery(requestedQuery); }, [requestedCollection, requestedQuery, requestedType]);
   useEffect(() => {
     if (loading) return;
     const target = notes.find((note) => note.id === requestedNote) || notes[0] || null;
@@ -152,32 +152,16 @@ export function ConnectedNotebookPage() {
   const count = (type: string) => type === "ALL" ? notes.length : notes.filter((note) => note.noteType === type).length;
   const allVisibleSelected = visible.length > 0 && visible.every((note) => selectedIds.has(note.id));
 
-  function selectNote(note: Note) {
-    setSelected(note);
-    setUrl({ note: note.id });
-  }
-
+  function selectNote(note: Note) { setSelected(note); setUrl({ note: note.id }); }
   function toggleSelected(id: string) {
     setSelectedIds((current) => {
       const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   }
-
-  function chooseFilter(value: NoteFilter) {
-    setFilter(value);
-    setSelectedIds(new Set());
-    setUrl({ type: value }, true);
-  }
-
-  function chooseCollection(value: string) {
-    setCollection(value);
-    setSelectedIds(new Set());
-    setUrl({ collection: value }, true);
-  }
-
+  function chooseFilter(value: NoteFilter) { setFilter(value); setSelectedIds(new Set()); setUrl({ type: value }, true); }
+  function chooseCollection(value: string) { setCollection(value); setSelectedIds(new Set()); setUrl({ collection: value }, true); }
   function updateQuery(value: string) {
     setQuery(value);
     window.clearTimeout(queryTimer.current);
@@ -187,20 +171,17 @@ export function ConnectedNotebookPage() {
   async function updateMany(bodyFor: (note: Note) => Record<string, unknown>, success: string) {
     const targets = notes.filter((note) => selectedIds.has(note.id));
     if (!targets.length) return;
-    setBusy(true);
-    setError(null);
+    setBusy(true); setError(null);
     try {
       const updated = await Promise.all(targets.map((note) => request<Note>(`/notebook/notes/${note.id}`, { method: "PUT", body: bodyFor(note) })));
       const map = new Map(updated.map((note) => [note.id, note]));
       setNotes((current) => current.map((note) => map.get(note.id) || note));
       setSelected((current) => current ? map.get(current.id) || current : current);
       setSelectedIds(new Set());
-      notify({ title: success, description: `${targets.length} note${targets.length === 1 ? "" : "s"} updated.`, tone: "success" });
+      notify({ title: translate(success), description: locale === "ar" ? `تم تحديث ${targets.length} ملاحظة.` : `${targets.length} note${targets.length === 1 ? "" : "s"} updated.`, tone: "success" });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to update selected notes.");
-    } finally {
-      setBusy(false);
-    }
+      setError(cause instanceof Error ? cause.message : translate("Unable to update selected notes."));
+    } finally { setBusy(false); }
   }
 
   function removeMany(targets: Note[]) {
@@ -217,15 +198,12 @@ export function ConnectedNotebookPage() {
       window.clearTimeout(deleteTimer.current);
       setNotes(previous);
       setSelected(targets[0] || null);
-      notify({ title: "Deletion cancelled", description: "The selected notes were restored.", tone: "info" });
+      notify({ title: translate("Deletion cancelled"), description: translate("The selected notes were restored."), tone: "info" });
     };
     notify({
-      title: `${targets.length} note${targets.length === 1 ? "" : "s"} queued for deletion`,
-      description: "Deletion will be finalized after the undo window closes.",
-      tone: "info",
-      duration: 5000,
-      actionLabel: "Undo",
-      onAction: undo,
+      title: locale === "ar" ? `تمت جدولة حذف ${targets.length} ملاحظة` : `${targets.length} note${targets.length === 1 ? "" : "s"} queued for deletion`,
+      description: translate("Deletion will be finalized after the undo window closes."),
+      tone: "info", duration: 5000, actionLabel: translate("Undo"), onAction: undo,
     });
     deleteTimer.current = window.setTimeout(async () => {
       if (undone) return;
@@ -234,7 +212,7 @@ export function ConnectedNotebookPage() {
         setUrl({ note: null }, true);
       } catch (cause) {
         setNotes(previous);
-        setError(cause instanceof Error ? cause.message : "Unable to delete notes.");
+        setError(cause instanceof Error ? cause.message : translate("Unable to delete notes."));
       }
     }, 5000);
   }
@@ -245,11 +223,8 @@ export function ConnectedNotebookPage() {
     const data = new FormData(form);
     try {
       await request("/notebook/collections", { method: "POST", body: { name: String(data.get("name")) } });
-      form.reset();
-      await load();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to create collection.");
-    }
+      form.reset(); await load();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : translate("Unable to create collection.")); }
   }
 
   async function createTag(event: FormEvent<HTMLFormElement>) {
@@ -258,63 +233,60 @@ export function ConnectedNotebookPage() {
     const data = new FormData(form);
     try {
       await request("/notebook/tags", { method: "POST", body: { name: String(data.get("name")) } });
-      form.reset();
-      await load();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to create tag.");
-    }
+      form.reset(); await load();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : translate("Unable to create tag.")); }
   }
 
-  return <ProductShell search="Search notes, pearls, or cases"><main className="pp-page notebook-page notebook-restored restored-page notebook-bulk-page">
-    <header className="workspace-heading"><div><span className="page-eyebrow">PERSONAL KNOWLEDGE WORKSPACE</span><h1>Notebook</h1><p>Organize, sort, select, tag, move, favorite, and edit your learning notes.</p></div><div className="notebook-stats"><Metric icon={<FiBookOpen />} value={notes.length} label="Total notes" /><Metric icon={<FiFileText />} value={count("EXPLANATION")} label="Explanations" /><Metric icon={<FiFolder />} value={collections.length} label="Collections" /></div></header>
+  return <ProductShell search={translate("Search notes, pearls, or cases")}><main className="pp-page notebook-page notebook-restored restored-page notebook-bulk-page">
+    <header className="workspace-heading"><div><span className="page-eyebrow">{translate("PERSONAL KNOWLEDGE WORKSPACE")}</span><h1>{translate("Notebook")}</h1><p>{translate("Organize, sort, select, tag, move, favorite, and edit your learning notes.")}</p></div><div className="notebook-stats"><Metric icon={<FiBookOpen />} value={notes.length} label={translate("Total notes")} /><Metric icon={<FiFileText />} value={count("EXPLANATION")} label={translate("Explanations")} /><Metric icon={<FiFolder />} value={collections.length} label={translate("Collections")} /></div></header>
     {error && <p className="form-error" role="alert">{error}</p>}
-    {loading ? <PageSkeleton variant="workspace" label="Loading notebook" /> : <div className="notebook-workspace notebook-layout">
+    {loading ? <PageSkeleton variant="workspace" label={translate("Loading notebook")} /> : <div className="notebook-workspace notebook-layout">
       <aside className="notebook-library notebook-sidebar">
-        <div className="library-title"><b>LIBRARY</b><Link href="/notebook/new"><FiPlus /></Link></div>
-        <button className={collection === "ALL" ? "active" : ""} onClick={() => chooseCollection("ALL")}><span>All collections</span><small>{notes.length}</small></button>
-        {collections.map((item) => <button key={item.id} className={collection === item.id ? "active" : ""} onClick={() => chooseCollection(item.id)}><span><FiFolder /> {item.name}{item.isPinned && <FiStar />}</span><small>{item.notes.length}</small></button>)}
-        <form className="inline-create" onSubmit={createCollection}><input name="name" placeholder="New collection" required /><button><FiPlus /></button></form>
-        <b className="library-subtitle">TAGS</b>
-        <div className="library-tags">{tags.map((tag) => <span key={tag.id}><FiTag />{tag.name}</span>)}</div>
-        <form className="inline-create" onSubmit={createTag}><input name="name" placeholder="New tag" required /><button><FiPlus /></button></form>
-        <div className="notebook-search"><FiSearch /><input value={query} onChange={(event) => updateQuery(event.target.value)} placeholder="Search notes" /></div>
+        <div className="library-title"><b>{translate("LIBRARY")}</b><Link href="/notebook/new" aria-label={translate("New note")}><FiPlus /></Link></div>
+        <button className={collection === "ALL" ? "active" : ""} onClick={() => chooseCollection("ALL")}><span>{translate("All collections")}</span><small>{notes.length}</small></button>
+        {collections.map((item) => <button key={item.id} className={collection === item.id ? "active" : ""} onClick={() => chooseCollection(item.id)}><span data-academic-content><FiFolder /> {item.name}{item.isPinned && <FiStar />}</span><small>{item.notes.length}</small></button>)}
+        <form className="inline-create" onSubmit={createCollection}><input name="name" placeholder={translate("New collection")} required /><button aria-label={translate("Create")}><FiPlus /></button></form>
+        <b className="library-subtitle">{translate("TAGS")}</b>
+        <div className="library-tags">{tags.map((tag) => <span key={tag.id} data-academic-content><FiTag />{tag.name}</span>)}</div>
+        <form className="inline-create" onSubmit={createTag}><input name="name" placeholder={translate("New tag")} required /><button aria-label={translate("Create")}><FiPlus /></button></form>
+        <div className="notebook-search"><FiSearch /><input value={query} onChange={(event) => updateQuery(event.target.value)} placeholder={translate("Search notes")} /></div>
       </aside>
 
       <section className="notebook-center">
-        <div className="notebook-toolbar"><div>{types.map((type) => <button key={type} className={filter === type ? "active" : ""} onClick={() => chooseFilter(type)}>{type === "ALL" ? `All (${count(type)})` : type.replaceAll("_", " ")}</button>)}</div><Link className="pp-button" href="/notebook/new"><FiPlus /> New note</Link></div>
+        <div className="notebook-toolbar"><div>{types.map((type) => <button key={type} className={filter === type ? "active" : ""} onClick={() => chooseFilter(type)}>{type === "ALL" ? `${translate("All")} (${count(type)})` : noteTypeLabel(type, translate)}</button>)}</div><Link className="pp-button" href="/notebook/new"><FiPlus /> {translate("New note")}</Link></div>
         <div className="notebook-list-controls">
-          <button type="button" onClick={() => setSelectedIds(allVisibleSelected ? new Set() : new Set(visible.map((note) => note.id)))}>{allVisibleSelected ? <FiCheckSquare /> : <FiSquare />} {allVisibleSelected ? "Clear visible" : "Select visible"}</button>
-          <label>Sort<select value={sort} onChange={(event) => setSort(event.target.value as Sort)}><option value="UPDATED_DESC">Recently updated</option><option value="UPDATED_ASC">Oldest updated</option><option value="TITLE_ASC">Title A–Z</option><option value="TITLE_DESC">Title Z–A</option><option value="FAVORITES">Favorites first</option></select></label>
+          <button type="button" onClick={() => setSelectedIds(allVisibleSelected ? new Set() : new Set(visible.map((note) => note.id)))}>{allVisibleSelected ? <FiCheckSquare /> : <FiSquare />} {translate(allVisibleSelected ? "Clear visible" : "Select visible")}</button>
+          <label>{translate("Sort")}<select value={sort} onChange={(event) => setSort(event.target.value as Sort)}><option value="UPDATED_DESC">{translate("Recently updated")}</option><option value="UPDATED_ASC">{translate("Oldest updated")}</option><option value="TITLE_ASC">{translate("Title A–Z")}</option><option value="TITLE_DESC">{translate("Title Z–A")}</option><option value="FAVORITES">{translate("Favorites first")}</option></select></label>
         </div>
 
-        {selectedIds.size > 0 && <section className="notebook-bulk-bar" aria-label="Bulk note actions">
-          <b>{selectedIds.size} selected</b>
-          <button type="button" disabled={busy} onClick={() => void updateMany((note) => ({ is_favorite: !note.isFavorite }), "Favorite state updated")}><FiStar /> Toggle favorite</button>
-          <label><FiFolder /><select value={bulkCollection} onChange={(event) => setBulkCollection(event.target.value)}><option value="">Move to…</option><option value="UNFILED">Unfiled</option>{collections.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select><button type="button" disabled={!bulkCollection || busy} onClick={() => void updateMany(() => ({ collection_id: bulkCollection === "UNFILED" ? null : bulkCollection }), "Notes moved")}>Apply</button></label>
-          <label><FiTag /><select value={bulkTag} onChange={(event) => setBulkTag(event.target.value)}><option value="">Add tag…</option>{tags.map((tag) => <option value={tag.id} key={tag.id}>{tag.name}</option>)}</select><button type="button" disabled={!bulkTag || busy} onClick={() => void updateMany((note) => ({ tag_ids: [...new Set([...note.tags.map((tag) => tag.id), bulkTag])] }), "Tag applied")}>Apply</button></label>
-          <button type="button" className="danger" disabled={busy} onClick={() => removeMany(notes.filter((note) => selectedIds.has(note.id)))}><FiTrash2 /> Delete</button>
-          <button type="button" onClick={() => setSelectedIds(new Set())}><FiX /> Cancel</button>
+        {selectedIds.size > 0 && <section className="notebook-bulk-bar" aria-label={translate("Bulk note actions")}>
+          <b>{locale === "ar" ? `تم تحديد ${selectedIds.size}` : `${selectedIds.size} selected`}</b>
+          <button type="button" disabled={busy} onClick={() => void updateMany((note) => ({ is_favorite: !note.isFavorite }), "Favorite state updated")}><FiStar /> {translate("Toggle favorite")}</button>
+          <label><FiFolder /><select value={bulkCollection} onChange={(event) => setBulkCollection(event.target.value)}><option value="">{translate("Move to…")}</option><option value="UNFILED">{translate("Unfiled")}</option>{collections.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select><button type="button" disabled={!bulkCollection || busy} onClick={() => void updateMany(() => ({ collection_id: bulkCollection === "UNFILED" ? null : bulkCollection }), "Notes moved")}>{translate("Apply")}</button></label>
+          <label><FiTag /><select value={bulkTag} onChange={(event) => setBulkTag(event.target.value)}><option value="">{translate("Add tag…")}</option>{tags.map((tag) => <option value={tag.id} key={tag.id}>{tag.name}</option>)}</select><button type="button" disabled={!bulkTag || busy} onClick={() => void updateMany((note) => ({ tag_ids: [...new Set([...note.tags.map((tag) => tag.id), bulkTag])] }), "Tag applied")}>{translate("Apply")}</button></label>
+          <button type="button" className="danger" disabled={busy} onClick={() => removeMany(notes.filter((note) => selectedIds.has(note.id)))}><FiTrash2 /> {translate("Delete")}</button>
+          <button type="button" onClick={() => setSelectedIds(new Set())}><FiX /> {translate("Cancel")}</button>
         </section>}
 
         {visible.length ? <div className="note-card-grid">{visible.map((note) => <article key={note.id} className={`note-library-card selectable ${selected?.id === note.id ? "active" : ""} ${selectedIds.has(note.id) ? "selected" : ""}`}>
-          <button className="note-select-control" type="button" aria-label={`${selectedIds.has(note.id) ? "Deselect" : "Select"} ${note.title}`} onClick={() => toggleSelected(note.id)}>{selectedIds.has(note.id) ? <FiCheckSquare /> : <FiSquare />}</button>
-          <button className="note-open-control" type="button" onClick={() => selectNote(note)}><span className={`note-kind ${note.noteType.toLowerCase()}`}>{note.noteType.replaceAll("_", " ")}</span><h3>{note.title}</h3><p>{note.content}</p><footer><small>{note.collection?.name || "Unfiled"}</small>{note.isFavorite && <FiStar />}</footer></button>
-        </article>)}</div> : <EmptyState title="No matching notes" description="Create a note or change the active collection, type, or search filter." />}
+          <button className="note-select-control" type="button" aria-label={`${translate(selectedIds.has(note.id) ? "Deselect" : "Select")} ${note.title}`} onClick={() => toggleSelected(note.id)}>{selectedIds.has(note.id) ? <FiCheckSquare /> : <FiSquare />}</button>
+          <button className="note-open-control" type="button" onClick={() => selectNote(note)}><span className={`note-kind ${note.noteType.toLowerCase()}`}>{noteTypeLabel(note.noteType, translate)}</span><h3 data-academic-content>{note.title}</h3><p data-academic-content>{note.content}</p><footer><small data-academic-content>{note.collection?.name || translate("Unfiled")}</small>{note.isFavorite && <FiStar />}</footer></button>
+        </article>)}</div> : <EmptyState title={translate("No matching notes")} description={translate("Create a note or change the active collection, type, or search filter.")} />}
       </section>
 
-      <aside className="note-inspector">{selected ? <><div className="inspector-title"><span className="note-kind">{selected.noteType.replaceAll("_", " ")}</span><h2>{selected.title}</h2><small>Updated {new Date(selected.updatedAt).toLocaleString()}</small></div><div className="inspector-copy">{selected.content}</div><div className="library-tags">{selected.tags.map((tag) => <span key={tag.id}><FiTag />{tag.name}</span>)}</div><div className="inspector-actions"><Link className="pp-button" href={`/notebook/new?note=${selected.id}`}><FiEdit3 /> Open full note</Link><button className="pp-button secondary" onClick={() => void updateManyForSingle(selected, request, setNotes, setSelected, notify)}><FiStar /> {selected.isFavorite ? "Unfavorite" : "Favorite"}</button><button className="pp-button secondary danger" onClick={() => removeMany([selected])}><FiTrash2 /> Delete</button></div></> : <p>Select a note to inspect it.</p>}</aside>
+      <aside className="note-inspector">{selected ? <><div className="inspector-title"><span className="note-kind">{noteTypeLabel(selected.noteType, translate)}</span><h2 data-academic-content>{selected.title}</h2><small>{translate("Updated")} {new Date(selected.updatedAt).toLocaleString(locale === "ar" ? "ar-EG" : undefined)}</small></div><div className="inspector-copy" data-academic-content>{selected.content}</div><div className="library-tags">{selected.tags.map((tag) => <span key={tag.id} data-academic-content><FiTag />{tag.name}</span>)}</div><div className="inspector-actions"><Link className="pp-button" href={`/notebook/new?note=${selected.id}`}><FiEdit3 /> {translate("Open full note")}</Link><button className="pp-button secondary" onClick={() => void updateManyForSingle(selected, request, setNotes, setSelected, notify, translate)}><FiStar /> {translate(selected.isFavorite ? "Unfavorite" : "Favorite")}</button><button className="pp-button secondary danger" onClick={() => removeMany([selected])}><FiTrash2 /> {translate("Delete")}</button></div></> : <p>{translate("Select a note to inspect it.")}</p>}</aside>
     </div>}
   </main></ProductShell>;
 }
 
-async function updateManyForSingle(note: Note, request: <T>(path: string, options?: { method?: string; body?: unknown }) => Promise<T>, setNotes: React.Dispatch<React.SetStateAction<Note[]>>, setSelected: React.Dispatch<React.SetStateAction<Note | null>>, notify: (value: { title: string; description?: string; tone: "success" | "error" | "info" }) => void) {
+async function updateManyForSingle(note: Note, request: <T>(path: string, options?: { method?: string; body?: unknown }) => Promise<T>, setNotes: React.Dispatch<React.SetStateAction<Note[]>>, setSelected: React.Dispatch<React.SetStateAction<Note | null>>, notify: (value: { title: string; description?: string; tone: "success" | "error" | "info" }) => void, translate: (value: string) => string) {
   try {
     const updated = await request<Note>(`/notebook/notes/${note.id}`, { method: "PUT", body: { is_favorite: !note.isFavorite } });
     setNotes((current) => current.map((value) => value.id === updated.id ? updated : value));
     setSelected(updated);
-    notify({ title: updated.isFavorite ? "Note favorited" : "Note removed from favorites", tone: "success" });
+    notify({ title: translate(updated.isFavorite ? "Note favorited" : "Note removed from favorites"), tone: "success" });
   } catch (cause) {
-    notify({ title: "Could not update note", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+    notify({ title: translate("Could not update note"), description: cause instanceof Error ? cause.message : undefined, tone: "error" });
   }
 }
 
