@@ -8,12 +8,13 @@ import { StudentLectureProgress } from '../../common/entities/student-lecture-pr
 import { StudentQuestionProgress } from '../../common/entities/student-question-progress.entity';
 import { StudentTopicProgress } from '../../common/entities/student-topic-progress.entity';
 import { Topic } from '../../common/entities/topic.entity';
+import { AcademicModule } from '../academic/academic.module';
 import { Student } from '../users/entities/student.entity';
 import { ProgressController } from './progress.controller';
 import { ProgressService } from './progress.service';
 
 @Module({
- imports:[TypeOrmModule.forFeature([
+ imports:[AcademicModule,TypeOrmModule.forFeature([
   StudentCourseProgress,StudentLectureProgress,StudentTopicProgress,
   StudentQuestionProgress,Course,Lecture,Topic,Question,Student,
  ])],
