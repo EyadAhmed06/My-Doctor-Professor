@@ -11,8 +11,11 @@ async function bootstrap() {
   app.use((_request, response, next) => {
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('X-Frame-Options', 'DENY');
+    response.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
     response.setHeader('Referrer-Policy', 'no-referrer');
-    response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+    response.setHeader('Cache-Control', 'no-store, max-age=0');
+    response.setHeader('Pragma', 'no-cache');
     if (process.env.NODE_ENV === 'production') {
       response.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     }
