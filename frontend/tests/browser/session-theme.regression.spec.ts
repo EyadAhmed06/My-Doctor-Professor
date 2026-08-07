@@ -17,7 +17,7 @@ const returningUser = {
 };
 
 const corsHeaders = {
-  'access-control-allow-origin': '*',
+  'access-control-allow-origin': 'http://127.0.0.1:3001',
   'access-control-allow-credentials': 'true',
   'access-control-allow-headers': 'authorization,content-type',
   'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
@@ -36,7 +36,6 @@ test('returning authenticated user sees continue actions on Home without logging
   await page.addInitScript(() => {
     localStorage.setItem('mdp-theme', 'light');
     localStorage.setItem('mdp_access_token', 'returning-user-token');
-    // Simulate an installation upgrading from the pre-HttpOnly implementation.
     localStorage.setItem('mdp_refresh_token', 'legacy-refresh-that-must-be-removed');
   });
 
