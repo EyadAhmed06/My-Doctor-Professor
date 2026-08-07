@@ -19,6 +19,7 @@ import {
 } from "react-icons/fi";
 import { useAuth } from "./auth-provider";
 import { PageSkeleton } from "./async-state";
+import { useLocale } from "./locale-provider";
 import { Panel, ProductShell, Progress } from "./product-shell";
 import { useUx } from "./ux-provider";
 import "./product-pages.css";
@@ -67,6 +68,7 @@ function formatDuration(milliseconds: number) {
 
 export function ConnectedFlashcardsPage() {
   const { user, request } = useAuth();
+  const { translate, locale } = useLocale();
   const { startNavigation, notify, celebrate } = useUx();
   const router = useRouter();
   const pathname = usePathname();
@@ -141,32 +143,19 @@ export function ConnectedFlashcardsPage() {
       setRatings(restoredRatings);
       completionAnnounced.current = false;
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : "Unable to load due flashcards.");
+      setError(cause instanceof ApiError ? cause.message : translate("Unable to load due flashcards."));
     } finally {
       setLoading(false);
     }
-  }, [readSession, request]);
+  }, [readSession, request, translate]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
     pendingRef.current = pending;
     try {
-      localStorage.setItem(sessionKey, JSON.stringify({
-        reviewed,
-        selectedCardId: cards[index]?.id || null,
-        pending,
-        startedAt,
-        elapsedMs,
-        paused,
-        initialCount,
-        ratings,
-      } satisfies StoredSession));
-    } catch {
-      // Session persistence is best-effort.
-    }
+      localStorage.setItem(sessionKey, JSON.stringify({ reviewed, selectedCardId: cards[index]?.id || null, pending, startedAt, elapsedMs, paused, initialCount, ratings } satisfies StoredSession));
+    } catch { /* best-effort */ }
   }, [cards, elapsedMs, index, initialCount, paused, pending, ratings, reviewed, sessionKey, startedAt]);
 
   useEffect(() => {
@@ -193,10 +182,7 @@ export function ConnectedFlashcardsPage() {
     const goOffline = () => setOnline(false);
     window.addEventListener("online", goOnline);
     window.addEventListener("offline", goOffline);
-    return () => {
-      window.removeEventListener("online", goOnline);
-      window.removeEventListener("offline", goOffline);
-    };
+    return () => { window.removeEventListener("online", goOnline); window.removeEventListener("offline", goOffline); };
   }, []);
 
   useEffect(() => {
@@ -210,11 +196,11 @@ export function ConnectedFlashcardsPage() {
     completionAnnounced.current = true;
     celebrate({
       id: `flashcard-session-complete-${startedAt}`,
-      title: "Review session complete",
-      description: `${reviewed} cards reviewed in ${formatDuration(elapsedMs)}.`,
+      title: translate("Review session complete"),
+      description: locale === "ar" ? `راجعت ${reviewed} بطاقة خلال ${formatDuration(elapsedMs)}.` : `${reviewed} cards reviewed in ${formatDuration(elapsedMs)}.`,
       points: Math.min(100, Math.max(10, reviewed * 2)),
     });
-  }, [cards.length, celebrate, elapsedMs, loading, reviewed, startedAt]);
+  }, [cards.length, celebrate, elapsedMs, loading, locale, reviewed, startedAt, translate]);
 
   const restoreReview = useCallback((entry: PendingReview, message?: string) => {
     setCards((current) => {
@@ -228,8 +214,8 @@ export function ConnectedFlashcardsPage() {
     setIndex(Math.min(entry.originalIndex, cards.length));
     setRevealed(true);
     setUrl(entry.card, true);
-    if (message) notify({ title: "Review restored", description: message, tone: "error" });
-  }, [cards.length, notify, setUrl]);
+    if (message) notify({ title: translate("Review restored"), description: message, tone: "error" });
+  }, [cards.length, notify, setUrl, translate]);
 
   const removePending = useCallback((token: string) => {
     setPending((current) => current.filter((item) => item.token !== token));
@@ -245,27 +231,24 @@ export function ConnectedFlashcardsPage() {
       removePending(entry.token);
     } catch (cause) {
       removePending(entry.token);
-      restoreReview(entry, cause instanceof Error ? cause.message : "The review could not be saved.");
+      restoreReview(entry, cause instanceof Error ? cause.message : translate("The review could not be saved."));
     }
-  }, [removePending, request, restoreReview]);
+  }, [removePending, request, restoreReview, translate]);
 
   const undoReview = useCallback((token: string) => {
     const entry = pendingRef.current.find((item) => item.token === token);
     if (!entry) return;
     removePending(token);
     restoreReview(entry);
-    notify({ title: "Review undone", description: "The card is back in your queue.", tone: "info", duration: 2500 });
-  }, [notify, removePending, restoreReview]);
+    notify({ title: translate("Review undone"), description: translate("The card is back in your queue."), tone: "info", duration: 2500 });
+  }, [notify, removePending, restoreReview, translate]);
 
   useEffect(() => {
     if (!online) return;
     for (const entry of pending) {
       if (timers.current.has(entry.token)) continue;
       const remaining = Math.max(0, entry.createdAt + REVIEW_UNDO_MS - Date.now());
-      const timer = window.setTimeout(() => {
-        timers.current.delete(entry.token);
-        void commitReview(entry);
-      }, remaining);
+      const timer = window.setTimeout(() => { timers.current.delete(entry.token); void commitReview(entry); }, remaining);
       timers.current.set(entry.token, timer);
     }
   }, [commitReview, online, pending]);
@@ -300,38 +283,25 @@ export function ConnectedFlashcardsPage() {
     setRevealed(false);
     setUrl(remaining[0] || null, true);
     notify({
-      title: "Review queued",
-      description: online ? "It will sync after the undo window closes." : "It is saved locally and will sync when you reconnect.",
+      title: translate("Review queued"),
+      description: translate(online ? "It will sync after the undo window closes." : "It is saved locally and will sync when you reconnect."),
       tone: "success",
       duration: REVIEW_UNDO_MS,
-      actionLabel: "Undo",
+      actionLabel: translate("Undo"),
       onAction: () => undoReview(entry.token),
     });
-  }, [card, cards, index, notify, online, paused, setUrl, undoReview]);
+  }, [card, cards, index, notify, online, paused, setUrl, translate, undoReview]);
 
   useEffect(() => {
     function handleKey(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
       if (target && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(target.tagName))) return;
-      if (event.key.toLowerCase() === "p") {
-        event.preventDefault();
-        setPaused((value) => !value);
-        return;
-      }
+      if (event.key.toLowerCase() === "p") { event.preventDefault(); setPaused((value) => !value); return; }
       if (!card || paused) return;
-      if (event.code === "Space") {
-        event.preventDefault();
-        setRevealed((value) => !value);
-      } else if (event.key === "ArrowRight") {
-        event.preventDefault();
-        selectCard(index + 1);
-      } else if (event.key === "ArrowLeft") {
-        event.preventDefault();
-        selectCard(index - 1);
-      } else if (revealed && numberRatings[event.key]) {
-        event.preventDefault();
-        rate(numberRatings[event.key]);
-      }
+      if (event.code === "Space") { event.preventDefault(); setRevealed((value) => !value); }
+      else if (event.key === "ArrowRight") { event.preventDefault(); selectCard(index + 1); }
+      else if (event.key === "ArrowLeft") { event.preventDefault(); selectCard(index - 1); }
+      else if (revealed && numberRatings[event.key]) { event.preventDefault(); rate(numberRatings[event.key]); }
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
@@ -343,22 +313,17 @@ export function ConnectedFlashcardsPage() {
     swiped.current = false;
     event.currentTarget.setPointerCapture(event.pointerId);
   }
-
   function pointerMove(event: React.PointerEvent<HTMLButtonElement>) {
     if (!pointerStart.current || paused) return;
     const dx = event.clientX - pointerStart.current.x;
     const dy = event.clientY - pointerStart.current.y;
     if (Math.abs(dx) > Math.abs(dy)) setDragX(Math.max(-120, Math.min(120, dx)));
   }
-
   function pointerUp() {
     if (!pointerStart.current || paused) return;
     const dx = dragX;
     pointerStart.current = null;
-    if (Math.abs(dx) >= 65) {
-      swiped.current = true;
-      selectCard(index + (dx < 0 ? 1 : -1));
-    }
+    if (Math.abs(dx) >= 65) { swiped.current = true; selectCard(index + (dx < 0 ? 1 : -1)); }
     setDragX(0);
   }
 
@@ -374,7 +339,7 @@ export function ConnectedFlashcardsPage() {
       return [selected, ...rest];
     });
     setIndex(0);
-    notify({ title: "Queue shuffled", description: "The current card stayed in place.", tone: "info", duration: 1800 });
+    notify({ title: translate("Queue shuffled"), description: translate("The current card stayed in place."), tone: "info", duration: 1800 });
   }
 
   async function toggleFullscreen() {
@@ -382,7 +347,7 @@ export function ConnectedFlashcardsPage() {
       if (document.fullscreenElement) await document.exitFullscreen();
       else await focusRef.current?.requestFullscreen();
     } catch (cause) {
-      notify({ title: "Fullscreen unavailable", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+      notify({ title: translate("Fullscreen unavailable"), description: cause instanceof Error ? cause.message : undefined, tone: "error" });
     }
   }
 
@@ -390,57 +355,45 @@ export function ConnectedFlashcardsPage() {
     for (const timer of timers.current.values()) window.clearTimeout(timer);
     timers.current.clear();
     try { localStorage.removeItem(sessionKey); } catch { /* best-effort */ }
-    setReviewed(0);
-    setPending([]);
-    setRatings(emptyRatings());
-    setElapsedMs(0);
-    setStartedAt(Date.now());
-    setPaused(false);
-    setInitialCount(0);
-    completionAnnounced.current = false;
+    setReviewed(0); setPending([]); setRatings(emptyRatings()); setElapsedMs(0); setStartedAt(Date.now()); setPaused(false); setInitialCount(0); completionAnnounced.current = false;
     await load();
   }
 
-  const toolbar = <div className="flashcard-session-toolbar" aria-label="Review session controls">
+  const toolbar = <div className="flashcard-session-toolbar" aria-label={translate("Review session controls")}>
     <span className="flashcard-session-clock"><FiClock /> {formatDuration(elapsedMs)}</span>
-    <button type="button" onClick={() => setPaused((value) => !value)}>{paused ? <FiPlay /> : <FiPause />} {paused ? "Resume" : "Pause"}</button>
-    <button type="button" disabled={cards.length < 2 || paused} onClick={shuffleQueue}><FiShuffle /> Shuffle</button>
-    <button type="button" onClick={() => void toggleFullscreen()}>{fullscreen ? <FiMinimize2 /> : <FiMaximize2 />} {fullscreen ? "Exit focus" : "Focus"}</button>
-    <button type="button" onClick={() => void startOver()}><FiRotateCcw /> Start over</button>
+    <button type="button" onClick={() => setPaused((value) => !value)}>{paused ? <FiPlay /> : <FiPause />} {translate(paused ? "Resume" : "Pause")}</button>
+    <button type="button" disabled={cards.length < 2 || paused} onClick={shuffleQueue}><FiShuffle /> {translate("Shuffle")}</button>
+    <button type="button" onClick={() => void toggleFullscreen()}>{fullscreen ? <FiMinimize2 /> : <FiMaximize2 />} {translate(fullscreen ? "Exit focus" : "Focus")}</button>
+    <button type="button" onClick={() => void startOver()}><FiRotateCcw /> {translate("Start over")}</button>
   </div>;
 
-  return <ProductShell search="Search flashcards or lectures"><main className="pp-page flashcards-page">
-    <div className="pp-title hero"><div><small className="page-eyebrow">SPACED REPETITION</small><h1>Flashcards</h1><p>Review instructor-published cards when they become due.</p></div><div><div className="keyboard-hints" aria-label="Keyboard and touch shortcuts"><span>Space · Flip</span><span>← → · Navigate</span><span>Swipe · Navigate</span><span>1–4 · Rate</span><span>P · Pause</span></div>{toolbar}</div></div>
-    {!online && <p className="offline-notice" role="status"><FiWifiOff /> Offline reviews stay on this device and sync when your connection returns.</p>}
-    {pending.length > 0 && <p className="pending-review-notice" role="status"><FiRotateCcw /> {pending.length} review{pending.length === 1 ? "" : "s"} waiting for the Undo window or network sync.</p>}
-    {error && <p className="form-error" role="alert">{error} <button onClick={() => void load()}>Retry</button></p>}
+  return <ProductShell search={translate("Search flashcards or lectures")}><main className="pp-page flashcards-page">
+    <div className="pp-title hero"><div><small className="page-eyebrow">{translate("SPACED REPETITION")}</small><h1>{translate("Flashcards")}</h1><p>{translate("Review instructor-published cards when they become due.")}</p></div><div><div className="keyboard-hints" aria-label={translate("Keyboard and touch shortcuts")}><span>{translate("Space · Flip")}</span><span>{translate("← → · Navigate")}</span><span>{translate("Swipe · Navigate")}</span><span>{translate("1–4 · Rate")}</span><span>{translate("P · Pause")}</span></div>{toolbar}</div></div>
+    {!online && <p className="offline-notice" role="status"><FiWifiOff /> {translate("Offline reviews stay on this device and sync when your connection returns.")}</p>}
+    {pending.length > 0 && <p className="pending-review-notice" role="status"><FiRotateCcw /> {locale === "ar" ? `${pending.length} مراجعة بانتظار انتهاء مهلة التراجع أو مزامنة الشبكة.` : `${pending.length} review${pending.length === 1 ? "" : "s"} waiting for the Undo window or network sync.`}</p>}
+    {error && <p className="form-error" role="alert">{error} <button onClick={() => void load()}>{translate("Retry")}</button></p>}
 
-    {loading ? <PageSkeleton variant="workspace" label="Loading your review queue" /> : !card ? <Panel className="flashcard-session-report">
+    {loading ? <PageSkeleton variant="workspace" label={translate("Loading your review queue")} /> : !card ? <Panel className="flashcard-session-report">
       <FiAward />
-      <small className="page-eyebrow">SESSION REPORT</small>
-      <h2>{pending.length ? "Visible queue complete — syncing reviews" : reviewed ? "Review session complete" : "You are caught up"}</h2>
-      <p>{reviewed ? `You reviewed ${reviewed} card${reviewed === 1 ? "" : "s"} in ${formatDuration(elapsedMs)}.` : "No flashcards are due right now."}</p>
-      <div className="flashcard-report-metrics">
-        <div><b>{reviewed}</b><span>Reviewed</span></div>
-        <div><b>{confident}</b><span>Good or Easy</span></div>
-        <div><b>{difficult}</b><span>Again or Hard</span></div>
-        <div><b>{formatDuration(elapsedMs)}</b><span>Session time</span></div>
-      </div>
+      <small className="page-eyebrow">{translate("SESSION REPORT")}</small>
+      <h2>{translate(pending.length ? "Visible queue complete — syncing reviews" : reviewed ? "Review session complete" : "You are caught up")}</h2>
+      <p>{reviewed ? (locale === "ar" ? `راجعت ${reviewed} بطاقة خلال ${formatDuration(elapsedMs)}.` : `You reviewed ${reviewed} card${reviewed === 1 ? "" : "s"} in ${formatDuration(elapsedMs)}.`) : translate("No flashcards are due right now.")}</p>
+      <div className="flashcard-report-metrics"><div><b>{reviewed}</b><span>{translate("Reviewed")}</span></div><div><b>{confident}</b><span>{translate("Good or Easy")}</span></div><div><b>{difficult}</b><span>{translate("Again or Hard")}</span></div><div><b>{formatDuration(elapsedMs)}</b><span>{translate("Session time")}</span></div></div>
       <Progress value={progress} />
-      <p>{pending.length ? "The backend will calculate each next-review date after the queued ratings sync." : "Your next due dates are calculated from the ratings saved by the spaced-repetition scheduler."}</p>
-      <div className="flashcard-report-actions"><button className="pp-button secondary" type="button" onClick={() => void load()}><FiRefreshCw /> Refresh queue</button><button className="pp-button" type="button" onClick={() => void startOver()}><FiRotateCcw /> Start a fresh session</button></div>
+      <p>{translate(pending.length ? "The backend will calculate each next-review date after the queued ratings sync." : "Your next due dates are calculated from the ratings saved by the spaced-repetition scheduler.")}</p>
+      <div className="flashcard-report-actions"><button className="pp-button secondary" type="button" onClick={() => void load()}><FiRefreshCw /> {translate("Refresh queue")}</button><button className="pp-button" type="button" onClick={() => void startOver()}><FiRotateCcw /> {translate("Start a fresh session")}</button></div>
     </Panel> : <div ref={focusRef} className={`flashcards-layout connected ${fullscreen ? "flashcard-focus-mode" : ""}`}>
-      <aside className="deck-sidebar"><div className="deck-sidebar-head"><span><b>DUE QUEUE</b><small>{cards.length} cards remaining</small></span></div>{cards.map((item, itemIndex) => <button className={index === itemIndex ? "active" : ""} onClick={() => selectCard(itemIndex)} key={item.id}><span><small>{item.deck.course?.courseName || "Course"}</small><b>{item.deck.title}</b><em>{item.title}</em></span></button>)}</aside>
+      <aside className="deck-sidebar"><div className="deck-sidebar-head"><span><b>{translate("DUE QUEUE")}</b><small>{locale === "ar" ? `${cards.length} بطاقة متبقية` : `${cards.length} cards remaining`}</small></span></div>{cards.map((item, itemIndex) => <button className={index === itemIndex ? "active" : ""} onClick={() => selectCard(itemIndex)} key={item.id}><span><small data-academic-content>{item.deck.course?.courseName || translate("Course")}</small><b data-academic-content>{item.deck.title}</b><em data-academic-content>{item.title}</em></span></button>)}</aside>
 
       <section className={`review-workspace ${paused ? "session-paused" : ""}`}>
-        {paused && <div className="flashcard-pause-overlay"><div><FiPause /><h2>Session paused</h2><p>Your position, timer, pending reviews, and rating totals are saved on this device.</p><button className="pp-button" type="button" onClick={() => setPaused(false)}><FiPlay /> Resume session</button></div></div>}
-        <div className="review-heading"><div><small>{card.deck.lecture?.week?.title || "Instructor deck"}</small><h2>{card.deck.title}</h2><p>{card.deck.lecture?.title || card.title}</p></div><div><b>{reviewed}</b><small>reviewed now</small></div></div>
-        <div className="flashcard-session-progress"><progress value={reviewed} max={Math.max(initialCount, reviewed + cards.length)} /><span>{progress}% complete</span></div>
-        <button className={`study-card single-face ${revealed ? "showing-back" : "showing-front"} ${dragX ? "is-dragging" : ""}`} style={{ transform: `translateX(${dragX}px) rotate(${dragX / 30}deg)` }} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={() => { pointerStart.current = null; setDragX(0); }} onClick={() => { if (paused) return; if (swiped.current) { swiped.current = false; return; } setRevealed((value) => !value); }} aria-pressed={revealed} disabled={paused}><div className="study-card-inner"><div className={`card-face ${revealed ? "card-back" : "card-front"}`}>{revealed ? <><small>BACK · EXPLANATION</small><p>{card.backContent}</p>{card.explanation && <p>{card.explanation}</p>}<span>Click or press Space to see the front</span></> : <><small>FRONT</small><FiBookOpen /><h2>{card.frontContent}</h2><span>Click, press Space, or swipe to navigate</span></>}</div></div></button>
-        {revealed && <div className="review-rating"><p>How well did you remember?</p><button onClick={() => rate("VERY_HARD")} className="again" disabled={paused}><b>1 · Again</b></button><button onClick={() => rate("HARD")} disabled={paused}><b>2 · Hard</b></button><button onClick={() => rate("GOOD")} className="good" disabled={paused}><b>3 · Good</b></button><button onClick={() => rate("EASY")} disabled={paused}><b>4 · Easy</b></button></div>}
+        {paused && <div className="flashcard-pause-overlay"><div><FiPause /><h2>{translate("Session paused")}</h2><p>{translate("Your position, timer, pending reviews, and rating totals are saved on this device.")}</p><button className="pp-button" type="button" onClick={() => setPaused(false)}><FiPlay /> {translate("Resume session")}</button></div></div>}
+        <div className="review-heading"><div><small data-academic-content>{card.deck.lecture?.week?.title || translate("Instructor deck")}</small><h2 data-academic-content>{card.deck.title}</h2><p data-academic-content>{card.deck.lecture?.title || card.title}</p></div><div><b>{reviewed}</b><small>{translate("reviewed now")}</small></div></div>
+        <div className="flashcard-session-progress"><progress value={reviewed} max={Math.max(initialCount, reviewed + cards.length)} /><span>{translate(`${progress}% complete`)}</span></div>
+        <button className={`study-card single-face ${revealed ? "showing-back" : "showing-front"} ${dragX ? "is-dragging" : ""}`} style={{ transform: `translateX(${dragX}px) rotate(${dragX / 30}deg)` }} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={() => { pointerStart.current = null; setDragX(0); }} onClick={() => { if (paused) return; if (swiped.current) { swiped.current = false; return; } setRevealed((value) => !value); }} aria-pressed={revealed} disabled={paused}><div className="study-card-inner"><div className={`card-face ${revealed ? "card-back" : "card-front"}`}>{revealed ? <><small>{translate("BACK · EXPLANATION")}</small><p data-academic-content>{card.backContent}</p>{card.explanation && <p data-academic-content>{card.explanation}</p>}<span>{translate("Click or press Space to see the front")}</span></> : <><small>{translate("FRONT")}</small><FiBookOpen /><h2 data-academic-content>{card.frontContent}</h2><span>{translate("Click, press Space, or swipe to navigate")}</span></>}</div></div></button>
+        {revealed && <div className="review-rating"><p>{translate("How well did you remember?")}</p><button onClick={() => rate("VERY_HARD")} className="again" disabled={paused}><b>1 · {translate("Again")}</b></button><button onClick={() => rate("HARD")} disabled={paused}><b>2 · {translate("Hard")}</b></button><button onClick={() => rate("GOOD")} className="good" disabled={paused}><b>3 · {translate("Good")}</b></button><button onClick={() => rate("EASY")} disabled={paused}><b>4 · {translate("Easy")}</b></button></div>}
       </section>
 
-      <aside className="flashcard-insights"><Panel title="Today’s progress"><div className="readiness-ring">{reviewed}<small>reviewed</small></div><Progress value={progress} /></Panel><Panel title="Session breakdown"><p><FiCheck /> {confident} confident reviews</p><p><FiRefreshCw /> {difficult} cards need reinforcement</p><p><FiClock /> {formatDuration(elapsedMs)} focused time</p></Panel><Panel title="How review works"><p><FiRefreshCw /> Ratings are queued locally for five seconds.</p><p>Undo restores the card before the backend schedule changes.</p><p>Offline reviews resume automatically after reconnection.</p></Panel></aside>
+      <aside className="flashcard-insights"><Panel title={translate("Today’s progress")}><div className="readiness-ring">{reviewed}<small>{translate("reviewed")}</small></div><Progress value={progress} /></Panel><Panel title={translate("Session breakdown")}><p><FiCheck /> {locale === "ar" ? `${confident} مراجعة واثقة` : `${confident} confident reviews`}</p><p><FiRefreshCw /> {locale === "ar" ? `${difficult} بطاقة تحتاج تعزيزًا` : `${difficult} cards need reinforcement`}</p><p><FiClock /> {formatDuration(elapsedMs)} {translate("focused time")}</p></Panel><Panel title={translate("How review works")}><p><FiRefreshCw /> {translate("Ratings are queued locally for five seconds.")}</p><p>{translate("Undo restores the card before the backend schedule changes.")}</p><p>{translate("Offline reviews resume automatically after reconnection.")}</p></Panel></aside>
     </div>}
   </main></ProductShell>;
 }
