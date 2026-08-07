@@ -17,6 +17,7 @@ import {
   FiSearch,
   FiX,
 } from "react-icons/fi";
+import { courseRouteKey, lectureRouteKey, resourceRouteKey } from "@/lib/routes";
 import { useAuth } from "./auth-provider";
 import { EmptyState, ErrorState, PageSkeleton } from "./async-state";
 import { Panel, ProductShell, Progress } from "./product-shell";
@@ -75,18 +76,28 @@ export function AdvancedStudyGuidesPage() {
   const [openingResource, setOpeningResource] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const setUrl = useCallback((nextCourse: string, nextLecture: string | null, nextResource: string | null = null, replace = false) => {
+  const setUrl = useCallback((nextCourseId: string, nextLectureId: string | null, nextResourceId: string | null = null, replace = false) => {
     const params = new URLSearchParams(searchParams.toString());
-    params.set("course", nextCourse);
-    if (nextLecture) params.set("lecture", nextLecture);
+    const nextCourse = courses.find((item) => item.id === nextCourseId);
+    if (nextCourse) params.set("course", courseRouteKey(nextCourse));
+    else params.delete("course");
+
+    const nextLecture = nextCourse?.weeks.flatMap((week) => week.lectures).find((item) => item.id === nextLectureId) || null;
+    if (nextLecture) params.set("lecture", lectureRouteKey(nextLecture));
     else params.delete("lecture");
-    if (nextResource) params.set("resource", nextResource);
-    else params.delete("resource");
-    const href = `${pathname}?${params.toString()}`;
+
+    if (nextResourceId) {
+      const resourceIndex = resources.findIndex((item) => item.id === nextResourceId);
+      if (resourceIndex >= 0) params.set("resource", resourceRouteKey(resources[resourceIndex], resourceIndex));
+      else params.delete("resource");
+    } else params.delete("resource");
+
+    const queryString = params.toString();
+    const href = queryString ? `${pathname}?${queryString}` : pathname;
     startNavigation();
     if (replace) router.replace(href, { scroll: false });
     else router.push(href, { scroll: false });
-  }, [pathname, router, searchParams, startNavigation]);
+  }, [courses, pathname, resources, router, searchParams, startNavigation]);
 
   useEffect(() => {
     try {
@@ -137,14 +148,16 @@ export function AdvancedStudyGuidesPage() {
 
   useEffect(() => {
     if (!courses.length) return;
-    const lectureCourse = requestedLecture ? courses.find((course) => course.weeks.some((week) => week.lectures.some((lecture) => lecture.id === requestedLecture))) : null;
-    const target = lectureCourse || courses.find((course) => course.id === requestedCourse) || courses[0];
+    const lectureCourse = requestedLecture ? courses.find((course) => course.weeks.some((week) => week.lectures.some((lecture) => lectureRouteKey(lecture) === requestedLecture || lecture.id === requestedLecture))) : null;
+    const target = lectureCourse || courses.find((course) => courseRouteKey(course) === requestedCourse || course.id === requestedCourse) || courses[0];
     const lectures = target.weeks.flatMap((week) => week.lectures);
-    const lecture = lectures.find((item) => item.id === requestedLecture) || lectures[0] || null;
+    const lecture = lectures.find((item) => lectureRouteKey(item) === requestedLecture || item.id === requestedLecture) || lectures[0] || null;
     setCourseId(target.id);
     setSelected(lecture);
     setExpandedWeeks(new Set(target.weeks.map((week) => week.id)));
-    if (requestedCourse !== target.id || requestedLecture !== lecture?.id) setUrl(target.id, lecture?.id || null, null, true);
+    const cleanCourse = courseRouteKey(target);
+    const cleanLecture = lecture ? lectureRouteKey(lecture) : null;
+    if (requestedCourse !== cleanCourse || requestedLecture !== cleanLecture) setUrl(target.id, lecture?.id || null, null, true);
   }, [courses, requestedCourse, requestedLecture, setUrl]);
 
   const course = useMemo(() => courses.find((item) => item.id === courseId) || null, [courses, courseId]);
@@ -170,7 +183,7 @@ export function AdvancedStudyGuidesPage() {
         if (!active) return;
         const rows = Array.isArray(value) ? value : [];
         setResources(rows);
-        const target = rows.find((resource) => resource.id === requestedResource) || null;
+        const target = rows.find((resource, index) => resourceRouteKey(resource, index) === requestedResource || resource.id === requestedResource) || null;
         setPreview(target);
       })
       .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "Unable to load lecture resources."); })
@@ -184,6 +197,16 @@ export function AdvancedStudyGuidesPage() {
     } else setProgress(null);
     return () => { active = false; };
   }, [request, requestedResource, selected, user?.role]);
+
+  useEffect(() => {
+    if (!preview || !requestedResource) return;
+    const index = resources.findIndex((item) => item.id === preview.id);
+    if (index < 0) return;
+    const cleanResource = resourceRouteKey(preview, index);
+    if (requestedResource !== cleanResource && requestedResource === preview.id) {
+      setUrl(courseId, selected?.id || null, preview.id, true);
+    }
+  }, [courseId, preview, requestedResource, resources, selected?.id, setUrl]);
 
   const selectedWeek = useMemo(() => weeks.find((week) => week.lectures.some((lecture) => lecture.id === selected?.id)), [selected?.id, weeks]);
   const filteredWeeks = useMemo(() => {
@@ -286,7 +309,7 @@ export function AdvancedStudyGuidesPage() {
           <div className="guide-expand-actions"><button type="button" onClick={() => setAllWeeks(true)}>Expand all</button><button type="button" onClick={() => setAllWeeks(false)}>Collapse all</button></div>
           {filteredWeeks.length ? filteredWeeks.map((week) => {
             const open = expandedWeeks.has(week.id);
-            return <section className="guide-week" key={week.id}><button className="guide-week-toggle" type="button" onClick={() => toggleWeek(week.id)} aria-expanded={open}><span><small>WEEK {week.weekNumber}</small><strong>{week.title || `Week ${week.weekNumber}`}</strong></span><span className="guide-week-count">{week.lectures.length}</span><FiChevronDown className={open ? "expanded" : ""} /></button>{open && <div className="guide-lecture-list">{week.lectures.map((lecture) => <button className={selected?.id === lecture.id ? "active" : ""} type="button" onClick={() => chooseLecture(lecture)} key={lecture.id}><span className="guide-lecture-number">{lecture.lectureNumber}</span><span><strong>{lecture.title}</strong><small>{lecture.description ? "Guide and resources" : "Resources"}</small></span></button>)}</div>}</section>;
+            return <section className="guide-week" key={week.id}><button className="guide-week-toggle" type="button" onClick={() => toggleWeek(week.id)} aria-expanded={open}><span><small>WEEK {week.weekNumber}</small><strong>{week.title || `Week ${week.weekNumber}`}</strong></span><FiChevronDown className={open ? "expanded" : ""} /></button>{open && <div className="guide-lecture-list">{week.lectures.map((lecture) => <button className={selected?.id === lecture.id ? "active" : ""} type="button" onClick={() => chooseLecture(lecture)} key={lecture.id}><span className="guide-lecture-number">{lecture.lectureNumber}</span><span><strong>{lecture.title}</strong><small>{lecture.description ? "Guide and resources" : "Resources"}</small></span></button>)}</div>}</section>;
           }) : <p className="guide-nav-empty">No lecture matches this search.</p>}
         </aside>
 
