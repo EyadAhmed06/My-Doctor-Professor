@@ -76,10 +76,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       throw new ApiError(response.status, problem);
     }
 
-    if (responseType === "blob") return await response.blob() as T;
-    if (responseType === "text") return await response.text() as T;
+    if (responseType === "blob") return await response.blob() as unknown as T;
+    if (responseType === "text") return await response.text() as unknown as T;
     const contentType = response.headers.get("content-type") || "";
-    if (!contentType.includes("application/json")) return await response.text() as T;
+    if (!contentType.includes("application/json")) return await response.text() as unknown as T;
     return await response.json() as T;
   } finally {
     signalRequest(REQUEST_END);
