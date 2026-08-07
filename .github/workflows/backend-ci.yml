@@ -49,7 +49,7 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
 
   postgres:
-    name: PostgreSQL bootstrap, upgrade, drift, integration
+    name: PostgreSQL bootstrap, upgrade, drift, integration, recovery
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -100,6 +100,7 @@ jobs:
         run: |
           createdb -h localhost -U postgres clean_test
           createdb -h localhost -U postgres upgrade_test
+          createdb -h localhost -U postgres restore_test
       - name: Bootstrap current schema from zero
         run: |
           set -euo pipefail
@@ -111,6 +112,27 @@ jobs:
         run: DB_NAME=clean_test npm run migration:run
       - name: Require zero drift after clean bootstrap
         run: DB_NAME=clean_test npm run schema:check
+      - name: Prove backup checksum and restore recovery
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/mdp-backups /tmp/mdp-uploads /tmp/mdp-restored-uploads
+          mkdir -p /tmp/mdp-uploads
+          printf 'managed-resource-backup-proof\n' >/tmp/mdp-uploads/backup-proof.txt
+          BACKUP_DIR=/tmp/mdp-backups \
+          BACKUP_RETENTION_DAYS=14 \
+          FILE_UPLOAD_PATH=/tmp/mdp-uploads \
+          DB_NAME=clean_test \
+            npm run backup:create
+          snapshot="$(find /tmp/mdp-backups -mindepth 1 -maxdepth 1 -type d | sort | tail -1)"
+          test -n "${snapshot}"
+          BACKUP_SNAPSHOT="${snapshot}" npm run backup:verify
+          BACKUP_SNAPSHOT="${snapshot}" \
+          RESTORE_MODE=replace \
+          FILE_UPLOAD_PATH=/tmp/mdp-restored-uploads \
+          DB_NAME=restore_test \
+            npm run backup:restore
+          DB_NAME=restore_test npm run schema:check
+          test "$(cat /tmp/mdp-restored-uploads/backup-proof.txt)" = 'managed-resource-backup-proof'
       - name: Bootstrap deployment baseline from Eyad
         run: |
           set -euo pipefail
