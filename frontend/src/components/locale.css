@@ -1,0 +1,16 @@
+.language-switcher{display:inline-flex;align-items:center;gap:4px;padding:3px;border:1px solid var(--pp-line,#dbe3ef);border-radius:999px;background:var(--pp-surface,#fff)}
+.language-switcher button{min-width:34px;height:30px;border:0;border-radius:999px;background:transparent;color:var(--pp-muted,#64748b);font:700 12px/1 inherit;cursor:pointer}
+.language-switcher button.active{background:var(--pp-accent,#4f46e5);color:#fff}
+.language-switcher.compact button{min-width:29px;height:27px}
+html[dir="rtl"] body{direction:rtl}
+html[dir="rtl"] .product-app,html[dir="rtl"] .pp-page,html[dir="rtl"] .role-workspace,html[dir="rtl"] .settings-complete-page{text-align:right}
+html[dir="rtl"] .pp-topbar,html[dir="rtl"] .pp-topbar nav,html[dir="rtl"] .pp-profile,html[dir="rtl"] .profile-menu-summary,html[dir="rtl"] .command-palette-results button,html[dir="rtl"] .role-person,html[dir="rtl"] .guide-resource-card{direction:rtl}
+html[dir="rtl"] .pp-brand,html[dir="rtl"] .pp-menu{direction:ltr}
+html[dir="rtl"] .pp-search-command svg,html[dir="rtl"] .pp-button svg,html[dir="rtl"] .guide-sequence-nav svg,html[dir="rtl"] .role-command-card svg{transform:scaleX(-1)}
+html[dir="rtl"] input,html[dir="rtl"] textarea,html[dir="rtl"] select{text-align:right}
+html[dir="rtl"] input[type="email"],html[dir="rtl"] input[type="url"],html[dir="rtl"] input[type="tel"],html[dir="rtl"] code,html[dir="rtl"] pre{direction:ltr;text-align:left}
+html[dir="rtl"] .role-table{direction:rtl}
+html[dir="rtl"] .resource-preview-drawer{right:auto;left:0}
+html[dir="rtl"] .header-popover{right:auto;left:0}
+html[dir="rtl"] .command-palette{direction:rtl}
+@media(max-width:760px){.language-switcher{padding:2px}.language-switcher button{min-width:31px;height:28px}}
