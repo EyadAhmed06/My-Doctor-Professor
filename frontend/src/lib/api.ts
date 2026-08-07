@@ -26,6 +26,7 @@ export const apiBaseUrl = API_URL;
 export type RequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
   accessToken?: string | null;
+  responseType?: "json" | "text" | "blob";
 };
 
 function signalRequest(name: typeof REQUEST_START | typeof REQUEST_END) {
@@ -45,7 +46,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       : isForm
         ? options.body as FormData
         : JSON.stringify(options.body);
-    const { body: _body, accessToken: _accessToken, ...requestInit } = options;
+    const { body: _body, accessToken: _accessToken, responseType = "json", ...requestInit } = options;
     void _body;
     void _accessToken;
 
@@ -64,18 +65,22 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     }
 
     if (response.status === 204) return undefined as T;
-    const contentType = response.headers.get("content-type") || "";
-    const payload = contentType.includes("application/json")
-      ? await response.json() as unknown
-      : await response.text();
-
     if (!response.ok) {
+      const contentType = response.headers.get("content-type") || "";
+      const payload = contentType.includes("application/json")
+        ? await response.json() as unknown
+        : await response.text();
       const problem = typeof payload === "object" && payload !== null
         ? payload as ApiProblem
         : { message: String(payload || response.statusText) };
       throw new ApiError(response.status, problem);
     }
-    return payload as T;
+
+    if (responseType === "blob") return await response.blob() as T;
+    if (responseType === "text") return await response.text() as T;
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) return await response.text() as T;
+    return await response.json() as T;
   } finally {
     signalRequest(REQUEST_END);
   }
