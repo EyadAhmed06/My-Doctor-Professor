@@ -15,14 +15,29 @@ export type AuthUser = {
   profilePictureUrl?: string | null;
 };
 
+export type GoogleOnboardingResult = {
+  requires_onboarding: true;
+  onboarding_token: string;
+  profile: { email: string; full_name: string; picture: string | null };
+};
+
 type AuthResponse = { access_token: string; refresh_token: string; user: AuthUser };
 type LoginInput = { email: string; password: string; remember: boolean };
+type CompleteGoogleSignupInput = {
+  onboarding_token: string;
+  phone_number: string;
+  student_number: string;
+  current_semester: number;
+  date_of_birth?: string;
+};
 
 type AuthContextValue = {
   user: AuthUser | null;
   accessToken: string | null;
   loading: boolean;
   login(input: LoginInput): Promise<AuthUser>;
+  googleLogin(credential: string): Promise<AuthUser | GoogleOnboardingResult>;
+  completeGoogleSignup(input: CompleteGoogleSignupInput): Promise<AuthUser>;
   logout(): Promise<void>;
   refreshUser(): Promise<AuthUser | null>;
   request<T>(path: string, options?: Omit<Parameters<typeof apiRequest<T>>[1], "accessToken">): Promise<T>;
@@ -41,6 +56,10 @@ function clearTokens() {
     storage.removeItem(ACCESS_KEY);
     storage.removeItem(REFRESH_KEY);
   }
+}
+
+function isGoogleOnboarding(value: AuthResponse | GoogleOnboardingResult): value is GoogleOnboardingResult {
+  return "requires_onboarding" in value && value.requires_onboarding === true;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -144,6 +163,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return auth.user;
   }, [persist]);
 
+  const googleLogin = useCallback(async (credential: string): Promise<AuthUser | GoogleOnboardingResult> => {
+    const result = await apiRequest<AuthResponse | GoogleOnboardingResult>("/auth/google", {
+      method: "POST",
+      body: { credential },
+    });
+    if (isGoogleOnboarding(result)) return result;
+    persist(result, true);
+    return result.user;
+  }, [persist]);
+
+  const completeGoogleSignup = useCallback(async (input: CompleteGoogleSignupInput): Promise<AuthUser> => {
+    const auth = await apiRequest<AuthResponse>("/auth/google/signup", {
+      method: "POST",
+      body: input,
+    });
+    persist(auth, true);
+    return auth.user;
+  }, [persist]);
+
   const logout = useCallback(async () => {
     try {
       if (accessToken) await apiRequest<void>("/auth/logout", { method: "POST", accessToken });
@@ -166,7 +204,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [accessToken, refresh]);
 
-  const value = useMemo(() => ({ user, accessToken, loading, login, logout, refreshUser, request }), [user, accessToken, loading, login, logout, refreshUser, request]);
+  const value = useMemo(() => ({
+    user,
+    accessToken,
+    loading,
+    login,
+    googleLogin,
+    completeGoogleSignup,
+    logout,
+    refreshUser,
+    request,
+  }), [
+    user,
+    accessToken,
+    loading,
+    login,
+    googleLogin,
+    completeGoogleSignup,
+    logout,
+    refreshUser,
+    request,
+  ]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
