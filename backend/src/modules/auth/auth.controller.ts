@@ -54,8 +54,9 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponseDto> {
     const auth = await this.authService.login(dto, request.ip ?? request.socket.remoteAddress ?? 'unknown');
+    if (!auth.refresh_token) throw new UnauthorizedException('Refresh session was not issued');
     this.writeRefreshCookies(response, auth.refresh_token, dto.remember !== false);
-    return auth;
+    return this.forTransport(auth, request);
   }
 
   @Post('google')
@@ -70,8 +71,9 @@ export class AuthController {
       dto.credential,
       request.ip ?? request.socket.remoteAddress ?? 'unknown',
     );
-    if ('refresh_token' in result) {
+    if ('refresh_token' in result && result.refresh_token) {
       this.writeRefreshCookies(response, result.refresh_token, dto.remember !== false);
+      return this.forTransport(result, request);
     }
     return result;
   }
@@ -88,8 +90,9 @@ export class AuthController {
       dto,
       request.ip ?? request.socket.remoteAddress ?? 'unknown',
     );
+    if (!auth.refresh_token) throw new UnauthorizedException('Refresh session was not issued');
     this.writeRefreshCookies(response, auth.refresh_token, true);
-    return auth;
+    return this.forTransport(auth, request);
   }
 
   @Post('signup')
@@ -153,8 +156,9 @@ export class AuthController {
     if (!refreshToken) throw new UnauthorizedException('Refresh session is required');
     const persistent = this.readCookie(request, REFRESH_MODE_COOKIE) === 'persistent';
     const auth = await this.authService.refreshAccessToken(refreshToken);
+    if (!auth.refresh_token) throw new UnauthorizedException('Refresh session was not rotated');
     this.writeRefreshCookies(response, auth.refresh_token, persistent);
-    return auth;
+    return this.forTransport(auth, request);
   }
 
   @Get('me')
@@ -191,9 +195,25 @@ export class AuthController {
   @Post('logout/browser')
   @HttpCode(HttpStatus.NO_CONTENT)
   clearBrowserLogoutCookies(@Res({ passthrough: true }) response: Response): void {
-    // Cookie cleanup is intentionally unauthenticated. It grants no access and lets a browser
-    // terminate a stale local refresh session even when its access token is missing or expired.
     this.clearRefreshCookies(response);
+  }
+
+  private forTransport(auth: AuthResponseDto, request: Request): AuthResponseDto {
+    if (!this.isFrontendBrowserRequest(request)) return auth;
+    const { refresh_token: refreshToken, ...browserAuth } = auth;
+    void refreshToken;
+    return browserAuth;
+  }
+
+  private isFrontendBrowserRequest(request: Request): boolean {
+    const origin = request.headers.origin;
+    const frontendUrl = this.config.get<string>('FRONTEND_URL');
+    if (!origin || !frontendUrl) return false;
+    try {
+      return new URL(origin).origin === new URL(frontendUrl).origin;
+    } catch {
+      return false;
+    }
   }
 
   private writeRefreshCookies(response: Response, refreshToken: string, persistent: boolean) {
