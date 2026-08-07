@@ -1,0 +1,17 @@
+/* Rendering/perceived-performance safeguards. No palette changes. */
+
+@supports(content-visibility:auto){
+  .role-stack-row,.guide-resource-card,.resource-managed-list article,.notification-preview-list>button,.note-grid>.pp-panel,.exam-grid>.pp-panel,.mastery-list>*,.deadline-list>*{content-visibility:auto;contain-intrinsic-size:auto 96px}
+  .dash-card,.pp-panel{contain:layout paint style}
+  .resource-preview-drawer,.header-popover,.command-palette,.role-modal,.editor-modal{contain:layout paint}
+}
+
+@media(pointer:coarse){
+  .pp-topbar,.global-language-access,.header-popover,.command-palette{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+  .product-app *{scrollbar-width:auto}
+}
+
+@media(max-width:820px){
+  .pp-panel,.dash-card{box-shadow:none!important}
+  .product-app{overscroll-behavior-y:none}
+}
