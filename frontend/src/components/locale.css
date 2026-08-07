@@ -2,6 +2,9 @@
 .language-switcher button{min-width:34px;height:30px;border:0;border-radius:999px;background:transparent;color:var(--pp-muted,#64748b);font:700 12px/1 inherit;cursor:pointer}
 .language-switcher button.active{background:var(--pp-accent,#4f46e5);color:#fff}
 .language-switcher.compact button{min-width:29px;height:27px}
+.global-language-access{position:fixed;right:18px;bottom:18px;z-index:120;display:flex;align-items:center;gap:7px;padding:5px 7px;border:1px solid var(--pp-line,#dbe3ef);border-radius:999px;background:color-mix(in srgb,var(--pp-surface,#fff) 92%,transparent);box-shadow:0 10px 30px rgba(15,23,42,.12);backdrop-filter:blur(12px)}
+.global-language-access>svg{margin-inline-start:5px;color:var(--pp-muted,#64748b)}
+html[dir="rtl"] .global-language-access{right:auto;left:18px}
 html[dir="rtl"] body{direction:rtl}
 html[dir="rtl"] .product-app,html[dir="rtl"] .pp-page,html[dir="rtl"] .role-workspace,html[dir="rtl"] .settings-complete-page{text-align:right}
 html[dir="rtl"] .pp-topbar,html[dir="rtl"] .pp-topbar nav,html[dir="rtl"] .pp-profile,html[dir="rtl"] .profile-menu-summary,html[dir="rtl"] .command-palette-results button,html[dir="rtl"] .role-person,html[dir="rtl"] .guide-resource-card{direction:rtl}
@@ -13,4 +16,4 @@ html[dir="rtl"] .role-table{direction:rtl}
 html[dir="rtl"] .resource-preview-drawer{right:auto;left:0}
 html[dir="rtl"] .header-popover{right:auto;left:0}
 html[dir="rtl"] .command-palette{direction:rtl}
-@media(max-width:760px){.language-switcher{padding:2px}.language-switcher button{min-width:31px;height:28px}}
+@media(max-width:760px){.language-switcher{padding:2px}.language-switcher button{min-width:31px;height:28px}.global-language-access{right:10px;bottom:10px}.global-language-access>svg{display:none}html[dir="rtl"] .global-language-access{left:10px}}
