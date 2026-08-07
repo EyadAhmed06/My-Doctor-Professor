@@ -166,6 +166,47 @@ export class UsersService {
     }));
   }
   findSession(id:string){return this.sessionsRepository.findOne({where:{id}});}
+
+  async getSecurityOverview(userId:string,currentSessionId:string) {
+    const sessions=await this.sessionsRepository.createQueryBuilder('session')
+      .where('session.user_id = :userId',{userId})
+      .andWhere('session.revoked_at IS NULL')
+      .andWhere('session.expires_at > CURRENT_TIMESTAMP')
+      .orderBy('session.created_at','DESC')
+      .getMany();
+    const providers=await this.dataSource.query(
+      `SELECT provider, provider_email, created_at, last_used_at
+       FROM external_auth_identities
+       WHERE user_id = $1
+       ORDER BY provider`,
+      [userId],
+    ) as Array<{provider:string;provider_email:string;created_at:Date;last_used_at:Date|null}>;
+    return {
+      sessions:sessions.map(session=>({
+        id:session.id,
+        current:session.id===currentSessionId,
+        created_at:session.createdAt,
+        last_used_at:session.lastUsedAt,
+        expires_at:session.expiresAt,
+      })),
+      providers:providers.map(provider=>({
+        provider:provider.provider,
+        email:provider.provider_email,
+        linked_at:provider.created_at,
+        last_used_at:provider.last_used_at,
+      })),
+    };
+  }
+
+  async revokeOtherSessions(userId:string,currentSessionId:string) {
+    await this.sessionsRepository.createQueryBuilder().update(AuthSession)
+      .set({revokedAt:new Date()})
+      .where('user_id = :userId',{userId})
+      .andWhere('id <> :currentSessionId',{currentSessionId})
+      .andWhere('revoked_at IS NULL')
+      .execute();
+  }
+
   async rotateSessionSecure(
     id:string,userId:string,presentedTokenDigest:string,
     refreshTokenDigest:string,expiresAt:Date,
