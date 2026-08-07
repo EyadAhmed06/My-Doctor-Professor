@@ -1,5 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
+const frontendOrigin = 'http://127.0.0.1:3001';
+
 function endpoint(url: string) {
   const path = new URL(url).pathname;
   const marker = '/api/v1';
@@ -18,7 +20,8 @@ async function authenticated(page: Page, role: 'STUDENT' | 'INSTRUCTOR' | 'SYSTE
   };
   await page.addInitScript(() => {
     localStorage.setItem('mdp_access_token', 'platform-test-access');
-    localStorage.setItem('mdp_refresh_token', 'platform-test-refresh');
+    localStorage.removeItem('mdp_refresh_token');
+    sessionStorage.removeItem('mdp_refresh_token');
     localStorage.setItem('mdp-theme', 'light');
     localStorage.setItem('mdp-locale', 'en');
   });
@@ -32,7 +35,8 @@ async function routeApi(page: Page, handler: (requestEndpoint: string, method: s
     const isApi = (request.resourceType() === 'fetch' || request.resourceType() === 'xhr') && (url.pathname.includes('/api/v1') || url.port === '3000');
     if (!isApi) return route.fallback();
     const headers = {
-      'access-control-allow-origin': '*',
+      'access-control-allow-origin': frontendOrigin,
+      'access-control-allow-credentials': 'true',
       'access-control-allow-headers': 'authorization,content-type',
       'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
       'cache-control': 'no-store',
