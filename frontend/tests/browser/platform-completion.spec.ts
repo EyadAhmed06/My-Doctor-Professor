@@ -31,11 +31,17 @@ async function routeApi(page: Page, handler: (requestEndpoint: string, method: s
     const url = new URL(request.url());
     const isApi = (request.resourceType() === 'fetch' || request.resourceType() === 'xhr') && (url.pathname.includes('/api/v1') || url.port === '3000');
     if (!isApi) return route.fallback();
-    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204 });
+    const headers = {
+      'access-control-allow-origin': '*',
+      'access-control-allow-headers': 'authorization,content-type',
+      'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+      'cache-control': 'no-store',
+    };
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
     const result = await handler(endpoint(request.url()), request.method());
-    if (!result) return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
-    if (result.raw) return route.fulfill({ status: result.status ?? 200, contentType: result.contentType, body: result.raw });
-    return route.fulfill({ status: result.status ?? 200, contentType: result.contentType ?? 'application/json', body: result.body === undefined ? '' : JSON.stringify(result.body) });
+    if (!result) return route.fulfill({ status: 200, headers, contentType: 'application/json', body: '{}' });
+    if (result.raw) return route.fulfill({ status: result.status ?? 200, headers, contentType: result.contentType, body: result.raw });
+    return route.fulfill({ status: result.status ?? 200, headers, contentType: result.contentType ?? 'application/json', body: result.body === undefined ? '' : JSON.stringify(result.body) });
   });
 }
 
@@ -114,6 +120,7 @@ test('student previews a protected managed resource through an authenticated blo
   const bundle = { id: 'bundle-1', title: 'Clinical Foundations', slug: 'clinical-foundations', status: 'PUBLISHED' };
   const content = { courses: [{ id: 'course-1', courseCode: 'MED101', courseName: 'Medicine I', weeks: [{ id: 'week-1', weekNumber: 1, title: 'Cardiac', lectures: [{ id: 'lecture-1', lectureNumber: 1, title: 'Cardiac cycle', description: 'Core cardiac physiology.' }] }] }] };
   const resource = { id: 'resource-1', resourceName: 'Cardiac diagram', resourceType: 'IMAGE', uploadStatus: 'COMPLETED', fileUrl: '/api/v1/academic/resources/resource-1/file', description: 'Protected diagram', mimeType: 'image/png' };
+  const onePixelPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
   await routeApi(page, async path => {
     if (path === '/auth/me') return { body: user };
     if (path === '/notifications/unread/count') return { body: { count: 0 } };
@@ -122,7 +129,7 @@ test('student previews a protected managed resource through an authenticated blo
     if (path === '/bundles/bundle-1/content') return { body: content };
     if (path === '/academic/lectures/lecture-1/resources') return { body: [resource] };
     if (path === '/progress/lectures/lecture-1') return { body: { studentId: user.id, lectureId: 'lecture-1', isCompleted: false, completionPercentage: '0', timeSpentMinutes: 0, lastAccessedAt: null, completedAt: null } };
-    if (path === '/academic/resources/resource-1/file') return { contentType: 'image/png', raw: Buffer.from('89504e470d0a1a0a', 'hex') };
+    if (path === '/academic/resources/resource-1/file') return { contentType: 'image/png', raw: onePixelPng };
     return null;
   });
 
