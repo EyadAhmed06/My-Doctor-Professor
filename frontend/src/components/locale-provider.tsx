@@ -101,9 +101,6 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (locale !== "ar") return;
-    const originalText = new WeakMap<Text, string>();
-    const originalAttributes = new WeakMap<Element, Map<string, string>>();
-
     const translateNode = (root: Node) => {
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
       const nodes: Text[] = [];
@@ -112,18 +109,13 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
       for (const node of nodes) {
         const parent = node.parentElement;
         if (!parent || parent.closest("[data-no-auto-translate]") || ["SCRIPT", "STYLE", "CODE", "PRE"].includes(parent.tagName)) continue;
-        if (!originalText.has(node)) originalText.set(node, node.nodeValue || "");
-        node.nodeValue = translateExact(originalText.get(node) || node.nodeValue || "");
+        node.nodeValue = translateExact(node.nodeValue || "");
       }
       const elements = root instanceof Element ? [root, ...root.querySelectorAll("[placeholder],[title],[aria-label]")] : [];
       for (const element of elements) {
-        let originals = originalAttributes.get(element);
-        if (!originals) { originals = new Map(); originalAttributes.set(element, originals); }
         for (const attribute of ["placeholder", "title", "aria-label"]) {
           const value = element.getAttribute(attribute);
-          if (!value) continue;
-          if (!originals.has(attribute)) originals.set(attribute, value);
-          element.setAttribute(attribute, translateExact(originals.get(attribute) || value));
+          if (value) element.setAttribute(attribute, translateExact(value));
         }
       }
     };
@@ -152,8 +144,15 @@ export function useLocale() {
 
 export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
   const { locale, setLocale } = useLocale();
+  function choose(next: AppLocale) {
+    if (next === locale) return;
+    setLocale(next);
+    // Reload gives every route a clean source-language render before applying the
+    // persisted locale. This avoids stale text nodes after client-side mutations.
+    window.location.reload();
+  }
   return <div className={`language-switcher ${compact ? "compact" : ""}`} role="group" aria-label="Language">
-    <button type="button" className={locale === "en" ? "active" : ""} onClick={() => setLocale("en")} aria-pressed={locale === "en"}>EN</button>
-    <button type="button" className={locale === "ar" ? "active" : ""} onClick={() => setLocale("ar")} aria-pressed={locale === "ar"}>ع</button>
+    <button type="button" className={locale === "en" ? "active" : ""} onClick={() => choose("en")} aria-pressed={locale === "en"}>EN</button>
+    <button type="button" className={locale === "ar" ? "active" : ""} onClick={() => choose("ar")} aria-pressed={locale === "ar"}>ع</button>
   </div>;
 }
