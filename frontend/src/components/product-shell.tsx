@@ -13,7 +13,6 @@ import {
   FiMenu,
   FiSearch,
   FiSettings,
-  FiUser,
   FiX,
 } from "react-icons/fi";
 import { ThemeToggle } from "./app-theme";
@@ -56,6 +55,7 @@ const studentNav: NavItem[] = [
 const instructorNav: NavItem[] = [
   { label: "Overview", href: "/instructor" },
   { label: "Courses", href: "/instructor/courses" },
+  { label: "Resources", href: "/resources/upload" },
   { label: "Questions", href: "/instructor/questions" },
   { label: "Assessments", href: "/instructor/assessments" },
   { label: "Grading", href: "/instructor/grading" },
@@ -67,6 +67,7 @@ const adminNav: NavItem[] = [
   { label: "Overview", href: "/admin" },
   { label: "Users", href: "/admin/users" },
   { label: "Academics", href: "/admin/academics" },
+  { label: "Resources", href: "/resources/upload" },
   { label: "Questions", href: "/admin/questions" },
   { label: "Assessments", href: "/admin/assessments" },
   { label: "Grading", href: "/admin/grading" },
@@ -97,6 +98,7 @@ function workspaceLabel(path: string, items: NavItem[]) {
   if (match) return match.label;
   if (path.startsWith("/notifications")) return "Notifications";
   if (path.startsWith("/settings")) return "Settings";
+  if (path.startsWith("/shortcuts")) return "Keyboard shortcuts";
   if (path.startsWith("/dashboard")) return "Dashboard";
   return "Workspace";
 }
@@ -288,7 +290,7 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
         </div>
         <div className="header-popover-anchor profile-menu-anchor" ref={profileRef}>
           <button ref={profileButtonRef} className="profile-menu-trigger" type="button" aria-expanded={profileOpen} aria-haspopup="menu" onClick={() => { setProfileOpen(value => !value); setNotificationsOpen(false); setHelpOpen(false); setAchievementsOpen(false); }}><span className="avatar-fallback">{initials}</span><span><b>{displayName}</b><small>{roleLabel}</small></span><FiChevronDown /></button>
-          {profileOpen && <div className="header-popover profile-menu" role="menu"><div className="profile-menu-summary"><span className="avatar-fallback">{initials}</span><div><b>{displayName}</b><small>{user.email}</small></div></div><button type="button" role="menuitem" onClick={() => navigate("/settings#profile")}><FiUser /> Profile</button><button type="button" role="menuitem" onClick={() => navigate("/settings")}><FiSettings /> Settings</button><div className="profile-theme-row"><span>Theme</span><ThemeToggle compact /></div><button className="danger" type="button" role="menuitem" onClick={() => void logout().then(() => { setProfileOpen(false); startNavigation(); router.replace("/login"); })}><FiLogOut /> Log out</button></div>}
+          {profileOpen && <div className="header-popover profile-menu" role="menu"><div className="profile-menu-summary"><span className="avatar-fallback">{initials}</span><div><b>{displayName}</b><small>{user.email}</small></div></div><button type="button" role="menuitem" onClick={() => navigate("/settings")}><FiSettings /> Settings</button><div className="profile-theme-row"><span>Theme</span><ThemeToggle compact /></div><button className="danger" type="button" role="menuitem" onClick={() => void logout().then(() => { setProfileOpen(false); startNavigation(); router.replace("/login"); })}><FiLogOut /> Log out</button></div>}
         </div>
       </div>
     </header>
