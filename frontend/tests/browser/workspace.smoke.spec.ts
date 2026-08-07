@@ -116,6 +116,7 @@ function apiEndpoint(requestUrl: string) {
 
 function isMockedEndpoint(endpoint: string) {
   return endpoint === '/auth/me'
+    || endpoint === '/auth/security'
     || endpoint.startsWith('/notifications')
     || endpoint.startsWith('/users/')
     || endpoint.startsWith('/bundles')
@@ -127,6 +128,7 @@ async function mockApi(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem('mdp_access_token', 'browser-test-token');
     localStorage.setItem('mdp-theme', 'light');
+    localStorage.setItem('mdp-locale', 'en');
   });
 
   await page.route('**/*', async (route) => {
@@ -166,6 +168,18 @@ async function mockApi(page: Page) {
       });
 
     if (endpoint === '/auth/me') return respond(student);
+    if (endpoint === '/auth/security') {
+      return respond({
+        sessions: [{
+          id: 'session-current',
+          current: true,
+          created_at: '2026-08-07T08:00:00.000Z',
+          last_used_at: null,
+          expires_at: '2026-08-14T08:00:00.000Z',
+        }],
+        providers: [],
+      });
+    }
     if (endpoint === '/notifications/unread/count') return respond({ count: 2 });
     if (endpoint === '/notifications') {
       return respond({
@@ -185,7 +199,11 @@ async function mockApi(page: Page) {
     if (endpoint === '/users/student-1') {
       return respond({
         ...student,
+        fullName: 'Browser Test Student',
         phoneNumber: '+201000000000',
+        profilePictureUrl: null,
+        dateOfBirth: null,
+        gender: null,
         createdAt: '2026-01-01T00:00:00.000Z',
       });
     }
@@ -245,21 +263,23 @@ test('authenticated shell menus, theme, and command palette are keyboard usable'
   await expectNoHorizontalOverflow(page);
 });
 
-test('Bundle curriculum disclosures preserve hierarchy and deep links', async ({ page }) => {
+test('Bundle curriculum preserves hierarchy and canonical deep links', async ({ page }) => {
   await mockApi(page);
   await page.goto('/bundles?id=bundle-1&tab=curriculum');
   await expect(page.getByRole('heading', { name: 'Clinical Foundations' })).toBeVisible();
+  await expect(page).toHaveURL(/bundle=clinical-foundations/);
+  await expect(page).not.toHaveURL(/id=bundle-1/);
 
-  const weeks = page.locator('.bundle-course details');
+  const weeks = page.locator('.advanced-bundle-week');
   await expect(weeks).toHaveCount(2);
-  await expect(weeks.nth(0)).toHaveAttribute('open', '');
-  await expect(weeks.nth(1)).not.toHaveAttribute('open', '');
+  await expect(weeks.nth(0)).toHaveClass(/open/);
+  await expect(weeks.nth(1)).not.toHaveClass(/open/);
 
-  await weeks.nth(1).locator('summary').click();
-  await expect(weeks.nth(1)).toHaveAttribute('open', '');
+  await weeks.nth(1).locator('button').first().click();
+  await expect(weeks.nth(1)).toHaveClass(/open/);
   await expect(
     weeks.nth(1).getByRole('link', { name: /Gas exchange/i }),
-  ).toHaveAttribute('href', '/guidelines?course=course-1&lecture=lecture-2');
+  ).toHaveAttribute('href', '/guidelines?course=med101&lecture=2-gas-exchange');
   await expectNoHorizontalOverflow(page);
 });
 
