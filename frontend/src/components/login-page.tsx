@@ -1,10 +1,11 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FiBarChart2, FiBookOpen, FiShield, FiTrendingUp } from "react-icons/fi";
 import { Brand, Field, icons, SubmitForm } from "./ui";
-import { useAuth } from "./auth-provider";
+import { GoogleOnboardingResult, useAuth } from "./auth-provider";
+import { GoogleSignInButton } from "./google-sign-in-button";
 
 const loginProof=[
   {Icon:FiShield,title:"Trusted by learners",copy:"Join a global community"},
@@ -13,13 +14,16 @@ const loginProof=[
   {Icon:FiBookOpen,title:"Academic excellence",copy:"Designed for medical students"},
 ];
 
+const GOOGLE_ONBOARDING_KEY="mdp_google_onboarding";
+
 export function LoginPage(){
   const router=useRouter();
-  const {login,user,loading:authLoading}=useAuth();
+  const {login,googleLogin,user,loading:authLoading}=useAuth();
   const [email,setEmail]=useState("");
   const [password,setPassword]=useState("");
   const [remember,setRemember]=useState(true);
   const [loading,setLoading]=useState(false);
+  const [googleLoading,setGoogleLoading]=useState(false);
   const [error,setError]=useState<string|null>(null);
 
   useEffect(()=>{
@@ -33,6 +37,25 @@ export function LoginPage(){
     catch (cause) { setError(cause instanceof Error?cause.message:"Unable to sign in. Check your connection and try again."); }
     finally { setLoading(false); }
   }
+
+  const handleGoogleCredential=useCallback(async(credential:string)=>{
+    if(authLoading||googleLoading)return;
+    setGoogleLoading(true);setError(null);
+    try{
+      const result=await googleLogin(credential);
+      if("requires_onboarding" in result){
+        sessionStorage.setItem(GOOGLE_ONBOARDING_KEY,JSON.stringify(result satisfies GoogleOnboardingResult));
+        router.push("/register?provider=google");
+      }else{
+        router.replace("/dashboard");
+      }
+    }catch(cause){
+      setError(cause instanceof Error?cause.message:"Google sign-in could not be completed.");
+    }finally{
+      setGoogleLoading(false);
+    }
+  },[authLoading,googleLoading,googleLogin,router]);
+
   return <main className="auth-page login-page reference-login">
     <section className="story-side">
       <Brand/>
@@ -50,7 +73,8 @@ export function LoginPage(){
           <div className="form-row"><label className="checkline"><input type="checkbox" checked={remember} onChange={e=>setRemember(e.target.checked)}/> <span>Keep me signed in</span></label><Link href="/forgot-password">Forgot password?</Link></div>
         </SubmitForm>
         <div className="or"><span/>or<span/></div>
-        <button className="google-button" disabled title="Google sign-in is not configured"><b>G</b> Continue with Google</button>
+        <GoogleSignInButton onCredential={handleGoogleCredential} disabled={authLoading||loading||googleLoading}/>
+        {googleLoading&&<p className="google-auth-status" role="status">Verifying your Google account…</p>}
         <p className="switch-copy">New here? <Link href="/register">Create an account</Link></p>
       </div>
     </section>
