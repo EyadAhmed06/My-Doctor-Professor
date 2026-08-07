@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, DataSource, Repository } from 'typeorm';
 import { FlashcardDeck } from '../../common/entities/flashcard-deck.entity';
 import { Flashcard } from '../../common/entities/flashcard.entity';
-import { StudentFlashcardProgress } from '../../common/entities/student-flashcard-progress.entity';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
 import { CardQueryDto, DeckQueryDto } from './dtos/flashcards.dto';
@@ -13,7 +12,6 @@ export class FlashcardAccessService {
   constructor(
     @InjectRepository(FlashcardDeck) private readonly decks: Repository<FlashcardDeck>,
     @InjectRepository(Flashcard) private readonly cards: Repository<Flashcard>,
-    @InjectRepository(StudentFlashcardProgress) private readonly progress: Repository<StudentFlashcardProgress>,
     private readonly dataSource: DataSource,
   ) {}
 
