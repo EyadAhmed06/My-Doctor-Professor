@@ -15,6 +15,10 @@ export class AuthRateLimitService {
     );
   }
 
+  async enforceProvider(ip: string, provider: string): Promise<void> {
+    await this.consume(`ip:provider:${provider}:${ip}`, 30, 15 * 60);
+  }
+
   async enforce(ip: string, email: string, action: string): Promise<void> {
     await this.consume(`ip:${action}:${ip}`, 10, 15 * 60);
     await this.consume(
