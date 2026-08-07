@@ -1,0 +1,66 @@
+.public-home[data-locale="ar"] {
+  direction: rtl;
+  text-align: start;
+}
+
+.public-home[data-locale="ar"] .public-brand {
+  margin-right: 0;
+  margin-left: auto;
+}
+
+.public-home[data-locale="ar"] .public-nav nav,
+.public-home[data-locale="ar"] .public-actions,
+.public-home[data-locale="ar"] .hero-actions,
+.public-home[data-locale="ar"] .hero-proof,
+.public-home[data-locale="ar"] .thyroid-copy a,
+.public-home[data-locale="ar"] .workflow-copy > a,
+.public-home[data-locale="ar"] .year-card li,
+.public-home[data-locale="ar"] .year-open,
+.public-home[data-locale="ar"] .semester-links a {
+  direction: rtl;
+}
+
+.public-home[data-locale="ar"] .public-button svg,
+.public-home[data-locale="ar"] .thyroid-copy a svg,
+.public-home[data-locale="ar"] .workflow-copy > a svg,
+.public-home[data-locale="ar"] .year-open svg,
+.public-home[data-locale="ar"] .semester-links a svg {
+  transform: rotate(180deg);
+}
+
+.public-home[data-locale="ar"] .story-copy p:last-child {
+  border-left: 0;
+  border-right: 2px solid var(--pub-teal);
+  padding-left: 0;
+  padding-right: 20px;
+}
+
+.public-home[data-locale="ar"] .year-number {
+  right: auto;
+  left: 18px;
+}
+
+.public-home[data-locale="ar"] .year-card:before {
+  transform-origin: right;
+}
+
+.public-home[data-locale="ar"] .footer-main,
+.public-home[data-locale="ar"] .public-cta,
+.public-home[data-locale="ar"] .public-goal,
+.public-home[data-locale="ar"] .workflow-section,
+.public-home[data-locale="ar"] .story-section,
+.public-home[data-locale="ar"] .organ-insight,
+.public-home[data-locale="ar"] .thyroid-spotlight,
+.public-home[data-locale="ar"] .circulation-feature {
+  direction: rtl;
+}
+
+@media (max-width: 760px) {
+  .public-home[data-locale="ar"] .public-nav {
+    direction: rtl;
+  }
+
+  .public-home[data-locale="ar"] .public-actions {
+    justify-content: flex-start;
+  }
+}
