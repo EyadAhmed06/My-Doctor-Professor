@@ -9,6 +9,7 @@ import { useState } from "react";
 import { BRAND_NAME, BRAND_TAGLINE, BrandLockup } from "./brand";
 import { useAuth } from "./auth-provider";
 import { LanguageSwitcher, useLocale } from "./locale-provider";
+import "./landing-i18n.css";
 
 type Localized = { en: string; ar: string };
 const local = (locale: "en" | "ar", value: Localized) => value[locale];
