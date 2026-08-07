@@ -93,16 +93,11 @@ export class AcademicService {
     });
   }
 
-  async getSemester(id: string, role: UserRole): Promise<Semester> {
-    const semester = await this.semesters.findOne({
-      where: { id },
-      relations: { courses: true },
-      order: { courses: { displayOrder: 'ASC' } },
-    });
+  async getSemester(id: string, actor: AuthenticatedUser): Promise<Semester> {
+    const semester = await this.semesters.findOne({ where: { id } });
     if (!semester) throw new NotFoundException('Semester not found');
-    if (role === UserRole.STUDENT) {
-      semester.courses = semester.courses.filter((course) => course.isActive);
-    }
+    const coursePage = await this.listCourses({ semester_id: id, page: 1, limit: 100 }, actor);
+    semester.courses = coursePage.data;
     return semester;
   }
 
@@ -159,7 +154,7 @@ export class AcademicService {
 
   async listCourses(
     query: CourseQueryDto,
-    role: UserRole,
+    actor: AuthenticatedUser,
   ): Promise<Paginated<Course>> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
@@ -177,8 +172,28 @@ export class AcademicService {
         semesterId: query.semester_id,
       });
     }
-    if (role === UserRole.STUDENT) {
-      builder.andWhere('course.is_active = TRUE');
+    if (actor.role === UserRole.STUDENT) {
+      builder.andWhere('course.is_active = TRUE')
+        .andWhere(`EXISTS (
+          SELECT 1
+          FROM bundle_courses bundle_course
+          JOIN bundles bundle ON bundle.id = bundle_course.bundle_id
+          JOIN bundle_enrollments enrollment ON enrollment.bundle_id = bundle.id
+          WHERE bundle_course.course_id = course.id
+            AND enrollment.student_id = :actorId
+            AND enrollment.status <> 'REVOKED'
+            AND bundle.status IN ('PUBLISHED','ARCHIVED')
+            AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+        )`, { actorId: actor.userId });
+    } else if (actor.role === UserRole.INSTRUCTOR) {
+      builder.andWhere(`EXISTS (
+        SELECT 1 FROM course_instructors assignment
+        WHERE assignment.course_id = course.id
+          AND assignment.instructor_id = :actorId
+      )`, { actorId: actor.userId });
+      if (query.is_active !== undefined) {
+        builder.andWhere('course.is_active = :isActive', { isActive: query.is_active });
+      }
     } else if (query.is_active !== undefined) {
       builder.andWhere('course.is_active = :isActive', {
         isActive: query.is_active,
