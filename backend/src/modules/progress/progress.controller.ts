@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Put, Query, UseGuards } from '@nestjs/common';
+import { AcademicAccessService } from '../academic/academic-access.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -12,22 +13,25 @@ const uuid=new ParseUUIDPipe({version:'4'});
 @Controller()
 @UseGuards(JwtAuthGuard,RolesGuard)
 export class ProgressController {
- constructor(private readonly progress:ProgressService){}
+ constructor(
+  private readonly progress:ProgressService,
+  private readonly access:AcademicAccessService,
+ ){}
 
  @Get('progress/courses') @Roles(UserRole.STUDENT)
  listCourseProgress(@CurrentUser() actor:AuthenticatedUser){return this.progress.listCourseProgress(actor.userId);}
  @Get('progress/courses/:courseId') @Roles(UserRole.STUDENT)
- getCourseProgress(@Param('courseId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.progress.getCourseProgress(id,actor.userId);}
+ async getCourseProgress(@Param('courseId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){await this.access.assertCourseReadable(id,actor);return this.progress.getCourseProgress(id,actor.userId);}
  @Get('progress/lectures/:lectureId') @Roles(UserRole.STUDENT)
- getLectureProgress(@Param('lectureId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.progress.getLectureProgress(id,actor.userId);}
+ async getLectureProgress(@Param('lectureId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){await this.access.assertLectureReadable(id,actor);return this.progress.getLectureProgress(id,actor.userId);}
  @Put('progress/lectures/:lectureId') @Roles(UserRole.STUDENT)
- updateLectureProgress(@Param('lectureId',uuid) id:string,@Body() dto:UpdateLectureProgressDto,@CurrentUser() actor:AuthenticatedUser){return this.progress.updateLectureProgress(id,dto,actor.userId);}
+ async updateLectureProgress(@Param('lectureId',uuid) id:string,@Body() dto:UpdateLectureProgressDto,@CurrentUser() actor:AuthenticatedUser){await this.access.assertLectureReadable(id,actor);return this.progress.updateLectureProgress(id,dto,actor.userId);}
  @Get('progress/topics/:topicId') @Roles(UserRole.STUDENT)
- getTopicProgress(@Param('topicId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.progress.getTopicProgress(id,actor.userId);}
+ async getTopicProgress(@Param('topicId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){await this.access.assertTopicReadable(id,actor);return this.progress.getTopicProgress(id,actor.userId);}
  @Get('progress/questions/:questionId') @Roles(UserRole.STUDENT)
- getQuestionProgress(@Param('questionId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.progress.getQuestionProgress(id,actor.userId);}
+ async getQuestionProgress(@Param('questionId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){await this.access.assertQuestionReadable(id,actor);return this.progress.getQuestionProgress(id,actor.userId);}
  @Put('progress/questions/:questionId/bookmark') @Roles(UserRole.STUDENT)
- bookmarkQuestion(@Param('questionId',uuid) id:string,@Body() dto:BookmarkQuestionDto,@CurrentUser() actor:AuthenticatedUser){return this.progress.bookmarkQuestion(id,dto,actor.userId);}
+ async bookmarkQuestion(@Param('questionId',uuid) id:string,@Body() dto:BookmarkQuestionDto,@CurrentUser() actor:AuthenticatedUser){await this.access.assertQuestionReadable(id,actor);return this.progress.bookmarkQuestion(id,dto,actor.userId);}
 
  @Get('dashboard/student') @Roles(UserRole.STUDENT)
  studentDashboard(@CurrentUser() actor:AuthenticatedUser){return this.progress.studentDashboard(actor.userId);}
