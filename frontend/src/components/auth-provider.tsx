@@ -40,6 +40,7 @@ type AuthContextValue = {
   completeGoogleSignup(input: CompleteGoogleSignupInput): Promise<AuthUser>;
   logout(): Promise<void>;
   refreshUser(): Promise<AuthUser | null>;
+  refreshAccessToken(): Promise<string | null>;
   request<T>(path: string, options?: Omit<Parameters<typeof apiRequest<T>>[1], "accessToken">): Promise<T>;
 };
 
@@ -213,6 +214,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     completeGoogleSignup,
     logout,
     refreshUser,
+    refreshAccessToken: refresh,
     request,
   }), [
     user,
@@ -223,6 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     completeGoogleSignup,
     logout,
     refreshUser,
+    refresh,
     request,
   ]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
