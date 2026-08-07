@@ -2,6 +2,7 @@
 
 import Script from "next/script";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocale } from "./locale-provider";
 
 type GoogleCredentialResponse = { credential: string; select_by?: string };
 type GoogleAccounts = {
@@ -40,6 +41,7 @@ export function GoogleSignInButton({
   disabled?: boolean;
 }) {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim();
+  const { locale } = useLocale();
   const containerRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
 
@@ -74,12 +76,12 @@ export function GoogleSignInButton({
   }, [render]);
 
   if (!clientId) {
-    return <button className="google-button" disabled title="Set NEXT_PUBLIC_GOOGLE_CLIENT_ID to enable Google sign-in"><b>G</b> Continue with Google</button>;
+    return <button className="google-button" disabled title="Set NEXT_PUBLIC_GOOGLE_CLIENT_ID to enable Google sign-in"><b>G</b> {locale === "ar" ? "المتابعة باستخدام Google" : "Continue with Google"}</button>;
   }
 
   return <div className={`google-signin-shell ${disabled ? "disabled" : ""}`} aria-busy={!ready && !disabled}>
-    <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" onLoad={render} />
+    <Script src={`https://accounts.google.com/gsi/client?hl=${locale}`} strategy="afterInteractive" onLoad={render} />
     <div ref={containerRef} className="google-signin-render" />
-    {!ready && !disabled && <span className="google-signin-loading">Loading Google sign-in…</span>}
+    {!ready && !disabled && <span className="google-signin-loading">{locale === "ar" ? "جارٍ تحميل تسجيل الدخول عبر Google…" : "Loading Google sign-in…"}</span>}
   </div>;
 }
