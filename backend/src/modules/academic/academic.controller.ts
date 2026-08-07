@@ -67,7 +67,7 @@ export class AcademicController {
     @Param('semesterId', uuid) id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.academic.getSemester(id, user.role);
+    return this.academic.getSemester(id, user);
   }
 
   @Put('semesters/:semesterId')
@@ -101,7 +101,7 @@ export class AcademicController {
     @Query() query: CourseQueryDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.academic.listCourses(query, user.role);
+    return this.academic.listCourses(query, user);
   }
 
   @Get('courses/:courseId')
