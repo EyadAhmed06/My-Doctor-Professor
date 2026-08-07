@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { extraArabic, extraArabicPattern } from "./locale-arabic-extra";
+import { pageArabic } from "./locale-arabic-pages";
 
 export type AppLocale = "en" | "ar";
 
@@ -156,15 +157,10 @@ export function translateArabicText(value: string): string {
   const trailing = value.match(/\s*$/)?.[0] || "";
   const core = value.trim();
   if (!core) return value;
-
-  const exact = coreArabic.get(core) || extraArabic.get(core);
+  const exact = coreArabic.get(core) || pageArabic.get(core) || extraArabic.get(core);
   if (exact) return `${leading}${exact}${trailing}`;
-
   const dynamic = dynamicArabic(core);
   if (dynamic) return `${leading}${dynamic}${trailing}`;
-
-  // Unknown text is intentionally preserved. This prevents medical/course/user-authored
-  // content from being partially rewritten into corrupted mixed-language strings.
   return value;
 }
 
@@ -228,7 +224,6 @@ function translateTree(root: Node, locale: AppLocale): void {
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<AppLocale>("en");
-
   const setLocale = useCallback((next: AppLocale) => {
     setLocaleState(next);
     localStorage.setItem(LOCALE_KEY, next);
@@ -245,7 +240,6 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     translateTree(document.body, locale);
     if (locale !== "ar") return;
-
     const pending = new Set<Node>();
     let frame = 0;
     const flush = () => {
