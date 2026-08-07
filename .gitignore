@@ -1,0 +1,17 @@
+node_modules/
+**/node_modules/
+.env
+.env.local
+**/.env
+**/.env.local
+backend/uploads/
+backend/backups/
+frontend/.next/
+backend/dist/
+coverage/
+frontend/test-results/
+frontend/playwright-report/
+.idea/
+.vscode/
+*.log
+*.tsbuildinfo
