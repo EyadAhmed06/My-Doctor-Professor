@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FiBarChart2, FiBookOpen, FiShield, FiTrendingUp } from "react-icons/fi";
 import { Brand, Field, icons, SubmitForm } from "./ui";
 import { useAuth } from "./auth-provider";
@@ -15,13 +15,19 @@ const loginProof=[
 
 export function LoginPage(){
   const router=useRouter();
-  const {login}=useAuth();
+  const {login,user,loading:authLoading}=useAuth();
   const [email,setEmail]=useState("");
   const [password,setPassword]=useState("");
-  const [remember,setRemember]=useState(false);
+  const [remember,setRemember]=useState(true);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState<string|null>(null);
+
+  useEffect(()=>{
+    if(!authLoading&&user) router.replace("/dashboard");
+  },[authLoading,router,user]);
+
   async function submit(){
+    if(authLoading||user)return;
     setLoading(true);setError(null);
     try { await login({email,password,remember}); router.replace("/dashboard"); }
     catch (cause) { setError(cause instanceof Error?cause.message:"Unable to sign in. Check your connection and try again."); }
@@ -37,11 +43,11 @@ export function LoginPage(){
     <section className="form-side">
       <div className="login-card panel">
         <h2>Welcome back</h2>
-        <p className="subhead">Log in to continue your learning journey.</p>
-        <SubmitForm className="login-form" buttonText="Log in" onSubmit={submit} loading={loading} error={error}>
+        <p className="subhead">{authLoading?"Restoring your session…":"Log in to continue your learning journey."}</p>
+        <SubmitForm className="login-form" buttonText="Log in" onSubmit={submit} loading={loading||authLoading} error={error}>
           <Field label="Email address" icon={icons.Mail} placeholder="your@email.com" type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="email"/>
           <Field label="Password" icon={icons.Lock} placeholder="Enter your password" type="password" value={password} onChange={e=>setPassword(e.target.value)} required autoComplete="current-password"/>
-          <div className="form-row"><label className="checkline"><input type="checkbox" checked={remember} onChange={e=>setRemember(e.target.checked)}/> <span>Remember me</span></label><Link href="/forgot-password">Forgot password?</Link></div>
+          <div className="form-row"><label className="checkline"><input type="checkbox" checked={remember} onChange={e=>setRemember(e.target.checked)}/> <span>Keep me signed in</span></label><Link href="/forgot-password">Forgot password?</Link></div>
         </SubmitForm>
         <div className="or"><span/>or<span/></div>
         <button className="google-button" disabled title="Google sign-in is not configured"><b>G</b> Continue with Google</button>
