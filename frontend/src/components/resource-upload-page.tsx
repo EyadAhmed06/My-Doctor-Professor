@@ -15,6 +15,8 @@ type Week={id:string;weekNumber:number;title:string|null;lectures:Lecture[]};
 type Course={id:string;courseCode:string;courseName:string;weeks?:Week[]};
 type PageResponse<T>={data:T[]};
 
+type UploadResult={status:number;message:string|null};
+
 const maxBytes=52_428_800;
 const accept="application/pdf,image/png,image/jpeg,image/webp,video/mp4,video/webm";
 
@@ -25,9 +27,13 @@ function typeFor(file:File):ResourceType|null{
   return null;
 }
 function sizeLabel(value:number){if(value<1024)return `${value} B`;if(value<1024*1024)return `${(value/1024).toFixed(1)} KB`;return `${(value/1024/1024).toFixed(1)} MB`;}
+function uploadMessage(xhr:XMLHttpRequest){
+  try{const payload=JSON.parse(xhr.responseText) as {message?:string|string[]};return Array.isArray(payload.message)?payload.message.join(". "):payload.message||null;}
+  catch{return xhr.responseText?.trim()||null;}
+}
 
 export function ResourceUploadPage(){
-  const {user,request,accessToken}=useAuth();
+  const {user,request,accessToken,refreshAccessToken}=useAuth();
   const {notify}=useUx();
   const inputRef=useRef<HTMLInputElement>(null);
   const [courses,setCourses]=useState<Course[]>([]),[courseId,setCourseId]=useState(""),[course,setCourse]=useState<Course|null>(null),[lectureId,setLectureId]=useState("");
@@ -62,20 +68,33 @@ export function ResourceUploadPage(){
   function drop(event:DragEvent<HTMLDivElement>){event.preventDefault();setDragging(false);chooseFile(event.dataTransfer.files[0]||null);}
   function browse(event:ChangeEvent<HTMLInputElement>){chooseFile(event.target.files?.[0]||null);}
 
+  const sendUpload=useCallback((body:FormData,token:string)=>new Promise<UploadResult>((resolve,reject)=>{
+    const xhr=new XMLHttpRequest();
+    xhr.open("POST",`${apiBaseUrl}/academic/lectures/${lectureId}/resources/upload`);
+    xhr.setRequestHeader("Authorization",`Bearer ${token}`);
+    xhr.upload.onprogress=value=>{if(value.lengthComputable)setProgress(Math.round(value.loaded/value.total*100));};
+    xhr.onerror=()=>reject(new Error("Upload connection failed."));
+    xhr.onload=()=>resolve({status:xhr.status,message:uploadMessage(xhr)});
+    xhr.send(body);
+  }),[lectureId]);
+
   async function upload(event:FormEvent){
-    event.preventDefault();if(!file||!lectureId||!accessToken||uploading)return;
+    event.preventDefault();if(!file||!lectureId||uploading)return;
     if(selectedLecture?.isPublished){setError("Return this lecture to draft before uploading or deleting resources.");return;}
     const resourceType=typeFor(file);if(!resourceType)return;
     setUploading(true);setProgress(0);setError(null);
     const body=new FormData();body.set("file",file);body.set("resource_name",name.trim());body.set("resource_type",resourceType);if(description.trim())body.set("description",description.trim());
     try{
-      await new Promise<void>((resolve,reject)=>{
-        const xhr=new XMLHttpRequest();xhr.open("POST",`${apiBaseUrl}/academic/lectures/${lectureId}/resources/upload`);xhr.setRequestHeader("Authorization",`Bearer ${accessToken}`);
-        xhr.upload.onprogress=value=>{if(value.lengthComputable)setProgress(Math.round(value.loaded/value.total*100));};
-        xhr.onerror=()=>reject(new Error("Upload connection failed."));
-        xhr.onload=()=>{if(xhr.status>=200&&xhr.status<300)resolve();else{try{const payload=JSON.parse(xhr.responseText) as {message?:string|string[]};reject(new Error(Array.isArray(payload.message)?payload.message.join(". "):payload.message||`Upload failed (${xhr.status})`));}catch{reject(new Error(`Upload failed (${xhr.status})`));}}};
-        xhr.send(body);
-      });
+      let token=accessToken||await refreshAccessToken();
+      if(!token)throw new Error("Your session has expired. Sign in again before uploading.");
+      let result=await sendUpload(body,token);
+      if(result.status===401){
+        token=await refreshAccessToken();
+        if(!token)throw new Error("Your session expired while preparing the upload. Sign in again.");
+        setProgress(0);
+        result=await sendUpload(body,token);
+      }
+      if(result.status<200||result.status>=300)throw new Error(result.message||`Upload failed (${result.status})`);
       setProgress(100);setFile(null);setName("");setDescription("");if(inputRef.current)inputRef.current.value="";await loadResources();notify({title:"Resource uploaded",description:"The server verified the file signature and stored it as a managed lecture resource.",tone:"success"});
     }catch(cause){setError(cause instanceof Error?cause.message:"Unable to upload resource.");}
     finally{setUploading(false);}
