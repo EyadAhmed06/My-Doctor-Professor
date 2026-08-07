@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { IsDateString, IsInt, IsOptional, IsString, Matches, MaxLength, Min, MinLength } from 'class-validator';
 
 export class GoogleCredentialDto {
   @IsString()
@@ -22,12 +22,10 @@ export class CompleteGoogleSignupDto {
 
   @IsInt()
   @Min(1)
-  @Max(20)
   current_semester: number;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(10)
+  @IsDateString()
   date_of_birth?: string;
 }
 
