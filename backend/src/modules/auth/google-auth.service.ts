@@ -132,7 +132,9 @@ export class GoogleAuthService {
       fullName: onboarding.fullName,
       picture: onboarding.picture,
     });
-    user = await this.usersService.findById(user.id) as User;
+    const refreshedUser = await this.usersService.findById(user.id);
+    if (!refreshedUser) throw new UnauthorizedException('Account creation did not complete');
+    user = refreshedUser;
     await this.usersService.updateLastLogin(user.id);
     return this.createSession(user);
   }
