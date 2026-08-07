@@ -35,7 +35,7 @@ html[data-theme] body .dashboard-embedded .welcome .eyebrow {
 
 html[data-theme] body .dashboard-embedded .welcome > div > strong {
   font-size: 14px !important;
-  color: var(--app-text) !important;
+  color: var(--db-text) !important;
 }
 
 html[data-theme] body .dashboard-embedded .metric {
