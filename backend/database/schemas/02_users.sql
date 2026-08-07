@@ -90,7 +90,7 @@ CREATE TABLE instructors (
     biography TEXT,
 
     FOREIGN KEY (user_id)
-        REFERENCES users(id)
+        REFERENCES instructors(user_id)
         ON DELETE CASCADE
 
 );
@@ -154,6 +154,41 @@ CREATE TABLE auth_sessions (
         ON DELETE CASCADE
 
 );
+
+CREATE TABLE external_auth_identities (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    user_id UUID NOT NULL,
+
+    provider VARCHAR(30) NOT NULL,
+
+    provider_subject VARCHAR(255) NOT NULL,
+
+    provider_email CITEXT NOT NULL,
+
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    last_used_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT ck_external_auth_provider
+        CHECK (provider IN ('GOOGLE')),
+
+    CONSTRAINT fk_external_auth_identity_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT uq_external_auth_provider_subject
+        UNIQUE (provider, provider_subject),
+
+    CONSTRAINT uq_external_auth_user_provider
+        UNIQUE (user_id, provider)
+
+);
+
+CREATE INDEX idx_external_auth_provider_email
+ON external_auth_identities(provider, provider_email);
 
 CREATE TABLE account_action_tokens (
 
