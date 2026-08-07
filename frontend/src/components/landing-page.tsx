@@ -7,6 +7,7 @@ import {
 } from "react-icons/fi";
 import { useState } from "react";
 import { BRAND_NAME, BRAND_TAGLINE, BrandLockup } from "./brand";
+import { useAuth } from "./auth-provider";
 
 const years = [
   { year: "Year 1", focus: "Foundations", description: "Build the scientific base behind clinical practice.", semesters: ["Semester 1", "Semester 2"], topics: ["Anatomy", "Physiology", "Biochemistry"] },
@@ -33,6 +34,11 @@ const reasons = [
 
 export function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { user, loading: authLoading } = useAuth();
+  const displayName = user?.fullName || user?.full_name || user?.email || "";
+  const firstName = displayName.trim().split(/\s+/)[0] || "your workspace";
+  const workspaceHref = "/dashboard";
+
   return <main className="public-home">
     <header className="public-nav">
       <BrandLockup className="public-brand" />
@@ -40,7 +46,9 @@ export function LandingPage() {
       <nav className={menuOpen ? "open" : ""}>
         <a href="#about">About us</a><a href="#goal">Our goal</a><a href="#curriculum">Curriculum</a><a href="#features">Features</a>
       </nav>
-      <div className="public-actions"><Link href="/login">Log in</Link><Link className="public-button small" href="/register">Create account <FiArrowRight /></Link></div>
+      <div className="public-actions">
+        {authLoading ? <span className="public-session-copy">Restoring session…</span> : user ? <><span className="public-session-copy">Signed in as {firstName}</span><Link className="public-button small" href={workspaceHref}>Open dashboard <FiArrowRight /></Link></> : <><Link href="/login">Log in</Link><Link className="public-button small" href="/register">Create account <FiArrowRight /></Link></>}
+      </div>
     </header>
 
     <section className="public-hero" id="product">
@@ -48,7 +56,7 @@ export function LandingPage() {
         <span className="public-eyebrow"><FiBookOpen /> My Doctor &amp; The Professor</span>
         <h1>The professor’s <em>wisdom.</em><br />The doctor’s precision.</h1>
         <p>Reliable medical education, structured around the way students learn, professors examine, and doctors think.</p>
-        <div className="hero-actions"><Link className="public-button" href="/register">Start learning <FiArrowRight /></Link><a className="public-button ghost" href="#curriculum">Explore the curriculum</a></div>
+        <div className="hero-actions">{user ? <Link className="public-button" href={workspaceHref}>Continue learning <FiArrowRight /></Link> : <Link className="public-button" href="/register">Start learning <FiArrowRight /></Link>}<a className="public-button ghost" href="#curriculum">Explore the curriculum</a></div>
         <div className="hero-proof"><span><FiCheckCircle /> Organized by academic year</span><span><FiCheckCircle /> Case-based reasoning</span><span><FiCheckCircle /> Personal progress</span></div>
       </div>
       <figure className="hero-duo" aria-label="The Doctor and The Professor">
@@ -91,9 +99,9 @@ export function LandingPage() {
       <div className="section-heading"><span>YOUR ACADEMIC JOURNEY</span><h2>Find your year. Continue your work.</h2><p>Enter the platform through the stage you are studying now, then move between semesters, courses, and learning activities without losing context.</p></div>
       <div className="year-grid">{years.map((item, index) => <article className="year-card" key={item.year}>
         <div className="year-number">0{index + 1}</div><span>{item.focus}</span><h3>{item.year}</h3><p>{item.description}</p>
-        <div className="semester-links">{item.semesters.map(semester => <Link key={semester} href={`/dashboard?stage=${index + 1}`}>{semester} <FiArrowRight /></Link>)}</div>
+        <div className="semester-links">{item.semesters.map(semester => <Link key={semester} href={`${workspaceHref}?stage=${index + 1}`}>{semester} <FiArrowRight /></Link>)}</div>
         <ul>{item.topics.map(topic => <li key={topic}><FiCheckCircle />{topic}</li>)}</ul>
-        <Link className="year-open" href={`/dashboard?stage=${index + 1}`}>Open {item.year} workspace <FiArrowRight /></Link>
+        <Link className="year-open" href={`${workspaceHref}?stage=${index + 1}`}>Open {item.year} workspace <FiArrowRight /></Link>
       </article>)}</div>
     </section>
 
@@ -112,7 +120,7 @@ export function LandingPage() {
     </section>
 
     <section className="public-section workflow-section">
-      <div className="workflow-copy"><span className="section-kicker">HOW IT WORKS</span><h2>A repeatable learning loop</h2><p>Every feature supports one continuous workflow instead of becoming another disconnected tool.</p><Link href="/register">Build your workspace <FiArrowRight /></Link></div>
+      <div className="workflow-copy"><span className="section-kicker">HOW IT WORKS</span><h2>A repeatable learning loop</h2><p>Every feature supports one continuous workflow instead of becoming another disconnected tool.</p>{user ? <Link href={workspaceHref}>Continue your workspace <FiArrowRight /></Link> : <Link href="/register">Build your workspace <FiArrowRight /></Link>}</div>
       <ol><li><b>01</b><div><strong>Plan</strong><span>Choose your year, courses, goals, and available study time.</span></div></li><li><b>02</b><div><strong>Learn</strong><span>Move through structured topics, resources, and clinical cases.</span></div></li><li><b>03</b><div><strong>Practice</strong><span>Use questions and reasoning builders to apply what you know.</span></div></li><li><b>04</b><div><strong>Review</strong><span>Return to weak concepts through notes, errors, and spaced repetition.</span></div></li></ol>
     </section>
 
@@ -121,7 +129,7 @@ export function LandingPage() {
       <div className="why-grid">{reasons.map(({icon:Icon,title,text}) => <article key={title}><Icon /><div><h3>{title}</h3><p>{text}</p></div></article>)}</div>
     </section>
 
-    <section className="public-cta"><BrandLockup /><div><span>Ready when you are</span><h2>Build a clearer path through medicine.</h2><p>Create your academic workspace and begin with your current year.</p></div><Link className="public-button" href="/register">Create your account <FiArrowRight /></Link></section>
+    <section className="public-cta"><BrandLockup /><div><span>{user ? `Welcome back, ${firstName}` : "Ready when you are"}</span><h2>{user ? "Continue from where you left off." : "Build a clearer path through medicine."}</h2><p>{user ? "Your authenticated workspace is ready without signing in again." : "Create your academic workspace and begin with your current year."}</p></div><Link className="public-button" href={user ? workspaceHref : "/register"}>{user ? "Open dashboard" : "Create your account"} <FiArrowRight /></Link></section>
 
     <footer className="public-footer">
       <div className="footer-main"><div><BrandLockup showTagline /><p>Reliable academic support for medical students—from weekly learning to exam preparation.</p></div><div><h4>Product</h4><a href="#features">Features</a><a href="#curriculum">Academic years</a><Link href="/dashboard">Dashboard</Link><Link href="/study-plan">Study planning</Link></div><div><h4>Learning</h4><Link href="/bundles">Learning bundles</Link><Link href="/notebook">Notebook</Link><Link href="/flashcards">Flashcards</Link><Link href="/guidelines">Guidelines</Link></div><div><h4>Company</h4><a href="#about">About us</a><a href="#goal">Our goal</a><a href="mailto:support@mydoctorprofessor.com">Contact</a><a href="#">Privacy</a><a href="#">Terms</a></div></div>
