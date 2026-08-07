@@ -21,7 +21,7 @@ export type GoogleOnboardingResult = {
   profile: { email: string; full_name: string; picture: string | null };
 };
 
-type AuthResponse = { access_token: string; refresh_token: string; user: AuthUser };
+type AuthResponse = { access_token: string; refresh_token?: string; user: AuthUser };
 type LoginInput = { email: string; password: string; remember: boolean };
 type CompleteGoogleSignupInput = {
   onboarding_token: string;
@@ -47,6 +47,8 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 const ACCESS_KEY = "mdp_access_token";
 const LEGACY_REFRESH_KEY = "mdp_refresh_token";
+const LOGOUT_KEY = "mdp_logged_out_at";
+const LOGOUT_REFRESH_SUPPRESSION_MS = 30_000;
 
 function clearClientAuth() {
   for (const storage of [localStorage, sessionStorage]) {
@@ -58,6 +60,19 @@ function clearClientAuth() {
 function clearLegacyRefreshStorage() {
   localStorage.removeItem(LEGACY_REFRESH_KEY);
   sessionStorage.removeItem(LEGACY_REFRESH_KEY);
+}
+
+function markLoggedOut() {
+  localStorage.setItem(LOGOUT_KEY, String(Date.now()));
+}
+
+function clearLoggedOutMarker() {
+  localStorage.removeItem(LOGOUT_KEY);
+}
+
+function recentlyLoggedOut() {
+  const value = Number(localStorage.getItem(LOGOUT_KEY) || 0);
+  return Number.isFinite(value) && value > 0 && Date.now() - value < LOGOUT_REFRESH_SUPPRESSION_MS;
 }
 
 function isGoogleOnboarding(value: AuthResponse | GoogleOnboardingResult): value is GoogleOnboardingResult {
@@ -74,11 +89,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(ACCESS_KEY);
     sessionStorage.setItem(ACCESS_KEY, auth.access_token);
     clearLegacyRefreshStorage();
+    clearLoggedOutMarker();
     setAccessToken(auth.access_token);
     setUser(auth.user);
   }, []);
 
   const refresh = useCallback(async (): Promise<string | null> => {
+    if (recentlyLoggedOut()) return null;
     if (refreshPromise.current) return refreshPromise.current;
     refreshPromise.current = (async () => {
       try {
@@ -127,6 +144,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void (async () => {
       clearLegacyRefreshStorage();
+      if (recentlyLoggedOut()) {
+        clearClientAuth();
+        setAccessToken(null);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
       const token = sessionStorage.getItem(ACCESS_KEY) || localStorage.getItem(ACCESS_KEY);
       let usableToken = token;
       if (!usableToken) usableToken = await refresh();
@@ -185,16 +209,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [persistAccess]);
 
   const logout = useCallback(async () => {
-    try {
-      let token = accessToken;
-      if (!token) token = await refresh();
-      if (token) await apiRequest<void>("/auth/logout", { method: "POST", accessToken: token });
-    } finally {
-      clearClientAuth();
-      setAccessToken(null);
-      setUser(null);
-    }
-  }, [accessToken, refresh]);
+    const token = accessToken;
+
+    // Logout is intentionally optimistic: the UI must not wait for a slow API or a refresh attempt.
+    markLoggedOut();
+    clearClientAuth();
+    setAccessToken(null);
+    setUser(null);
+
+    void (async () => {
+      try {
+        if (token) {
+          await apiRequest<void>("/auth/logout", {
+            method: "POST",
+            accessToken: token,
+            signal: AbortSignal.timeout(2500),
+          });
+          return;
+        }
+        await apiRequest<void>("/auth/logout/browser", {
+          method: "POST",
+          signal: AbortSignal.timeout(2500),
+        });
+      } catch {
+        // Best-effort cookie cleanup. The client tombstone prevents silent restoration meanwhile.
+        try {
+          await apiRequest<void>("/auth/logout/browser", {
+            method: "POST",
+            signal: AbortSignal.timeout(1500),
+          });
+        } catch {
+          // Network failure must never trap the user inside the application.
+        }
+      }
+    })();
+  }, [accessToken]);
 
   const request = useCallback(async <T,>(path: string, options: Omit<Parameters<typeof apiRequest<T>>[1], "accessToken"> = {}) => {
     let token = accessToken;
