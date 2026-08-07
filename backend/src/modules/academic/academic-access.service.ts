@@ -1,0 +1,116 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { DataSource } from 'typeorm';
+import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { UserRole } from '../users/entities/user.entity';
+
+@Injectable()
+export class AcademicAccessService {
+  constructor(private readonly dataSource: DataSource) {}
+
+  async assertCourseReadable(courseId: string, actor: AuthenticatedUser): Promise<void> {
+    if (actor.role === UserRole.SYSTEM_ADMIN) return;
+    const allowed = actor.role === UserRole.INSTRUCTOR
+      ? await this.exists(
+          `SELECT 1 FROM course_instructors
+           WHERE course_id = $1 AND instructor_id = $2`,
+          [courseId, actor.userId],
+        )
+      : await this.exists(
+          `SELECT 1
+           FROM bundle_enrollments enrollment
+           JOIN bundles bundle ON bundle.id = enrollment.bundle_id
+           JOIN bundle_courses bundle_course ON bundle_course.bundle_id = bundle.id
+           JOIN courses course ON course.id = bundle_course.course_id
+           WHERE enrollment.student_id = $2
+             AND bundle_course.course_id = $1
+             AND enrollment.status <> 'REVOKED'
+             AND bundle.status IN ('PUBLISHED','ARCHIVED')
+             AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+             AND course.is_active = TRUE`,
+          [courseId, actor.userId],
+        );
+    if (!allowed) throw new NotFoundException('Course not found');
+  }
+
+  async assertWeekReadable(weekId: string, actor: AuthenticatedUser): Promise<void> {
+    if (actor.role === UserRole.SYSTEM_ADMIN) return;
+    const allowed = actor.role === UserRole.INSTRUCTOR
+      ? await this.exists(
+          `SELECT 1
+           FROM weeks week
+           JOIN course_instructors assignment ON assignment.course_id = week.course_id
+           WHERE week.id = $1 AND assignment.instructor_id = $2`,
+          [weekId, actor.userId],
+        )
+      : await this.exists(
+          `SELECT 1
+           FROM weeks week
+           JOIN courses course ON course.id = week.course_id
+           JOIN bundle_weeks bundle_week ON bundle_week.week_id = week.id
+           JOIN bundle_enrollments enrollment ON enrollment.bundle_id = bundle_week.bundle_id
+           JOIN bundles bundle ON bundle.id = enrollment.bundle_id
+           WHERE week.id = $1
+             AND enrollment.student_id = $2
+             AND enrollment.status <> 'REVOKED'
+             AND bundle.status IN ('PUBLISHED','ARCHIVED')
+             AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+             AND course.is_active = TRUE`,
+          [weekId, actor.userId],
+        );
+    if (!allowed) throw new NotFoundException('Week not found');
+  }
+
+  async assertLectureReadable(lectureId: string, actor: AuthenticatedUser): Promise<void> {
+    if (actor.role === UserRole.SYSTEM_ADMIN) return;
+    const allowed = actor.role === UserRole.INSTRUCTOR
+      ? await this.exists(
+          `SELECT 1
+           FROM lectures lecture
+           JOIN weeks week ON week.id = lecture.week_id
+           JOIN course_instructors assignment ON assignment.course_id = week.course_id
+           WHERE lecture.id = $1 AND assignment.instructor_id = $2`,
+          [lectureId, actor.userId],
+        )
+      : await this.exists(
+          `SELECT 1
+           FROM lectures lecture
+           JOIN weeks week ON week.id = lecture.week_id
+           JOIN courses course ON course.id = week.course_id
+           JOIN bundle_weeks bundle_week ON bundle_week.week_id = week.id
+           JOIN bundle_enrollments enrollment ON enrollment.bundle_id = bundle_week.bundle_id
+           JOIN bundles bundle ON bundle.id = enrollment.bundle_id
+           WHERE lecture.id = $1
+             AND enrollment.student_id = $2
+             AND enrollment.status <> 'REVOKED'
+             AND bundle.status IN ('PUBLISHED','ARCHIVED')
+             AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+             AND course.is_active = TRUE
+             AND lecture.is_published = TRUE`,
+          [lectureId, actor.userId],
+        );
+    if (!allowed) throw new NotFoundException('Lecture not found');
+  }
+
+  async assertTopicReadable(topicId: string, actor: AuthenticatedUser): Promise<void> {
+    const rows = await this.dataSource.query(
+      `SELECT lecture_id FROM topics WHERE id = $1 LIMIT 1`,
+      [topicId],
+    ) as Array<{ lecture_id: string }>;
+    if (!rows[0]) throw new NotFoundException('Topic not found');
+    await this.assertLectureReadable(rows[0].lecture_id, actor);
+  }
+
+  async assertResourceReadable(resourceId: string, actor: AuthenticatedUser): Promise<void> {
+    const rows = await this.dataSource.query(
+      `SELECT lecture_id FROM resources WHERE id = $1 LIMIT 1`,
+      [resourceId],
+    ) as Array<{ lecture_id: string }>;
+    if (!rows[0]) throw new NotFoundException('Resource not found');
+    await this.assertLectureReadable(rows[0].lecture_id, actor);
+  }
+
+  private async exists(sql: string, params: unknown[]): Promise<boolean> {
+    const rows = await this.dataSource.query(sql, params) as unknown[];
+    return rows.length > 0;
+  }
+}
