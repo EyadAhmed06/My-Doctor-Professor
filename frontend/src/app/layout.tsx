@@ -33,6 +33,7 @@ import "@/components/google-auth.css";
 import "@/components/locale.css";
 import "@/components/platform-completion.css";
 import "@/components/mobile-completion.css";
+import "@/components/runtime-performance.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
