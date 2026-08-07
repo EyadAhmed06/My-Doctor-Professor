@@ -120,6 +120,20 @@ export class AuthController {
     return this.usersService.getUserProfile(user.userId);
   }
 
+  @Get('security')
+  @UseGuards(JwtAuthGuard)
+  @Header('Cache-Control', 'no-store')
+  getSecurityOverview(@CurrentUser() user: AuthenticatedUser) {
+    return this.usersService.getSecurityOverview(user.userId, user.sessionId);
+  }
+
+  @Post('sessions/revoke-others')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async revokeOtherSessions(@CurrentUser() user: AuthenticatedUser): Promise<void> {
+    await this.usersService.revokeOtherSessions(user.userId, user.sessionId);
+  }
+
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
