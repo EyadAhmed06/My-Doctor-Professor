@@ -153,10 +153,11 @@ jobs:
               'RevokeLegacyRefreshSessions1840000000000',
               'AddStudentWorkspace1845000000000',
               'AddBundleAccessLayer1850000000000',
-              'AddNotebookAnalyticsScheduler1860000000000'
+              'AddNotebookAnalyticsScheduler1860000000000',
+              'AddExternalAuthIdentities1870000000000'
             )
           ")"
-          test "${expected_count}" -eq 12
+          test "${expected_count}" -eq 13
       - name: Apply current database permissions
         run: >-
           psql -h localhost -U postgres -d upgrade_test
