@@ -15,7 +15,18 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium-desktop', use: { ...devices['Desktop Chrome'] } },
-    { name: 'chromium-mobile', use: { ...devices['Pixel 7'] } },
+    {
+      name: 'chromium-mobile-small',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true },
+    },
+    {
+      name: 'chromium-mobile',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true },
+    },
+    {
+      name: 'chromium-tablet',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 820, height: 1180 }, isMobile: true, hasTouch: true },
+    },
   ],
   webServer: {
     command: 'npm run start -- -p 3001',
