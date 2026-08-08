@@ -1,5 +1,6 @@
-/* Homepage medical-image integration — LIGHT MODE ONLY.
-   Dark mode assets and rendering are intentionally untouched. */
+/* Homepage medical-image integration.
+   Brain/circulatory/hero processing remains light-mode-only.
+   The clean thyroid asset is intentionally used in both light and dark modes. */
 
 /* Keep homepage media frameless in light mode. */
 html[data-theme="light"] .hero-duo,
@@ -49,9 +50,12 @@ html[data-theme="light"] .hero-duo img {
  * color presentation only; it never replaces, masks or crops source pixels.
  */
 
-/* Thyroid — preserve the full gland/larynx instead of cropping it to a square. */
+/*
+ * Thyroid — use the new original, watermark-free asset in BOTH themes.
+ * Keep the full gland, larynx and trachea visible with no cover-crop or mask.
+ */
 html[data-theme="light"] .thyroid-visual img {
-  content: normal !important;
+  content: url('/media/thyroid-home-clean.svg') !important;
   width: 100% !important;
   height: auto !important;
   max-width: 100% !important;
@@ -60,19 +64,41 @@ html[data-theme="light"] .thyroid-visual img {
   object-position: center center !important;
   opacity: 1 !important;
   visibility: visible !important;
-  mix-blend-mode: multiply !important;
+  mix-blend-mode: normal !important;
   filter:
-    invert(1)
-    hue-rotate(180deg)
-    saturate(1.28)
-    contrast(1.10)
-    brightness(1.08) !important;
+    saturate(.98)
+    contrast(1.06)
+    brightness(.96)
+    drop-shadow(0 12px 28px rgba(86, 101, 190, .12)) !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+html[data-theme="dark"] .thyroid-visual img {
+  content: url('/media/thyroid-home-clean.svg') !important;
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  aspect-ratio: auto !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  mix-blend-mode: normal !important;
+  filter:
+    saturate(1.12)
+    contrast(1.08)
+    brightness(1.08)
+    drop-shadow(0 0 28px rgba(72, 210, 199, .16)) !important;
   -webkit-mask-image: none !important;
   mask-image: none !important;
 }
 
 html[data-theme="light"] .thyroid-visual::before,
-html[data-theme="light"] .thyroid-visual::after {
+html[data-theme="light"] .thyroid-visual::after,
+html[data-theme="dark"] .thyroid-visual::before,
+html[data-theme="dark"] .thyroid-visual::after {
   content: none !important;
   display: none !important;
 }
