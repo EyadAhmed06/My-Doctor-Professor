@@ -1,7 +1,7 @@
 /* Homepage medical-image integration — LIGHT MODE ONLY.
    Dark mode assets and rendering are intentionally untouched. */
 
-/* Keep the homepage visual containers frameless in light mode. */
+/* Keep homepage media frameless in light mode. */
 html[data-theme="light"] .hero-duo,
 html[data-theme="light"] .thyroid-visual,
 html[data-theme="light"] .organ-image-grid figure,
@@ -43,40 +43,64 @@ html[data-theme="light"] .hero-duo img {
 }
 
 /*
- * The v5 assets currently stored in the repository are not valid PNG byte
- * streams, so browsers cannot decode them. Use the verified v4 PNGs directly
- * on the real <img> elements. No hidden image, pseudo-element, background
- * replacement, opacity trick, or mask is involved.
+ * IMPORTANT: use the complete original medical source images in light mode.
+ * The earlier processed replacements plus object-fit:cover were responsible
+ * for the visibly clipped/eaten anatomy. The light treatment below changes
+ * color presentation only; it never replaces, masks or crops source pixels.
  */
 
-/* Thyroid */
+/* Thyroid — preserve the full gland/larynx instead of cropping it to a square. */
 html[data-theme="light"] .thyroid-visual img {
-  content: url('/media/thyroid-learning-light-v4.png') !important;
+  content: normal !important;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  aspect-ratio: auto !important;
+  object-fit: contain !important;
+  object-position: center center !important;
   opacity: 1 !important;
   visibility: visible !important;
-  mix-blend-mode: normal !important;
-  filter: none !important;
+  mix-blend-mode: multiply !important;
+  filter:
+    invert(1)
+    hue-rotate(180deg)
+    saturate(1.28)
+    contrast(1.10)
+    brightness(1.08) !important;
   -webkit-mask-image: none !important;
   mask-image: none !important;
 }
 
-html[data-theme="light"] .thyroid-visual::before {
+html[data-theme="light"] .thyroid-visual::before,
+html[data-theme="light"] .thyroid-visual::after {
   content: none !important;
   display: none !important;
 }
 
-/* Brain */
+/* Brain — keep the complete cerebrum, cerebellum and brainstem visible. */
 html[data-theme="light"] .organ-image-grid figure:nth-child(1) img {
-  content: url('/media/home-brain-light-v4.png') !important;
+  content: normal !important;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  aspect-ratio: auto !important;
+  object-fit: contain !important;
+  object-position: center center !important;
   opacity: 1 !important;
   visibility: visible !important;
-  mix-blend-mode: normal !important;
-  filter: none !important;
+  mix-blend-mode: multiply !important;
+  filter:
+    invert(1)
+    hue-rotate(180deg)
+    saturate(1.32)
+    contrast(1.10)
+    brightness(1.07) !important;
   -webkit-mask-image: none !important;
   mask-image: none !important;
 }
 
-html[data-theme="light"] .organ-image-grid figure:nth-child(1)::before {
+html[data-theme="light"] .organ-image-grid figure:nth-child(1)::before,
+html[data-theme="light"] .organ-image-grid figure:nth-child(1)::after {
   content: none !important;
   display: none !important;
 }
@@ -89,7 +113,7 @@ html[data-theme="light"] .organ-image-grid figure:nth-child(1) figcaption {
   box-shadow: none !important;
 }
 
-/* Heart remains exactly the light-mode palette anchor. */
+/* Heart remains the existing light-mode palette anchor. */
 html[data-theme="light"] .organ-image-grid figure:nth-child(2) {
   background: transparent !important;
 }
@@ -106,18 +130,32 @@ html[data-theme="light"] .organ-image-grid figure:nth-child(2) img {
   mask-image: radial-gradient(ellipse 94% 90% at 50% 49%, #000 0 72%, rgba(0,0,0,.98) 84%, rgba(0,0,0,.76) 93%, transparent 100%);
 }
 
-/* Circulatory system */
+/* Circulatory system — render the complete original anatomy with no replacement. */
 html[data-theme="light"] .circulation-feature figure img {
-  content: url('/media/home-circulatory-light-v4.png') !important;
+  content: normal !important;
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  max-height: none !important;
+  aspect-ratio: auto !important;
+  object-fit: contain !important;
+  object-position: center center !important;
   opacity: 1 !important;
   visibility: visible !important;
-  mix-blend-mode: normal !important;
-  filter: none !important;
+  mix-blend-mode: multiply !important;
+  filter:
+    invert(1)
+    hue-rotate(180deg)
+    saturate(1.35)
+    contrast(1.16)
+    brightness(1.10) !important;
   -webkit-mask-image: none !important;
   mask-image: none !important;
 }
 
-html[data-theme="light"] .circulation-feature figure::before {
+html[data-theme="light"] .circulation-feature figure::before,
+html[data-theme="light"] .circulation-feature figure::after {
   content: none !important;
   display: none !important;
 }
