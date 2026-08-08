@@ -1,6 +1,7 @@
 /* Homepage medical-image integration — LIGHT MODE ONLY.
-   Dark mode continues to use the original homepage image sources unchanged. */
+   Dark mode assets and rendering are intentionally untouched. */
 
+/* Keep the homepage visual containers frameless in light mode. */
 html[data-theme="light"] .hero-duo,
 html[data-theme="light"] .thyroid-visual,
 html[data-theme="light"] .organ-image-grid figure,
@@ -8,7 +9,6 @@ html[data-theme="light"] .circulation-feature figure {
   position: relative;
   isolation: auto !important;
   overflow: visible !important;
-  background: transparent !important;
   border: 0 !important;
   outline: 0 !important;
   box-shadow: none !important;
@@ -32,17 +32,20 @@ html[data-theme="light"] .organ-image-grid img,
 html[data-theme="light"] .circulation-feature figure img {
   display: block;
   position: relative;
-  opacity: 1 !important;
-  background: transparent !important;
   border: 0 !important;
   outline: 0 !important;
   box-shadow: none !important;
-  mix-blend-mode: normal !important;
-  transition: filter .25s ease, transform .25s ease;
+  transition: filter .25s ease, opacity .25s ease, transform .25s ease;
 }
 
-/* Keep the existing Doctor/Professor light-mode treatment. */
+/* Doctor + Professor keeps its existing artwork, only lightly integrated. */
+html[data-theme="light"] .hero-duo {
+  background: transparent !important;
+}
+
 html[data-theme="light"] .hero-duo img {
+  opacity: 1;
+  mix-blend-mode: normal !important;
   filter:
     saturate(1.08)
     brightness(1.06)
@@ -53,30 +56,56 @@ html[data-theme="light"] .hero-duo img {
   mask-image: radial-gradient(ellipse 96% 92% at 50% 48%, #000 0 72%, rgba(0,0,0,.98) 82%, rgba(0,0,0,.76) 91%, transparent 100%);
 }
 
-/* Light-mode-only processed PNG replacements. The source attributes in the
-   component are unchanged, so dark mode still renders the original assets. */
-html[data-theme="light"] .thyroid-visual img {
-  content: url("/media/thyroid-learning-light.png") !important;
+/*
+ * The three approved processed PNGs are rendered as container backgrounds.
+ * Their original <img> elements remain in the document with opacity: 0 solely
+ * to preserve the exact existing responsive sizing/aspect-ratio. This avoids
+ * unreliable CSS content:url(...) replacement on <img> elements.
+ */
+html[data-theme="light"] .thyroid-visual {
+  background-image: url('/media/thyroid-learning-light.png') !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: contain !important;
+  background-color: transparent !important;
   filter:
-    drop-shadow(0 10px 24px rgba(58, 112, 245, .12))
-    drop-shadow(0 0 18px rgba(104, 80, 228, .10));
+    drop-shadow(0 0 18px rgba(58, 112, 245, .12))
+    drop-shadow(0 0 24px rgba(104, 80, 228, .10));
+}
+
+html[data-theme="light"] .thyroid-visual img {
+  opacity: 0 !important;
+  filter: none !important;
   -webkit-mask-image: none !important;
   mask-image: none !important;
+}
+
+html[data-theme="light"] .organ-image-grid figure:nth-child(1) {
+  background-image: url('/media/home-brain-light.png') !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: contain !important;
+  background-color: transparent !important;
+  filter:
+    drop-shadow(0 0 18px rgba(58, 112, 245, .12))
+    drop-shadow(0 0 24px rgba(104, 80, 228, .10));
 }
 
 html[data-theme="light"] .organ-image-grid figure:nth-child(1) img {
-  content: url("/media/home-brain-light.png") !important;
-  filter:
-    drop-shadow(0 10px 24px rgba(58, 112, 245, .12))
-    drop-shadow(0 0 18px rgba(104, 80, 228, .10));
+  opacity: 0 !important;
+  filter: none !important;
   -webkit-mask-image: none !important;
   mask-image: none !important;
 }
 
-/* The heart remains the light-mode colour anchor. */
+/* Heart remains the light-mode palette anchor. */
+html[data-theme="light"] .organ-image-grid figure:nth-child(2) {
+  background: transparent !important;
+}
+
 html[data-theme="light"] .organ-image-grid figure:nth-child(2) img {
+  opacity: .98;
   mix-blend-mode: multiply !important;
-  opacity: .98 !important;
   filter:
     saturate(1.02)
     brightness(1.025)
@@ -85,25 +114,34 @@ html[data-theme="light"] .organ-image-grid figure:nth-child(2) img {
   mask-image: radial-gradient(ellipse 94% 90% at 50% 49%, #000 0 72%, rgba(0,0,0,.98) 84%, rgba(0,0,0,.76) 93%, transparent 100%);
 }
 
-html[data-theme="light"] .circulation-feature figure img {
-  content: url("/media/home-circulatory-light.png") !important;
+html[data-theme="light"] .circulation-feature figure {
+  background-image: url('/media/home-circulatory-light.png') !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: contain !important;
+  background-color: transparent !important;
   filter:
-    drop-shadow(0 12px 30px rgba(58, 112, 245, .12))
-    drop-shadow(0 0 22px rgba(104, 80, 228, .10));
+    drop-shadow(0 0 20px rgba(58, 112, 245, .10))
+    drop-shadow(0 0 26px rgba(104, 80, 228, .10));
+}
+
+html[data-theme="light"] .circulation-feature figure img {
+  opacity: 0 !important;
+  filter: none !important;
   -webkit-mask-image: none !important;
   mask-image: none !important;
 }
 
+/* Captions remain ordinary page typography. */
 html[data-theme="light"] .organ-image-grid figcaption {
+  position: relative;
+  z-index: 2;
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
 }
 
-html[data-theme="light"] .hero-duo:hover img,
-html[data-theme="light"] .thyroid-visual:hover img,
-html[data-theme="light"] .organ-image-grid figure:hover img,
-html[data-theme="light"] .circulation-feature figure:hover img {
+html[data-theme="light"] .hero-duo:hover img {
   transform: scale(1.003);
 }
 
