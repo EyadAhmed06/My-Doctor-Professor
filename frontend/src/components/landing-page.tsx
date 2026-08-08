@@ -8,8 +8,9 @@ import {
 import { useState } from "react";
 import { BRAND_NAME, BRAND_TAGLINE, BrandLockup } from "./brand";
 import { useAuth } from "./auth-provider";
-import { LanguageSwitcher, useLocale } from "./locale-provider";
+import { useLocale } from "./locale-provider";
 import "./landing-i18n.css";
+import "./landing-light-media.css";
 
 type Localized = { en: string; ar: string };
 const local = (locale: "en" | "ar", value: Localized) => value[locale];
@@ -24,7 +25,7 @@ const years = [
   {
     year: { en: "Year 2", ar: "السنة الثانية" }, focus: { en: "Systems", ar: "أجهزة الجسم" },
     description: { en: "Connect mechanisms, pathology, and pharmacology.", ar: "اربط الآليات المرضية بعلم الأمراض وعلم الأدوية." },
-    semesters: [{ en: "Semester 3", ar: "الفصل الدراسي الثالث" }, { en: "Semester 4", ar: "الفصل الدراسي الرابع" }],
+    semesters: [{ en: "Semester 3", ar: "الفصل الدراسي الثالث" }, { en: "Semester 4", ar: "الفصل الدراسي الثاني" }],
     topics: [{ en: "Pathology", ar: "علم الأمراض" }, { en: "Pharmacology", ar: "علم الأدوية" }, { en: "Microbiology", ar: "علم الأحياء الدقيقة" }],
   },
   {
@@ -75,7 +76,6 @@ export function LandingPage() {
         <a href="#about">{t("About us", "من نحن")}</a><a href="#goal">{t("Our goal", "هدفنا")}</a><a href="#curriculum">{t("Curriculum", "المسار الدراسي")}</a><a href="#features">{t("Features", "المزايا")}</a>
       </nav>
       <div className="public-actions">
-        <LanguageSwitcher compact />
         {authLoading ? <span className="public-session-copy">{t("Restoring session…", "جارٍ استعادة الجلسة…")}</span> : user ? <><span className="public-session-copy">{t(`Signed in as ${firstName}`, `تم تسجيل الدخول باسم ${firstName}`)}</span><Link className="public-button small" href={workspaceHref}>{t("Open dashboard", "فتح لوحة التحكم")} {arrow}</Link></> : <><Link href="/login">{t("Log in", "تسجيل الدخول")}</Link><Link className="public-button small" href="/register">{t("Create account", "إنشاء حساب")} {arrow}</Link></>}
       </div>
     </header>
@@ -83,7 +83,7 @@ export function LandingPage() {
     <section className="public-hero" id="product">
       <div className="hero-copy">
         <span className="public-eyebrow"><FiBookOpen /> My Doctor &amp; The Professor</span>
-        <h1>{t("The professor’s ", "حكمة الأستاذ. ")}<em>{t("wisdom.", "")}</em><br />{t("The doctor’s precision.", "دقة الطبيب.")}</h1>
+        <h1>{locale === "ar" ? <>حكمة الأستاذ.<br />دقة الطبيب.</> : <>The professor’s <em>wisdom.</em><br />The doctor’s <em>precision.</em></>}</h1>
         <p>{t("Reliable medical education, structured around the way students learn, professors examine, and doctors think.", "تعليم طبي موثوق ومنظم حول طريقة تعلم الطلاب، ووضع الأساتذة للاختبارات، وتفكير الأطباء.")}</p>
         <div className="hero-actions">{user ? <Link className="public-button" href={workspaceHref}>{t("Continue learning", "متابعة التعلم")} {arrow}</Link> : <Link className="public-button" href="/register">{t("Start learning", "ابدأ التعلم")} {arrow}</Link>}<a className="public-button ghost" href="#curriculum">{t("Explore the curriculum", "استكشف المسار الدراسي")}</a></div>
         <div className="hero-proof"><span><FiCheckCircle /> {t("Organized by academic year", "منظم حسب السنة الدراسية")}</span><span><FiCheckCircle /> {t("Case-based reasoning", "تفكير قائم على الحالات")}</span><span><FiCheckCircle /> {t("Personal progress", "متابعة تقدمك الشخصي")}</span></div>
