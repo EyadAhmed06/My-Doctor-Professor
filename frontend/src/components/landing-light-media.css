@@ -19,7 +19,7 @@ html[data-theme="light"] .hero-duo img,
 html[data-theme="light"] .thyroid-visual img,
 html[data-theme="light"] .organ-image-grid img,
 html[data-theme="light"] .circulation-feature figure img {
-  display: block;
+  display: block !important;
   position: relative;
   border: 0 !important;
   outline: 0 !important;
@@ -43,70 +43,42 @@ html[data-theme="light"] .hero-duo img {
 }
 
 /*
- * IMPORTANT: the three processed light-mode assets are rendered on their own
- * pseudo-element layers instead of as container backgrounds. The original
- * <img> remains only as a sizing placeholder, so other light-theme background
- * declarations cannot erase the processed artwork.
+ * The v5 assets currently stored in the repository are not valid PNG byte
+ * streams, so browsers cannot decode them. Use the verified v4 PNGs directly
+ * on the real <img> elements. No hidden image, pseudo-element, background
+ * replacement, opacity trick, or mask is involved.
  */
 
 /* Thyroid */
 html[data-theme="light"] .thyroid-visual img {
-  opacity: 0 !important;
-  visibility: hidden !important;
+  content: url('/media/thyroid-learning-light-v4.png') !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  mix-blend-mode: normal !important;
   filter: none !important;
   -webkit-mask-image: none !important;
   mask-image: none !important;
 }
 
 html[data-theme="light"] .thyroid-visual::before {
-  content: "" !important;
-  display: block !important;
-  position: absolute !important;
-  inset: 0 !important;
-  z-index: 1 !important;
-  pointer-events: none !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  background-color: transparent !important;
-  background-image: url('/media/thyroid-learning-light-v5.png') !important;
-  background-position: center !important;
-  background-repeat: no-repeat !important;
-  background-size: contain !important;
-  filter: none !important;
-  -webkit-mask-image: none !important;
-  mask-image: none !important;
+  content: none !important;
+  display: none !important;
 }
 
-/* Brain — the source image is square, so the overlay occupies only the image
-   region and leaves the figcaption in its normal flow below it. */
+/* Brain */
 html[data-theme="light"] .organ-image-grid figure:nth-child(1) img {
-  opacity: 0 !important;
-  visibility: hidden !important;
+  content: url('/media/home-brain-light-v4.png') !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  mix-blend-mode: normal !important;
   filter: none !important;
   -webkit-mask-image: none !important;
   mask-image: none !important;
 }
 
 html[data-theme="light"] .organ-image-grid figure:nth-child(1)::before {
-  content: "" !important;
-  display: block !important;
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100% !important;
-  aspect-ratio: 1 / 1 !important;
-  z-index: 1 !important;
-  pointer-events: none !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  background-color: transparent !important;
-  background-image: url('/media/home-brain-light-v5.png') !important;
-  background-position: center !important;
-  background-repeat: no-repeat !important;
-  background-size: contain !important;
-  filter: none !important;
-  -webkit-mask-image: none !important;
-  mask-image: none !important;
+  content: none !important;
+  display: none !important;
 }
 
 html[data-theme="light"] .organ-image-grid figure:nth-child(1) figcaption {
@@ -136,30 +108,18 @@ html[data-theme="light"] .organ-image-grid figure:nth-child(2) img {
 
 /* Circulatory system */
 html[data-theme="light"] .circulation-feature figure img {
-  opacity: 0 !important;
-  visibility: hidden !important;
+  content: url('/media/home-circulatory-light-v4.png') !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  mix-blend-mode: normal !important;
   filter: none !important;
   -webkit-mask-image: none !important;
   mask-image: none !important;
 }
 
 html[data-theme="light"] .circulation-feature figure::before {
-  content: "" !important;
-  display: block !important;
-  position: absolute !important;
-  inset: 0 !important;
-  z-index: 1 !important;
-  pointer-events: none !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  background-color: transparent !important;
-  background-image: url('/media/home-circulatory-light-v5.png') !important;
-  background-position: center !important;
-  background-repeat: no-repeat !important;
-  background-size: contain !important;
-  filter: none !important;
-  -webkit-mask-image: none !important;
-  mask-image: none !important;
+  content: none !important;
+  display: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
