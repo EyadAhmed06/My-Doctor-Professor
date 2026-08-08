@@ -1,7 +1,6 @@
 /* Homepage medical-image integration — LIGHT MODE ONLY.
-   Dark mode assets and rendering are intentionally untouched. */
+   Dark mode continues to use the original homepage image sources unchanged. */
 
-/* The visual containers themselves are not cards in light mode. */
 html[data-theme="light"] .hero-duo,
 html[data-theme="light"] .thyroid-visual,
 html[data-theme="light"] .organ-image-grid figure,
@@ -33,18 +32,16 @@ html[data-theme="light"] .organ-image-grid img,
 html[data-theme="light"] .circulation-feature figure img {
   display: block;
   position: relative;
-  opacity: 1;
+  opacity: 1 !important;
   background: transparent !important;
   border: 0 !important;
   outline: 0 !important;
   box-shadow: none !important;
   mix-blend-mode: normal !important;
-  transition: filter .25s ease, opacity .25s ease, transform .25s ease;
+  transition: filter .25s ease, transform .25s ease;
 }
 
-/* Doctor + Professor: keep the native cyan/violet split clearly visible. The
-   dark poster background is retained only around the artwork and feathered into
-   the metallic-lilac page, so there is no hard rectangular image boundary. */
+/* Keep the existing Doctor/Professor light-mode treatment. */
 html[data-theme="light"] .hero-duo img {
   filter:
     saturate(1.08)
@@ -56,39 +53,30 @@ html[data-theme="light"] .hero-duo img {
   mask-image: radial-gradient(ellipse 96% 92% at 50% 48%, #000 0 72%, rgba(0,0,0,.98) 82%, rgba(0,0,0,.76) 91%, transparent 100%);
 }
 
-/* Thyroid: strongly visible blue/cyan/violet, deliberately aligned with the
-   heart palette. No screen blending: that was what bleached it white. */
+/* Light-mode-only processed PNG replacements. The source attributes in the
+   component are unchanged, so dark mode still renders the original assets. */
 html[data-theme="light"] .thyroid-visual img {
+  content: url("/media/thyroid-learning-light.png") !important;
   filter:
-    hue-rotate(18deg)
-    saturate(1.42)
-    brightness(1.08)
-    contrast(1.18)
-    drop-shadow(0 0 18px rgba(58, 112, 245, .16))
-    drop-shadow(0 0 24px rgba(104, 80, 228, .14));
-  -webkit-mask-image: radial-gradient(ellipse 88% 88% at 50% 50%, #000 0 70%, rgba(0,0,0,.98) 80%, rgba(0,0,0,.72) 91%, transparent 100%);
-  mask-image: radial-gradient(ellipse 88% 88% at 50% 50%, #000 0 70%, rgba(0,0,0,.98) 80%, rgba(0,0,0,.72) 91%, transparent 100%);
+    drop-shadow(0 10px 24px rgba(58, 112, 245, .12))
+    drop-shadow(0 0 18px rgba(104, 80, 228, .10));
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
 }
 
-/* Brain: use the same cyan → periwinkle → violet visual family as the heart,
-   while preserving enough navy contrast for the anatomy to remain readable. */
 html[data-theme="light"] .organ-image-grid figure:nth-child(1) img {
+  content: url("/media/home-brain-light.png") !important;
   filter:
-    hue-rotate(20deg)
-    saturate(1.55)
-    brightness(1.06)
-    contrast(1.22)
-    drop-shadow(0 0 18px rgba(58, 112, 245, .16))
-    drop-shadow(0 0 24px rgba(104, 80, 228, .16));
-  -webkit-mask-image: radial-gradient(ellipse 88% 88% at 50% 50%, #000 0 68%, rgba(0,0,0,.98) 79%, rgba(0,0,0,.72) 90%, transparent 100%);
-  mask-image: radial-gradient(ellipse 88% 88% at 50% 50%, #000 0 68%, rgba(0,0,0,.98) 79%, rgba(0,0,0,.72) 90%, transparent 100%);
+    drop-shadow(0 10px 24px rgba(58, 112, 245, .12))
+    drop-shadow(0 0 18px rgba(104, 80, 228, .10));
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
 }
 
-/* Heart is the light-mode colour anchor. Keep its current cyan/violet artwork
-   essentially intact and let its pale source background merge into the page. */
+/* The heart remains the light-mode colour anchor. */
 html[data-theme="light"] .organ-image-grid figure:nth-child(2) img {
   mix-blend-mode: multiply !important;
-  opacity: .98;
+  opacity: .98 !important;
   filter:
     saturate(1.02)
     brightness(1.025)
@@ -97,22 +85,15 @@ html[data-theme="light"] .organ-image-grid figure:nth-child(2) img {
   mask-image: radial-gradient(ellipse 94% 90% at 50% 49%, #000 0 72%, rgba(0,0,0,.98) 84%, rgba(0,0,0,.76) 93%, transparent 100%);
 }
 
-/* Full circulatory system: keep the cyan anatomy and move the warm vascular side
-   toward rose-violet so it belongs to the same family as the heart. The vertical
-   navy field fades at its edges instead of becoming a separate image frame. */
 html[data-theme="light"] .circulation-feature figure img {
+  content: url("/media/home-circulatory-light.png") !important;
   filter:
-    hue-rotate(340deg)
-    saturate(1.24)
-    brightness(1.06)
-    contrast(1.16)
-    drop-shadow(0 0 20px rgba(58, 112, 245, .14))
-    drop-shadow(0 0 26px rgba(104, 80, 228, .14));
-  -webkit-mask-image: radial-gradient(ellipse 88% 98% at 50% 48%, #000 0 70%, rgba(0,0,0,.98) 82%, rgba(0,0,0,.72) 92%, transparent 100%);
-  mask-image: radial-gradient(ellipse 88% 98% at 50% 48%, #000 0 70%, rgba(0,0,0,.98) 82%, rgba(0,0,0,.72) 92%, transparent 100%);
+    drop-shadow(0 12px 30px rgba(58, 112, 245, .12))
+    drop-shadow(0 0 22px rgba(104, 80, 228, .10));
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
 }
 
-/* Captions remain normal page typography, never part of an image card. */
 html[data-theme="light"] .organ-image-grid figcaption {
   background: transparent !important;
   border: 0 !important;
