@@ -63,7 +63,7 @@ html[data-theme="light"] .hero-duo img {
  * Dark mode therefore continues to render the original image sources.
  */
 html[data-theme="light"] .thyroid-visual {
-  background-image: url('/media/thyroid-learning-light-v4.png') !important;
+  background-image: url('/media/thyroid-learning-light-v5.png') !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
   background-size: contain !important;
@@ -81,7 +81,7 @@ html[data-theme="light"] .thyroid-visual img {
 }
 
 html[data-theme="light"] .organ-image-grid figure:nth-child(1) {
-  background-image: url('/media/home-brain-light-v4.png') !important;
+  background-image: url('/media/home-brain-light-v5.png') !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
   background-size: contain !important;
@@ -115,7 +115,7 @@ html[data-theme="light"] .organ-image-grid figure:nth-child(2) img {
 }
 
 html[data-theme="light"] .circulation-feature figure {
-  background-image: url('/media/home-circulatory-light-v4.png') !important;
+  background-image: url('/media/home-circulatory-light-v5.png') !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
   background-size: contain !important;
