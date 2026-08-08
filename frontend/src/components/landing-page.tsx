@@ -25,7 +25,7 @@ const years = [
   {
     year: { en: "Year 2", ar: "السنة الثانية" }, focus: { en: "Systems", ar: "أجهزة الجسم" },
     description: { en: "Connect mechanisms, pathology, and pharmacology.", ar: "اربط الآليات المرضية بعلم الأمراض وعلم الأدوية." },
-    semesters: [{ en: "Semester 3", ar: "الفصل الدراسي الثالث" }, { en: "Semester 4", ar: "الفصل الدراسي الثاني" }],
+    semesters: [{ en: "Semester 3", ar: "الفصل الدراسي الثالث" }, { en: "Semester 4", ar: "الفصل الدراسي الرابع" }],
     topics: [{ en: "Pathology", ar: "علم الأمراض" }, { en: "Pharmacology", ar: "علم الأدوية" }, { en: "Microbiology", ar: "علم الأحياء الدقيقة" }],
   },
   {
