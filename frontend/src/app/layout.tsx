@@ -35,6 +35,7 @@ import "@/components/platform-completion.css";
 import "@/components/mobile-completion.css";
 import "@/components/runtime-performance.css";
 import "@/components/reference-light-palette.css";
+import "@/components/reference-light-palette-exact.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
