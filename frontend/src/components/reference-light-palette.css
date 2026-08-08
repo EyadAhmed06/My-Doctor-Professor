@@ -1,0 +1,539 @@
+/*
+ * Final light-palette reference layer.
+ *
+ * Color-only overrides derived from the supplied clinical learning reference:
+ * cool near-white canvas, pale blue/lavender support surfaces, navy typography,
+ * royal-blue/violet primary actions, and restrained mint/teal clinical-success accents.
+ *
+ * IMPORTANT: every rule is explicitly scoped to data-theme="light". Nothing in
+ * this file changes dark-mode colors, geometry, spacing, typography, or behavior.
+ */
+
+html[data-theme="light"] {
+  color-scheme: light;
+
+  /* Reference palette */
+  --ref-canvas: #f2f6fc;
+  --ref-canvas-blue: #eaf1fb;
+  --ref-surface: #ffffff;
+  --ref-surface-soft: #f7f9fd;
+  --ref-surface-blue: #eef3fc;
+  --ref-surface-lilac: #f5effc;
+  --ref-border: #dce4f0;
+  --ref-border-strong: #cbd6e8;
+  --ref-text: #102653;
+  --ref-text-strong: #0b1f49;
+  --ref-muted: #687693;
+  --ref-muted-soft: #8b97ad;
+  --ref-blue: #4375f4;
+  --ref-blue-strong: #315fdc;
+  --ref-violet: #8359ee;
+  --ref-violet-soft: #eee8ff;
+  --ref-teal: #29b99b;
+  --ref-teal-soft: #e8f8f4;
+  --ref-cyan: #59c9dc;
+  --ref-success: #29b99b;
+  --ref-warning: #d48a35;
+  --ref-danger: #d65061;
+  --ref-shadow: 0 14px 36px rgba(43, 67, 111, .08);
+  --ref-shadow-soft: 0 6px 18px rgba(43, 67, 111, .055);
+
+  /* Existing global token families */
+  --app-bg: var(--ref-canvas);
+  --app-bg-soft: var(--ref-canvas-blue);
+  --app-surface: var(--ref-surface);
+  --app-surface-soft: var(--ref-surface-soft);
+  --app-surface-raised: var(--ref-surface);
+  --app-border: var(--ref-border);
+  --app-border-strong: var(--ref-border-strong);
+  --app-text: var(--ref-text);
+  --app-muted: var(--ref-muted);
+  --app-accent: var(--ref-blue);
+  --app-accent-strong: var(--ref-blue-strong);
+  --app-accent-2: var(--ref-violet);
+  --app-accent-soft: #edf2ff;
+  --app-success: var(--ref-success);
+  --app-warning: var(--ref-warning);
+  --app-danger: var(--ref-danger);
+  --app-shadow: var(--ref-shadow);
+  --app-shadow-soft: var(--ref-shadow-soft);
+
+  --bg: var(--ref-canvas);
+  --panel: var(--ref-surface);
+  --panel-2: var(--ref-surface-soft);
+  --line: var(--ref-border);
+  --text: var(--ref-text);
+  --muted: var(--ref-muted);
+  --teal: var(--ref-blue);
+  --violet: var(--ref-violet);
+  --blue: var(--ref-blue);
+
+  --background: var(--ref-canvas);
+  --surface: var(--ref-surface);
+  --surface-soft: var(--ref-surface-soft);
+  --border: var(--ref-border);
+  --accent: var(--ref-blue);
+  --accent-2: var(--ref-violet);
+  --success: var(--ref-success);
+  --warning: var(--ref-warning);
+  --danger: var(--ref-danger);
+  --shadow: var(--ref-shadow);
+}
+
+html[data-theme="light"],
+html[data-theme="light"] body {
+  background-color: var(--ref-canvas) !important;
+  color: var(--ref-text) !important;
+}
+
+html[data-theme="light"] body {
+  background-image:
+    radial-gradient(circle at 4% -5%, rgba(131, 89, 238, .10), transparent 27%),
+    radial-gradient(circle at 94% -4%, rgba(67, 117, 244, .10), transparent 29%),
+    linear-gradient(180deg, #f8f9ff 0%, var(--ref-canvas) 34%, var(--ref-canvas) 100%) !important;
+}
+
+html[data-theme="light"] ::selection {
+  background: rgba(67, 117, 244, .18);
+  color: var(--ref-text-strong);
+}
+
+/* Public website */
+html[data-theme="light"] .public-home,
+html[data-theme="light"] .registration-page {
+  --pub-bg: var(--ref-canvas);
+  --pub-panel: var(--ref-surface);
+  --pub-soft: var(--ref-surface-soft);
+  --pub-line: var(--ref-border);
+  --pub-text: var(--ref-text);
+  --pub-muted: var(--ref-muted);
+  --pub-teal: var(--ref-blue);
+  background-color: var(--ref-canvas) !important;
+  color: var(--ref-text) !important;
+}
+
+html[data-theme="light"] .public-nav,
+html[data-theme="light"] .public-footer,
+html[data-theme="light"] .registration-story,
+html[data-theme="light"] .registration-form-side {
+  border-color: var(--ref-border) !important;
+}
+
+html[data-theme="light"] .public-footer {
+  background-color: #edf2fa !important;
+}
+
+html[data-theme="light"] .public-button,
+html[data-theme="light"] .primary-button,
+html[data-theme="light"] .registration-form > .primary-button {
+  background: linear-gradient(110deg, var(--ref-blue), var(--ref-violet)) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 25px rgba(67, 93, 215, .19) !important;
+}
+
+html[data-theme="light"] .public-button.ghost {
+  background: rgba(255, 255, 255, .72) !important;
+  border-color: var(--ref-border) !important;
+  color: var(--ref-text) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="light"] .year-card,
+html[data-theme="light"] .feature-grid article,
+html[data-theme="light"] .why-grid article,
+html[data-theme="light"] .public-goal,
+html[data-theme="light"] .public-cta,
+html[data-theme="light"] .registration-card {
+  background-color: var(--ref-surface) !important;
+  border-color: var(--ref-border) !important;
+  color: var(--ref-text) !important;
+  box-shadow: var(--ref-shadow-soft);
+}
+
+html[data-theme="light"] .public-goal,
+html[data-theme="light"] .public-cta {
+  background: linear-gradient(115deg, rgba(255,255,255,.98), rgba(238, 232, 255, .72)) !important;
+}
+
+html[data-theme="light"] .public-eyebrow,
+html[data-theme="light"] .section-kicker,
+html[data-theme="light"] .section-heading > span,
+html[data-theme="light"] .public-goal small,
+html[data-theme="light"] .year-card > span,
+html[data-theme="light"] .year-open,
+html[data-theme="light"] .workflow-copy > a,
+html[data-theme="light"] .thyroid-copy a,
+html[data-theme="light"] .public-footer .brand-words small {
+  color: var(--ref-blue) !important;
+}
+
+html[data-theme="light"] .hero-copy h1,
+html[data-theme="light"] .section-heading h2,
+html[data-theme="light"] .public-goal h2,
+html[data-theme="light"] .workflow-copy h2,
+html[data-theme="light"] .public-cta h2,
+html[data-theme="light"] .year-card h3,
+html[data-theme="light"] .feature-grid h3,
+html[data-theme="light"] .why-grid h3 {
+  color: var(--ref-text-strong) !important;
+}
+
+html[data-theme="light"] .hero-copy h1 em {
+  color: var(--ref-violet) !important;
+}
+
+html[data-theme="light"] .public-home p,
+html[data-theme="light"] .public-home .hero-proof,
+html[data-theme="light"] .public-footer,
+html[data-theme="light"] .registration-page p,
+html[data-theme="light"] .registration-page small {
+  color: var(--ref-muted) !important;
+}
+
+/* Authentication */
+html[data-theme="light"] .reference-login,
+html[data-theme="light"] .reference-register {
+  --auth-bg: var(--ref-canvas);
+  --auth-card: rgba(255, 255, 255, .98);
+  --auth-input: var(--ref-surface-soft);
+  --auth-line: var(--ref-border);
+}
+
+html[data-theme="light"] .auth-page,
+html[data-theme="light"] .landing-page,
+html[data-theme="light"] .login-page,
+html[data-theme="light"] .story-side,
+html[data-theme="light"] .form-side {
+  color: var(--ref-text) !important;
+}
+
+html[data-theme="light"] .panel,
+html[data-theme="light"] .login-card,
+html[data-theme="light"] .signup-card,
+html[data-theme="light"] .plan-summary,
+html[data-theme="light"] .trust-strip,
+html[data-theme="light"] .benefit-icon,
+html[data-theme="light"] .institution,
+html[data-theme="light"] .google-button {
+  background: rgba(255, 255, 255, .97) !important;
+  border-color: var(--ref-border) !important;
+  color: var(--ref-text) !important;
+  box-shadow: var(--ref-shadow) !important;
+}
+
+html[data-theme="light"] .input-shell,
+html[data-theme="light"] .checkline input {
+  background: var(--ref-surface-soft) !important;
+  border-color: var(--ref-border) !important;
+  color: var(--ref-text) !important;
+}
+
+html[data-theme="light"] .input-shell:focus-within {
+  border-color: var(--ref-blue) !important;
+  box-shadow: 0 0 0 3px rgba(67, 117, 244, .10) !important;
+}
+
+html[data-theme="light"] .story-copy h1,
+html[data-theme="light"] .plan-area > h1,
+html[data-theme="light"] .panel h2,
+html[data-theme="light"] .field,
+html[data-theme="light"] .access-line,
+html[data-theme="light"] .institution strong,
+html[data-theme="light"] .google-button {
+  color: var(--ref-text-strong) !important;
+}
+
+html[data-theme="light"] .story-copy h1 em,
+html[data-theme="light"] .plan-area > h1 em {
+  color: var(--ref-violet) !important;
+  text-shadow: none !important;
+}
+
+html[data-theme="light"] .lead,
+html[data-theme="light"] .benefit p,
+html[data-theme="light"] .subhead,
+html[data-theme="light"] .form-row,
+html[data-theme="light"] .switch-copy,
+html[data-theme="light"] .secure-note,
+html[data-theme="light"] .institution span,
+html[data-theme="light"] .trust-strip span {
+  color: var(--ref-muted) !important;
+}
+
+/* Authenticated product */
+html[data-theme="light"] .product-app,
+html[data-theme="light"] .dashboard-shell {
+  --p-bg: var(--ref-canvas) !important;
+  --p-panel: var(--ref-surface) !important;
+  --p-panel2: var(--ref-surface-soft) !important;
+  --p-line: var(--ref-border) !important;
+  --p-text: var(--ref-text) !important;
+  --p-muted: var(--ref-muted) !important;
+  --p-teal: var(--ref-blue) !important;
+  --p-teal2: var(--ref-blue-strong) !important;
+  --p-violet: var(--ref-violet) !important;
+  --p-orange: var(--ref-warning) !important;
+  --p-danger: var(--ref-danger) !important;
+
+  --db-bg: var(--ref-canvas) !important;
+  --db-sidebar: var(--ref-surface) !important;
+  --db-surface: var(--ref-surface) !important;
+  --db-surface-2: var(--ref-surface-soft) !important;
+  --db-line: var(--ref-border) !important;
+  --db-text: var(--ref-text) !important;
+  --db-muted: var(--ref-muted) !important;
+  --db-soft: var(--ref-surface-blue) !important;
+  --db-shadow: var(--ref-shadow) !important;
+  --db-teal: var(--ref-blue) !important;
+  --db-violet: var(--ref-violet) !important;
+
+  background-color: transparent !important;
+  color: var(--ref-text) !important;
+}
+
+html[data-theme="light"] .pp-topbar,
+html[data-theme="light"] .dashboard-topbar {
+  background: rgba(255, 255, 255, .94) !important;
+  border-color: var(--ref-border) !important;
+  color: var(--ref-text) !important;
+  box-shadow: 0 1px 0 rgba(40, 67, 114, .05), 0 8px 28px rgba(54, 75, 116, .035) !important;
+}
+
+html[data-theme="light"] .pp-topbar nav a,
+html[data-theme="light"] .profile-menu-trigger,
+html[data-theme="light"] .pp-search-command {
+  color: var(--ref-text) !important;
+}
+
+html[data-theme="light"] .pp-topbar nav a:hover,
+html[data-theme="light"] .pp-topbar nav a.active {
+  color: var(--ref-blue) !important;
+  border-bottom-color: var(--ref-blue) !important;
+}
+
+html[data-theme="light"] .pp-search-command,
+html[data-theme="light"] .header-popover,
+html[data-theme="light"] .profile-menu,
+html[data-theme="light"] .notification-preview {
+  background-color: var(--ref-surface) !important;
+  border-color: var(--ref-border) !important;
+  box-shadow: var(--ref-shadow) !important;
+}
+
+/* Primary content surfaces across Student / Instructor / Admin */
+html[data-theme="light"] .pp-panel,
+html[data-theme="light"] .dash-card,
+html[data-theme="light"] .role-modal,
+html[data-theme="light"] .role-master-list,
+html[data-theme="light"] .role-detail,
+html[data-theme="light"] .phase5-drawer,
+html[data-theme="light"] .phase5-confirm,
+html[data-theme="light"] .resource-preview-drawer,
+html[data-theme="light"] .assessment-student-preview li,
+html[data-theme="light"] .guide-progress-panel,
+html[data-theme="light"] .guide-resource-card,
+html[data-theme="light"] .guide-course-nav,
+html[data-theme="light"] .guide-content,
+html[data-theme="light"] .app-state-card,
+html[data-theme="light"] .bundle-content,
+html[data-theme="light"] .bundle-list,
+html[data-theme="light"] .advanced-bundle-week,
+html[data-theme="light"] .notebook-library,
+html[data-theme="light"] .note-library-card,
+html[data-theme="light"] .note-inspector,
+html[data-theme="light"] .flashcard-stage,
+html[data-theme="light"] .analytics-range-bar,
+html[data-theme="light"] .analytics-comparison,
+html[data-theme="light"] .study-plan-calendar,
+html[data-theme="light"] .settings-section,
+html[data-theme="light"] .resource-upload-panel {
+  background-color: var(--ref-surface) !important;
+  border-color: var(--ref-border) !important;
+  color: var(--ref-text) !important;
+  box-shadow: var(--ref-shadow-soft);
+}
+
+html[data-theme="light"] .pp-metric,
+html[data-theme="light"] .metric-card,
+html[data-theme="light"] .dashboard-metric,
+html[data-theme="light"] .bundle-summary-grid .pp-panel,
+html[data-theme="light"] .analytics-metrics > *,
+html[data-theme="light"] .study-plan-day,
+html[data-theme="light"] .settings-subsection,
+html[data-theme="light"] .resource-upload-dropzone {
+  background-color: var(--ref-surface-soft) !important;
+  border-color: var(--ref-border) !important;
+  color: var(--ref-text) !important;
+}
+
+html[data-theme="light"] .pp-page h1,
+html[data-theme="light"] .pp-page h2,
+html[data-theme="light"] .pp-page h3,
+html[data-theme="light"] .role-workspace h1,
+html[data-theme="light"] .role-workspace h2,
+html[data-theme="light"] .role-workspace h3,
+html[data-theme="light"] .dashboard-shell h1,
+html[data-theme="light"] .dashboard-shell h2,
+html[data-theme="light"] .dashboard-shell h3 {
+  color: var(--ref-text-strong) !important;
+}
+
+html[data-theme="light"] .product-app p,
+html[data-theme="light"] .product-app small,
+html[data-theme="light"] .role-workspace p,
+html[data-theme="light"] .role-workspace small,
+html[data-theme="light"] .dashboard-shell p,
+html[data-theme="light"] .dashboard-shell small {
+  color: var(--ref-muted) !important;
+}
+
+html[data-theme="light"] .page-eyebrow,
+html[data-theme="light"] .pp-eyebrow,
+html[data-theme="light"] .workspace-heading .page-eyebrow,
+html[data-theme="light"] .section-kicker {
+  color: var(--ref-blue) !important;
+}
+
+/* Forms, filters and editable controls */
+html[data-theme="light"] .product-app input,
+html[data-theme="light"] .product-app select,
+html[data-theme="light"] .product-app textarea,
+html[data-theme="light"] .role-form input,
+html[data-theme="light"] .role-form select,
+html[data-theme="light"] .role-form textarea,
+html[data-theme="light"] .attempt-filters > div,
+html[data-theme="light"] .attempt-filters select,
+html[data-theme="light"] .guide-global-search,
+html[data-theme="light"] .study-guide-course-select select,
+html[data-theme="light"] .notebook-search,
+html[data-theme="light"] .bundle-content-search {
+  background-color: var(--ref-surface-soft) !important;
+  border-color: var(--ref-border) !important;
+  color: var(--ref-text) !important;
+}
+
+html[data-theme="light"] .product-app input::placeholder,
+html[data-theme="light"] .product-app textarea::placeholder {
+  color: var(--ref-muted-soft) !important;
+}
+
+html[data-theme="light"] .product-app input:focus,
+html[data-theme="light"] .product-app select:focus,
+html[data-theme="light"] .product-app textarea:focus {
+  border-color: var(--ref-blue) !important;
+  box-shadow: 0 0 0 3px rgba(67, 117, 244, .09) !important;
+}
+
+html[data-theme="light"] .product-app option {
+  background: var(--ref-surface) !important;
+  color: var(--ref-text) !important;
+}
+
+/* Buttons and active controls */
+html[data-theme="light"] .pp-button:not(.secondary),
+html[data-theme="light"] .role-primary-button,
+html[data-theme="light"] .primary-action {
+  background: linear-gradient(112deg, var(--ref-blue), var(--ref-violet)) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 20px rgba(67, 93, 215, .16) !important;
+}
+
+html[data-theme="light"] .pp-button.secondary,
+html[data-theme="light"] .role-icon-button,
+html[data-theme="light"] .question-order-actions button,
+html[data-theme="light"] .assessment-select-all,
+html[data-theme="light"] .bundle-tabs button,
+html[data-theme="light"] .analytics-range-bar button,
+html[data-theme="light"] .notebook-toolbar button,
+html[data-theme="light"] .notebook-list-controls button {
+  background-color: var(--ref-surface) !important;
+  border-color: var(--ref-border) !important;
+  color: var(--ref-text) !important;
+}
+
+html[data-theme="light"] .pp-button.secondary:hover,
+html[data-theme="light"] .role-icon-button:hover,
+html[data-theme="light"] .question-order-actions button:hover:not(:disabled),
+html[data-theme="light"] .bundle-tabs button.active,
+html[data-theme="light"] .analytics-range-bar button.active,
+html[data-theme="light"] .notebook-toolbar button.active {
+  background-color: #edf2ff !important;
+  border-color: rgba(67, 117, 244, .38) !important;
+  color: var(--ref-blue) !important;
+}
+
+/* Reference-style blue/violet progress language */
+html[data-theme="light"] .pp-progress,
+html[data-theme="light"] .mini-progress,
+html[data-theme="light"] .xp-bar,
+html[data-theme="light"] .progress {
+  background-color: #e8edf6 !important;
+}
+
+html[data-theme="light"] .pp-progress i,
+html[data-theme="light"] .mini-progress i,
+html[data-theme="light"] .xp-bar i,
+html[data-theme="light"] .progress i {
+  background: linear-gradient(90deg, var(--ref-blue), var(--ref-violet)) !important;
+}
+
+html[data-theme="light"] .metric-icon,
+html[data-theme="light"] .guide-hero-icon,
+html[data-theme="light"] .workspace-resume-icon,
+html[data-theme="light"] .feature-icon {
+  background-color: #edf2ff !important;
+  color: var(--ref-blue) !important;
+}
+
+/* Keep green/teal where the reference uses it semantically: success, correct,
+   completion and clinical-positive states — never as the main app chrome. */
+html[data-theme="light"] .success,
+html[data-theme="light"] .correct,
+html[data-theme="light"] .completed,
+html[data-theme="light"] [data-tone="success"],
+html[data-theme="light"] .form-success {
+  color: var(--ref-teal) !important;
+}
+
+html[data-theme="light"] .success-badge,
+html[data-theme="light"] .correct-answer,
+html[data-theme="light"] .completed-badge {
+  background-color: var(--ref-teal-soft) !important;
+  border-color: rgba(41, 185, 155, .25) !important;
+  color: #178a74 !important;
+}
+
+/* Tables and list separators */
+html[data-theme="light"] .product-app table,
+html[data-theme="light"] .role-workspace table {
+  color: var(--ref-text) !important;
+  border-color: var(--ref-border) !important;
+}
+
+html[data-theme="light"] .product-app th,
+html[data-theme="light"] .role-workspace th {
+  background-color: var(--ref-surface-blue) !important;
+  color: #425577 !important;
+  border-color: var(--ref-border) !important;
+}
+
+html[data-theme="light"] .product-app td,
+html[data-theme="light"] .role-workspace td,
+html[data-theme="light"] .bundle-row,
+html[data-theme="light"] .notification-preview-list button {
+  border-color: var(--ref-border) !important;
+}
+
+html[data-theme="light"] .product-app tbody tr:hover,
+html[data-theme="light"] .role-workspace tbody tr:hover,
+html[data-theme="light"] .bundle-row:hover,
+html[data-theme="light"] .notification-preview-list button:hover {
+  background-color: #f3f6fc !important;
+}
+
+/* Scrollbars are also kept inside the reference palette. */
+html[data-theme="light"] * {
+  scrollbar-color: #b9c5d9 #edf2f8;
+}
