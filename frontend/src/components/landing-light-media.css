@@ -1,0 +1,96 @@
+/* Homepage medical-image color grade — LIGHT MODE ONLY.
+   Dark mode keeps the original image rendering exactly as authored. */
+
+html[data-theme="light"] .hero-duo,
+html[data-theme="light"] .thyroid-visual,
+html[data-theme="light"] .organ-image-grid figure,
+html[data-theme="light"] .circulation-feature figure {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-color: rgba(104, 80, 228, .16) !important;
+  box-shadow:
+    0 18px 44px rgba(91, 83, 142, .12),
+    0 3px 12px rgba(255, 255, 255, .64) inset !important;
+}
+
+/* A restrained pearl/lilac color veil ties all five images to the metallic
+   silver -> light-purple page palette without flattening their anatomy. */
+html[data-theme="light"] .hero-duo::after,
+html[data-theme="light"] .thyroid-visual::after,
+html[data-theme="light"] .organ-image-grid figure::after,
+html[data-theme="light"] .circulation-feature figure::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(220, 235, 255, .14), transparent 34%),
+    radial-gradient(circle at 82% 12%, rgba(207, 186, 255, .16), transparent 36%),
+    linear-gradient(135deg, rgba(109, 123, 246, .035), rgba(138, 91, 229, .10));
+  mix-blend-mode: color;
+}
+
+html[data-theme="light"] .hero-duo img,
+html[data-theme="light"] .thyroid-visual img,
+html[data-theme="light"] .organ-image-grid img,
+html[data-theme="light"] .circulation-feature figure img {
+  position: relative;
+  z-index: 1;
+  transition: filter .25s ease, transform .25s ease;
+}
+
+/* Doctor + Professor: preserve the cyan/violet split, remove stray warmth. */
+html[data-theme="light"] .hero-duo img {
+  filter: saturate(.92) hue-rotate(4deg) brightness(1.025) contrast(1.035);
+}
+
+/* Thyroid: cool the cyan into the same periwinkle/lilac range as the page. */
+html[data-theme="light"] .thyroid-visual img {
+  filter: hue-rotate(27deg) saturate(.78) brightness(1.07) contrast(1.04);
+}
+
+/* Brain: shift turquoise neon toward blue-periwinkle-violet. */
+html[data-theme="light"] .organ-image-grid figure:nth-child(1) img {
+  filter: hue-rotate(29deg) saturate(.86) brightness(1.055) contrast(1.035);
+}
+
+/* Heart: convert the harsh red linework into the reference violet family while
+   leaving the pale background pearl-clean. */
+html[data-theme="light"] .organ-image-grid figure:nth-child(2) img {
+  filter: hue-rotate(257deg) saturate(.82) brightness(1.015) contrast(.99);
+}
+
+/* Full circulatory system: red becomes rose-violet and cyan becomes cooler blue,
+   matching the approved reprocessed direction without affecting dark mode. */
+html[data-theme="light"] .circulation-feature figure img {
+  filter: hue-rotate(322deg) saturate(.88) brightness(1.035) contrast(1.045);
+}
+
+/* Pearl edge treatment makes the dark medical renders feel embedded in the
+   light page rather than pasted on top of it. */
+html[data-theme="light"] .hero-duo,
+html[data-theme="light"] .thyroid-visual,
+html[data-theme="light"] .organ-image-grid figure,
+html[data-theme="light"] .circulation-feature figure {
+  background:
+    linear-gradient(145deg, rgba(250, 251, 254, .96), rgba(232, 228, 244, .90));
+}
+
+html[data-theme="light"] .hero-duo:hover img,
+html[data-theme="light"] .thyroid-visual:hover img,
+html[data-theme="light"] .organ-image-grid figure:hover img,
+html[data-theme="light"] .circulation-feature figure:hover img {
+  transform: scale(1.006);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="light"] .hero-duo img,
+  html[data-theme="light"] .thyroid-visual img,
+  html[data-theme="light"] .organ-image-grid img,
+  html[data-theme="light"] .circulation-feature figure img {
+    transition: none !important;
+    transform: none !important;
+  }
+}
