@@ -1,0 +1,606 @@
+/*
+ * Exact sampled-reference light palette.
+ *
+ * This file intentionally contains LIGHT-MODE-ONLY overrides. The palette is
+ * sampled from the supplied clinical-learning reference image rather than
+ * approximated by a generic design system. No geometry, typography sizing,
+ * application behavior, or dark-theme tokens are changed here.
+ */
+
+html[data-theme="light"] {
+  color-scheme: light;
+
+  /* Directly sampled reference colors. */
+  --img-bg-left: #eaf4fd;
+  --img-bg-mid: #ebeffb;
+  --img-bg-violet: #efe8fa;
+  --img-bg-pink: #f8e2f7;
+  --img-bg-bottom: #dae6f4;
+
+  --img-surface: #fcfdfd;
+  --img-surface-soft: #f7f8fb;
+  --img-surface-blue: #ecf1fc;
+  --img-border: #e0e6f4;
+  --img-border-strong: #c9d1e7;
+
+  --img-navy: #0e184a;
+  --img-navy-soft: #222d61;
+  --img-muted-strong: #474d72;
+  --img-muted: #61678f;
+  --img-muted-soft: #7c83b2;
+
+  --img-blue: #3a70f5;
+  --img-blue-soft: #aec0fb;
+  --img-violet: #6850e4;
+  --img-periwinkle: #9297e9;
+  --img-teal: #0db287;
+  --img-mint: #92dfd1;
+  --img-cyan: #4ab69f;
+  --img-pink: #fd96bd;
+  --img-coral: #f1b09d;
+  --img-rose: #cd6e7b;
+  --img-amber: #eab589;
+
+  /* Remap every shared light token to the sampled image. */
+  --ref-canvas: var(--img-bg-left);
+  --ref-canvas-blue: var(--img-bg-mid);
+  --ref-canvas-lilac: var(--img-bg-violet);
+  --ref-canvas-blush: var(--img-bg-pink);
+  --ref-surface: var(--img-surface);
+  --ref-surface-soft: var(--img-surface-soft);
+  --ref-surface-blue: var(--img-surface-blue);
+  --ref-surface-lilac: #f5eefb;
+  --ref-surface-mint: #edf9f6;
+  --ref-border: var(--img-border);
+  --ref-border-strong: var(--img-border-strong);
+  --ref-text: var(--img-navy-soft);
+  --ref-text-strong: var(--img-navy);
+  --ref-muted: var(--img-muted);
+  --ref-muted-soft: var(--img-muted-soft);
+  --ref-blue: var(--img-blue);
+  --ref-blue-strong: var(--img-blue);
+  --ref-violet: var(--img-violet);
+  --ref-violet-strong: var(--img-violet);
+  --ref-violet-soft: #eeeafd;
+  --ref-teal: var(--img-teal);
+  --ref-teal-strong: var(--img-teal);
+  --ref-teal-soft: #e7f8f3;
+  --ref-cyan: var(--img-cyan);
+  --ref-cyan-soft: #eaf8f5;
+  --ref-warning: #c98a4e;
+  --ref-warning-soft: #fff5ea;
+  --ref-danger: var(--img-rose);
+  --ref-danger-soft: #fceef1;
+  --ref-shadow: 0 16px 42px rgba(14, 24, 74, .085);
+  --ref-shadow-soft: 0 7px 22px rgba(14, 24, 74, .055);
+  --ref-shadow-hover: 0 15px 34px rgba(58, 75, 128, .105);
+
+  --app-bg: var(--img-bg-left);
+  --app-bg-soft: var(--img-bg-mid);
+  --app-surface: var(--img-surface);
+  --app-surface-soft: var(--img-surface-soft);
+  --app-surface-raised: var(--img-surface);
+  --app-border: var(--img-border);
+  --app-border-strong: var(--img-border-strong);
+  --app-text: var(--img-navy-soft);
+  --app-muted: var(--img-muted);
+  --app-accent: var(--img-blue);
+  --app-accent-strong: var(--img-blue);
+  --app-accent-2: var(--img-violet);
+  --app-accent-soft: #edf1fe;
+  --app-success: var(--img-teal);
+  --app-warning: #c98a4e;
+  --app-danger: var(--img-rose);
+
+  --bg: var(--img-bg-left);
+  --panel: var(--img-surface);
+  --panel-2: var(--img-surface-soft);
+  --line: var(--img-border);
+  --text: var(--img-navy-soft);
+  --muted: var(--img-muted);
+  --teal: var(--img-blue);
+  --violet: var(--img-violet);
+  --blue: var(--img-blue);
+
+  --background: var(--img-bg-left);
+  --surface: var(--img-surface);
+  --surface-soft: var(--img-surface-soft);
+  --border: var(--img-border);
+  --accent: var(--img-blue);
+  --accent-2: var(--img-violet);
+  --success: var(--img-teal);
+  --warning: #c98a4e;
+  --danger: var(--img-rose);
+}
+
+/* The screenshot is not a white page: it moves from icy blue through lilac to
+   blush pink. Recreate that transition globally and let pages sit above it. */
+html[data-theme="light"],
+html[data-theme="light"] body {
+  background-color: var(--img-bg-left) !important;
+  color: var(--img-navy-soft) !important;
+}
+
+html[data-theme="light"] body {
+  background-image:
+    radial-gradient(circle at 9% 8%, rgba(174, 192, 251, .22), transparent 28%),
+    radial-gradient(circle at 52% -8%, rgba(146, 151, 233, .18), transparent 32%),
+    radial-gradient(circle at 95% 4%, rgba(253, 150, 189, .18), transparent 30%),
+    linear-gradient(112deg,
+      var(--img-bg-left) 0%,
+      var(--img-bg-mid) 38%,
+      var(--img-bg-violet) 69%,
+      var(--img-bg-pink) 100%) !important;
+  background-size: 135% 135%, 135% 135%, 135% 135%, 180% 180% !important;
+  background-attachment: fixed !important;
+  animation: mdp-reference-light-wash 24s ease-in-out infinite alternate;
+}
+
+@keyframes mdp-reference-light-wash {
+  from { background-position: 0% 0%, 50% 0%, 100% 0%, 0% 45%; }
+  to { background-position: 8% 5%, 58% 4%, 92% 7%, 100% 55%; }
+}
+
+html[data-theme="light"] .public-home,
+html[data-theme="light"] .registration-page,
+html[data-theme="light"] .auth-page,
+html[data-theme="light"] .landing-page,
+html[data-theme="light"] .login-page,
+html[data-theme="light"] .product-app,
+html[data-theme="light"] .dashboard-shell,
+html[data-theme="light"] .dashboard-embedded {
+  background-color: transparent !important;
+}
+
+/* Glassy white-blue chrome from the screenshot instead of flat white. */
+html[data-theme="light"] .public-nav,
+html[data-theme="light"] .pp-topbar,
+html[data-theme="light"] .dashboard-topbar,
+html[data-theme="light"] .header-popover,
+html[data-theme="light"] .profile-menu,
+html[data-theme="light"] .notification-preview,
+html[data-theme="light"] .pp-search,
+html[data-theme="light"] .pp-search-command {
+  background:
+    linear-gradient(112deg, rgba(252, 253, 253, .94), rgba(236, 241, 252, .88)) !important;
+  border-color: var(--img-border) !important;
+  color: var(--img-navy-soft) !important;
+  box-shadow: 0 9px 28px rgba(14, 24, 74, .055) !important;
+}
+
+/* Primary surfaces use a faint blue/periwinkle transition, matching the large
+   workspace and statistic cards in the reference rather than plain white. */
+html[data-theme="light"] .panel,
+html[data-theme="light"] .login-card,
+html[data-theme="light"] .signup-card,
+html[data-theme="light"] .registration-card,
+html[data-theme="light"] .year-card,
+html[data-theme="light"] .feature-grid article,
+html[data-theme="light"] .why-grid article,
+html[data-theme="light"] .pp-panel,
+html[data-theme="light"] .dash-card,
+html[data-theme="light"] .role-modal,
+html[data-theme="light"] .role-master-list,
+html[data-theme="light"] .role-course-list,
+html[data-theme="light"] .role-detail,
+html[data-theme="light"] .role-command-card,
+html[data-theme="light"] .role-week,
+html[data-theme="light"] .role-content-card,
+html[data-theme="light"] .role-answer,
+html[data-theme="light"] .role-flashcard,
+html[data-theme="light"] .role-audit-card,
+html[data-theme="light"] .phase5-drawer,
+html[data-theme="light"] .phase5-confirm,
+html[data-theme="light"] .resource-preview-drawer,
+html[data-theme="light"] .guide-progress-panel,
+html[data-theme="light"] .guide-resource-card,
+html[data-theme="light"] .guide-course-nav,
+html[data-theme="light"] .guide-content,
+html[data-theme="light"] .app-state-card,
+html[data-theme="light"] .bundle-content,
+html[data-theme="light"] .bundle-list,
+html[data-theme="light"] .advanced-bundle-week,
+html[data-theme="light"] .notebook-library,
+html[data-theme="light"] .note-library-card,
+html[data-theme="light"] .note-inspector,
+html[data-theme="light"] .flashcard-stage,
+html[data-theme="light"] .analytics-range-bar,
+html[data-theme="light"] .analytics-comparison,
+html[data-theme="light"] .study-plan-calendar,
+html[data-theme="light"] .settings-section,
+html[data-theme="light"] .settings-section-nav,
+html[data-theme="light"] .resource-upload-panel {
+  background:
+    linear-gradient(145deg,
+      rgba(252, 253, 253, .97) 0%,
+      rgba(247, 248, 251, .95) 67%,
+      rgba(174, 192, 251, .12) 100%) !important;
+  border-color: var(--img-border) !important;
+  color: var(--img-navy-soft) !important;
+  box-shadow: var(--ref-shadow-soft) !important;
+  transition: background-color .22s ease, border-color .22s ease, box-shadow .22s ease;
+}
+
+/* Subtle alternating washes create the same color variety visible in the
+   reference's metrics, topic rows and clinical categories. */
+html[data-theme="light"] .pp-metrics > :nth-child(4n + 1),
+html[data-theme="light"] .role-metric-grid > :nth-child(4n + 1),
+html[data-theme="light"] .analytics-metrics > :nth-child(4n + 1),
+html[data-theme="light"] .feature-grid > :nth-child(4n + 1),
+html[data-theme="light"] .why-grid > :nth-child(4n + 1),
+html[data-theme="light"] .shortcut-group-grid > :nth-child(4n + 1) {
+  background: linear-gradient(145deg, rgba(252,253,253,.98), rgba(236,241,252,.90)) !important;
+}
+
+html[data-theme="light"] .pp-metrics > :nth-child(4n + 2),
+html[data-theme="light"] .role-metric-grid > :nth-child(4n + 2),
+html[data-theme="light"] .analytics-metrics > :nth-child(4n + 2),
+html[data-theme="light"] .feature-grid > :nth-child(4n + 2),
+html[data-theme="light"] .why-grid > :nth-child(4n + 2),
+html[data-theme="light"] .shortcut-group-grid > :nth-child(4n + 2) {
+  background: linear-gradient(145deg, rgba(252,253,253,.98), rgba(239,232,250,.72)) !important;
+}
+
+html[data-theme="light"] .pp-metrics > :nth-child(4n + 3),
+html[data-theme="light"] .role-metric-grid > :nth-child(4n + 3),
+html[data-theme="light"] .analytics-metrics > :nth-child(4n + 3),
+html[data-theme="light"] .feature-grid > :nth-child(4n + 3),
+html[data-theme="light"] .why-grid > :nth-child(4n + 3),
+html[data-theme="light"] .shortcut-group-grid > :nth-child(4n + 3) {
+  background: linear-gradient(145deg, rgba(252,253,253,.98), rgba(146,223,209,.16)) !important;
+}
+
+html[data-theme="light"] .pp-metrics > :nth-child(4n + 4),
+html[data-theme="light"] .role-metric-grid > :nth-child(4n + 4),
+html[data-theme="light"] .analytics-metrics > :nth-child(4n + 4),
+html[data-theme="light"] .feature-grid > :nth-child(4n + 4),
+html[data-theme="light"] .why-grid > :nth-child(4n + 4),
+html[data-theme="light"] .shortcut-group-grid > :nth-child(4n + 4) {
+  background: linear-gradient(145deg, rgba(252,253,253,.98), rgba(253,150,189,.105)) !important;
+}
+
+/* Supporting/inset surfaces use the pale blue seen throughout the reference. */
+html[data-theme="light"] .pp-metric,
+html[data-theme="light"] .metric-card,
+html[data-theme="light"] .dashboard-metric,
+html[data-theme="light"] .study-plan-day,
+html[data-theme="light"] .settings-subsection,
+html[data-theme="light"] .settings-security-summary > div,
+html[data-theme="light"] .settings-preference-grid > section,
+html[data-theme="light"] .resource-upload-dropzone,
+html[data-theme="light"] .resource-dropzone,
+html[data-theme="light"] .role-steps li,
+html[data-theme="light"] .role-coverage > div,
+html[data-theme="light"] .role-lecture-list > article,
+html[data-theme="light"] .role-stack-row,
+html[data-theme="light"] .role-flashcard > div,
+html[data-theme="light"] .day-hours span,
+html[data-theme="light"] .calendar-grid article.rest,
+html[data-theme="light"] .benefit-icon,
+html[data-theme="light"] .institution {
+  background:
+    linear-gradient(135deg, rgba(247,248,251,.96), rgba(236,241,252,.88)) !important;
+  border-color: var(--img-border) !important;
+  color: var(--img-navy-soft) !important;
+}
+
+html[data-theme="light"] .public-goal,
+html[data-theme="light"] .role-course-hero,
+html[data-theme="light"] .workspace-resume-strip,
+html[data-theme="light"] .dashboard-next-action {
+  background:
+    linear-gradient(112deg,
+      rgba(234,244,253,.88),
+      rgba(235,239,251,.88) 42%,
+      rgba(239,232,250,.82) 74%,
+      rgba(248,226,247,.75)) !important;
+  border-color: rgba(146, 151, 233, .26) !important;
+}
+
+html[data-theme="light"] .public-cta,
+html[data-theme="light"] .plan-summary {
+  background:
+    linear-gradient(120deg, rgba(252,253,253,.98), rgba(239,232,250,.86), rgba(248,226,247,.72)) !important;
+  border-color: rgba(146, 151, 233, .25) !important;
+}
+
+/* Exact reference typography colors. */
+html[data-theme="light"] .hero-copy h1,
+html[data-theme="light"] .story-copy h1,
+html[data-theme="light"] .plan-area > h1,
+html[data-theme="light"] .panel h2,
+html[data-theme="light"] .section-heading h2,
+html[data-theme="light"] .public-goal h2,
+html[data-theme="light"] .workflow-copy h2,
+html[data-theme="light"] .public-cta h2,
+html[data-theme="light"] .pp-page h1,
+html[data-theme="light"] .pp-page h2,
+html[data-theme="light"] .pp-page h3,
+html[data-theme="light"] .role-workspace h1,
+html[data-theme="light"] .role-workspace h2,
+html[data-theme="light"] .role-workspace h3,
+html[data-theme="light"] .dashboard-shell h1,
+html[data-theme="light"] .dashboard-shell h2,
+html[data-theme="light"] .dashboard-shell h3 {
+  color: var(--img-navy) !important;
+}
+
+html[data-theme="light"] .public-home p,
+html[data-theme="light"] .registration-page p,
+html[data-theme="light"] .product-app p,
+html[data-theme="light"] .product-app small,
+html[data-theme="light"] .role-workspace p,
+html[data-theme="light"] .role-workspace small,
+html[data-theme="light"] .dashboard-shell p,
+html[data-theme="light"] .dashboard-shell small,
+html[data-theme="light"] .lead,
+html[data-theme="light"] .subhead,
+html[data-theme="light"] .switch-copy,
+html[data-theme="light"] .secure-note {
+  color: var(--img-muted) !important;
+}
+
+/* Restrained glow: only accent text, not body copy. This follows the reference's
+   luminous violet/blue headline treatment while staying readable on light UI. */
+html[data-theme="light"] .hero-copy h1 em,
+html[data-theme="light"] .story-copy h1 em,
+html[data-theme="light"] .plan-area > h1 em {
+  color: var(--img-violet) !important;
+  text-shadow:
+    0 0 10px rgba(104, 80, 228, .20),
+    0 0 24px rgba(146, 151, 233, .24) !important;
+}
+
+html[data-theme="light"] .public-eyebrow,
+html[data-theme="light"] .section-kicker,
+html[data-theme="light"] .section-heading > span,
+html[data-theme="light"] .page-eyebrow,
+html[data-theme="light"] .pp-eyebrow,
+html[data-theme="light"] .workspace-heading .page-eyebrow,
+html[data-theme="light"] .role-heading .page-eyebrow,
+html[data-theme="light"] .year-open,
+html[data-theme="light"] .pp-topbar nav a.active {
+  color: var(--img-blue) !important;
+  text-shadow: 0 0 15px rgba(58, 112, 245, .23);
+}
+
+/* Buttons reproduce the reference's saturated blue-violet CTA. */
+html[data-theme="light"] .public-button,
+html[data-theme="light"] .primary-button,
+html[data-theme="light"] .registration-form > .primary-button,
+html[data-theme="light"] .pp-button:not(.secondary),
+html[data-theme="light"] .role-primary-button,
+html[data-theme="light"] .primary-action {
+  background: linear-gradient(108deg, var(--img-blue) 0%, #6374e8 52%, var(--img-violet) 100%) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 9px 24px rgba(58, 112, 245, .20),
+    0 5px 16px rgba(104, 80, 228, .12) !important;
+}
+
+html[data-theme="light"] .public-button.ghost,
+html[data-theme="light"] .pp-button.secondary,
+html[data-theme="light"] .role-icon-button,
+html[data-theme="light"] .role-row-actions button,
+html[data-theme="light"] .question-order-actions button,
+html[data-theme="light"] .assessment-select-all,
+html[data-theme="light"] .bundle-tabs button,
+html[data-theme="light"] .analytics-range-bar button,
+html[data-theme="light"] .notebook-toolbar button,
+html[data-theme="light"] .notebook-list-controls button,
+html[data-theme="light"] .flashcard-session-toolbar button {
+  background: linear-gradient(135deg, rgba(252,253,253,.96), rgba(236,241,252,.76)) !important;
+  border-color: var(--img-border) !important;
+  color: var(--img-navy-soft) !important;
+}
+
+html[data-theme="light"] .pp-button.secondary:hover,
+html[data-theme="light"] .role-icon-button:hover,
+html[data-theme="light"] .role-row-actions button:hover:not(:disabled),
+html[data-theme="light"] .question-order-actions button:hover:not(:disabled),
+html[data-theme="light"] .bundle-tabs button.active,
+html[data-theme="light"] .analytics-range-bar button.active,
+html[data-theme="light"] .notebook-toolbar button.active {
+  background: linear-gradient(135deg, #ecf1fc, #eeeafd) !important;
+  border-color: rgba(58, 112, 245, .38) !important;
+  color: var(--img-blue) !important;
+  box-shadow: 0 6px 17px rgba(58, 112, 245, .09) !important;
+}
+
+/* Inputs remain almost-white but carry a cool transition instead of flat white. */
+html[data-theme="light"] .input-shell,
+html[data-theme="light"] .product-app input,
+html[data-theme="light"] .product-app select,
+html[data-theme="light"] .product-app textarea,
+html[data-theme="light"] .role-form input,
+html[data-theme="light"] .role-form select,
+html[data-theme="light"] .role-form textarea,
+html[data-theme="light"] .attempt-filters > div,
+html[data-theme="light"] .attempt-filters select,
+html[data-theme="light"] .guide-global-search,
+html[data-theme="light"] .study-guide-course-select select,
+html[data-theme="light"] .notebook-search,
+html[data-theme="light"] .bundle-content-search,
+html[data-theme="light"] .input-with-icon,
+html[data-theme="light"] .password-input {
+  background: linear-gradient(135deg, #fcfdfd, #f4f6fb) !important;
+  border-color: var(--img-border) !important;
+  color: var(--img-navy-soft) !important;
+}
+
+html[data-theme="light"] .input-shell:focus-within,
+html[data-theme="light"] .product-app input:focus,
+html[data-theme="light"] .product-app select:focus,
+html[data-theme="light"] .product-app textarea:focus,
+html[data-theme="light"] .input-with-icon:focus-within,
+html[data-theme="light"] .password-input:focus-within {
+  border-color: var(--img-blue) !important;
+  box-shadow:
+    0 0 0 3px rgba(58, 112, 245, .095),
+    0 0 18px rgba(146, 151, 233, .10) !important;
+}
+
+html[data-theme="light"] input::placeholder,
+html[data-theme="light"] textarea::placeholder {
+  color: var(--img-muted-soft) !important;
+}
+
+/* Full reference accent family: blue, violet, mint/cyan, pink/coral and rose. */
+html[data-theme="light"] .pp-chip {
+  background: rgba(174, 192, 251, .22) !important;
+  color: var(--img-blue) !important;
+  border-color: rgba(58, 112, 245, .18) !important;
+}
+
+html[data-theme="light"] .pp-chip.violet {
+  background: rgba(146, 151, 233, .18) !important;
+  color: var(--img-violet) !important;
+  border-color: rgba(104, 80, 228, .18) !important;
+}
+
+html[data-theme="light"] .pp-chip.orange,
+html[data-theme="light"] .role-status.pending {
+  background: rgba(241, 176, 157, .18) !important;
+  color: #aa6957 !important;
+  border-color: rgba(241, 176, 157, .34) !important;
+}
+
+html[data-theme="light"] .pp-chip.red,
+html[data-theme="light"] .role-status.bad,
+html[data-theme="light"] .field-error {
+  background: rgba(205, 110, 123, .10) !important;
+  color: var(--img-rose) !important;
+  border-color: rgba(205, 110, 123, .24) !important;
+}
+
+html[data-theme="light"] .success,
+html[data-theme="light"] .correct,
+html[data-theme="light"] .completed,
+html[data-theme="light"] [data-tone="success"],
+html[data-theme="light"] .form-success,
+html[data-theme="light"] .role-status.good {
+  color: var(--img-teal) !important;
+}
+
+html[data-theme="light"] .success-badge,
+html[data-theme="light"] .correct-answer,
+html[data-theme="light"] .completed-badge,
+html[data-theme="light"] .role-status.good {
+  background: rgba(146, 223, 209, .20) !important;
+  border-color: rgba(13, 178, 135, .24) !important;
+  color: var(--img-teal) !important;
+}
+
+/* Icon/category variety is intentionally broader, as in Topic Mastery. */
+html[data-theme="light"] .metric-icon,
+html[data-theme="light"] .guide-hero-icon,
+html[data-theme="light"] .workspace-resume-icon,
+html[data-theme="light"] .feature-icon,
+html[data-theme="light"] .role-metric-card > span,
+html[data-theme="light"] .role-command-card > span,
+html[data-theme="light"] .shortcut-group-icon,
+html[data-theme="light"] .resource-managed-list article > span:first-child {
+  background: rgba(174, 192, 251, .18) !important;
+  color: var(--img-blue) !important;
+}
+
+html[data-theme="light"] .role-metric-grid > :nth-child(4n + 2) > span,
+html[data-theme="light"] .pp-metrics > :nth-child(4n + 2) > span {
+  background: rgba(146, 151, 233, .17) !important;
+  color: var(--img-violet) !important;
+}
+
+html[data-theme="light"] .role-metric-grid > :nth-child(4n + 3) > span,
+html[data-theme="light"] .pp-metrics > :nth-child(4n + 3) > span {
+  background: rgba(146, 223, 209, .22) !important;
+  color: var(--img-teal) !important;
+}
+
+html[data-theme="light"] .role-metric-grid > :nth-child(4n + 4) > span,
+html[data-theme="light"] .pp-metrics > :nth-child(4n + 4) > span {
+  background: rgba(253, 150, 189, .14) !important;
+  color: var(--img-rose) !important;
+}
+
+/* Progress language from the reference: dominant blue/violet with selective
+   teal success rather than a monochrome app. */
+html[data-theme="light"] .pp-progress,
+html[data-theme="light"] .mini-progress,
+html[data-theme="light"] .xp-bar,
+html[data-theme="light"] .progress,
+html[data-theme="light"] .mastery-list button > div {
+  background: rgba(201, 209, 231, .46) !important;
+}
+
+html[data-theme="light"] .pp-progress i,
+html[data-theme="light"] .mini-progress i,
+html[data-theme="light"] .xp-bar i,
+html[data-theme="light"] .progress i,
+html[data-theme="light"] .mastery-list button > div i {
+  background: linear-gradient(90deg, var(--img-blue), var(--img-periwinkle), var(--img-violet)) !important;
+  box-shadow: 0 0 9px rgba(58, 112, 245, .12);
+}
+
+/* Tables/lists keep the same blue-white hierarchy. */
+html[data-theme="light"] .product-app th,
+html[data-theme="light"] .role-workspace th {
+  background: linear-gradient(135deg, #ecf1fc, #f4f2fb) !important;
+  color: var(--img-muted-strong) !important;
+  border-color: var(--img-border) !important;
+}
+
+html[data-theme="light"] .product-app td,
+html[data-theme="light"] .role-workspace td,
+html[data-theme="light"] .bundle-row,
+html[data-theme="light"] .notification-preview-list button,
+html[data-theme="light"] .settings-session-list article,
+html[data-theme="light"] .resource-managed-list article {
+  border-color: var(--img-border) !important;
+}
+
+html[data-theme="light"] .product-app tbody tr:hover,
+html[data-theme="light"] .role-workspace tbody tr:hover,
+html[data-theme="light"] .bundle-row:hover,
+html[data-theme="light"] .notification-preview-list button:hover {
+  background: linear-gradient(90deg, rgba(236,241,252,.84), rgba(239,232,250,.44)) !important;
+}
+
+html[data-theme="light"] .learning-grid button,
+html[data-theme="light"] .calendar-grid article {
+  border-color: var(--img-border) !important;
+  background: linear-gradient(135deg, rgba(236,241,252,.90), rgba(247,248,251,.88)) !important;
+}
+
+html[data-theme="light"] .calendar-grid article.weak {
+  background: linear-gradient(135deg, rgba(255,245,234,.95), rgba(241,176,157,.13)) !important;
+}
+
+html[data-theme="light"] .readiness-ring,
+html[data-theme="light"] .donut {
+  color: var(--img-navy) !important;
+  background:
+    radial-gradient(circle, var(--img-surface) 55%, transparent 57%),
+    conic-gradient(var(--img-blue) 0 58%, var(--img-violet) 58% 76%, rgba(201,209,231,.48) 76%) !important;
+  filter: drop-shadow(0 7px 15px rgba(58, 112, 245, .10));
+}
+
+html[data-theme="light"] ::selection {
+  background: rgba(146, 151, 233, .25);
+  color: var(--img-navy);
+}
+
+html[data-theme="light"] * {
+  scrollbar-color: #aec0fb #ecf1fc;
+}
+
+/* Do not animate the ambient wash for users who request reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="light"] body {
+    animation: none !important;
+  }
+}
+
+html[data-theme="light"][data-reduced-motion="true"] body {
+  animation: none !important;
+}
