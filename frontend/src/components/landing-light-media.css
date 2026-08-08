@@ -57,13 +57,13 @@ html[data-theme="light"] .hero-duo img {
 }
 
 /*
- * The three approved processed PNGs are rendered as container backgrounds.
- * Their original <img> elements remain in the document with opacity: 0 solely
- * to preserve the exact existing responsive sizing/aspect-ratio. This avoids
- * unreliable CSS content:url(...) replacement on <img> elements.
+ * The three refreshed PNGs are rendered only in light mode as container
+ * backgrounds. The original <img> elements remain in the document with
+ * opacity: 0 solely to preserve the existing responsive sizing/aspect ratio.
+ * Dark mode therefore continues to render the original image sources.
  */
 html[data-theme="light"] .thyroid-visual {
-  background-image: url('/media/thyroid-learning-light.png') !important;
+  background-image: url('/media/thyroid-learning-light-v4.png') !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
   background-size: contain !important;
@@ -81,7 +81,7 @@ html[data-theme="light"] .thyroid-visual img {
 }
 
 html[data-theme="light"] .organ-image-grid figure:nth-child(1) {
-  background-image: url('/media/home-brain-light.png') !important;
+  background-image: url('/media/home-brain-light-v4.png') !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
   background-size: contain !important;
@@ -115,7 +115,7 @@ html[data-theme="light"] .organ-image-grid figure:nth-child(2) img {
 }
 
 html[data-theme="light"] .circulation-feature figure {
-  background-image: url('/media/home-circulatory-light.png') !important;
+  background-image: url('/media/home-circulatory-light-v4.png') !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
   background-size: contain !important;
