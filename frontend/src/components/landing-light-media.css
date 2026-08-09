@@ -32,10 +32,14 @@ html[data-theme="light"] .circulation-feature figure img {
 
 /*
  * Doctor + Professor — LIGHT MODE ONLY.
- * Use a dedicated light artwork so the people keep crisp facial/clothing detail
- * while the canvas itself already belongs to the metallic silver/lilac palette.
- * Dark mode continues to render the original /media/hero-doctor-professor.webp.
+ * Keep the dedicated light artwork, but do not upscale it with the inherited
+ * hero transform. A very soft outer-canvas fade hides the rectangular image
+ * boundary without masking/cropping either person or changing dark mode.
  */
+html[data-theme="light"] .hero-duo {
+  isolation: isolate !important;
+}
+
 html[data-theme="light"] .hero-duo img {
   content: url('/media/hero-doctor-professor-light.webp') !important;
   display: block !important;
@@ -49,19 +53,37 @@ html[data-theme="light"] .hero-duo img {
   opacity: 1 !important;
   visibility: visible !important;
   mix-blend-mode: normal !important;
+  transform: none !important;
+  image-rendering: auto !important;
   filter:
-    saturate(1.02)
-    contrast(1.035)
-    brightness(1.005)
-    drop-shadow(0 16px 34px rgba(85, 79, 180, .10)) !important;
+    saturate(.98)
+    contrast(1.02)
+    brightness(1.015)
+    drop-shadow(0 16px 32px rgba(74, 78, 145, .09)) !important;
   -webkit-mask-image: none !important;
   mask-image: none !important;
 }
 
-html[data-theme="light"] .hero-duo::before,
-html[data-theme="light"] .hero-duo::after {
+html[data-theme="light"] .hero-duo::before {
   content: none !important;
   display: none !important;
+}
+
+html[data-theme="light"] .hero-duo::after {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  z-index: 2 !important;
+  inset: -2px !important;
+  pointer-events: none !important;
+  background: radial-gradient(
+    ellipse 90% 88% at 50% 50%,
+    transparent 0 76%,
+    rgba(243, 246, 251, .08) 84%,
+    rgba(243, 246, 251, .34) 93%,
+    rgba(243, 246, 251, .92) 100%
+  ) !important;
+  box-shadow: none !important;
 }
 
 /*
