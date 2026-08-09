@@ -1,0 +1,185 @@
+/* Homepage-only entrance and scroll motion. Layout, colors, and content stay untouched. */
+.public-home.home-motion-ready {
+  overflow-x: clip;
+}
+
+.public-home.home-motion-ready .public-nav,
+.public-home.home-motion-ready .public-hero .hero-copy > *,
+.public-home.home-motion-ready .public-hero .hero-duo {
+  opacity: 0;
+}
+
+.public-home.home-motion-ready .public-nav {
+  transform: translate3d(0, -18px, 0);
+  transition: opacity 520ms ease, transform 680ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.public-home.home-motion-ready .public-hero .hero-copy > * {
+  transform: translate3d(-34px, 18px, 0);
+  transition:
+    opacity 620ms ease,
+    transform 820ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.public-home.home-motion-ready .public-hero .hero-copy > :nth-child(1) { transition-delay: 80ms; }
+.public-home.home-motion-ready .public-hero .hero-copy > :nth-child(2) { transition-delay: 150ms; }
+.public-home.home-motion-ready .public-hero .hero-copy > :nth-child(3) { transition-delay: 220ms; }
+.public-home.home-motion-ready .public-hero .hero-copy > :nth-child(4) { transition-delay: 290ms; }
+.public-home.home-motion-ready .public-hero .hero-copy > :nth-child(5) { transition-delay: 360ms; }
+
+.public-home.home-motion-ready .public-hero .hero-duo {
+  transform: translate3d(46px, 18px, 0) scale(.965);
+  transform-origin: 52% 68%;
+  transition:
+    opacity 760ms ease 170ms,
+    transform 1050ms cubic-bezier(.16, 1, .3, 1) 170ms;
+}
+
+.public-home.home-motion-ready.home-motion-entered .public-nav,
+.public-home.home-motion-ready.home-motion-entered .public-hero .hero-copy > *,
+.public-home.home-motion-ready.home-motion-entered .public-hero .hero-duo {
+  opacity: 1;
+  transform: none;
+}
+
+/* A soft one-time light sweep gives the hero a more intentional opening without changing imagery. */
+.public-home.home-motion-ready .public-hero {
+  position: relative;
+  isolation: isolate;
+}
+
+.public-home.home-motion-ready .public-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(105deg, transparent 26%, color-mix(in srgb, currentColor 5%, transparent) 48%, transparent 68%);
+  transform: translate3d(-24%, 0, 0);
+}
+
+.public-home.home-motion-ready.home-motion-entered .public-hero::after {
+  animation: home-hero-sweep 1100ms ease-out 180ms both;
+}
+
+@keyframes home-hero-sweep {
+  0% { opacity: 0; transform: translate3d(-24%, 0, 0); }
+  35% { opacity: .42; }
+  100% { opacity: 0; transform: translate3d(24%, 0, 0); }
+}
+
+/* Sections reveal as the user reaches them. */
+.public-home.home-motion-ready [data-home-reveal] {
+  opacity: 0;
+  filter: blur(5px);
+  transition:
+    opacity 650ms ease,
+    transform 880ms cubic-bezier(.22, 1, .36, 1),
+    filter 650ms ease;
+  will-change: opacity, transform, filter;
+}
+
+.public-home.home-motion-ready [data-home-reveal="left"] {
+  transform: translate3d(-54px, 20px, 0);
+}
+
+.public-home.home-motion-ready [data-home-reveal="right"] {
+  transform: translate3d(54px, 20px, 0);
+}
+
+.public-home.home-motion-ready [data-home-reveal="up"] {
+  transform: translate3d(0, 42px, 0);
+}
+
+.public-home.home-motion-ready [data-home-reveal].is-home-visible {
+  opacity: 1;
+  filter: none;
+  transform: none;
+  will-change: auto;
+}
+
+/* Cards and smaller repeated elements cascade after their section comes into view. */
+.public-home.home-motion-ready [data-home-reveal-item] {
+  opacity: 0;
+  transform: translate3d(0, 26px, 0) scale(.985);
+  transition:
+    opacity 520ms ease,
+    transform 720ms cubic-bezier(.22, 1, .36, 1);
+  transition-delay: calc(var(--home-item-index, 0) * 70ms);
+  will-change: opacity, transform;
+}
+
+.public-home.home-motion-ready [data-home-reveal-item].is-home-visible {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+}
+
+/* Image-led sections get a slightly more cinematic settle. */
+.public-home.home-motion-ready .thyroid-visual[data-home-reveal-item],
+.public-home.home-motion-ready .organ-image-grid > figure[data-home-reveal-item],
+.public-home.home-motion-ready .circulation-feature > figure[data-home-reveal-item] {
+  transform: translate3d(0, 30px, 0) scale(.94) rotate(.6deg);
+  transition-duration: 760ms, 980ms;
+}
+
+.public-home.home-motion-ready .thyroid-visual[data-home-reveal-item].is-home-visible,
+.public-home.home-motion-ready .organ-image-grid > figure[data-home-reveal-item].is-home-visible,
+.public-home.home-motion-ready .circulation-feature > figure[data-home-reveal-item].is-home-visible {
+  transform: none;
+}
+
+/* Keep interactive cards feeling alive after their reveal, without fighting the reveal transform. */
+.public-home .year-card,
+.public-home .feature-grid > article,
+.public-home .why-grid > article,
+.public-home .organ-image-grid > figure {
+  transition-property: transform, box-shadow, border-color, opacity;
+  transition-duration: 240ms;
+  transition-timing-function: ease;
+}
+
+.public-home .year-card:hover,
+.public-home .feature-grid > article:hover,
+.public-home .why-grid > article:hover,
+.public-home .organ-image-grid > figure:hover {
+  transform: translate3d(0, -4px, 0);
+}
+
+@media (max-width: 760px) {
+  .public-home.home-motion-ready .public-hero .hero-copy > * {
+    transform: translate3d(0, 20px, 0);
+  }
+
+  .public-home.home-motion-ready .public-hero .hero-duo {
+    transform: translate3d(0, 28px, 0) scale(.97);
+  }
+
+  .public-home.home-motion-ready [data-home-reveal="left"],
+  .public-home.home-motion-ready [data-home-reveal="right"] {
+    transform: translate3d(0, 34px, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-home.home-motion-ready *,
+  .public-home.home-motion-ready *::before,
+  .public-home.home-motion-ready *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .public-home.home-motion-ready .public-nav,
+  .public-home.home-motion-ready .public-hero .hero-copy > *,
+  .public-home.home-motion-ready .public-hero .hero-duo,
+  .public-home.home-motion-ready [data-home-reveal],
+  .public-home.home-motion-ready [data-home-reveal-item] {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+  }
+}
