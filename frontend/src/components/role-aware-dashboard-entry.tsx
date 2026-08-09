@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PageSkeleton } from "./async-state";
 import { useAuth } from "./auth-provider";
 import { ConnectedDashboardPage } from "./connected-dashboard-page";
@@ -11,6 +12,10 @@ import { useUx } from "./ux-provider";
 export function RoleAwareDashboardEntry() {
   const { user, loading } = useAuth();
   const { celebrate } = useUx();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedStage = Number(searchParams.get("stage"));
+  const hasStage = Number.isInteger(requestedStage) && requestedStage >= 1 && requestedStage <= 4;
 
   useEffect(() => {
     if (user?.role !== "STUDENT") return;
@@ -22,8 +27,13 @@ export function RoleAwareDashboardEntry() {
     });
   }, [celebrate, user?.role]);
 
-  if (loading || !user) {
-    return <main className="product-auth-loading"><PageSkeleton variant="workspace" label="Loading your dashboard" /></main>;
+  useEffect(() => {
+    if (user?.role !== "STUDENT" || !hasStage) return;
+    router.replace(`/bundles?tab=curriculum&stage=${requestedStage}`);
+  }, [hasStage, requestedStage, router, user?.role]);
+
+  if (loading || !user || (user.role === "STUDENT" && hasStage)) {
+    return <main className="product-auth-loading"><PageSkeleton variant="workspace" label={hasStage ? "Opening your academic stage" : "Loading your dashboard"} /></main>;
   }
 
   if (user.role === "STUDENT") {
