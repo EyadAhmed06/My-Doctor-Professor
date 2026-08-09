@@ -31,8 +31,6 @@ html[data-theme="light"] .circulation-feature figure img {
 
 /* Doctor + Professor hero.
  * Light mode uses the dedicated light artwork; dark mode keeps the original.
- * Multiply lets the pale artwork background merge into the page wash instead
- * of reading as a rectangular image canvas.
  */
 .hero-duo-light {
   display: none;
@@ -56,7 +54,6 @@ html[data-theme="light"] .hero-duo-light {
   object-position: center center !important;
   transform: none !important;
   filter: none !important;
-  mix-blend-mode: multiply !important;
   -webkit-mask-image: none !important;
   mask-image: none !important;
 }
