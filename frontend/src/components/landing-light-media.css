@@ -30,13 +30,14 @@ html[data-theme="light"] .circulation-feature figure img {
 }
 
 /*
- * Doctor + Professor hero: two real <img> elements.
- * The original artwork remains the dark-mode image. The dedicated light
- * artwork is selected only by display; no content replacement/background
- * image/pseudo-element rendering is involved.
+ * Doctor + Professor hero.
+ * The dedicated light WebP currently fails to decode in the browser, which is
+ * why its alt text was visible in the hero. Keep that broken asset out of the
+ * render path and use the known-good original image in light mode as well.
+ * Dark mode remains completely unchanged.
  */
 .hero-duo-light {
-  display: none;
+  display: none !important;
 }
 
 .hero-duo-dark {
@@ -44,10 +45,6 @@ html[data-theme="light"] .circulation-feature figure img {
 }
 
 html[data-theme="light"] .hero-duo-dark {
-  display: none !important;
-}
-
-html[data-theme="light"] .hero-duo-light {
   display: block !important;
   width: 100% !important;
   height: auto !important;
@@ -57,7 +54,10 @@ html[data-theme="light"] .hero-duo-light {
   object-fit: contain !important;
   object-position: center center !important;
   transform: none !important;
-  filter: none !important;
+  filter:
+    saturate(.78)
+    contrast(.96)
+    brightness(1.12) !important;
   -webkit-mask-image: none !important;
   mask-image: none !important;
 }
@@ -215,7 +215,7 @@ html[data-theme="light"] .circulation-feature figure::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html[data-theme="light"] .hero-duo-light,
+  html[data-theme="light"] .hero-duo-dark,
   html[data-theme="light"] .thyroid-visual img,
   html[data-theme="light"] .organ-image-grid img,
   html[data-theme="light"] .circulation-feature figure img {
