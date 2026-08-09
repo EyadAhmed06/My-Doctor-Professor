@@ -30,19 +30,41 @@ html[data-theme="light"] .circulation-feature figure img {
   transition: filter .25s ease, opacity .25s ease, transform .25s ease;
 }
 
-/* Doctor + Professor keeps its existing artwork, only lightly integrated. */
+/*
+ * Doctor + Professor — light mode only.
+ * Use the complete original artwork, just like the other processed medical
+ * visuals: no crop, no mask and no replacement asset. Inverting the dark
+ * canvas and multiplying it into the pale page makes the rectangular dark
+ * background disappear while preserving the cyan/violet illustration detail.
+ */
 html[data-theme="light"] .hero-duo img {
-  opacity: 1;
-  visibility: visible;
-  mix-blend-mode: normal !important;
+  content: normal !important;
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  max-height: none !important;
+  aspect-ratio: auto !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  mix-blend-mode: multiply !important;
   filter:
-    saturate(1.08)
+    invert(1)
+    hue-rotate(180deg)
+    saturate(1.24)
+    contrast(1.10)
     brightness(1.06)
-    contrast(1.08)
-    hue-rotate(2deg)
-    drop-shadow(0 12px 28px rgba(69, 78, 151, .12));
-  -webkit-mask-image: radial-gradient(ellipse 96% 92% at 50% 48%, #000 0 72%, rgba(0,0,0,.98) 82%, rgba(0,0,0,.76) 91%, transparent 100%);
-  mask-image: radial-gradient(ellipse 96% 92% at 50% 48%, #000 0 72%, rgba(0,0,0,.98) 82%, rgba(0,0,0,.76) 91%, transparent 100%);
+    drop-shadow(0 16px 34px rgba(85, 79, 180, .12)) !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+html[data-theme="light"] .hero-duo::before,
+html[data-theme="light"] .hero-duo::after {
+  content: none !important;
+  display: none !important;
 }
 
 /*
