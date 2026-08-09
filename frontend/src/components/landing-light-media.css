@@ -31,12 +31,13 @@ html[data-theme="light"] .circulation-feature figure img {
 }
 
 /*
- * Doctor + Professor — light mode only.
- * Preserve the original facial/detail rendering and fade only the outer canvas
- * into the page so the artwork no longer reads as a separate rectangular image.
+ * Doctor + Professor — LIGHT MODE ONLY.
+ * Use a dedicated light artwork so the people keep crisp facial/clothing detail
+ * while the canvas itself already belongs to the metallic silver/lilac palette.
+ * Dark mode continues to render the original /media/hero-doctor-professor.webp.
  */
 html[data-theme="light"] .hero-duo img {
-  content: normal !important;
+  content: url('/media/hero-doctor-professor-light.webp') !important;
   display: block !important;
   width: 100% !important;
   height: auto !important;
@@ -49,26 +50,12 @@ html[data-theme="light"] .hero-duo img {
   visibility: visible !important;
   mix-blend-mode: normal !important;
   filter:
-    saturate(1.04)
-    contrast(1.08)
-    brightness(1.02)
-    drop-shadow(0 16px 34px rgba(85, 79, 180, .12)) !important;
-  -webkit-mask-image: radial-gradient(
-    ellipse 96% 92% at 50% 50%,
-    #000 0 70%,
-    rgba(0, 0, 0, .99) 79%,
-    rgba(0, 0, 0, .88) 87%,
-    rgba(0, 0, 0, .58) 94%,
-    transparent 100%
-  ) !important;
-  mask-image: radial-gradient(
-    ellipse 96% 92% at 50% 50%,
-    #000 0 70%,
-    rgba(0, 0, 0, .99) 79%,
-    rgba(0, 0, 0, .88) 87%,
-    rgba(0, 0, 0, .58) 94%,
-    transparent 100%
-  ) !important;
+    saturate(1.02)
+    contrast(1.035)
+    brightness(1.005)
+    drop-shadow(0 16px 34px rgba(85, 79, 180, .10)) !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
 }
 
 html[data-theme="light"] .hero-duo::before,
