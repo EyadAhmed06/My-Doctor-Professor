@@ -65,7 +65,15 @@ export function LandingPage() {
   const t = (en: string, ar: string) => locale === "ar" ? ar : en;
   const displayName = user?.fullName || user?.full_name || user?.email || "";
   const firstName = displayName.trim().split(/\s+/)[0] || t("your workspace", "مساحتك");
-  const workspaceHref = "/dashboard";
+  const workspaceHref = user?.role === "SYSTEM_ADMIN" ? "/admin" : user?.role === "INSTRUCTOR" ? "/instructor" : "/dashboard";
+  const academicHref = (stage: number, semesterIndex?: number) => {
+    const params = new URLSearchParams({ stage: String(stage) });
+    if (semesterIndex !== undefined) {
+      if (stage <= 3) params.set("semester", String((stage - 1) * 2 + semesterIndex + 1));
+      else params.set("track", semesterIndex === 0 ? "clerkships" : "exams");
+    }
+    return `/dashboard?${params.toString()}`;
+  };
   const arrow = <FiArrowRight />;
 
   return <main className="public-home" data-locale={locale}>
@@ -115,9 +123,9 @@ export function LandingPage() {
       <div className="section-heading"><span>{t("YOUR ACADEMIC JOURNEY", "رحلتك الأكاديمية")}</span><h2>{t("Find your year. Continue your work.", "اختر سنتك الدراسية. وواصل تقدمك.")}</h2><p>{t("Enter the platform through the stage you are studying now, then move between semesters, courses, and learning activities without losing context.", "ادخل المنصة من المرحلة التي تدرسها الآن، ثم انتقل بين الفصول والمقررات وأنشطة التعلم دون فقدان سياقك.")}</p></div>
       <div className="year-grid">{years.map((item, index) => <article className="year-card" key={item.year.en}>
         <div className="year-number">0{index + 1}</div><span>{local(locale, item.focus)}</span><h3>{local(locale, item.year)}</h3><p>{local(locale, item.description)}</p>
-        <div className="semester-links">{item.semesters.map(semester => <Link key={semester.en} href={`${workspaceHref}?stage=${index + 1}`}>{local(locale, semester)} {arrow}</Link>)}</div>
+        <div className="semester-links">{item.semesters.map((semester, semesterIndex) => <Link key={semester.en} href={academicHref(index + 1, semesterIndex)}>{local(locale, semester)} {arrow}</Link>)}</div>
         <ul>{item.topics.map(topic => <li key={topic.en}><FiCheckCircle />{local(locale, topic)}</li>)}</ul>
-        <Link className="year-open" href={`${workspaceHref}?stage=${index + 1}`}>{t(`Open ${item.year.en} workspace`, `فتح مساحة ${item.year.ar}`)} {arrow}</Link>
+        <Link className="year-open" href={academicHref(index + 1)}>{t(`Open ${item.year.en} workspace`, `فتح مساحة ${item.year.ar}`)} {arrow}</Link>
       </article>)}</div>
     </section>
 
