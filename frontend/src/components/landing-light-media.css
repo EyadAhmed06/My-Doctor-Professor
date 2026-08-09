@@ -29,15 +29,11 @@ html[data-theme="light"] .circulation-feature figure img {
   transition: filter .25s ease, opacity .25s ease, transform .25s ease;
 }
 
-/*
- * Doctor + Professor hero.
- * The dedicated light WebP currently fails to decode in the browser, which is
- * why its alt text was visible in the hero. Keep that broken asset out of the
- * render path and use the known-good original image in light mode as well.
- * Dark mode remains completely unchanged.
+/* Doctor + Professor hero.
+ * Light mode uses the dedicated light artwork; dark mode keeps the original.
  */
 .hero-duo-light {
-  display: none !important;
+  display: none;
 }
 
 .hero-duo-dark {
@@ -45,19 +41,19 @@ html[data-theme="light"] .circulation-feature figure img {
 }
 
 html[data-theme="light"] .hero-duo-dark {
+  display: none !important;
+}
+
+html[data-theme="light"] .hero-duo-light {
   display: block !important;
   width: 100% !important;
   height: auto !important;
   max-width: 100% !important;
-  max-height: none !important;
   aspect-ratio: auto !important;
   object-fit: contain !important;
   object-position: center center !important;
   transform: none !important;
-  filter:
-    saturate(.78)
-    contrast(.96)
-    brightness(1.12) !important;
+  filter: none !important;
   -webkit-mask-image: none !important;
   mask-image: none !important;
 }
