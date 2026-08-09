@@ -89,7 +89,8 @@ export function LandingPage() {
         <div className="hero-proof"><span><FiCheckCircle /> {t("Organized by academic year", "منظم حسب السنة الدراسية")}</span><span><FiCheckCircle /> {t("Case-based reasoning", "تفكير قائم على الحالات")}</span><span><FiCheckCircle /> {t("Personal progress", "متابعة تقدمك الشخصي")}</span></div>
       </div>
       <figure className="hero-duo" aria-label={t("The Doctor and The Professor", "الطبيب والأستاذ")}>
-        <img src="/media/hero-doctor-professor.webp" alt={t("The Doctor representing clinical precision and The Professor representing academic wisdom", "الطبيب ممثلًا للدقة السريرية والأستاذ ممثلًا للحكمة الأكاديمية")} />
+        <img className="hero-duo-dark" src="/media/hero-doctor-professor.webp" alt={t("The Doctor representing clinical precision and The Professor representing academic wisdom", "الطبيب ممثلًا للدقة السريرية والأستاذ ممثلًا للحكمة الأكاديمية")} />
+        <img className="hero-duo-light" src="/media/hero-doctor-professor-light.webp" alt={t("The Doctor representing clinical precision and The Professor representing academic wisdom", "الطبيب ممثلًا للدقة السريرية والأستاذ ممثلًا للحكمة الأكاديمية")} />
       </figure>
     </section>
 
