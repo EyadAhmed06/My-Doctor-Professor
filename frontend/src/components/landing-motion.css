@@ -1,4 +1,136 @@
 /* Homepage-only entrance and scroll motion. Layout, colors, and content stay untouched. */
+.home-first-load {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 18px;
+  overflow: hidden;
+  background: var(--background, #f7f7f3);
+  color: var(--foreground, #16251f);
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 520ms ease, transform 620ms cubic-bezier(.22, 1, .36, 1), visibility 520ms ease;
+}
+
+html[data-theme="dark"] .home-first-load {
+  background: var(--background, #07120f);
+  color: var(--foreground, #edf7f2);
+}
+
+.home-first-load.is-leaving {
+  opacity: 0;
+  transform: scale(1.018);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.home-first-load-glow {
+  position: absolute;
+  width: min(58vw, 620px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, currentColor 9%, transparent) 0%, transparent 68%);
+  animation: home-load-breathe 1800ms ease-in-out infinite;
+}
+
+.home-first-load-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 82px;
+  height: 82px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 28px;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+  box-shadow: 0 20px 60px color-mix(in srgb, currentColor 10%, transparent);
+  animation: home-load-mark-in 700ms cubic-bezier(.16, 1, .3, 1) both;
+}
+
+.home-first-load-mark strong {
+  position: relative;
+  z-index: 1;
+  font-size: 1.02rem;
+  letter-spacing: .16em;
+  transform: translateX(.08em);
+}
+
+.home-first-load-pulse {
+  position: absolute;
+  inset: 11px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 20px;
+  animation: home-load-ring 1400ms ease-out infinite;
+}
+
+.home-first-load-copy {
+  position: relative;
+  display: grid;
+  gap: 7px;
+  text-align: center;
+  animation: home-load-copy-in 650ms ease 130ms both;
+}
+
+.home-first-load-copy span {
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .22em;
+}
+
+.home-first-load-copy small {
+  opacity: .58;
+  font-size: .78rem;
+  letter-spacing: .025em;
+}
+
+.home-first-load-line {
+  position: relative;
+  width: min(230px, 58vw);
+  height: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  animation: home-load-copy-in 650ms ease 220ms both;
+}
+
+.home-first-load-line i {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background: currentColor;
+  transform-origin: left center;
+  animation: home-load-progress 1250ms cubic-bezier(.22, 1, .36, 1) infinite;
+}
+
+@keyframes home-load-mark-in {
+  from { opacity: 0; transform: translate3d(0, 18px, 0) scale(.88) rotate(-4deg); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes home-load-copy-in {
+  from { opacity: 0; transform: translate3d(0, 12px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes home-load-ring {
+  0% { opacity: .7; transform: scale(.88); }
+  75%, 100% { opacity: 0; transform: scale(1.28); }
+}
+
+@keyframes home-load-breathe {
+  0%, 100% { opacity: .52; transform: scale(.94); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes home-load-progress {
+  0% { transform: translateX(-100%) scaleX(.18); }
+  45% { transform: translateX(-18%) scaleX(.72); }
+  100% { transform: translateX(100%) scaleX(.25); }
+}
+
 .public-home.home-motion-ready {
   overflow-x: clip;
 }
@@ -148,6 +280,23 @@
 }
 
 @media (max-width: 760px) {
+  .home-first-load-mark {
+    width: 72px;
+    height: 72px;
+    border-radius: 24px;
+  }
+
+  .home-first-load-copy span {
+    font-size: .7rem;
+    letter-spacing: .17em;
+  }
+
+  .home-first-load-copy small {
+    max-width: 260px;
+    padding-inline: 18px;
+    line-height: 1.45;
+  }
+
   .public-home.home-motion-ready .public-hero .hero-copy > * {
     transform: translate3d(0, 20px, 0);
   }
@@ -163,6 +312,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .home-first-load {
+    display: none !important;
+  }
+
   .public-home.home-motion-ready *,
   .public-home.home-motion-ready *::before,
   .public-home.home-motion-ready *::after {
