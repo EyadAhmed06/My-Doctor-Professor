@@ -43,7 +43,13 @@ type Lecture = {
 };
 
 type Week = { id: string; weekNumber: number; title: string | null; lectures: Lecture[] };
-type Course = { id: string; courseCode: string; courseName: string; weeks: Week[] };
+type Course = {
+  id: string;
+  courseCode: string;
+  courseName: string;
+  semester?: { semesterNumber: number; title?: string | null } | null;
+  weeks: Week[];
+};
 type Exam = { id: string; title: string; durationMinutes: number | null };
 type Content = {
   bundle: Bundle;
@@ -82,6 +88,8 @@ export function AdvancedBundlesPage() {
   const requestedWeek = searchParams.get("week");
   const stageValue = Number(searchParams.get("stage"));
   const requestedStage = Number.isInteger(stageValue) && stageValue >= 1 && stageValue <= 4 ? stageValue : null;
+  const semesterValue = Number(searchParams.get("semester"));
+  const requestedSemester = Number.isInteger(semesterValue) && semesterValue >= 1 && semesterValue <= 12 ? semesterValue : null;
   const [tab, setTab] = useState<Tab>(requestedTab);
   const [bundles, setBundles] = useState<Bundle[]>([]);
   const [catalog, setCatalog] = useState<Bundle[]>([]);
@@ -251,19 +259,30 @@ export function AdvancedBundlesPage() {
     }
   }
 
-  const lectures = useMemo(() => selected?.courses.flatMap((course) => course.weeks.flatMap((week) => week.lectures.map((lecture) => ({ course, week, lecture })))) || [], [selected]);
+  const scopedCourses = useMemo(() => {
+    const courses = selected?.courses || [];
+    if (requestedSemester === null) return courses;
+    return courses.filter((course) => course.semester?.semesterNumber === requestedSemester);
+  }, [requestedSemester, selected]);
+  const lectures = useMemo(() => scopedCourses.flatMap((course) => course.weeks.flatMap((week) => week.lectures.map((lecture) => ({ course, week, lecture })))), [scopedCourses]);
   const needle = query.trim().toLowerCase();
   const visibleCourses = useMemo(() => {
-    if (!selected || !needle) return selected?.courses || [];
-    return selected.courses.map((course) => ({
+    if (!needle) return scopedCourses;
+    return scopedCourses.map((course) => ({
       ...course,
       weeks: course.weeks.map((week) => ({ ...week, lectures: week.lectures.filter((lecture) => `${course.courseName} ${week.title || ""} ${lecture.title}`.toLowerCase().includes(needle)) })).filter((week) => week.lectures.length),
     })).filter((course) => course.weeks.length);
-  }, [needle, selected]);
+  }, [needle, scopedCourses]);
   const tabCounts = selected ? { overview: null, curriculum: selected.totals.weeks, questions: selected.totals.questions, exams: selected.totals.past_exams, flashcards: selected.totals.flashcard_decks, resources: selected.totals.resources } satisfies Record<Tab, number | null> : null;
 
+  const scopeDescription = requestedSemester !== null
+    ? `Showing Semester ${requestedSemester} inside academic stage ${requestedStage ?? selected?.bundle.academicYear ?? ""}.`
+    : requestedStage
+      ? `Showing your academic stage ${requestedStage === 4 ? "4+" : requestedStage} learning access.`
+      : "Open enrolled curriculum, questions, exams, flashcards, and resources without losing context.";
+
   return <ProductShell search="Search bundles, courses, weeks, or lectures"><main className="pp-page bundle-page advanced-bundle-page">
-    <div className="pp-title hero"><div><small className="page-eyebrow">{manager ? "BUNDLE MANAGEMENT" : "YOUR LEARNING ACCESS"}</small><h1>{manager ? "Bundles" : "My Bundles"}</h1><p>{manager ? "Compose courses and weeks into a publishable learning workspace." : requestedStage ? `Showing your academic stage ${requestedStage === 4 ? "4+" : requestedStage} learning access.` : "Open enrolled curriculum, questions, exams, flashcards, and resources without losing context."}</p></div><button className="pp-button secondary" onClick={() => void load()}><FiRefreshCw /> Refresh</button></div>
+    <div className="pp-title hero"><div><small className="page-eyebrow">{manager ? "BUNDLE MANAGEMENT" : "YOUR LEARNING ACCESS"}</small><h1>{manager ? "Bundles" : "My Bundles"}</h1><p>{manager ? "Compose courses and weeks into a publishable learning workspace." : scopeDescription}</p></div><button className="pp-button secondary" onClick={() => void load()}><FiRefreshCw /> Refresh</button></div>
     {error && <ErrorState description={error} onRetry={() => void load()} />}
 
     {manager && <Panel title="Create a free bundle" className="bundle-create"><form onSubmit={create}><label>Title<input name="title" minLength={3} required /></label><label>Slug<input name="slug" minLength={3} required /></label><label>Academic year<select name="year" defaultValue="1">{[1, 2, 3, 4, 5, 6].map((year) => <option key={year} value={year}>Year {year}</option>)}</select></label><label>Description<input name="description" /></label><button className="pp-button" disabled={creating}><FiPlus /> {creating ? "Creating…" : "Create draft"}</button></form></Panel>}
@@ -303,6 +322,8 @@ function BundleWorkspaceTab({ content, tab, courses, lectures, openWeeks, setOpe
   setUrl: (bundleId: string | null, tab: Tab, week?: string | null, replace?: boolean) => void;
 }) {
   if (tab === "overview") return <><section className="bundle-summary-grid">{Object.entries(content.totals).map(([label, value]) => <Panel key={label}><b>{value}</b><small>{label.replaceAll("_", " ")}</small></Panel>)}</section><Panel title="Continue your curriculum">{lectures.slice(0, 5).map(({ course, week, lecture }) => <Link className="bundle-row" key={lecture.id} href={guideHref(course, lecture)}><FiBookOpen /><span><b>{lecture.title}</b><small>Week {week.weekNumber} · {lecture.question_count} questions · {lecture.flashcard_deck_count} decks</small></span></Link>)}</Panel></>;
+
+  if (tab === "curriculum" && !courses.length) return <EmptyState title="No courses in this semester" description="This bundle does not currently contain courses for the selected semester." />;
 
   if (tab === "curriculum") return <section className="bundle-accordion-stack"><div className="bundle-expand-actions"><button type="button" onClick={() => setOpenWeeks(new Set(courses.flatMap((course) => course.weeks.map((week) => week.id))))}>Expand all</button><button type="button" onClick={() => setOpenWeeks(new Set())}>Collapse all</button></div>{courses.map((course) => <Panel key={course.id} title={`${course.courseCode} · ${course.courseName}`} className="bundle-course">{course.weeks.map((week) => {
     const questions = week.lectures.reduce((sum, lecture) => sum + lecture.question_count, 0);
