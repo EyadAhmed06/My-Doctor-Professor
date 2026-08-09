@@ -1,6 +1,8 @@
+@import "./thyroid-real-generated.css";
+
 /* Homepage medical-image integration.
    Brain/circulatory/hero processing remains light-mode-only.
-   The clean thyroid artwork has dedicated light and dark SVG assets. */
+   The realistic watermark-free thyroid artwork is shared across both themes. */
 
 /* Keep homepage media frameless in light mode. */
 html[data-theme="light"] .hero-duo,
@@ -51,8 +53,9 @@ html[data-theme="light"] .hero-duo img {
  */
 
 /*
- * Thyroid — dedicated pure-vector assets for each theme.
- * No embedded raster/data URI, no watermark, no cover crop, and no mask.
+ * The thyroid rules below are retained as a fallback only. The imported
+ * thyroid-real-generated.css has higher selector specificity and renders the
+ * already-generated realistic watermark-free image in both themes.
  */
 html[data-theme="light"] .thyroid-visual img {
   content: url('/media/thyroid-home-light.svg') !important;
