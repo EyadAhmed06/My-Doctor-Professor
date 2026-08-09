@@ -30,7 +30,9 @@ html[data-theme="light"] .circulation-feature figure img {
 }
 
 /* Doctor + Professor hero.
- * Light mode uses the dedicated light artwork; dark mode keeps the original.
+ * Light mode uses the untouched high-quality light artwork. The canvas is
+ * blended/faded in CSS so we never destroy source pixels to remove the frame.
+ * Dark mode keeps the original artwork unchanged.
  */
 .hero-duo-light {
   display: none;
@@ -53,9 +55,12 @@ html[data-theme="light"] .hero-duo-light {
   object-fit: contain !important;
   object-position: center center !important;
   transform: none !important;
+  opacity: 1 !important;
+  image-rendering: auto !important;
+  mix-blend-mode: multiply !important;
   filter: none !important;
-  -webkit-mask-image: none !important;
-  mask-image: none !important;
+  -webkit-mask-image: radial-gradient(ellipse 99% 98% at 50% 49%, #000 0 82%, rgba(0,0,0,.99) 88%, rgba(0,0,0,.82) 94%, rgba(0,0,0,.28) 98%, transparent 100%) !important;
+  mask-image: radial-gradient(ellipse 99% 98% at 50% 49%, #000 0 82%, rgba(0,0,0,.99) 88%, rgba(0,0,0,.82) 94%, rgba(0,0,0,.28) 98%, transparent 100%) !important;
 }
 
 html[data-theme="dark"] .hero-duo-light {
