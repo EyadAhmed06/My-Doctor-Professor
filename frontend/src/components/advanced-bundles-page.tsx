@@ -80,6 +80,8 @@ export function AdvancedBundlesPage() {
   const requestedBundle = searchParams.get("bundle") || searchParams.get("id");
   const requestedTab = validTab(searchParams.get("tab"));
   const requestedWeek = searchParams.get("week");
+  const stageValue = Number(searchParams.get("stage"));
+  const requestedStage = Number.isInteger(stageValue) && stageValue >= 1 && stageValue <= 4 ? stageValue : null;
   const [tab, setTab] = useState<Tab>(requestedTab);
   const [bundles, setBundles] = useState<Bundle[]>([]);
   const [catalog, setCatalog] = useState<Bundle[]>([]);
@@ -92,6 +94,11 @@ export function AdvancedBundlesPage() {
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState<Set<string>>(new Set());
+
+  const matchesStage = useCallback((bundle: Bundle) => {
+    if (!requestedStage) return true;
+    return requestedStage === 4 ? bundle.academicYear >= 4 : bundle.academicYear === requestedStage;
+  }, [requestedStage]);
 
   const setUrl = useCallback((bundleRef: string | null, nextTab: Tab, week: string | null = null, replace = false) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -125,17 +132,18 @@ export function AdvancedBundlesPage() {
     setError(null);
     try {
       const owned = await request<Bundle[]>(manager ? "/bundles/managed" : "/bundles/mine");
-      setBundles(owned);
+      const scopedOwned = owned.filter(matchesStage);
+      setBundles(scopedOwned);
       if (!manager) {
         const publicItems = await request<Bundle[]>("/catalog/bundles");
-        setCatalog(publicItems.filter((item) => !owned.some((ownedItem) => ownedItem.id === item.id)));
+        setCatalog(publicItems.filter(matchesStage).filter((item) => !owned.some((ownedItem) => ownedItem.id === item.id)));
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to load bundles.");
     } finally {
       setLoading(false);
     }
-  }, [manager, request]);
+  }, [manager, matchesStage, request]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -255,12 +263,12 @@ export function AdvancedBundlesPage() {
   const tabCounts = selected ? { overview: null, curriculum: selected.totals.weeks, questions: selected.totals.questions, exams: selected.totals.past_exams, flashcards: selected.totals.flashcard_decks, resources: selected.totals.resources } satisfies Record<Tab, number | null> : null;
 
   return <ProductShell search="Search bundles, courses, weeks, or lectures"><main className="pp-page bundle-page advanced-bundle-page">
-    <div className="pp-title hero"><div><small className="page-eyebrow">{manager ? "BUNDLE MANAGEMENT" : "YOUR LEARNING ACCESS"}</small><h1>{manager ? "Bundles" : "My Bundles"}</h1><p>{manager ? "Compose courses and weeks into a publishable learning workspace." : "Open enrolled curriculum, questions, exams, flashcards, and resources without losing context."}</p></div><button className="pp-button secondary" onClick={() => void load()}><FiRefreshCw /> Refresh</button></div>
+    <div className="pp-title hero"><div><small className="page-eyebrow">{manager ? "BUNDLE MANAGEMENT" : "YOUR LEARNING ACCESS"}</small><h1>{manager ? "Bundles" : "My Bundles"}</h1><p>{manager ? "Compose courses and weeks into a publishable learning workspace." : requestedStage ? `Showing your academic stage ${requestedStage === 4 ? "4+" : requestedStage} learning access.` : "Open enrolled curriculum, questions, exams, flashcards, and resources without losing context."}</p></div><button className="pp-button secondary" onClick={() => void load()}><FiRefreshCw /> Refresh</button></div>
     {error && <ErrorState description={error} onRetry={() => void load()} />}
 
     {manager && <Panel title="Create a free bundle" className="bundle-create"><form onSubmit={create}><label>Title<input name="title" minLength={3} required /></label><label>Slug<input name="slug" minLength={3} required /></label><label>Academic year<select name="year" defaultValue="1">{[1, 2, 3, 4, 5, 6].map((year) => <option key={year} value={year}>Year {year}</option>)}</select></label><label>Description<input name="description" /></label><button className="pp-button" disabled={creating}><FiPlus /> {creating ? "Creating…" : "Create draft"}</button></form></Panel>}
 
-    {loading ? <PageSkeleton variant="workspace" label="Loading bundles" /> : !bundles.length ? <EmptyState title={manager ? "No managed bundles" : "No enrolled bundles"} description={manager ? "Create a draft bundle to begin composing curriculum." : "Join a published free bundle from the catalog below."} /> : <div className="bundle-workspace">
+    {loading ? <PageSkeleton variant="workspace" label="Loading bundles" /> : !bundles.length ? <EmptyState title={manager ? "No managed bundles" : requestedStage ? "No enrolled bundles for this academic stage" : "No enrolled bundles"} description={manager ? "Create a draft bundle to begin composing curriculum." : requestedStage ? "Join a published bundle for this stage from the catalog below, or return to your dashboard." : "Join a published free bundle from the catalog below."} /> : <div className="bundle-workspace">
       <aside className="bundle-list" aria-label={manager ? "Managed bundles" : "Your bundles"}><h2>{manager ? "Managed bundles" : "Available to you"}</h2>{bundles.map((bundle) => {
         const badge = bundleBadge(bundle, visited);
         return <button className={selected?.bundle.id === bundle.id ? "active" : ""} key={bundle.id} onClick={() => open(bundle)}><span><FiLayers /></span><b>{bundle.title}<small>Year {bundle.academicYear} · {bundle.status}</small></b><em className={`bundle-status-badge ${badge.className}`}>{badge.label}</em></button>;
