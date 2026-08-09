@@ -18,7 +18,6 @@ html[data-theme="light"] .circulation-feature figure {
   box-shadow: none !important;
 }
 
-html[data-theme="light"] .hero-duo img,
 html[data-theme="light"] .thyroid-visual img,
 html[data-theme="light"] .organ-image-grid img,
 html[data-theme="light"] .circulation-feature figure img {
@@ -31,17 +30,24 @@ html[data-theme="light"] .circulation-feature figure img {
 }
 
 /*
- * Doctor + Professor — LIGHT MODE ONLY.
- * Keep the dedicated light artwork, but do not upscale it with the inherited
- * hero transform. A very soft outer-canvas fade hides the rectangular image
- * boundary without masking/cropping either person or changing dark mode.
+ * Doctor + Professor hero: two real <img> elements.
+ * The original artwork remains the dark-mode image. The dedicated light
+ * artwork is selected only by display; no content replacement/background
+ * image/pseudo-element rendering is involved.
  */
-html[data-theme="light"] .hero-duo {
-  isolation: isolate !important;
+.hero-duo-light {
+  display: none;
 }
 
-html[data-theme="light"] .hero-duo img {
-  content: url('/media/hero-doctor-professor-light.webp') !important;
+.hero-duo-dark {
+  display: block;
+}
+
+html[data-theme="light"] .hero-duo-dark {
+  display: none !important;
+}
+
+html[data-theme="light"] .hero-duo-light {
   display: block !important;
   width: 100% !important;
   height: auto !important;
@@ -50,40 +56,25 @@ html[data-theme="light"] .hero-duo img {
   aspect-ratio: auto !important;
   object-fit: contain !important;
   object-position: center center !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  mix-blend-mode: normal !important;
   transform: none !important;
-  image-rendering: auto !important;
-  filter:
-    saturate(.98)
-    contrast(1.02)
-    brightness(1.015)
-    drop-shadow(0 16px 32px rgba(74, 78, 145, .09)) !important;
+  filter: none !important;
   -webkit-mask-image: none !important;
   mask-image: none !important;
 }
 
-html[data-theme="light"] .hero-duo::before {
-  content: none !important;
+html[data-theme="dark"] .hero-duo-light {
   display: none !important;
 }
 
-html[data-theme="light"] .hero-duo::after {
-  content: "" !important;
+html[data-theme="dark"] .hero-duo-dark {
   display: block !important;
-  position: absolute !important;
-  z-index: 2 !important;
-  inset: -2px !important;
-  pointer-events: none !important;
-  background: radial-gradient(
-    ellipse 90% 88% at 50% 50%,
-    transparent 0 76%,
-    rgba(243, 246, 251, .08) 84%,
-    rgba(243, 246, 251, .34) 93%,
-    rgba(243, 246, 251, .92) 100%
-  ) !important;
-  box-shadow: none !important;
+}
+
+/* Disable the inherited decorative hero overlays in light mode only. */
+html[data-theme="light"] .hero-duo::before,
+html[data-theme="light"] .hero-duo::after {
+  content: none !important;
+  display: none !important;
 }
 
 /*
@@ -224,7 +215,7 @@ html[data-theme="light"] .circulation-feature figure::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html[data-theme="light"] .hero-duo img,
+  html[data-theme="light"] .hero-duo-light,
   html[data-theme="light"] .thyroid-visual img,
   html[data-theme="light"] .organ-image-grid img,
   html[data-theme="light"] .circulation-feature figure img {
