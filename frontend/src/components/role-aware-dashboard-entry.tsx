@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PageSkeleton } from "./async-state";
 import { useAuth } from "./auth-provider";
 import { ConnectedDashboardPage } from "./connected-dashboard-page";
@@ -13,9 +13,14 @@ export function RoleAwareDashboardEntry() {
   const { user, loading } = useAuth();
   const { celebrate } = useUx();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const requestedStage = Number(searchParams.get("stage"));
-  const hasStage = Number.isInteger(requestedStage) && requestedStage >= 1 && requestedStage <= 4;
+  const [requestedStage, setRequestedStage] = useState<number | null>(null);
+  const [stageResolved, setStageResolved] = useState(false);
+
+  useEffect(() => {
+    const value = Number(new URLSearchParams(window.location.search).get("stage"));
+    setRequestedStage(Number.isInteger(value) && value >= 1 && value <= 4 ? value : null);
+    setStageResolved(true);
+  }, []);
 
   useEffect(() => {
     if (user?.role !== "STUDENT") return;
@@ -28,12 +33,12 @@ export function RoleAwareDashboardEntry() {
   }, [celebrate, user?.role]);
 
   useEffect(() => {
-    if (user?.role !== "STUDENT" || !hasStage) return;
+    if (!stageResolved || user?.role !== "STUDENT" || requestedStage === null) return;
     router.replace(`/bundles?tab=curriculum&stage=${requestedStage}`);
-  }, [hasStage, requestedStage, router, user?.role]);
+  }, [requestedStage, router, stageResolved, user?.role]);
 
-  if (loading || !user || (user.role === "STUDENT" && hasStage)) {
-    return <main className="product-auth-loading"><PageSkeleton variant="workspace" label={hasStage ? "Opening your academic stage" : "Loading your dashboard"} /></main>;
+  if (loading || !user || !stageResolved || (user.role === "STUDENT" && requestedStage !== null)) {
+    return <main className="product-auth-loading"><PageSkeleton variant="workspace" label={requestedStage !== null ? "Opening your academic stage" : "Loading your dashboard"} /></main>;
   }
 
   if (user.role === "STUDENT") {
