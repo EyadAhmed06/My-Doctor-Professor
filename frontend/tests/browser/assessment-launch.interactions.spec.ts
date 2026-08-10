@@ -67,8 +67,8 @@ test('lecture quiz builder requires a 40-MCQ pool and launches exactly 40 questi
           weeks: [{
             id: 'week-1', weekNumber: 1, title: 'Cardiology', description: null,
             lectures: [
-              { id: lecture1, title: 'Stable ischemic disease', description: null, lectureNumber: 1, question_count: 25, flashcard_deck_count: 1, resource_count: 1 },
-              { id: lecture2, title: 'Acute coronary syndromes', description: null, lectureNumber: 2, question_count: 25, flashcard_deck_count: 1, resource_count: 1 },
+              { id: lecture1, title: 'Stable ischemic disease', description: null, lectureNumber: 1, question_count: 25, mcq_count: 25, flashcard_deck_count: 1, resource_count: 1 },
+              { id: lecture2, title: 'Acute coronary syndromes', description: null, lectureNumber: 2, question_count: 25, mcq_count: 25, flashcard_deck_count: 1, resource_count: 1 },
             ],
           }],
         }],
