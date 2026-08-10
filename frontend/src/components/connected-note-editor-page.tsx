@@ -206,10 +206,6 @@ export function ConnectedNoteEditorPage() {
         <span className="simple-note-editor-status">{status}</span>
         <button className="pp-button" type="submit" disabled={saving || !title.trim() || !content.trim()}><FiSave /> {translate(saving ? "Saving…" : "Save")}</button>
       </footer>
-
-      {showCollectionForm && <div className="simple-note-inline-collection">
-        <form onSubmit={createCollection} />
-      </div>}
     </form>}
 
     {showCollectionForm && !loading && <form className="simple-note-inline-collection" onSubmit={createCollection}>
