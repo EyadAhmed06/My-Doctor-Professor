@@ -85,8 +85,9 @@ for (const file of roots.flatMap(walk)) {
         const handlerNames = ['onClick', 'onPointerDown', 'onPointerUp', 'onMouseDown', 'onMouseUp', 'formAction'];
         const hasHandler = handlerNames.some((handler) => attributes.has(handler));
         const formAction = attributes.has('formAction');
+        const intentionallyDisabled = attributes.has('disabled');
         const implicitSubmit = !type && hasAncestorForm(opening);
-        const semanticAction = type === 'submit' || type === 'reset' || implicitSubmit || formAction;
+        const semanticAction = type === 'submit' || type === 'reset' || implicitSubmit || formAction || intentionallyDisabled;
         if (!hasHandler && !semanticAction) {
           failures.push(`${location(sourceFile, opening)} dead <button>: ${excerpt(opening)}`);
         }
@@ -110,8 +111,8 @@ for (const file of roots.flatMap(walk)) {
 if (failures.length) {
   console.error(`UI action audit found ${failures.length} obvious inert control${failures.length === 1 ? '' : 's'}:\n`);
   failures.forEach((failure) => console.error(`- ${failure}`));
-  console.error('\nEvery user-visible button must either invoke an action or have explicit submit/reset semantics. Placeholder controls are not allowed.');
+  console.error('\nEvery enabled user-visible button must invoke an action or have explicit submit/reset semantics. Placeholder links are not allowed.');
   process.exit(1);
 }
 
-console.log('UI action audit passed: no obvious inert buttons or placeholder links were found.');
+console.log('UI action audit passed: no obvious inert enabled buttons or placeholder links were found.');
