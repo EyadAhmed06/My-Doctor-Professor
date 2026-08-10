@@ -1,50 +1,212 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FiAlertCircle, FiBookOpen, FiCheck, FiCheckSquare, FiCloud, FiEdit3, FiFileText, FiImage, FiLayers, FiLink, FiRefreshCw, FiSave, FiStar } from "react-icons/fi";
+import { FiArrowLeft, FiFolder, FiPlus, FiSave, FiTrash2 } from "react-icons/fi";
 import { useAuth } from "./auth-provider";
-import { Panel, ProductShell } from "./product-shell";
+import { PageSkeleton } from "./async-state";
+import { useLocale } from "./locale-provider";
+import { ProductShell } from "./product-shell";
 import { useUx } from "./ux-provider";
 import "./product-pages.css";
+import "./notebook-simple.css";
 
-const noteTypes=[
- {value:"EXPLANATION",label:"Explanation",icon:<FiFileText/>},
- {value:"PERSONAL",label:"Personal note",icon:<FiEdit3/>},
- {value:"PEARL",label:"Clinical pearl",icon:<FiStar/>},
- {value:"IMAGE",label:"Image note",icon:<FiImage/>},
- {value:"LINKED_CASE",label:"Linked case",icon:<FiLink/>},
-];
-type Collection={id:string;name:string};type Tag={id:string;name:string};type Note={id:string;title:string;noteType:string;content:string;collectionId:string|null;isFavorite:boolean;reviewAt:string|null;tags:Tag[];updatedAt?:string};
-type SaveState="idle"|"dirty"|"saving"|"saved"|"error";
-type Draft={title:string;type:string;content:string;collectionId:string;tagIds:string[];favorite:boolean;reviewAt:string;savedAt:number};
-type Deck={id:string;title:string;isPublished?:boolean;course?:{courseName?:string};lecture?:{title?:string}};type Page<T>={data:T[]};
+type Collection = { id: string; name: string };
+type Note = {
+  id: string;
+  title: string;
+  content: string;
+  collectionId: string | null;
+};
 
-export function ConnectedNoteEditorPage(){
- const {user,request}=useAuth();const {notify}=useUx();const router=useRouter();const params=useSearchParams();const routeNoteId=params.get("note");
- const [activeNoteId,setActiveNoteId]=useState<string|null>(routeNoteId);const [title,setTitle]=useState("");const [type,setType]=useState("PERSONAL");const [content,setContent]=useState("");const [collectionId,setCollectionId]=useState("");const [tagIds,setTagIds]=useState<string[]>([]);const [favorite,setFavorite]=useState(false);const [reviewAt,setReviewAt]=useState("");const [collections,setCollections]=useState<Collection[]>([]);const [tags,setTags]=useState<Tag[]>([]);const [hydrated,setHydrated]=useState(false);const [saveState,setSaveState]=useState<SaveState>("idle");const [lastSavedAt,setLastSavedAt]=useState<number|null>(null);const [recovery,setRecovery]=useState<Draft|null>(null);const [error,setError]=useState<string|null>(null);
- const [decks,setDecks]=useState<Deck[]>([]);const [deckId,setDeckId]=useState("");const [flashFront,setFlashFront]=useState("");const [flashBack,setFlashBack]=useState("");const [converting,setConverting]=useState(false);
- const lastSavedSignature=useRef("");const saveInFlight=useRef(false);const pendingSave=useRef<"save"|"close"|null>(null);const persistRef=useRef<((closeAfter?:boolean)=>Promise<void>)|null>(null);const contentRef=useRef<HTMLTextAreaElement>(null);
- const canConvert=user?.role==="INSTRUCTOR"||user?.role==="SYSTEM_ADMIN";
+export function ConnectedNoteEditorPage() {
+  const { request } = useAuth();
+  const { translate } = useLocale();
+  const { notify } = useUx();
+  const router = useRouter();
+  const params = useSearchParams();
+  const routeNoteId = params.get("note");
 
- const payload=useMemo(()=>({title,note_type:type,content,collection_id:collectionId||null,is_favorite:favorite,review_at:reviewAt?new Date(reviewAt).toISOString():null,tag_ids:tagIds}),[title,type,content,collectionId,favorite,reviewAt,tagIds]);
- const signature=useMemo(()=>JSON.stringify(payload),[payload]);const draftKey=useMemo(()=>`mdp-note-draft:${user?.id||"anonymous"}:${activeNoteId||"new"}`,[user?.id,activeNoteId]);
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(routeNoteId);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [collectionId, setCollectionId] = useState("");
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [showCollectionForm, setShowCollectionForm] = useState(false);
+  const [creatingCollection, setCreatingCollection] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
- useEffect(()=>{let active=true;setHydrated(false);void Promise.all([request<Collection[]>("/notebook/collections"),request<Tag[]>("/notebook/tags"),routeNoteId?request<Note>(`/notebook/notes/${routeNoteId}`):Promise.resolve(null)]).then(([collectionRows,tagRows,note])=>{if(!active)return;setCollections(collectionRows);setTags(tagRows);if(note){setActiveNoteId(note.id);setTitle(note.title);setType(note.noteType);setContent(note.content);setCollectionId(note.collectionId||"");setFavorite(note.isFavorite);setReviewAt(note.reviewAt?.slice(0,16)||"");setTagIds(note.tags.map(tag=>tag.id));lastSavedSignature.current=JSON.stringify({title:note.title,note_type:note.noteType,content:note.content,collection_id:note.collectionId||null,is_favorite:note.isFavorite,review_at:note.reviewAt?new Date(note.reviewAt).toISOString():null,tag_ids:note.tags.map(tag=>tag.id)});}else lastSavedSignature.current=JSON.stringify({title:"",note_type:"PERSONAL",content:"",collection_id:null,is_favorite:false,review_at:null,tag_ids:[]});try{const key=`mdp-note-draft:${user?.id||"anonymous"}:${note?.id||"new"}`;const raw=localStorage.getItem(key);if(raw){const draft=JSON.parse(raw) as Draft;const serverTime=note?.updatedAt?new Date(note.updatedAt).getTime():0;if(draft.savedAt>serverTime&&(draft.title||draft.content))setRecovery(draft);}}catch{}setSaveState("idle");setHydrated(true);}).catch(cause=>{if(active){setError(cause instanceof Error?cause.message:"Unable to load editor.");setSaveState("error");}});return()=>{active=false};},[request,routeNoteId,user?.id]);
- useEffect(()=>{if(!canConvert)return;let active=true;void request<Page<Deck>>("/flashcards/decks?limit=100&is_published=false").then(result=>{if(!active)return;setDecks(result.data);setDeckId(current=>result.data.some(deck=>deck.id===current)?current:result.data[0]?.id||"");}).catch(()=>{if(active)setDecks([]);});return()=>{active=false};},[canConvert,request]);
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError(null);
+    void Promise.all([
+      request<Collection[]>("/notebook/collections"),
+      routeNoteId ? request<Note>(`/notebook/notes/${routeNoteId}`) : Promise.resolve(null),
+    ]).then(([collectionRows, note]) => {
+      if (!active) return;
+      setCollections(collectionRows);
+      if (note) {
+        setActiveNoteId(note.id);
+        setTitle(note.title);
+        setContent(note.content);
+        setCollectionId(note.collectionId || "");
+      } else {
+        setActiveNoteId(null);
+        setTitle("");
+        setContent("");
+        setCollectionId("");
+      }
+      setDirty(false);
+      setLoading(false);
+    }).catch((cause) => {
+      if (!active) return;
+      setError(cause instanceof Error ? cause.message : translate("Unable to load notebook."));
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, [request, routeNoteId, translate]);
 
- const persist=useCallback(async(closeAfter=false)=>{if(!hydrated||!title.trim()||!content.trim())return;if(saveInFlight.current){pendingSave.current=closeAfter?"close":"save";return;}saveInFlight.current=true;setSaveState("saving");setError(null);const currentSignature=signature;const previousKey=draftKey;try{const saved=await request<Note>(activeNoteId?`/notebook/notes/${activeNoteId}`:"/notebook/notes",{method:activeNoteId?"PUT":"POST",body:payload});if(!activeNoteId){setActiveNoteId(saved.id);window.history.replaceState(null,"",`/notebook/new?note=${saved.id}`);}lastSavedSignature.current=currentSignature;setLastSavedAt(Date.now());setSaveState("saved");try{localStorage.removeItem(previousKey);}catch{}if(closeAfter)router.push("/notebook");}catch(cause){setError(cause instanceof Error?cause.message:"Unable to autosave this note.");setSaveState("error");}finally{saveInFlight.current=false;const queued=pendingSave.current;pendingSave.current=null;if(queued)window.setTimeout(()=>void persistRef.current?.(queued==="close"),0);}},[activeNoteId,draftKey,hydrated,payload,request,router,signature,title,content]);
- useEffect(()=>{persistRef.current=persist;},[persist]);
- useEffect(()=>{if(!hydrated||signature===lastSavedSignature.current)return;setSaveState(current=>current==="saving"?current:"dirty");const draft:Draft={title,type,content,collectionId,tagIds,favorite,reviewAt,savedAt:Date.now()};try{localStorage.setItem(draftKey,JSON.stringify(draft));}catch{}if(!title.trim()||!content.trim())return;const timer=window.setTimeout(()=>void persist(false),1200);return()=>window.clearTimeout(timer);},[hydrated,signature,title,type,content,collectionId,tagIds,favorite,reviewAt,draftKey,persist]);
- useEffect(()=>{function warnBeforeUnload(event:BeforeUnloadEvent){if(saveState!=="dirty"&&saveState!=="saving"&&saveState!=="error")return;event.preventDefault();event.returnValue="";}window.addEventListener("beforeunload",warnBeforeUnload);return()=>window.removeEventListener("beforeunload",warnBeforeUnload);},[saveState]);
+  useEffect(() => {
+    function warnBeforeUnload(event: BeforeUnloadEvent) {
+      if (!dirty) return;
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [dirty]);
 
- async function submit(event:FormEvent){event.preventDefault();await persist(true);}
- function restoreDraft(){if(!recovery)return;setTitle(recovery.title);setType(recovery.type);setContent(recovery.content);setCollectionId(recovery.collectionId);setTagIds(recovery.tagIds);setFavorite(recovery.favorite);setReviewAt(recovery.reviewAt);setRecovery(null);}
- function discardDraft(){try{localStorage.removeItem(draftKey);}catch{}setRecovery(null);}
- function prepareFlashcard(){const textarea=contentRef.current;const selected=textarea&&textarea.selectionStart!==textarea.selectionEnd?content.slice(textarea.selectionStart,textarea.selectionEnd).trim():"";setFlashFront(title.trim()||"Recall this concept");setFlashBack(selected||content.trim());notify({title:selected?"Selected text captured":"Full note captured",description:"Review the front and back before creating the draft card.",tone:"info",duration:2500});}
- async function convertToFlashcard(){if(!activeNoteId||!deckId||!flashFront.trim()||!flashBack.trim())return;setConverting(true);try{await request(`/notebook/notes/${activeNoteId}/flashcard`,{method:"POST",body:{deck_id:deckId,title:flashFront.trim().slice(0,200),front_content:flashFront.trim(),back_content:flashBack.trim()}});notify({title:"Flashcard created",description:"The card was added to the selected draft deck.",tone:"success"});setFlashFront("");setFlashBack("");}catch(cause){notify({title:"Could not create flashcard",description:cause instanceof Error?cause.message:undefined,tone:"error"});}finally{setConverting(false);}}
+  async function saveNote(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    if (!title.trim() || !content.trim() || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const saved = await request<Note>(activeNoteId ? `/notebook/notes/${activeNoteId}` : "/notebook/notes", {
+        method: activeNoteId ? "PUT" : "POST",
+        body: {
+          title: title.trim(),
+          note_type: "PERSONAL",
+          content,
+          collection_id: collectionId || null,
+        },
+      });
+      setActiveNoteId(saved.id);
+      setDirty(false);
+      if (!activeNoteId) window.history.replaceState(null, "", `/notebook/new?note=${saved.id}`);
+      notify({ title: translate("Notebook saved"), description: saved.title, tone: "success" });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : translate("Unable to save notebook."));
+    } finally {
+      setSaving(false);
+    }
+  }
 
- const score=Math.min(100,(title?30:0)+(collectionId?15:0)+(tagIds.length?15:0)+Math.round(Math.min(content.length,800)/20));const statusCopy=saveState==="saving"?"Saving…":saveState==="saved"?"Saved":saveState==="dirty"?"Unsaved changes":saveState==="error"?"Save failed":"Ready";const StatusIcon=saveState==="saving"?FiRefreshCw:saveState==="saved"?FiCheck:saveState==="error"?FiAlertCircle:FiCloud;
- return <ProductShell search="Search notes, pearls, or cases"><main className="pp-page note-editor-page restored-page"><header className="workspace-heading"><div><span className="page-eyebrow">STRUCTURED KNOWLEDGE CAPTURE</span><h1>{activeNoteId?"Edit Note":"New Note"}</h1><p>Capture explanations, pearls, images, and linked learning in one searchable workspace.</p></div><div className="editor-status autosave-status" data-state={saveState}><StatusIcon/><span><b>{statusCopy}</b><small>{lastSavedAt?`Last saved ${new Date(lastSavedAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}`:saveState==="dirty"?"Local recovery copy stored":"Private notebook"}</small></span></div></header>{error&&<p className="form-error autosave-error">{error}</p>}{recovery&&<div className="autosave-recovery"><span>A newer browser draft was found for this note.</span><div><button className="pp-button secondary" type="button" onClick={discardDraft}>Discard</button><button className="pp-button" type="button" onClick={restoreDraft}>Restore draft</button></div></div>}<form className="note-editor-layout" onSubmit={submit}><aside className="note-setup"><b>NOTE SETUP</b>{noteTypes.map(item=><button type="button" className={type===item.value?"active":""} onClick={()=>setType(item.value)} key={item.value}>{item.icon}{item.label}</button>)}<label>Collection<select value={collectionId} onChange={event=>setCollectionId(event.target.value)}><option value="">Unfiled</option>{collections.map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select></label><label>Review reminder<input type="datetime-local" value={reviewAt} onChange={event=>setReviewAt(event.target.value)}/></label><label className="check-row"><input type="checkbox" checked={favorite} onChange={event=>setFavorite(event.target.checked)}/> Favorite</label><button className="pp-button" disabled={saveState==="saving"||!title.trim()||!content.trim()}><FiSave/> {saveState==="saving"?"Saving…":"Save & close"}</button><small>Changes autosave after you pause typing.</small></aside><section className="note-canvas"><input className="note-title-input" value={title} onChange={event=>setTitle(event.target.value)} placeholder="Enter note title…" maxLength={200} required/><div className="editor-toolbar"><b>H₁</b><b>H₂</b><b>B</b><i>I</i><FiCheckSquare/><FiImage/><FiLink/>{canConvert&&<button type="button" onClick={prepareFlashcard} title="Turn selected text into a flashcard"><FiLayers/></button>}</div><div className={`structured-block ${type.toLowerCase()}`}><span>{noteTypes.find(item=>item.value===type)?.icon}<b>{noteTypes.find(item=>item.value===type)?.label}</b></span><textarea ref={contentRef} value={content} onChange={event=>setContent(event.target.value)} placeholder="Write your note here…" maxLength={50000} required/></div></section><aside className="editor-insights"><Panel title="Note structure"><div className="readiness-ring">{score}<small>%</small></div><p>{score>70?"Strong structure. Your work will save automatically.":"Add a collection, tags, and enough context to make this useful later."}</p></Panel><Panel title="Tags"><div className="tag-picker">{tags.length?tags.map(tag=><button type="button" className={tagIds.includes(tag.id)?"active":""} onClick={()=>setTagIds(current=>current.includes(tag.id)?current.filter(id=>id!==tag.id):[...current,tag.id])} key={tag.id}>{tag.name}</button>):<p>Create tags from the Notebook library.</p>}</div></Panel>{canConvert&&<Panel title="Text to flashcard" className="note-flashcard-panel"><p>Select text in the editor, then capture it as the answer side of a draft card.</p><button className="pp-button secondary" type="button" onClick={prepareFlashcard} disabled={!content.trim()}><FiLayers/> Use selected text</button>{decks.length?<><label>Draft deck<select value={deckId} onChange={event=>setDeckId(event.target.value)}>{decks.map(deck=><option value={deck.id} key={deck.id}>{deck.title}{deck.lecture?.title?` · ${deck.lecture.title}`:""}</option>)}</select></label><label>Front<textarea value={flashFront} onChange={event=>setFlashFront(event.target.value)} maxLength={10000}/></label><label>Back<textarea value={flashBack} onChange={event=>setFlashBack(event.target.value)} maxLength={20000}/></label><button className="pp-button" type="button" disabled={converting||!activeNoteId||!deckId||!flashFront.trim()||!flashBack.trim()} onClick={()=>void convertToFlashcard()}>{converting?"Creating…":"Create draft flashcard"}</button>{!activeNoteId&&<small>Wait for the note’s first autosave before converting it.</small>}</>:<><p>No editable draft deck is available.</p><Link className="pp-button secondary" href="/instructor/flashcards">Open flashcard builder</Link></>}</Panel>}<Panel title="Linked resources"><p><FiBookOpen/> Question and lecture links are stored by the API and can be attached from their source screens.</p></Panel></aside></form></main></ProductShell>;
+  async function createCollection(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const name = String(data.get("name") || "").trim();
+    if (!name) return;
+    setCreatingCollection(true);
+    setError(null);
+    try {
+      const created = await request<Collection>("/notebook/collections", {
+        method: "POST",
+        body: { name },
+      });
+      setCollections((current) => [...current, created]);
+      setCollectionId(created.id);
+      setDirty(true);
+      setShowCollectionForm(false);
+      form.reset();
+      notify({ title: translate("Collection created"), description: created.name, tone: "success" });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : translate("Unable to create collection."));
+    } finally {
+      setCreatingCollection(false);
+    }
+  }
+
+  async function deleteNote() {
+    if (!activeNoteId || !window.confirm(translate("Delete this notebook?"))) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await request(`/notebook/notes/${activeNoteId}`, { method: "DELETE" });
+      setDirty(false);
+      notify({ title: translate("Notebook deleted"), tone: "success" });
+      router.push("/notebook");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : translate("Unable to delete notebook."));
+      setSaving(false);
+    }
+  }
+
+  const status = saving
+    ? translate("Saving…")
+    : dirty
+      ? translate("Unsaved changes")
+      : activeNoteId
+        ? translate("Saved")
+        : translate("New notebook");
+
+  return <ProductShell><main className="pp-page simple-note-editor-page">
+    <header className="simple-note-editor-head">
+      <div className="simple-note-editor-head-left">
+        <Link className="simple-note-editor-back" href="/notebook" aria-label={translate("Back to notebook")}><FiArrowLeft /></Link>
+        <div><h1>{translate(activeNoteId ? "Edit notebook" : "New notebook")}</h1><small>{status}</small></div>
+      </div>
+      <div className="simple-note-editor-actions">
+        {activeNoteId && <button className="simple-note-delete" type="button" disabled={saving} onClick={() => void deleteNote()}><FiTrash2 /> {translate("Delete")}</button>}
+        <button className="pp-button" type="button" disabled={saving || !title.trim() || !content.trim()} onClick={() => void saveNote()}><FiSave /> {translate(saving ? "Saving…" : "Save")}</button>
+      </div>
+    </header>
+
+    {error && <p className="form-error simple-note-error" role="alert">{error}</p>}
+
+    {loading ? <PageSkeleton variant="workspace" label={translate("Loading notebook")} /> : <form className="simple-note-editor-card" onSubmit={saveNote}>
+      <input
+        className="simple-note-title"
+        value={title}
+        onChange={(event) => { setTitle(event.target.value); setDirty(true); }}
+        placeholder={translate("Notebook title")}
+        maxLength={200}
+        required
+        autoFocus
+      />
+      <textarea
+        className="simple-note-content"
+        value={content}
+        onChange={(event) => { setContent(event.target.value); setDirty(true); }}
+        placeholder={translate("Start writing here…")}
+        maxLength={50000}
+        required
+      />
+
+      <footer className="simple-note-editor-footer">
+        <div className="simple-note-collection">
+          <FiFolder />
+          <select value={collectionId} onChange={(event) => { setCollectionId(event.target.value); setDirty(true); }} aria-label={translate("Collection")}>
+            <option value="">{translate("No collection")}</option>
+            {collections.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}
+          </select>
+          <button className="simple-note-new-collection-button" type="button" onClick={() => setShowCollectionForm((current) => !current)}><FiPlus /> {translate("New collection")}</button>
+        </div>
+        <span className="simple-note-editor-status">{status}</span>
+        <button className="pp-button" type="submit" disabled={saving || !title.trim() || !content.trim()}><FiSave /> {translate(saving ? "Saving…" : "Save")}</button>
+      </footer>
+    </form>}
+
+    {showCollectionForm && !loading && <form className="simple-note-inline-collection" onSubmit={createCollection}>
+      <input name="name" placeholder={translate("Collection name")} maxLength={120} required autoFocus />
+      <button className="pp-button" type="submit" disabled={creatingCollection}><FiPlus /> {translate(creatingCollection ? "Creating…" : "Create collection")}</button>
+      <button className="pp-button secondary" type="button" onClick={() => setShowCollectionForm(false)}>{translate("Cancel")}</button>
+    </form>}
+  </main></ProductShell>;
 }
