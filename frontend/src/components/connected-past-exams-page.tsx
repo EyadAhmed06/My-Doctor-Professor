@@ -29,7 +29,6 @@ type LaunchConfig = {
   issues: string[];
 };
 type Attempt = { id: string; testId: string; testMode: "TUTOR" | "TIMED" };
-
 type Mode = "TUTOR" | "TIMED";
 
 export function ConnectedPastExamsPage() {
@@ -43,7 +42,7 @@ export function ConnectedPastExamsPage() {
   const [exams, setExams] = useState<Exam[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [config, setConfig] = useState<LaunchConfig | null>(null);
-  const [mode, setMode] = useState<Mode>("TUTOR");
+  const [mode, setMode] = useState<Mode | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingConfig, setLoadingConfig] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -96,6 +95,7 @@ export function ConnectedPastExamsPage() {
   }, [bundleId, request, requestedTest]);
 
   useEffect(() => {
+    setMode(null);
     if (!selectedId) {
       setConfig(null);
       return;
@@ -105,9 +105,7 @@ export function ConnectedPastExamsPage() {
     setError(null);
     void request<LaunchConfig>(`/test-launch/${selectedId}`)
       .then((value) => {
-        if (!active) return;
-        setConfig(value);
-        setMode(value.timed_available ? "TIMED" : "TUTOR");
+        if (active) setConfig(value);
       })
       .catch((cause) => {
         if (active) setError(cause instanceof Error ? cause.message : "Unable to load exam configuration.");
@@ -123,10 +121,10 @@ export function ConnectedPastExamsPage() {
   const currentBundle = bundles.find((bundle) => bundle.id === bundleId);
   const selected = useMemo(() => exams.find((exam) => exam.id === selectedId) || null, [exams, selectedId]);
   const timedDisabled = !config?.timed_available;
-  const launchDisabled = !config?.launch_ready || Boolean(currentBundle?.read_only) || (mode === "TIMED" && timedDisabled);
+  const launchDisabled = !mode || !config?.launch_ready || Boolean(currentBundle?.read_only) || (mode === "TIMED" && timedDisabled);
 
   async function startExam() {
-    if (!selected || launchDisabled || starting) return;
+    if (!selected || !mode || launchDisabled || starting) return;
     setStarting(true);
     setError(null);
     try {
@@ -143,7 +141,7 @@ export function ConnectedPastExamsPage() {
     <ProductShell search="Search configured exams">
       <main className="pp-page exam-launch-page">
         <header className="exam-launch-heading">
-          <div><small>ASSESSMENT LAUNCHER</small><h1>Mock Exam</h1><p>Choose an instructor-configured exam, then decide whether to run it in Tutor or Timed mode.</p></div>
+          <div><small>ASSESSMENT LAUNCHER</small><h1>Mock Exam</h1><p>Choose an instructor-configured exam, then explicitly choose Tutor or Timed mode before starting.</p></div>
           <label>Bundle<select value={bundleId} onChange={(event) => setBundleId(event.target.value)}>{bundles.map((bundle) => <option key={bundle.id} value={bundle.id}>{bundle.title}{bundle.read_only ? " · read-only" : ""}</option>)}</select></label>
         </header>
 
@@ -186,7 +184,7 @@ export function ConnectedPastExamsPage() {
 
                   {config?.is_final && (
                     <section className={`final-exam-rule ${config.launch_ready ? "ready" : "blocked"}`}>
-                      <div><small>FINAL EXAM RULE</small><h3>200 MCQs required</h3><p>A Final cannot launch unless the instructor has configured exactly 200 questions and all 200 are MCQs.</p></div>
+                      <div><small>FINAL EXAM RULE</small><h3>200 MCQs required</h3><p>A Final cannot launch unless the instructor has configured exactly 200 questions and all 200 are MCQs. In-session navigation is split into five 40-question blocks.</p></div>
                       <strong>{config.mcq_count} / 200 MCQs</strong>
                     </section>
                   )}
@@ -194,8 +192,8 @@ export function ConnectedPastExamsPage() {
                   {config?.issues.length ? <section className="exam-launch-issues"><b>Configuration check</b>{config.issues.map((issue) => <p key={issue}>{issue}</p>)}</section> : null}
 
                   <footer className="exam-launch-footer">
-                    <div><small>Starting</small><b>{mode === "TIMED" ? `Timed · ${selected.durationMinutes} minutes` : "Tutor · untimed"}</b></div>
-                    <button className="pp-button" type="button" disabled={launchDisabled || starting || loadingConfig} onClick={() => void startExam()}><FiPlayCircle />{starting ? "Starting…" : config?.is_final ? "Start 200-MCQ Final" : "Start exam"}</button>
+                    <div><small>Starting</small><b>{!mode ? "Choose Tutor or Timed mode" : mode === "TIMED" ? `Timed · ${selected.durationMinutes} minutes` : "Tutor · untimed"}</b></div>
+                    <button className="pp-button" type="button" disabled={launchDisabled || starting || loadingConfig} onClick={() => void startExam()}><FiPlayCircle />{starting ? "Starting…" : !mode ? "Choose a mode" : config?.is_final ? "Start 200-MCQ Final" : "Start exam"}</button>
                   </footer>
                 </>
               ) : <Panel title="Select an exam"><p>Choose an instructor-configured assessment from the left.</p></Panel>}
