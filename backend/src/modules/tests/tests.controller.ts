@@ -7,13 +7,14 @@ import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
 import { AssessmentAuthoringService } from './assessment-authoring.service';
 import { AddTestQuestionDto, CreateTestDto, GeneratePracticeTestDto, GradeEssayDto, PracticeCatalogQueryDto, QuestionNoteDto, ReorderTestQuestionsDto, SaveAnswerDto, StartTestAttemptDto, TestQueryDto, UpdateTestDto } from './dtos/tests.dto';
+import { McqPracticeService } from './mcq-practice.service';
 import { TestsService } from './tests.service';
 const uuid = new ParseUUIDPipe({version:'4'});
 
 @Controller('tests')
 @UseGuards(JwtAuthGuard,RolesGuard)
 export class TestsController {
- constructor(private readonly tests:TestsService,private readonly authoring:AssessmentAuthoringService){}
+ constructor(private readonly tests:TestsService,private readonly authoring:AssessmentAuthoringService,private readonly mcqPractice:McqPracticeService){}
 
  @Post() @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
  create(@Body() dto:CreateTestDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.create(dto,actor);}
@@ -22,7 +23,7 @@ export class TestsController {
  @Get('practice/catalog') @Roles(UserRole.STUDENT)
  practiceCatalog(@Query() query:PracticeCatalogQueryDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.practiceCatalog(query.bundle_id,query.course_id,actor);}
  @Post('practice/generate') @Roles(UserRole.STUDENT)
- generatePractice(@Body() dto:GeneratePracticeTestDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.generatePractice(dto,actor);}
+ generatePractice(@Body() dto:GeneratePracticeTestDto,@CurrentUser() actor:AuthenticatedUser){return this.mcqPractice.generate(dto,actor);}
  @Get(':testId')
  getOne(@Param('testId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.getOne(id,actor);}
  @Put(':testId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
