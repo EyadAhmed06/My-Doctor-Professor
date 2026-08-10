@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { BRAND_NAME, BrandLockup } from "./brand";
 import {
   FiActivity, FiArrowRight, FiBarChart2, FiBookOpen, FiCalendar, FiCheck,
@@ -68,7 +69,7 @@ export function TrustStrip() {
 
 export function PageFooter() {
   return <footer><span>© 2026 {BRAND_NAME}. All rights reserved.</span>
-    <nav><a href="#">Privacy Policy</a><a href="#">Terms of Service</a></nav></footer>;
+    <nav><Link href="/privacy">Privacy Policy</Link><Link href="/terms">Terms of Service</Link></nav></footer>;
 }
 
 export function SecureNote() { return <div className="secure-note"><FiShield/> Your data is secure and encrypted.</div>; }
