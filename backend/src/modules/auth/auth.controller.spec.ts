@@ -43,11 +43,10 @@ describe('AuthController web refresh transport', () => {
       usersService as never,
       config as never,
     );
-    const response = {
-      cookie: jest.fn(),
-      clearCookie: jest.fn(),
-    } as unknown as Response;
-    return { controller, authService, response };
+    const cookie = jest.fn();
+    const clearCookie = jest.fn();
+    const response = { cookie, clearCookie } as unknown as Response;
+    return { controller, authService, response, cookie, clearCookie };
   }
 
   function request(origin?: string, cookie?: string) {
@@ -59,7 +58,7 @@ describe('AuthController web refresh transport', () => {
   }
 
   it('keeps refresh credentials out of browser JSON and writes HttpOnly cookies', async () => {
-    const { controller, response } = setup();
+    const { controller, response, cookie } = setup();
     const result = await controller.login(
       { email: 'student@example.test', password: 'password', remember: true },
       request('http://localhost:3001'),
@@ -68,12 +67,12 @@ describe('AuthController web refresh transport', () => {
 
     expect(result).toEqual({ access_token: 'access-token', user: authResponse.user });
     expect(result).not.toHaveProperty('refresh_token');
-    expect(response.cookie).toHaveBeenCalledWith(
+    expect(cookie).toHaveBeenCalledWith(
       'mdp_refresh',
       'refresh-token',
       expect.objectContaining({ httpOnly: true, sameSite: 'lax', path: '/api/v1/auth', maxAge: 604800000 }),
     );
-    expect(response.cookie).toHaveBeenCalledWith(
+    expect(cookie).toHaveBeenCalledWith(
       'mdp_refresh_mode',
       'persistent',
       expect.objectContaining({ httpOnly: true }),
@@ -81,7 +80,7 @@ describe('AuthController web refresh transport', () => {
   });
 
   it('preserves refresh token body fallback for non-browser API clients', async () => {
-    const { controller, response } = setup();
+    const { controller, response, cookie } = setup();
     const result = await controller.login(
       { email: 'student@example.test', password: 'password', remember: false },
       request(),
@@ -89,7 +88,7 @@ describe('AuthController web refresh transport', () => {
     );
 
     expect(result).toEqual(authResponse);
-    expect(response.cookie).toHaveBeenCalledWith(
+    expect(cookie).toHaveBeenCalledWith(
       'mdp_refresh',
       'refresh-token',
       expect.not.objectContaining({ maxAge: expect.anything() }),
@@ -97,7 +96,7 @@ describe('AuthController web refresh transport', () => {
   });
 
   it('rotates a refresh credential read from the HttpOnly cookie', async () => {
-    const { controller, authService, response } = setup();
+    const { controller, authService, response, cookie } = setup();
     const result = await controller.refreshToken(
       {},
       request('http://localhost:3001', 'mdp_refresh=old-refresh; mdp_refresh_mode=persistent'),
@@ -106,7 +105,7 @@ describe('AuthController web refresh transport', () => {
 
     expect(authService.refreshAccessToken).toHaveBeenCalledWith('old-refresh');
     expect(result).toEqual({ access_token: 'access-token', user: authResponse.user });
-    expect(response.cookie).toHaveBeenCalledWith(
+    expect(cookie).toHaveBeenCalledWith(
       'mdp_refresh',
       'rotated-refresh',
       expect.objectContaining({ maxAge: 604800000, httpOnly: true }),
