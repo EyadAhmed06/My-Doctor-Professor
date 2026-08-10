@@ -45,6 +45,9 @@ jobs:
       - name: Lint frontend
         run: npm run lint
 
+      - name: Audit UI action contracts
+        run: npm run audit:ui-actions
+
       - name: Build frontend
         run: npm run build
 
