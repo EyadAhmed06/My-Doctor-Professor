@@ -26,6 +26,6 @@ import { ResourceStorageService } from './resource-storage.service';
   ],
   controllers: [AcademicController],
   providers: [AcademicService, AcademicAccessService, ResourceStorageService],
-  exports: [AcademicService, AcademicAccessService, TypeOrmModule],
+  exports: [AcademicService, AcademicAccessService, ResourceStorageService, TypeOrmModule],
 })
 export class AcademicModule {}
