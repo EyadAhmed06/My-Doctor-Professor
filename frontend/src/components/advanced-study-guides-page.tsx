@@ -29,7 +29,17 @@ type Week = { id: string; weekNumber: number; title: string | null; lectures: Le
 type Course = { id: string; courseName: string; courseCode: string; weeks: Week[] };
 type Bundle = { id: string; title: string; status: "DRAFT" | "PUBLISHED" | "ARCHIVED"; read_only?: boolean };
 type BundleContent = { courses: Course[] };
-type Resource = { id: string; resourceName: string; resourceType: string; uploadStatus: string; fileUrl: string; description: string | null; mimeType: string | null };
+type Resource = {
+  id: string;
+  resourceName: string;
+  resourceType: string;
+  uploadStatus: string;
+  fileUrl: string;
+  description: string | null;
+  mimeType: string | null;
+  storageKey?: string | null;
+  originalFilename?: string | null;
+};
 type LectureProgress = { studentId: string; lectureId: string; isCompleted: boolean; completionPercentage: string; timeSpentMinutes: number; lastAccessedAt: string | null; completedAt: string | null };
 
 type SequenceItem = { lecture: Lecture; week: Week; course: Course };
@@ -41,6 +51,18 @@ function resourceKind(resource: Resource) {
   if (mime.startsWith("video/") || /\.(mp4|webm|mov)(\?|$)/.test(url)) return "video";
   if (mime === "application/pdf" || /\.pdf(\?|$)/.test(url)) return "pdf";
   return "external";
+}
+
+function hasManagedFile(resource: Resource) {
+  return Boolean(resource.storageKey && resource.mimeType && resource.originalFilename);
+}
+
+function isExternalResource(resource: Resource) {
+  return /^https?:\/\//i.test(resource.fileUrl);
+}
+
+function resourceAvailable(resource: Resource) {
+  return hasManagedFile(resource) || isExternalResource(resource);
 }
 
 function completionKey(userId: string | undefined) {
@@ -219,7 +241,8 @@ export function AdvancedStudyGuidesPage() {
     if (!needle) return resources;
     return resources.filter((resource) => `${resource.resourceName} ${resource.description || ""} ${resource.resourceType}`.toLowerCase().includes(needle));
   }, [query, resources]);
-  const lectureResourceCompletion = resources.length ? Math.round(resources.filter((resource) => completedResources.has(resource.id)).length * 100 / resources.length) : 0;
+  const availableResources = useMemo(() => resources.filter(resourceAvailable), [resources]);
+  const checkedAvailableResources = availableResources.filter((resource) => completedResources.has(resource.id)).length;
 
   function chooseCourse(id: string) {
     const next = courses.find((item) => item.id === id);
@@ -246,6 +269,10 @@ export function AdvancedStudyGuidesPage() {
   }
 
   function openResource(resource: Resource) {
+    if (!resourceAvailable(resource)) {
+      notify({ title: "Resource file is not available", description: "The instructor record exists, but no real file has been uploaded for this resource yet.", tone: "info" });
+      return;
+    }
     setOpeningResource(resource.id);
     setPreview(resource);
     try { localStorage.setItem(lastResourceKey(user?.id), JSON.stringify({ courseId, lectureId: selected?.id, resourceId: resource.id })); } catch { /* best-effort */ }
@@ -259,6 +286,7 @@ export function AdvancedStudyGuidesPage() {
   }
 
   function toggleResourceComplete(resource: Resource) {
+    if (!resourceAvailable(resource)) return;
     setCompletedResources((current) => {
       const next = new Set(current);
       if (next.has(resource.id)) next.delete(resource.id);
@@ -282,7 +310,7 @@ export function AdvancedStudyGuidesPage() {
     if (!selected || user?.role !== "STUDENT" || savingProgress) return;
     setSavingProgress(true);
     try {
-      const updated = await request<LectureProgress>(`/progress/lectures/${selected.id}`, { method: "PUT", body: { completion_percentage: value, ...(value === 100 ? { is_completed: true } : {}) } });
+      const updated = await request<LectureProgress>(`/progress/lectures/${selected.id}`, { method: "PUT", body: { completion_percentage: value, is_completed: value === 100 } });
       setProgress(updated);
       notify({ title: value === 100 ? "Lecture completed" : "Progress updated", description: value === 100 ? "Course progress and analytics will reflect this completion." : `${Math.round(Number(updated.completionPercentage))}% complete`, tone: "success", duration: 3000 });
     } catch (cause) {
@@ -294,6 +322,11 @@ export function AdvancedStudyGuidesPage() {
 
   const completion = Math.round(Number(progress?.completionPercentage || 0));
   const nextIncomplete = allSequence.find((item) => item.lecture.id !== selected?.id && !completedResources.has(`lecture:${item.lecture.id}`));
+  const resourceChecklistLabel = availableResources.length
+    ? `${checkedAvailableResources} of ${availableResources.length} available ${availableResources.length === 1 ? "resource" : "resources"} checked`
+    : resources.length
+      ? "Resource metadata exists, but no usable file has been uploaded yet"
+      : "No resource checklist yet";
 
   return <ProductShell search="Search lecture guides"><main className="pp-page study-guides-page advanced-guides-page">
     <header className="pp-title study-guides-title"><div><span className="pp-eyebrow">Bundle curriculum</span><h1>Study Guides</h1><p>Search lectures, preview resources, resume work, and track completion inside your enrolled curriculum.</p></div><div className="guide-header-actions"><button className="pp-button secondary" type="button" onClick={resumeLastResource}><FiPlay /> Resume last resource</button><label className="study-guide-course-select">Course<select value={courseId} onChange={(event) => chooseCourse(event.target.value)} disabled={loading}>{courses.map((item) => <option value={item.id} key={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label></div></header>
@@ -316,12 +349,13 @@ export function AdvancedStudyGuidesPage() {
         <article className="guide-content">{selected ? <>
           <section className="guide-hero"><span className="guide-hero-icon"><FiBookOpen /></span><div><small>WEEK {selectedWeek?.weekNumber ?? "—"} · LECTURE {selected.lectureNumber}</small><h1>{selected.title}</h1><p>{selected.description || "The instructor has not published a written lecture description yet."}</p></div></section>
 
-          {user?.role === "STUDENT" && <section className="guide-progress-panel" aria-busy={loadingProgress}><div><span className="pp-eyebrow">Your lecture progress</span><h2>{progress?.isCompleted ? "Completed" : `${completion}% complete`}</h2><Progress value={completion} /><small>{resources.length ? `${lectureResourceCompletion}% of resources marked complete` : "No resource checklist yet"}</small></div>{loadingProgress ? <small>Loading progress…</small> : progress?.isCompleted ? <span className="guide-complete-badge"><FiCheckCircle /> Completed</span> : <div className="guide-progress-actions">{[25, 50, 75, 100].filter((value) => value > completion).map((value) => <button type="button" disabled={savingProgress} onClick={() => void updateProgress(value)} key={value}>{value === 100 ? "Mark complete" : `${value}%`}</button>)}</div>}</section>}
+          {user?.role === "STUDENT" && <section className="guide-progress-panel" aria-busy={loadingProgress}><div><span className="pp-eyebrow">Your lecture progress</span><h2>{progress?.isCompleted ? "Completed" : `${completion}% complete`}</h2><Progress value={completion} /><small>{resourceChecklistLabel}</small></div>{loadingProgress ? <small>Loading progress…</small> : progress?.isCompleted ? <span className="guide-complete-badge"><FiCheckCircle /> Completed</span> : <div className="guide-progress-actions">{[25, 50, 75, 100].filter((value) => value > completion).map((value) => <button type="button" disabled={savingProgress} onClick={() => void updateProgress(value)} key={value}>{value === 100 ? "Mark complete" : `${value}%`}</button>)}</div>}</section>}
 
           <section className="guide-resource-section"><div className="guide-section-heading"><div><span className="pp-eyebrow">Published by your instructor</span><h2>Lecture resources</h2></div><span className="guide-resource-total">{filteredResources.length} {filteredResources.length === 1 ? "resource" : "resources"}</span></div>
             {loadingResources ? <PageSkeleton variant="list" label="Loading lecture resources" /> : filteredResources.length ? <div className="guide-resource-grid">{filteredResources.map((resource) => {
               const complete = completedResources.has(resource.id);
-              return <article className={`guide-resource-card previewable ${complete ? "completed" : ""}`} key={resource.id}><span className="guide-resource-icon"><FiFileText /></span><div><small>{resource.resourceType} · {resource.uploadStatus}</small><h3>{resource.resourceName}</h3><p>{resource.description || "No description was provided."}</p><span>{resourceKind(resource).toUpperCase()}</span></div><div className="guide-resource-actions"><button className="pp-button secondary" type="button" disabled={openingResource === resource.id} onClick={() => openResource(resource)}>{openingResource === resource.id ? "Opening…" : <><FiBookOpen /> Preview</>}</button><button className={`resource-complete-toggle ${complete ? "active" : ""}`} type="button" onClick={() => toggleResourceComplete(resource)}>{complete ? <FiCheckCircle /> : <FiCheck />} {complete ? "Completed" : "Mark complete"}</button></div></article>;
+              const available = resourceAvailable(resource);
+              return <article className={`guide-resource-card previewable ${complete ? "completed" : ""}`} key={resource.id}><span className="guide-resource-icon"><FiFileText /></span><div><small>{resource.resourceType} · {available ? resource.uploadStatus : "FILE NOT UPLOADED"}</small><h3>{resource.resourceName}</h3><p>{resource.description || "No description was provided."}</p><span>{resourceKind(resource).toUpperCase()}</span></div><div className="guide-resource-actions"><button className="pp-button secondary" type="button" disabled={!available || openingResource === resource.id} onClick={() => openResource(resource)}>{!available ? "File unavailable" : openingResource === resource.id ? "Opening…" : <><FiBookOpen /> Preview</>}</button><button className={`resource-complete-toggle ${complete ? "active" : ""}`} type="button" disabled={!available} onClick={() => toggleResourceComplete(resource)}>{complete ? <FiCheckCircle /> : <FiCheck />} {complete ? "Completed" : available ? "Mark complete" : "Cannot complete"}</button></div></article>;
             })}</div> : <EmptyState title={query ? "No matching resources" : "No resources published yet"} description={query ? "Change the search or open a different lecture." : "This lecture is available, but its instructor has not published a resource for it."} />}
           </section>
 
@@ -337,15 +371,24 @@ export function AdvancedStudyGuidesPage() {
 function ResourcePreviewDrawer({ resource, completed, onToggleComplete, onClose }: { resource: Resource; completed: boolean; onToggleComplete: () => void; onClose: () => void }) {
   const { request } = useAuth();
   const kind = resourceKind(resource);
-  const managed = resource.fileUrl.startsWith("/");
-  const [secureUrl, setSecureUrl] = useState<string | null>(managed ? null : resource.fileUrl);
+  const managed = hasManagedFile(resource);
+  const external = isExternalResource(resource);
+  const available = managed || external;
+  const [secureUrl, setSecureUrl] = useState<string | null>(external ? resource.fileUrl : null);
   const [loading, setLoading] = useState(managed);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!managed) {
+    if (!available) {
+      setSecureUrl(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    if (external) {
       setSecureUrl(resource.fileUrl);
       setLoading(false);
+      setError(null);
       return;
     }
     let active = true;
@@ -365,18 +408,19 @@ function ResourcePreviewDrawer({ resource, completed, onToggleComplete, onClose 
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [managed, request, resource.fileUrl, resource.id]);
+  }, [available, external, request, resource.fileUrl, resource.id]);
 
   return <><button className="resource-preview-backdrop" type="button" aria-label="Close resource preview" onClick={onClose} /><aside className="resource-preview-drawer" role="dialog" aria-modal="true" aria-label={`Preview ${resource.resourceName}`}>
-    <header><div><small>{resource.resourceType} · {resource.mimeType || "Unknown format"}</small><h2>{resource.resourceName}</h2><p>{resource.description || "No resource description was provided."}</p></div><button type="button" onClick={onClose}><FiX /></button></header>
+    <header><div><small>{resource.resourceType} · {resource.mimeType || "No uploaded file"}</small><h2>{resource.resourceName}</h2><p>{resource.description || "No resource description was provided."}</p></div><button type="button" onClick={onClose}><FiX /></button></header>
     <div className={`resource-preview-body ${kind}`}>
       {loading && <PageSkeleton variant="cards" label="Loading protected resource" />}
       {error && <ErrorState title="Resource preview unavailable" description={error} />}
+      {!available && <div className="external-resource-preview"><FiFileText /><h3>File not uploaded</h3><p>This resource currently contains metadata only. The instructor must upload a real file before it can be previewed, downloaded, or marked complete.</p></div>}
       {!loading && !error && secureUrl && kind === "image" && <img src={secureUrl} alt={resource.resourceName} />}
       {!loading && !error && secureUrl && kind === "video" && <video src={secureUrl} controls preload="metadata" />}
       {!loading && !error && secureUrl && kind === "pdf" && <iframe src={secureUrl} title={resource.resourceName} />}
-      {!loading && !error && kind === "external" && <div className="external-resource-preview"><FiFileText /><h3>Preview unavailable inside the app</h3><p>This file type must be opened with its original viewer.</p></div>}
+      {!loading && !error && available && kind === "external" && <div className="external-resource-preview"><FiFileText /><h3>Preview unavailable inside the app</h3><p>This file type must be opened with its original viewer.</p></div>}
     </div>
-    <footer><button className={`pp-button secondary ${completed ? "active" : ""}`} type="button" onClick={onToggleComplete}>{completed ? <FiCheckCircle /> : <FiCheck />} {completed ? "Completed" : "Mark complete"}</button>{managed ? <a className="pp-button" href={secureUrl || undefined} download={resource.resourceName} aria-disabled={!secureUrl}><FiDownload /> Download file</a> : <a className="pp-button" href={resource.fileUrl} target="_blank" rel="noreferrer"><FiExternalLink /> Open original</a>}</footer>
+    <footer><button className={`pp-button secondary ${completed ? "active" : ""}`} type="button" disabled={!available} onClick={onToggleComplete}>{completed ? <FiCheckCircle /> : <FiCheck />} {completed ? "Completed" : available ? "Mark complete" : "File unavailable"}</button>{managed ? <a className="pp-button" href={secureUrl || undefined} download={resource.resourceName} aria-disabled={!secureUrl}><FiDownload /> Download file</a> : external ? <a className="pp-button" href={resource.fileUrl} target="_blank" rel="noreferrer"><FiExternalLink /> Open original</a> : <span className="guide-resource-total">No file to download</span>}</footer>
   </aside></>;
 }

@@ -76,6 +76,10 @@ function guideHref(course: Course, lecture: Lecture) {
   return `/guidelines?course=${encodeURIComponent(courseRouteKey(course))}&lecture=${encodeURIComponent(lectureRouteKey(lecture))}`;
 }
 
+function practiceHref(bundle: Bundle, course: Course, lecture: Lecture) {
+  return `/rounds?bundle=${encodeURIComponent(bundle.id)}&course=${encodeURIComponent(course.id)}&lecture=${encodeURIComponent(lecture.id)}`;
+}
+
 export function AdvancedBundlesPage() {
   const { user, request } = useAuth();
   const { notify, startNavigation } = useUx();
@@ -341,11 +345,11 @@ function BundleWorkspaceTab({ content, tab, courses, lectures, openWeeks, setOpe
     }}><span><b>Week {week.weekNumber}: {week.title || "Untitled week"}</b><small>{questions} questions · {decks} decks · {resources} resources</small></span><small>{week.lectures.length} lectures</small><FiChevronDown /></button>{open && <div>{week.lectures.map((lecture) => <Link href={guideHref(course, lecture)} key={lecture.id}><FiBookOpen /><span><b>{lecture.lectureNumber}. {lecture.title}</b><small>{lecture.question_count} questions · {lecture.flashcard_deck_count} decks · {lecture.resource_count} resources</small></span></Link>)}</div>}</section>;
   })}</Panel>)}</section>;
 
-  if (tab === "questions") return <Panel title="Bundle Question Bank"><p>Choose a lecture to define exactly what the practice covers.</p>{lectures.map(({ course, week, lecture }) => <Link className="bundle-row" href={guideHref(course, lecture)} key={lecture.id}><FiFileText /><span><b>{lecture.title}</b><small>Week {week.weekNumber}</small></span><strong>{lecture.question_count} Qs</strong></Link>)}</Panel>;
+  if (tab === "questions") return <Panel title="Bundle Question Bank"><p>Choose a lecture to solve its published questions.</p>{lectures.map(({ course, week, lecture }) => lecture.question_count > 0 ? <Link className="bundle-row" href={practiceHref(content.bundle, course, lecture)} key={lecture.id}><FiFileText /><span><b>{lecture.title}</b><small>Week {week.weekNumber} · open question practice</small></span><strong>{lecture.question_count} Qs →</strong></Link> : <article className="bundle-row" key={lecture.id}><FiFileText /><span><b>{lecture.title}</b><small>Week {week.weekNumber}</small></span><strong>No questions</strong></article>)}</Panel>;
 
   if (tab === "exams") return <Panel title="Bundle Past Exams">{content.past_exams.length ? content.past_exams.map((exam) => <article className="bundle-row" key={exam.id}><FiClock /><span><b>{exam.title}</b><small>{exam.durationMinutes ? `${exam.durationMinutes} minutes` : "Untimed"}</small></span></article>) : <EmptyState title="No past exams" description="No past exams are assigned to this bundle." />}</Panel>;
 
-  if (tab === "flashcards") return <Panel title="Bundle Flashcards">{lectures.filter((item) => item.lecture.flashcard_deck_count).map(({ week, lecture }) => <Link className="bundle-row" href="/flashcards" key={lecture.id}><FiLayers /><span><b>{lecture.title}</b><small>Week {week.weekNumber} · open your enrolled review queue</small></span><strong>{lecture.flashcard_deck_count} decks</strong></Link>)}</Panel>;
+  if (tab === "flashcards") return <Panel title="Bundle Flashcards">{lectures.filter((item) => item.lecture.flashcard_deck_count).map(({ week, lecture }) => <Link className="bundle-row" href={`/flashcards?lecture=${encodeURIComponent(lecture.id)}`} key={lecture.id}><FiLayers /><span><b>{lecture.title}</b><small>Week {week.weekNumber} · open your enrolled review queue</small></span><strong>{lecture.flashcard_deck_count} decks</strong></Link>)}</Panel>;
 
   return <Panel title="Bundle Resources">{lectures.filter((item) => item.lecture.resource_count).map(({ course, week, lecture }) => <Link className="bundle-row" href={guideHref(course, lecture)} key={lecture.id}><FiBookOpen /><span><b>{lecture.title}</b><small>Week {week.weekNumber}</small></span><strong>{lecture.resource_count} files</strong></Link>)}</Panel>;
 }
