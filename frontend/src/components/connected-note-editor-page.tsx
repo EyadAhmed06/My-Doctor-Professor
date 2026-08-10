@@ -16,7 +16,6 @@ type Collection = { id: string; name: string };
 type Note = {
   id: string;
   title: string;
-  noteType: string;
   content: string;
   collectionId: string | null;
 };
@@ -30,7 +29,6 @@ export function ConnectedNoteEditorPage() {
   const routeNoteId = params.get("note");
 
   const [activeNoteId, setActiveNoteId] = useState<string | null>(routeNoteId);
-  const [noteType, setNoteType] = useState("PERSONAL");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [collectionId, setCollectionId] = useState("");
@@ -54,13 +52,11 @@ export function ConnectedNoteEditorPage() {
       setCollections(collectionRows);
       if (note) {
         setActiveNoteId(note.id);
-        setNoteType(note.noteType || "PERSONAL");
         setTitle(note.title);
         setContent(note.content);
         setCollectionId(note.collectionId || "");
       } else {
         setActiveNoteId(null);
-        setNoteType("PERSONAL");
         setTitle("");
         setContent("");
         setCollectionId("");
@@ -95,13 +91,12 @@ export function ConnectedNoteEditorPage() {
         method: activeNoteId ? "PUT" : "POST",
         body: {
           title: title.trim(),
-          note_type: noteType || "PERSONAL",
+          note_type: "PERSONAL",
           content,
           collection_id: collectionId || null,
         },
       });
       setActiveNoteId(saved.id);
-      setNoteType(saved.noteType || noteType || "PERSONAL");
       setDirty(false);
       if (!activeNoteId) window.history.replaceState(null, "", `/notebook/new?note=${saved.id}`);
       notify({ title: translate("Notebook saved"), description: saved.title, tone: "success" });
