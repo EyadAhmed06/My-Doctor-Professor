@@ -1,8 +1,7 @@
 "use client";
 
-import { FiGlobe } from "react-icons/fi";
 import { ThemeToggle } from "./app-theme";
-import { LanguageSwitcher } from "./locale-provider";
+import { GlobalLanguageAccess } from "./global-language-access";
 import "./public-theme-access.css";
 
 export function PublicThemeAccess() {
@@ -11,9 +10,6 @@ export function PublicThemeAccess() {
       <span>Appearance</span>
       <ThemeToggle compact />
     </aside>
-    <aside className="global-language-access" aria-label="Language controls">
-      <FiGlobe aria-hidden="true" />
-      <LanguageSwitcher compact />
-    </aside>
+    <GlobalLanguageAccess />
   </>;
 }
