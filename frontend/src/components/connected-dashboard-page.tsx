@@ -6,9 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   FiActivity,
   FiBarChart2,
-  FiBookOpen,
   FiCheck,
-  FiChevronRight,
   FiClipboard,
   FiClock,
   FiHeart,
@@ -196,7 +194,6 @@ function StudentDashboardScreen({
   const completedLectures = data?.courses.reduce((sum, item) => sum + item.lecturesCompleted, 0) || 0;
   const totalLectures = data?.courses.reduce((sum, item) => sum + item.totalLectures, 0) || 0;
   const overallProgress = totalLectures ? clamp(Math.round(completedLectures * 100 / totalLectures)) : 0;
-  const reviewed = number(data?.flashcards.reviewed);
   const mastered = number(data?.flashcards.mastered);
   const level = Math.max(1, Math.floor((number(data?.questions.correct_attempts) + mastered) / 100) + 1);
   const levelProgress = (number(data?.questions.correct_attempts) + mastered) % 100;
@@ -290,31 +287,21 @@ function StudentDashboardScreen({
 
       {loading && !data ? <PageSkeleton variant="workspace" label={translate("Loading your dashboard")} /> : <div className="main-grid">
         <div className="column-main">
-          <div className="two-col">
-            <Card title={translate("Today's Plan")} action={<Link href="/study-plan">{translate("View full plan")} →</Link>} className="plan-card">
-              <div className="plan-list">{todayItems.length ? todayItems.slice(0, 5).map((item, index) => <div className={`plan-row dashboard-plan-row ${item.status === "COMPLETED" ? "completed" : ""}`} key={item.id}>
-                <time>{item.durationMinutes}m</time><i className={`timeline-dot d${index}`} /><span className="plan-icon">{item.status === "COMPLETED" ? <FiCheck /> : <FiHeart />}</span>
-                <div><strong data-academic-content>{sessionTitle(item)}</strong><small>{item.targetCount ? `${item.targetCount} ${locale === "ar" ? "عناصر" : "items"} · ` : ""}{translate(item.itemType.replaceAll("_", " "))}</small></div>
-                <div className="dashboard-plan-actions">
-                  {item.itemType !== "REST" && <button type="button" onClick={() => openSession(item)} title={translate("Open session")}><FiPlay /></button>}
-                  {item.itemType !== "REST" && <button type="button" onClick={() => void toggleSession(item)} title={translate(item.status === "COMPLETED" ? "Mark planned" : "Mark complete")}><FiCheck /></button>}
-                  {item.itemType !== "REST" && item.status !== "COMPLETED" && <label title={translate("Reschedule session")}><FiMove /><input aria-label={translate(`Reschedule ${sessionTitle(item)}`)} type="date" min={todayKey} value={item.scheduledDate} onChange={(event) => void rescheduleSession(item, event.target.value)} /></label>}
-                </div>
-              </div>) : <EmptyRow text={translate("No sessions scheduled for today.")} />}</div>
-            </Card>
+          <Card title={translate("Today's Plan")} action={<Link href="/study-plan">{translate("View full plan")} →</Link>} className="plan-card">
+            <div className="plan-list">{todayItems.length ? todayItems.slice(0, 5).map((item, index) => <div className={`plan-row dashboard-plan-row ${item.status === "COMPLETED" ? "completed" : ""}`} key={item.id}>
+              <time>{item.durationMinutes}m</time><i className={`timeline-dot d${index}`} /><span className="plan-icon">{item.status === "COMPLETED" ? <FiCheck /> : <FiHeart />}</span>
+              <div><strong data-academic-content>{sessionTitle(item)}</strong><small>{item.targetCount ? `${item.targetCount} ${locale === "ar" ? "عناصر" : "items"} · ` : ""}{translate(item.itemType.replaceAll("_", " "))}</small></div>
+              <div className="dashboard-plan-actions">
+                {item.itemType !== "REST" && <button type="button" onClick={() => openSession(item)} title={translate("Open session")}><FiPlay /></button>}
+                {item.itemType !== "REST" && <button type="button" onClick={() => void toggleSession(item)} title={translate(item.status === "COMPLETED" ? "Mark planned" : "Mark complete")}><FiCheck /></button>}
+                {item.itemType !== "REST" && item.status !== "COMPLETED" && <label title={translate("Reschedule session")}><FiMove /><input aria-label={translate(`Reschedule ${sessionTitle(item)}`)} type="date" min={todayKey} value={item.scheduledDate} onChange={(event) => void rescheduleSession(item, event.target.value)} /></label>}
+              </div>
+            </div>) : <EmptyRow text={translate("No sessions scheduled for today.")} />}</div>
+          </Card>
 
-            <Card title={translate("Upcoming Sessions & Deadlines")} action={<Link href="/rounds">{translate("View assessments")} →</Link>} className="deadlines-card">
-              <div className="deadline-list">{data?.recent_attempts.length ? data.recent_attempts.slice(0, 4).map((item) => <div className="deadline" key={item.id}><i className="deadline-dot purple" /><div><small>{item.submitted_at ? new Date(item.submitted_at).toLocaleDateString(locale === "ar" ? "ar-EG" : undefined) : translate("Not submitted")}</small><strong data-academic-content>{item.title}</strong></div><button type="button" onClick={() => navigate(`/rounds?test=${item.test_id}`)}>{translate(item.status)}</button></div>) : <EmptyRow text={translate("No assessment activity yet.")} />}</div>
-            </Card>
-          </div>
-
-          <div className="two-col lower-cards">
+          <div className="lower-cards">
             <Card title={translate("Continue Learning")} action={<Link href="/bundles?tab=curriculum">{translate("View all courses")} →</Link>} className="learning-card">
               <div className="learning-grid">{data?.courses.length ? data.courses.slice(0, 3).map((item) => <button type="button" onClick={() => navigate("/bundles?tab=curriculum")} key={item.id}><span className="tag">{item.course.courseCode}</span><small>{item.lecturesCompleted}/{item.totalLectures}</small><strong data-academic-content>{item.course.courseName}</strong><div className="progress"><i style={{ width: `${clamp(number(item.completionPercentage))}%` }} /></div><span>{translate(`${clamp(number(item.completionPercentage))}% complete`)}</span></button>) : <p>{translate("No courses started yet.")}</p>}</div>
-            </Card>
-
-            <Card title={translate("Spaced Repetition Due")} action={<Link href="/flashcards">{translate("Review queue")} →</Link>} className="review-card">
-              <div className="review-body"><div><b>{number(data?.flashcards.due)}</b><span>{translate("Cards due for review")}</span><small>{translate(`${reviewed} cards reviewed overall`)}</small></div><ul><li>{translate("Due now")} <b>{number(data?.flashcards.due)}</b></li><li>{translate("Mastered")} <b>{mastered}</b></li><li>{translate("Reviewed")} <b>{reviewed}</b></li></ul></div><button className="review-button" onClick={() => navigate("/flashcards")}>{translate("Start Review")}</button>
             </Card>
           </div>
 
@@ -327,7 +314,6 @@ function StudentDashboardScreen({
           <Card title={translate("Your Progress")} action={<span>{translate(`${overallProgress}% complete`)}</span>} className="progress-card"><div className="progress-content"><div className="level-badge large">{level}</div><div><strong>{translate(`Level ${level}`)} <small>{translate("Clinical Learner")}</small></strong><span>{translate(`${levelProgress} / 100 XP`)}</span><div className="xp-bar"><i style={{ width: `${levelProgress}%` }} /></div><small>{translate(`${completedLectures} lectures completed`)}</small></div></div></Card>
           <Card title={translate("Topic Mastery")} action={<Link href="/bundles?tab=curriculum">{translate("View all courses")} →</Link>} className="mastery-card"><div className="mastery-list">{data?.courses.length ? data.courses.slice(0, 6).map((item) => <button type="button" onClick={() => navigate("/bundles?tab=curriculum")} key={item.id}><span><FiActivity /><span data-academic-content>{item.course.courseName}</span></span><b>{clamp(number(item.completionPercentage))}%</b><div><i style={{ width: `${clamp(number(item.completionPercentage))}%` }} /></div></button>) : <p>{translate("No course progress yet.")}</p>}</div></Card>
           <Card title={translate("Professor's Pearls")} action={<Link href="/notebook">{translate("More pearls")} →</Link>} className="pearl-card"><blockquote data-academic-content>{pearl?.content || translate("Save a PEARL note in your notebook and it will appear here.")}</blockquote>{pearl && <cite data-academic-content>— {pearl.title}</cite>}</Card>
-          <Card title={translate("Next best action")} className="dashboard-next-action"><FiBookOpen /><h3>{number(data?.flashcards.due) > 0 ? translate("Clear your due review queue") : continueCourse ? translate(`Continue ${continueCourse.course.courseName}`) : translate("Open your first bundle")}</h3><button className="pp-button" type="button" onClick={() => navigate(number(data?.flashcards.due) > 0 ? "/flashcards" : "/bundles?tab=curriculum")}>{translate("Continue")} <FiChevronRight /></button></Card>
         </aside>
       </div>}
     </main>
