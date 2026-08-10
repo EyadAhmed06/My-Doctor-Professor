@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FiArrowLeft, FiFolder, FiLink, FiPaperclip, FiPlus, FiSave, FiTrash2 } from "react-icons/fi";
+import { FiArrowLeft, FiFolder, FiPaperclip, FiPlus, FiSave, FiTrash2 } from "react-icons/fi";
 import { useAuth } from "./auth-provider";
 import { PageSkeleton } from "./async-state";
 import { useLocale } from "./locale-provider";
@@ -29,43 +29,16 @@ type Note = {
   attachments?: Attachment[];
 };
 
-function attachmentFileName(url: string) {
-  try {
-    const value = decodeURIComponent(new URL(url).pathname.split("/").filter(Boolean).pop() || "attachment");
-    return value.slice(0, 255) || "attachment";
-  } catch {
-    return "attachment";
-  }
-}
+const attachmentAccept = "application/pdf,image/png,image/jpeg,image/webp,video/mp4,video/webm";
+const allowedAttachmentTypes = new Set(attachmentAccept.split(","));
+const maxAttachmentBytes = 52_428_800;
 
-function attachmentMimeType(url: string, kind: Attachment["kind"]) {
-  let extension = "";
-  try {
-    const path = new URL(url).pathname.toLowerCase();
-    extension = path.includes(".") ? path.split(".").pop() || "" : "";
-  } catch {
-    extension = "";
-  }
-
-  const mimeByExtension: Record<string, string> = {
-    pdf: "application/pdf",
-    png: "image/png",
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    webp: "image/webp",
-    gif: "image/gif",
-    svg: "image/svg+xml",
-    txt: "text/plain",
-    csv: "text/csv",
-    doc: "application/msword",
-    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ppt: "application/vnd.ms-powerpoint",
-    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    xls: "application/vnd.ms-excel",
-    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  };
-
-  return mimeByExtension[extension] || (kind === "IMAGE" ? "image/*" : "application/octet-stream");
+function fileSizeLabel(value: number | null) {
+  if (value === null || !Number.isFinite(Number(value))) return "";
+  const bytes = Number(value);
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 export function ConnectedNoteEditorPage() {
@@ -75,6 +48,7 @@ export function ConnectedNoteEditorPage() {
   const router = useRouter();
   const params = useSearchParams();
   const routeNoteId = params.get("note");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [activeNoteId, setActiveNoteId] = useState<string | null>(routeNoteId);
   const [title, setTitle] = useState("");
@@ -83,9 +57,9 @@ export function ConnectedNoteEditorPage() {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showCollectionForm, setShowCollectionForm] = useState(false);
-  const [showAttachmentForm, setShowAttachmentForm] = useState(false);
   const [creatingCollection, setCreatingCollection] = useState(false);
-  const [addingAttachment, setAddingAttachment] = useState(false);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [openingAttachmentId, setOpeningAttachmentId] = useState<string | null>(null);
   const [removingAttachmentId, setRemovingAttachmentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -195,18 +169,21 @@ export function ConnectedNoteEditorPage() {
     }
   }
 
-  async function addAttachment(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (addingAttachment || saving) return;
-    const form = event.currentTarget;
-    const data = new FormData(form);
-    const fileUrl = String(data.get("file_url") || "").trim();
-    const customName = String(data.get("file_name") || "").trim();
-    const kind = String(data.get("kind") || "RESOURCE") as Attachment["kind"];
-    if (!fileUrl) return;
+  async function chooseAttachment(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] || null;
+    event.target.value = "";
+    if (!file || uploadingAttachment) return;
 
+    if (!allowedAttachmentTypes.has(file.type)) {
+      setError(translate("Allowed attachments: PDF, PNG, JPEG, WebP, MP4, and WebM."));
+      return;
+    }
+    if (file.size <= 0 || file.size > maxAttachmentBytes) {
+      setError(translate("Attachment must be non-empty and no larger than 50 MB."));
+      return;
+    }
     if (!activeNoteId && (!title.trim() || !content.trim())) {
-      setError(translate("Add a title and some content before attaching a file."));
+      setError(translate("Add a notebook title and some content before attaching a file."));
       return;
     }
 
@@ -217,26 +194,48 @@ export function ConnectedNoteEditorPage() {
       noteId = saved.id;
     }
 
-    setAddingAttachment(true);
+    setUploadingAttachment(true);
     setError(null);
     try {
-      const created = await request<Attachment>(`/notebook/notes/${noteId}/attachments`, {
+      const body = new FormData();
+      body.set("file", file);
+      const created = await request<Attachment>(`/notebook/notes/${noteId}/attachments/upload`, {
         method: "POST",
-        body: {
-          kind,
-          file_name: (customName || attachmentFileName(fileUrl)).slice(0, 255),
-          mime_type: attachmentMimeType(fileUrl, kind),
-          file_url: fileUrl,
-        },
+        body,
       });
       setAttachments((current) => [...current, created]);
-      setShowAttachmentForm(false);
-      form.reset();
       notify({ title: translate("Attachment added"), description: created.fileName, tone: "success" });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : translate("Unable to add attachment."));
+      setError(cause instanceof Error ? cause.message : translate("Unable to upload attachment."));
     } finally {
-      setAddingAttachment(false);
+      setUploadingAttachment(false);
+    }
+  }
+
+  async function openAttachment(attachment: Attachment) {
+    if (!activeNoteId || openingAttachmentId) return;
+    if (!attachment.fileUrl.startsWith("managed:")) {
+      window.open(attachment.fileUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+    setOpeningAttachmentId(attachment.id);
+    setError(null);
+    try {
+      const blob = await request<Blob>(`/notebook/notes/${activeNoteId}/attachments/${attachment.id}/file`, {
+        responseType: "blob",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = attachment.fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : translate("Unable to open attachment."));
+    } finally {
+      setOpeningAttachmentId(null);
     }
   }
 
@@ -314,9 +313,9 @@ export function ConnectedNoteEditorPage() {
       {attachments.length > 0 && <div className="simple-note-attachment-list">
         {attachments.map((attachment) => <article className="simple-note-attachment-chip" key={attachment.id}>
           <FiPaperclip />
-          <a href={attachment.fileUrl} target="_blank" rel="noreferrer" title={attachment.fileUrl}>{attachment.fileName}</a>
-          <small>{attachment.kind === "IMAGE" ? translate("Image") : translate("File")}</small>
-          <button type="button" disabled={removingAttachmentId === attachment.id} onClick={() => void removeAttachment(attachment)} aria-label={translate("Remove attachment")} title={translate("Remove attachment")}><FiTrash2 /></button>
+          <button className="simple-note-attachment-open" type="button" disabled={openingAttachmentId === attachment.id} onClick={() => void openAttachment(attachment)} title={translate("Open attachment")}>{attachment.fileName}</button>
+          <small>{fileSizeLabel(attachment.sizeBytes)}</small>
+          <button className="simple-note-attachment-remove" type="button" disabled={removingAttachmentId === attachment.id} onClick={() => void removeAttachment(attachment)} aria-label={translate("Remove attachment")} title={translate("Remove attachment")}><FiTrash2 /></button>
         </article>)}
       </div>}
 
@@ -327,8 +326,9 @@ export function ConnectedNoteEditorPage() {
             <option value="">{translate("No collection")}</option>
             {collections.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}
           </select>
-          <button className="simple-note-new-collection-button" type="button" onClick={() => { setShowCollectionForm((current) => !current); setShowAttachmentForm(false); }}><FiPlus /> {translate("New collection")}</button>
-          <button className={`simple-note-attachment-button ${showAttachmentForm ? "active" : ""}`} type="button" onClick={() => { setShowAttachmentForm((current) => !current); setShowCollectionForm(false); }}><FiPaperclip /> {translate("Attachment")}{attachments.length ? ` (${attachments.length})` : ""}</button>
+          <button className="simple-note-new-collection-button" type="button" onClick={() => setShowCollectionForm((current) => !current)}><FiPlus /> {translate("New collection")}</button>
+          <input ref={fileInputRef} className="simple-note-attachment-input" type="file" accept={attachmentAccept} onChange={(event) => void chooseAttachment(event)} />
+          <button className="simple-note-attachment-button" type="button" disabled={uploadingAttachment || saving} onClick={() => fileInputRef.current?.click()}><FiPaperclip /> {translate(uploadingAttachment ? "Uploading…" : "Attachment")}{attachments.length ? ` (${attachments.length})` : ""}</button>
         </div>
         <span className="simple-note-editor-status">{status}</span>
         <button className="pp-button" type="submit" disabled={saving || !title.trim() || !content.trim()}><FiSave /> {translate(saving ? "Saving…" : "Save")}</button>
@@ -339,17 +339,6 @@ export function ConnectedNoteEditorPage() {
       <input name="name" placeholder={translate("Collection name")} maxLength={120} required autoFocus />
       <button className="pp-button" type="submit" disabled={creatingCollection}><FiPlus /> {translate(creatingCollection ? "Creating…" : "Create collection")}</button>
       <button className="pp-button secondary" type="button" onClick={() => setShowCollectionForm(false)}>{translate("Cancel")}</button>
-    </form>}
-
-    {showAttachmentForm && !loading && <form className="simple-note-inline-attachment" onSubmit={addAttachment}>
-      <div className="simple-note-attachment-url"><FiLink /><input name="file_url" type="url" placeholder={translate("Attachment URL")} maxLength={1000} required autoFocus /></div>
-      <input name="file_name" placeholder={translate("Name (optional)")} maxLength={255} />
-      <select name="kind" defaultValue="RESOURCE" aria-label={translate("Attachment type")}>
-        <option value="RESOURCE">{translate("File / resource")}</option>
-        <option value="IMAGE">{translate("Image")}</option>
-      </select>
-      <button className="pp-button" type="submit" disabled={addingAttachment || saving}><FiPaperclip /> {translate(addingAttachment ? "Adding…" : "Add attachment")}</button>
-      <button className="pp-button secondary" type="button" onClick={() => setShowAttachmentForm(false)}>{translate("Cancel")}</button>
     </form>}
   </main></ProductShell>;
 }
