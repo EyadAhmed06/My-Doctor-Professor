@@ -34,7 +34,8 @@ export function ConnectedRoundsPage() {
   const requestedBundle = searchParams.get("bundle");
   const requestedCourse = searchParams.get("course");
   const requestedLecture = searchParams.get("lecture");
-  const requestedLectures = (searchParams.get("lectures") || "").split(",").filter(Boolean);
+  const requestedLecturesParam = searchParams.get("lectures") || "";
+  const requestedLectures = useMemo(() => requestedLecturesParam.split(",").filter(Boolean), [requestedLecturesParam]);
 
   const [bundles, setBundles] = useState<Bundle[]>([]);
   const [bundleId, setBundleId] = useState("");
@@ -45,6 +46,7 @@ export function ConnectedRoundsPage() {
   const [openWeeks, setOpenWeeks] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -93,7 +95,7 @@ export function ConnectedRoundsPage() {
     return () => {
       active = false;
     };
-  }, [bundleId, request, requestedCourse, requestedLecture, searchParams]);
+  }, [bundleId, refreshKey, request, requestedCourse, requestedLecture, requestedLectures]);
 
   const course = useMemo(() => courses.find((item) => item.id === courseId), [courseId, courses]);
   const weeks = useMemo(() => course?.weeks ?? [], [course]);
@@ -126,7 +128,7 @@ export function ConnectedRoundsPage() {
     setActiveLecture(first);
     const firstWeek = first ? weeks.find((item) => item.lectures.some((lecture) => lecture.id === first.id)) : undefined;
     setOpenWeeks(firstWeek ? [firstWeek.id] : []);
-  }, [courseId, requestedLecture, searchParams, weeks]);
+  }, [courseId, requestedLecture, requestedLectures, weeks]);
 
   function toggleWeek(id: string) {
     setOpenWeeks((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
@@ -248,7 +250,7 @@ export function ConnectedRoundsPage() {
                 <dl><div><dt>Required MCQs</dt><dd>{PRACTICE_QUESTION_COUNT}</dd></div><div><dt>Question pool</dt><dd>{selectedQuestionPool}</dd></div><div><dt>Course total</dt><dd>{totals.questions}</dd></div></dl>
               </Panel>
               <Panel title={currentBundle?.read_only ? "Read-only access" : "Quiz rule"}><p>{currentBundle?.read_only ? "You may review existing content, but cannot start a new attempt from this bundle." : "Lecture practice is a fixed 40-MCQ Tutor session. Pre-authored exams use their instructor configuration instead."}</p></Panel>
-              <button className="rounds-refresh" type="button" onClick={() => setBundleId((value) => value)}><FiRefreshCw /> Refresh content</button>
+              <button className="rounds-refresh" type="button" onClick={() => setRefreshKey((value) => value + 1)}><FiRefreshCw /> Refresh content</button>
             </aside>
           </div>}
       </main>
