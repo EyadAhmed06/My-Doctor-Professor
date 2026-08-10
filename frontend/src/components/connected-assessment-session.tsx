@@ -39,8 +39,9 @@ type WorkspaceState = {
 };
 type TutorFeedback = { isCorrect: boolean | null; explanation?: string | null };
 type Review = { attempt: Attempt; questions: Array<Assignment & { answer: { selectedOptionId: string | null; isCorrect: boolean | null } | null }> };
-
 type LowerTab = "scratchpad" | "patient" | "note";
+
+const BLOCK_SIZE = 40;
 
 function formatPace(seconds: number) {
   const safe = Math.max(0, Math.round(seconds));
@@ -82,7 +83,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
         if (!active) return;
         setAttempt(state.attempt);
         setItems(questions);
-        setAnswers(Object.fromEntries(state.answers.filter((item) => item.selectedOptionId).map((item) => [item.questionId, item.selectedOptionId!]))) ;
+        setAnswers(Object.fromEntries(state.answers.filter((item) => item.selectedOptionId).map((item) => [item.questionId, item.selectedOptionId!])));
         setFlags(state.flagged_question_ids);
         setNotes(Object.fromEntries(state.notes.map((item) => [item.question_id, item.note])));
         try {
@@ -122,23 +123,28 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
 
   const current = items[index];
   const questionVisual = current ? getQuestionVisual(current.question.questionText) : null;
-  const answered = useMemo(() => items.filter((item) => Boolean(answers[item.question.id])).length, [answers, items]);
-  const unanswered = Math.max(0, items.length - answered);
-  const progress = items.length ? Math.round((answered / items.length) * 100) : 0;
+  const totalAnswered = useMemo(() => items.filter((item) => Boolean(answers[item.question.id])).length, [answers, items]);
+  const blockCount = Math.max(1, Math.ceil(items.length / BLOCK_SIZE));
+  const blockIndex = Math.min(blockCount - 1, Math.floor(index / BLOCK_SIZE));
+  const blockStart = blockIndex * BLOCK_SIZE;
+  const blockItems = items.slice(blockStart, blockStart + BLOCK_SIZE);
+  const questionInBlock = index - blockStart + 1;
+  const blockAnswered = blockItems.filter((item) => Boolean(answers[item.question.id])).length;
+  const unanswered = Math.max(0, blockItems.length - blockAnswered);
+  const progress = blockItems.length ? Math.round((blockAnswered / blockItems.length) * 100) : 0;
   const secondsLeft = attempt?.deadline && now !== null ? Math.max(0, Math.floor((new Date(attempt.deadline).getTime() - now) / 1000)) : null;
   const clock = secondsLeft === null ? "Untimed" : `${String(Math.floor(secondsLeft / 3600)).padStart(2, "0")}:${String(Math.floor((secondsLeft % 3600) / 60)).padStart(2, "0")}:${String(secondsLeft % 60).padStart(2, "0")}`;
   const tutor = attempt?.testMode === "TUTOR" || source === "rounds";
   const expired = attempt?.testMode === "TIMED" && secondsLeft === 0;
   const elapsedSeconds = attempt?.startedAt && now !== null ? Math.max(0, Math.floor((now - new Date(attempt.startedAt).getTime()) / 1000)) : 0;
-  const pace = answered ? formatPace(elapsedSeconds / answered) : "—";
+  const pace = totalAnswered ? formatPace(elapsedSeconds / totalAnswered) : "—";
 
   async function choose(optionId: string) {
     if (!current || expired || Boolean(tutor && feedback[current.question.id])) return;
     const questionId = current.question.id;
     const previous = answers[questionId];
 
-    // Optimistic selection fixes the old UX where the option appeared unclickable
-    // until the network request completed. Roll back only if persistence fails.
+    // Optimistic selection: the answer visibly selects immediately, while persistence runs.
     setAnswers((value) => ({ ...value, [questionId]: optionId }));
     setSavingQuestionId(questionId);
     setError(null);
@@ -202,7 +208,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
 
   const finalize = useCallback(
     async (auto = false) => {
-      if (!auto && !window.confirm(`Submit this assessment with ${answered} of ${items.length} questions answered?`)) return;
+      if (!auto && !window.confirm(`Submit this assessment with ${totalAnswered} of ${items.length} questions answered?`)) return;
       setSubmitting(true);
       setError(null);
       try {
@@ -222,8 +228,19 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
         setSubmitting(false);
       }
     },
-    [answered, attemptId, items.length, request],
+    [attemptId, items.length, request, totalAnswered],
   );
+
+  function endBlock() {
+    if (tutor || blockIndex === blockCount - 1) {
+      void finalize(Boolean(expired));
+      return;
+    }
+    const remaining = blockItems.length - blockAnswered;
+    if (remaining > 0 && !window.confirm(`This block still has ${remaining} unanswered question${remaining === 1 ? "" : "s"}. Move to the next block?`)) return;
+    setIndex((blockIndex + 1) * BLOCK_SIZE);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   useEffect(() => {
     if (!expired || review || autoSubmitStarted.current) return;
@@ -264,9 +281,9 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
               <div><small>Exam</small><b>{attempt?.test?.title || (tutor ? "40 Question Practice" : "Mock Exam")}</b></div>
               <div><small>Mode</small><b>{tutor ? "Tutor" : "Timed"}</b></div>
               <div><small>Scope</small><b>{source === "rounds" ? "Selected lectures" : attempt?.test?.testType || "Configured exam"}</b></div>
-              <div><small>Block</small><b>Block 1 of 1</b></div>
+              <div><small>Block</small><b>Block {blockIndex + 1} of {blockCount}</b></div>
               <div className="exam-time-cell"><small>Time remaining</small><b><FiClock /> {hideTime ? "••:••:••" : clock}</b></div>
-              <div><small>Progress</small><b>Question {index + 1} of {items.length}</b><Progress value={progress} /></div>
+              <div><small>Progress</small><b>Question {questionInBlock} of {blockItems.length}</b><Progress value={progress} /></div>
             </section>
 
             <div className="exam-workspace-grid">
@@ -274,15 +291,16 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
                 <header><FiFileText /><b>Question Navigator</b></header>
                 <div className="exam-mini-legend"><span className="answered">Answered</span><span className="unanswered">Unanswered</span><span className="current">Current</span><span className="flagged">Flagged</span></div>
                 <div className="exam-number-grid">
-                  {items.map((item, i) => {
-                    const isCurrent = i === index;
+                  {blockItems.map((item, i) => {
+                    const globalIndex = blockStart + i;
+                    const isCurrent = globalIndex === index;
                     const isAnswered = Boolean(answers[item.question.id]);
                     const isFlagged = flags.includes(item.question.id);
                     return (
                       <button
                         type="button"
                         className={`${isAnswered ? "answered" : "unanswered"} ${isCurrent ? "current" : ""} ${isFlagged ? "flagged" : ""}`}
-                        onClick={() => setIndex(i)}
+                        onClick={() => setIndex(globalIndex)}
                         key={item.question.id}
                         aria-label={`Question ${i + 1}${isAnswered ? ", answered" : ", unanswered"}${isFlagged ? ", flagged" : ""}`}
                       >
@@ -294,7 +312,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
                 <footer>
                   <b>Block progress</b>
                   <Progress value={progress} />
-                  <span><small>{answered}/{items.length} answered</small><strong>{progress}%</strong></span>
+                  <span><small>{blockAnswered}/{blockItems.length} answered</small><strong>{progress}%</strong></span>
                 </footer>
               </aside>
 
@@ -394,8 +412,8 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
                 <header><b>Exam Overview</b></header>
                 <section className="overview-time"><small>Time remaining</small><strong>{hideTime ? "••:••:••" : clock}</strong><button type="button" onClick={() => setHideTime((value) => !value)}><FiEyeOff /> {hideTime ? "Show" : "Hide"}</button></section>
                 <dl>
-                  <div className="answered"><dt>Answered</dt><dd>{answered} / {items.length} <small>{progress}%</small></dd></div>
-                  <div className="flagged"><dt>Flagged</dt><dd>{flags.length}</dd></div>
+                  <div className="answered"><dt>Answered</dt><dd>{blockAnswered} / {blockItems.length} <small>{progress}%</small></dd></div>
+                  <div className="flagged"><dt>Flagged</dt><dd>{blockItems.filter((item) => flags.includes(item.question.id)).length}</dd></div>
                   <div className="unanswered"><dt>Unanswered</dt><dd>{unanswered}</dd></div>
                 </dl>
                 <section className="overview-pace"><span><small>Your pace</small><b>{pace}</b></span><Progress value={Math.min(100, Math.max(0, progress))} /></section>
@@ -406,10 +424,10 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
 
             <footer className="exam-session-footer">
               <button type="button" disabled={index === 0} onClick={() => setIndex((value) => value - 1)}><FiArrowLeft /> Previous</button>
-              <b>Question {index + 1} of {items.length}</b>
+              <b>Question {questionInBlock} of {blockItems.length}</b>
               <div>
-                <button type="button" className="end" disabled={submitting} onClick={() => void finalize(Boolean(expired))}>{expired ? (submitting ? "Submitting…" : "Retry submission") : tutor ? "End practice" : "End block"}</button>
-                <button type="button" className="next" disabled={index === items.length - 1} onClick={() => setIndex((value) => value + 1)}>Next question <FiArrowRight /></button>
+                <button type="button" className="end" disabled={submitting} onClick={endBlock}>{expired ? (submitting ? "Submitting…" : "Retry submission") : tutor ? "End practice" : blockIndex === blockCount - 1 ? "Submit exam" : "End block"}</button>
+                <button type="button" className="next" disabled={questionInBlock === blockItems.length} onClick={() => setIndex((value) => value + 1)}>Next question <FiArrowRight /></button>
               </div>
             </footer>
           </>
