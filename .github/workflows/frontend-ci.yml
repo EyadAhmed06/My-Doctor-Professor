@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - agent/backend-foundation-rebuild
+      - agent/phase1-interactions
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
