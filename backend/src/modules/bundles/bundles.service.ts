@@ -19,6 +19,9 @@ import { BundleCourse } from '../../common/entities/bundle-course.entity';import
    this.dataSource.query(`
     SELECT lecture.id,
       COUNT(DISTINCT question.id)::int AS question_count,
+      COUNT(DISTINCT question.id) FILTER (
+        WHERE question.question_type = 'MCQ' AND question.is_question_bank = TRUE
+      )::int AS mcq_count,
       COUNT(DISTINCT deck.id)::int AS flashcard_deck_count,
       COUNT(DISTINCT resource.id)::int AS resource_count
     FROM bundle_weeks bundle_week JOIN weeks week ON week.id=bundle_week.week_id
@@ -29,8 +32,8 @@ import { BundleCourse } from '../../common/entities/bundle-course.entity';import
     LEFT JOIN resources resource ON resource.lecture_id=lecture.id
     WHERE bundle_week.bundle_id=$1 GROUP BY lecture.id`,[id]),
   ]);
-  const stats=new Map((lectureStats as {id:string;question_count:number;flashcard_deck_count:number;resource_count:number}[]).map(row=>[row.id,row]));
-  const courses=courseLinks.map(link=>({...link.course,weeks:weekLinks.filter(item=>item.week.courseId===link.courseId).map(item=>({...item.week,lectures:item.week.lectures.filter(lecture=>actor.role!==UserRole.STUDENT||lecture.isPublished).map(lecture=>({...lecture,...(stats.get(lecture.id)??{question_count:0,flashcard_deck_count:0,resource_count:0})}))}))}));
+  const stats=new Map((lectureStats as {id:string;question_count:number;mcq_count:number;flashcard_deck_count:number;resource_count:number}[]).map(row=>[row.id,row]));
+  const courses=courseLinks.map(link=>({...link.course,weeks:weekLinks.filter(item=>item.week.courseId===link.courseId).map(item=>({...item.week,lectures:item.week.lectures.filter(lecture=>actor.role!==UserRole.STUDENT||lecture.isPublished).map(lecture=>({...lecture,...(stats.get(lecture.id)??{question_count:0,mcq_count:0,flashcard_deck_count:0,resource_count:0})}))}))}));
   return {bundle:access,courses,past_exams:testLinks.map(link=>link.test),selected_week_count:weekLinks.length,
    totals:{courses:courses.length,weeks:weekLinks.length,lectures:courses.flatMap(course=>course.weeks).flatMap(week=>week.lectures).length,
     questions:[...stats.values()].reduce((sum,row)=>sum+Number(row.question_count),0),flashcard_decks:[...stats.values()].reduce((sum,row)=>sum+Number(row.flashcard_deck_count),0),resources:[...stats.values()].reduce((sum,row)=>sum+Number(row.resource_count),0),past_exams:testLinks.length}};
@@ -45,7 +48,7 @@ import { BundleCourse } from '../../common/entities/bundle-course.entity';import
  async removeTest(id:string,actor:AuthenticatedUser,testId:string){await this.assertManager(id,actor);await this.bundleTests.delete({bundleId:id,testId});}
  async assignInstructor(id:string,actor:AuthenticatedUser,instructorId:string){await this.assertManager(id,actor);const user=await this.users.findOne({where:{id:instructorId,role:UserRole.INSTRUCTOR,status:UserStatus.ACTIVE}});if(!user)throw new NotFoundException('Active instructor not found');return this.saveLink(()=>this.bundleInstructors.save(this.bundleInstructors.create({bundleId:id,instructorId})),'Instructor already manages this bundle');}
  async grant(id:string,actor:AuthenticatedUser,dto:GrantBundleDto){await this.assertManager(id,actor);const student=await this.users.findOne({where:{id:dto.student_id,role:UserRole.STUDENT,status:UserStatus.ACTIVE}});if(!student)throw new NotFoundException('Active student not found');return this.upsertEnrollment(id,dto.student_id,BundleEnrollmentSource.MANUAL,actor.userId,dto.expires_at?new Date(dto.expires_at):null);}
- async revoke(id:string,actor:AuthenticatedUser,studentId:string){await this.assertManager(id,actor);const enrollment=await this.enrollments.findOne({where:{bundleId:id,studentId}});if(!enrollment)throw new NotFoundException('Bundle enrollment not found');enrollment.status=BundleEnrollmentStatus.REVOKED;await this.enrollments.save(enrollment);}
+ async revoke(id:string,actor:AuthenticatedUser,studentId:string){await this.assertManager(id,actor);const enrollment=await this.enrollments.findOne({where:{bundleId,studentId}});if(!enrollment)throw new NotFoundException('Bundle enrollment not found');enrollment.status=BundleEnrollmentStatus.REVOKED;await this.enrollments.save(enrollment);}
  async enrollByCode(studentId:string,code:string){const candidates=await this.bundles.createQueryBuilder('bundle').addSelect('bundle.enrollment_code_hash').where('bundle.status = :status',{status:BundleStatus.PUBLISHED}).andWhere('bundle.access_mode = :mode',{mode:BundleAccessMode.CODE}).getMany();for(const bundle of candidates)if(bundle.enrollmentCodeHash&&await bcrypt.compare(code,bundle.enrollmentCodeHash))return this.upsertEnrollment(bundle.id,studentId,BundleEnrollmentSource.CODE,null,bundle.availableUntil);throw new NotFoundException('Enrollment code is invalid or inactive');}
  async enrollPublic(id:string,studentId:string){const bundle=await this.requireBundle(id);if(bundle.status!==BundleStatus.PUBLISHED||bundle.accessMode!==BundleAccessMode.PUBLIC||!bundle.isFree)throw new ForbiddenException('This bundle is not open for free enrollment');return this.upsertEnrollment(id,studentId,BundleEnrollmentSource.PUBLIC,null,bundle.availableUntil);}
  private async upsertEnrollment(bundleId:string,studentId:string,source:BundleEnrollmentSource,grantedBy:string|null,expiresAt:Date|null){let item=await this.enrollments.findOne({where:{bundleId,studentId}});if(!item)item=this.enrollments.create({bundleId,studentId,source,grantedBy,expiresAt,status:BundleEnrollmentStatus.ACTIVE});else{item.status=BundleEnrollmentStatus.ACTIVE;item.source=source;item.grantedBy=grantedBy;item.expiresAt=expiresAt;}return this.enrollments.save(item);}
