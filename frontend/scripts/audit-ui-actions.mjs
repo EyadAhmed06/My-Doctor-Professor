@@ -29,6 +29,10 @@ function attributesOf(node) {
   return attributes;
 }
 
+function hasSpreadAttributes(node) {
+  return node.attributes.properties.some((property) => ts.isJsxSpreadAttribute(property));
+}
+
 function stringAttribute(attributes, name) {
   const initializer = attributes.get(name);
   if (!initializer || initializer === true) return null;
@@ -70,6 +74,12 @@ function excerpt(node) {
   return node.getText().replace(/\s+/g, ' ').slice(0, 180);
 }
 
+function isPlaceholderHref(href) {
+  if (href === null) return false;
+  const normalized = href.trim().toLowerCase();
+  return normalized === '' || normalized === '#' || normalized === 'javascript:void(0)' || normalized === 'javascript:void(0);' || normalized === 'javascript:;' || normalized === 'javascript:';
+}
+
 for (const file of roots.flatMap(walk)) {
   const source = fs.readFileSync(file, 'utf8');
   const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -99,7 +109,16 @@ for (const file of roots.flatMap(walk)) {
 
       if (name === 'a' || name === 'Link') {
         const href = stringAttribute(attributes, 'href');
-        if (href === '#' || href === '') failures.push(`${location(sourceFile, opening)} inert ${name} href=${JSON.stringify(href)}: ${excerpt(opening)}`);
+        const hasHrefAttribute = attributes.has('href');
+        const hasActionHandler = ['onClick', 'onPointerDown', 'onPointerUp'].some((handler) => attributes.has(handler));
+        const spreadMaySupplyContract = hasSpreadAttributes(opening);
+
+        if (!hasHrefAttribute && !hasActionHandler && !spreadMaySupplyContract) {
+          failures.push(`${location(sourceFile, opening)} ${name} has no href or action: ${excerpt(opening)}`);
+        }
+        if (isPlaceholderHref(href)) {
+          failures.push(`${location(sourceFile, opening)} inert ${name} href=${JSON.stringify(href)}: ${excerpt(opening)}`);
+        }
       }
     }
     ts.forEachChild(node, inspect);
@@ -111,8 +130,8 @@ for (const file of roots.flatMap(walk)) {
 if (failures.length) {
   console.error(`UI action audit found ${failures.length} obvious inert control${failures.length === 1 ? '' : 's'}:\n`);
   failures.forEach((failure) => console.error(`- ${failure}`));
-  console.error('\nEvery enabled user-visible button must invoke an action or have explicit submit/reset semantics. Placeholder links are not allowed.');
+  console.error('\nEvery enabled user-visible button and navigation control must invoke an action or have explicit submit/reset/navigation semantics. Placeholder links are not allowed.');
   process.exit(1);
 }
 
-console.log('UI action audit passed: no obvious inert enabled buttons or placeholder links were found.');
+console.log('UI action audit passed: no obvious inert enabled buttons or navigation controls were found.');
