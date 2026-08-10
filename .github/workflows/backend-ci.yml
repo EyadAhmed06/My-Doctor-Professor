@@ -52,8 +52,11 @@ jobs:
     name: PostgreSQL bootstrap, upgrade, drift, integration, recovery
     runs-on: ubuntu-latest
     services:
+      # Ubuntu 24.04 currently ships PostgreSQL client 16. Keep the CI server on the
+      # same major version so pg_dump/pg_restore recovery gates exercise the product
+      # instead of failing before the backup starts because of a client/server mismatch.
       postgres:
-        image: postgres:18
+        image: postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres-ci-password
