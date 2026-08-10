@@ -61,7 +61,7 @@ async function installAssessmentMock(page: Page, mode: 'TUTOR' | 'TIMED', deadli
   const savedAnswers = new Map<string, string>();
   let submitted = false;
   let savedNote = '';
-  let flags = new Set<string>();
+  const flags = new Set<string>();
 
   await page.addInitScript(() => {
     localStorage.setItem('mdp_access_token', 'assessment-browser-token');
