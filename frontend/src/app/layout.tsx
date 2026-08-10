@@ -37,6 +37,7 @@ import "@/components/reference-light-palette.css";
 import "@/components/reference-light-palette-exact.css";
 import "@/components/reference-light-palette-metallic.css";
 import "@/components/brand-light-navbar.css";
+import "@/components/assessment-session-responsive-fix.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
