@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FiArrowLeft, FiFolder, FiPaperclip, FiPlus, FiSave, FiTrash2 } from "react-icons/fi";
+import { FiArrowLeft, FiFolder, FiPaperclip, FiPlus, FiRotateCcw, FiRotateCw, FiSave, FiTrash2 } from "react-icons/fi";
 import { useAuth } from "./auth-provider";
 import { PageSkeleton } from "./async-state";
 import { useLocale } from "./locale-provider";
@@ -19,13 +19,24 @@ type Attachment = {
   fileName: string;
   mimeType: string;
   fileUrl: string;
-  sizeBytes: number | null;
+  sizeBytes: number | string | null;
+};
+type ImageView = {
+  width: number;
+  scale: number;
+  x: number;
+  y: number;
+  rotate: number;
+  rotateX: number;
+  rotateY: number;
+  perspective: number;
 };
 type Note = {
   id: string;
   title: string;
   content: string;
   collectionId: string | null;
+  metadata?: Record<string, unknown>;
   attachments?: Attachment[];
 };
 
@@ -33,12 +44,152 @@ const attachmentAccept = "application/pdf,image/png,image/jpeg,image/webp,video/
 const allowedAttachmentTypes = new Set(attachmentAccept.split(","));
 const maxAttachmentBytes = 52_428_800;
 
-function fileSizeLabel(value: number | null) {
+function defaultImageView(): ImageView {
+  return { width: 72, scale: 1, x: 0, y: 0, rotate: 0, rotateX: 0, rotateY: 0, perspective: 900 };
+}
+
+function boundedNumber(value: unknown, fallback: number, min: number, max: number) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.min(max, Math.max(min, numeric)) : fallback;
+}
+
+function normalizeImageView(value: unknown): ImageView {
+  const fallback = defaultImageView();
+  const row = typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
+  return {
+    width: boundedNumber(row.width, fallback.width, 20, 100),
+    scale: boundedNumber(row.scale, fallback.scale, 0.35, 2.5),
+    x: boundedNumber(row.x, fallback.x, -600, 600),
+    y: boundedNumber(row.y, fallback.y, -450, 450),
+    rotate: boundedNumber(row.rotate, fallback.rotate, -180, 180),
+    rotateX: boundedNumber(row.rotateX, fallback.rotateX, -70, 70),
+    rotateY: boundedNumber(row.rotateY, fallback.rotateY, -70, 70),
+    perspective: boundedNumber(row.perspective, fallback.perspective, 250, 2000),
+  };
+}
+
+function readImageViews(metadata: Record<string, unknown>): Record<string, ImageView> {
+  const raw = metadata.attachmentViews;
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return {};
+  return Object.fromEntries(Object.entries(raw as Record<string, unknown>).map(([id, value]) => [id, normalizeImageView(value)]));
+}
+
+function fileSizeLabel(value: number | string | null) {
   if (value === null || !Number.isFinite(Number(value))) return "";
   const bytes = Number(value);
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function NotebookImageAttachment({
+  noteId,
+  attachment,
+  view,
+  onChange,
+}: {
+  noteId: string;
+  attachment: Attachment;
+  view: ImageView;
+  onChange(next: ImageView): void;
+}) {
+  const { request } = useAuth();
+  const { translate } = useLocale();
+  const [src, setSrc] = useState<string | null>(attachment.fileUrl.startsWith("managed:") ? null : attachment.fileUrl);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [naturalSize, setNaturalSize] = useState("");
+  const drag = useRef<{ pointerId: number; startX: number; startY: number; baseX: number; baseY: number } | null>(null);
+
+  useEffect(() => {
+    if (!attachment.fileUrl.startsWith("managed:")) {
+      setSrc(attachment.fileUrl);
+      return;
+    }
+    let cancelled = false;
+    let objectUrl = "";
+    setSrc(null);
+    setPreviewError(null);
+    void request<Blob>(`/notebook/notes/${noteId}/attachments/${attachment.id}/file`, { responseType: "blob" })
+      .then((blob) => {
+        objectUrl = URL.createObjectURL(blob);
+        if (cancelled) URL.revokeObjectURL(objectUrl);
+        else setSrc(objectUrl);
+      })
+      .catch((cause) => {
+        if (!cancelled) setPreviewError(cause instanceof Error ? cause.message : translate("Unable to preview image."));
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [attachment.fileUrl, attachment.id, noteId, request, translate]);
+
+  function change(key: keyof ImageView, value: number) {
+    onChange({ ...view, [key]: value });
+  }
+
+  function pointerDown(event: React.PointerEvent<HTMLImageElement>) {
+    drag.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, baseX: view.x, baseY: view.y };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function pointerMove(event: React.PointerEvent<HTMLImageElement>) {
+    const current = drag.current;
+    if (!current || current.pointerId !== event.pointerId) return;
+    onChange({
+      ...view,
+      x: boundedNumber(current.baseX + event.clientX - current.startX, view.x, -600, 600),
+      y: boundedNumber(current.baseY + event.clientY - current.startY, view.y, -450, 450),
+    });
+  }
+
+  function pointerEnd(event: React.PointerEvent<HTMLImageElement>) {
+    if (drag.current?.pointerId === event.pointerId) drag.current = null;
+  }
+
+  return <section className="simple-note-image-editor">
+    <header className="simple-note-image-header">
+      <div>
+        <b>{attachment.fileName}</b>
+        <small>{naturalSize || fileSizeLabel(attachment.sizeBytes)}</small>
+      </div>
+      <div>
+        <button type="button" onClick={() => onChange({ ...view, rotate: Math.max(-180, view.rotate - 90) })} title={translate("Rotate left")}><FiRotateCcw /></button>
+        <button type="button" onClick={() => onChange({ ...view, rotate: Math.min(180, view.rotate + 90) })} title={translate("Rotate right")}><FiRotateCw /></button>
+        <button type="button" onClick={() => onChange(defaultImageView())}>{translate("Reset view")}</button>
+      </div>
+    </header>
+
+    <div className="simple-note-image-stage">
+      {previewError ? <p className="form-error">{previewError}</p> : src ? <img
+        src={src}
+        alt={attachment.fileName}
+        draggable={false}
+        onDragStart={(event) => event.preventDefault()}
+        onLoad={(event) => setNaturalSize(`${event.currentTarget.naturalWidth} × ${event.currentTarget.naturalHeight}`)}
+        onPointerDown={pointerDown}
+        onPointerMove={pointerMove}
+        onPointerUp={pointerEnd}
+        onPointerCancel={pointerEnd}
+        style={{
+          width: `${view.width}%`,
+          transform: `perspective(${view.perspective}px) translate3d(${view.x}px, ${view.y}px, 0) rotateX(${view.rotateX}deg) rotateY(${view.rotateY}deg) rotateZ(${view.rotate}deg) scale(${view.scale})`,
+        }}
+      /> : <span className="simple-note-image-loading">{translate("Loading image…")}</span>}
+    </div>
+
+    <div className="simple-note-image-controls">
+      <label><span>{translate("Width")} <b>{Math.round(view.width)}%</b></span><input type="range" min="20" max="100" step="1" value={view.width} onChange={(event) => change("width", Number(event.target.value))} /></label>
+      <label><span>{translate("Scale")} <b>{Math.round(view.scale * 100)}%</b></span><input type="range" min="0.35" max="2.5" step="0.05" value={view.scale} onChange={(event) => change("scale", Number(event.target.value))} /></label>
+      <label><span>{translate("Move X")} <b>{Math.round(view.x)}px</b></span><input type="range" min="-600" max="600" step="1" value={view.x} onChange={(event) => change("x", Number(event.target.value))} /></label>
+      <label><span>{translate("Move Y")} <b>{Math.round(view.y)}px</b></span><input type="range" min="-450" max="450" step="1" value={view.y} onChange={(event) => change("y", Number(event.target.value))} /></label>
+      <label><span>{translate("Rotation")} <b>{Math.round(view.rotate)}°</b></span><input type="range" min="-180" max="180" step="1" value={view.rotate} onChange={(event) => change("rotate", Number(event.target.value))} /></label>
+      <label><span>{translate("Tilt X")} <b>{Math.round(view.rotateX)}°</b></span><input type="range" min="-70" max="70" step="1" value={view.rotateX} onChange={(event) => change("rotateX", Number(event.target.value))} /></label>
+      <label><span>{translate("Tilt Y")} <b>{Math.round(view.rotateY)}°</b></span><input type="range" min="-70" max="70" step="1" value={view.rotateY} onChange={(event) => change("rotateY", Number(event.target.value))} /></label>
+      <label><span>{translate("Perspective")} <b>{Math.round(view.perspective)}px</b></span><input type="range" min="250" max="2000" step="25" value={view.perspective} onChange={(event) => change("perspective", Number(event.target.value))} /></label>
+    </div>
+    <small className="simple-note-image-tip">{translate("Drag the image directly to move it. Use the controls for exact size, translation, rotation, tilt, and perspective.")}</small>
+  </section>;
 }
 
 export function ConnectedNoteEditorPage() {
@@ -56,6 +207,8 @@ export function ConnectedNoteEditorPage() {
   const [collectionId, setCollectionId] = useState("");
   const [collections, setCollections] = useState<Collection[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [metadata, setMetadata] = useState<Record<string, unknown>>({});
+  const [imageViews, setImageViews] = useState<Record<string, ImageView>>({});
   const [showCollectionForm, setShowCollectionForm] = useState(false);
   const [creatingCollection, setCreatingCollection] = useState(false);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
@@ -77,17 +230,22 @@ export function ConnectedNoteEditorPage() {
       if (!active) return;
       setCollections(collectionRows);
       if (note) {
+        const nextMetadata = note.metadata && typeof note.metadata === "object" ? note.metadata : {};
         setActiveNoteId(note.id);
         setTitle(note.title);
         setContent(note.content);
         setCollectionId(note.collectionId || "");
         setAttachments(note.attachments || []);
+        setMetadata(nextMetadata);
+        setImageViews(readImageViews(nextMetadata));
       } else {
         setActiveNoteId(null);
         setTitle("");
         setContent("");
         setCollectionId("");
         setAttachments([]);
+        setMetadata({});
+        setImageViews({});
       }
       setDirty(false);
       setLoading(false);
@@ -115,6 +273,7 @@ export function ConnectedNoteEditorPage() {
     setSaving(true);
     setError(null);
     try {
+      const nextMetadata = { ...metadata, attachmentViews: imageViews };
       const saved = await request<Note>(activeNoteId ? `/notebook/notes/${activeNoteId}` : "/notebook/notes", {
         method: activeNoteId ? "PUT" : "POST",
         body: {
@@ -122,10 +281,14 @@ export function ConnectedNoteEditorPage() {
           note_type: "PERSONAL",
           content,
           collection_id: collectionId || null,
+          metadata: nextMetadata,
         },
       });
       setActiveNoteId(saved.id);
       if (saved.attachments) setAttachments(saved.attachments);
+      const savedMetadata = saved.metadata && typeof saved.metadata === "object" ? saved.metadata : nextMetadata;
+      setMetadata(savedMetadata);
+      setImageViews(readImageViews(savedMetadata));
       setDirty(false);
       if (wasNew) window.history.replaceState(null, "", `/notebook/new?note=${saved.id}`);
       if (showNotice) notify({ title: translate("Notebook saved"), description: saved.title, tone: "success" });
@@ -204,6 +367,10 @@ export function ConnectedNoteEditorPage() {
         body,
       });
       setAttachments((current) => [...current, created]);
+      if (created.kind === "IMAGE") {
+        setImageViews((current) => ({ ...current, [created.id]: defaultImageView() }));
+        setDirty(true);
+      }
       notify({ title: translate("Attachment added"), description: created.fileName, tone: "success" });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : translate("Unable to upload attachment."));
@@ -246,6 +413,14 @@ export function ConnectedNoteEditorPage() {
     try {
       await request(`/notebook/notes/${activeNoteId}/attachments/${attachment.id}`, { method: "DELETE" });
       setAttachments((current) => current.filter((item) => item.id !== attachment.id));
+      if (attachment.kind === "IMAGE") {
+        setImageViews((current) => {
+          const next = { ...current };
+          delete next[attachment.id];
+          return next;
+        });
+        setDirty(true);
+      }
       notify({ title: translate("Attachment removed"), description: attachment.fileName, tone: "success" });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : translate("Unable to remove attachment."));
@@ -276,6 +451,7 @@ export function ConnectedNoteEditorPage() {
       : activeNoteId
         ? translate("Saved")
         : translate("New notebook");
+  const imageAttachments = attachments.filter((attachment) => attachment.kind === "IMAGE");
 
   return <ProductShell><main className="pp-page simple-note-editor-page">
     <header className="simple-note-editor-head">
@@ -310,10 +486,23 @@ export function ConnectedNoteEditorPage() {
         required
       />
 
+      {activeNoteId && imageAttachments.length > 0 && <div className="simple-note-image-list">
+        {imageAttachments.map((attachment) => <NotebookImageAttachment
+          key={attachment.id}
+          noteId={activeNoteId}
+          attachment={attachment}
+          view={imageViews[attachment.id] || defaultImageView()}
+          onChange={(next) => {
+            setImageViews((current) => ({ ...current, [attachment.id]: next }));
+            setDirty(true);
+          }}
+        />)}
+      </div>}
+
       {attachments.length > 0 && <div className="simple-note-attachment-list">
         {attachments.map((attachment) => <article className="simple-note-attachment-chip" key={attachment.id}>
           <FiPaperclip />
-          <button className="simple-note-attachment-open" type="button" disabled={openingAttachmentId === attachment.id} onClick={() => void openAttachment(attachment)} title={translate("Open attachment")}>{attachment.fileName}</button>
+          <button className="simple-note-attachment-open" type="button" disabled={openingAttachmentId === attachment.id} onClick={() => void openAttachment(attachment)} title={translate("Download attachment")}>{attachment.fileName}</button>
           <small>{fileSizeLabel(attachment.sizeBytes)}</small>
           <button className="simple-note-attachment-remove" type="button" disabled={removingAttachmentId === attachment.id} onClick={() => void removeAttachment(attachment)} aria-label={translate("Remove attachment")} title={translate("Remove attachment")}><FiTrash2 /></button>
         </article>)}
