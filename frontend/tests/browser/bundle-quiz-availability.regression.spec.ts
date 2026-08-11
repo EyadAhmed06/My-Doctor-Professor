@@ -102,7 +102,7 @@ test('curriculum exposes the 40-MCQ quiz entry only after the server reports a f
   await page.goto('/bundles?bundle=clinical-foundations&tab=curriculum');
   const link = page.getByRole('link', { name: 'Select lectures for 40-MCQ quiz' });
   await expect(link).toBeVisible();
-  await expect(link).toHaveAttribute('href', `/rounds?bundle=${bundleId}`);
+  await expect(link).toHaveAttribute('href', `/rounds?bundle=${bundleId}&course=${courseId}`);
 });
 
 test('question-bank lecture entry does not open the fixed quiz builder until that lecture itself has forty eligible MCQs', async ({ page }) => {
