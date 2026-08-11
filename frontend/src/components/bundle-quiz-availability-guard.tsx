@@ -30,25 +30,33 @@ function courseMcqCount(course: BundleContent["courses"][number]) {
   );
 }
 
-function canLaunch(url: URL, content: BundleContent) {
-  if (content.bundle.read_only) return false;
+function resolvedLaunchUrl(source: URL, content: BundleContent) {
+  if (content.bundle.read_only) return null;
+  const url = new URL(source.toString());
   const courseId = url.searchParams.get("course");
   const lectureId = url.searchParams.get("lecture");
+
   if (lectureId) {
     const lecture = content.courses.flatMap((course) => course.weeks).flatMap((week) => week.lectures).find((item) => item.id === lectureId);
-    return finiteCount(lecture?.mcq_count) >= REQUIRED_MCQS;
+    return finiteCount(lecture?.mcq_count) >= REQUIRED_MCQS ? url : null;
   }
+
   if (courseId) {
     const course = content.courses.find((item) => item.id === courseId);
-    return Boolean(course && courseMcqCount(course) >= REQUIRED_MCQS);
+    return course && courseMcqCount(course) >= REQUIRED_MCQS ? url : null;
   }
-  return content.courses.some((course) => courseMcqCount(course) >= REQUIRED_MCQS);
+
+  const eligibleCourse = content.courses.find((course) => courseMcqCount(course) >= REQUIRED_MCQS);
+  if (!eligibleCourse) return null;
+  url.searchParams.set("course", eligibleCourse.id);
+  return url;
 }
 
 /**
  * The fixed curriculum practice flow needs forty eligible active question-bank
  * MCQs and it cannot mix courses. Hide every /rounds bundle entry point until
- * the same scope represented by its URL can really satisfy that invariant.
+ * the URL's scope can satisfy that invariant. Bundle-level links are tightened
+ * to the first eligible course so the student never lands on an empty course.
  */
 export function BundleQuizAvailabilityGuard() {
   const { request } = useAuth();
@@ -72,20 +80,30 @@ export function BundleQuizAvailabilityGuard() {
         const bundleId = url.searchParams.get("bundle");
         const scopeKey = `${bundleId || ""}:${url.searchParams.get("course") || ""}:${url.searchParams.get("lecture") || ""}`;
         if (!bundleId || (link.dataset.quizAvailability === "ready" && link.dataset.quizScope === scopeKey)) return;
+
         link.hidden = true;
         link.setAttribute("aria-hidden", "true");
         link.tabIndex = -1;
         link.dataset.quizAvailability = "checking";
         link.dataset.quizScope = scopeKey;
+
         void contentFor(bundleId).then((content) => {
           if (disposed || !link.isConnected || link.dataset.quizScope !== scopeKey) return;
-          const ready = Boolean(content && canLaunch(url, content));
-          link.dataset.quizAvailability = ready ? "ready" : "unavailable";
-          link.hidden = !ready;
-          if (ready) {
-            link.removeAttribute("aria-hidden");
-            link.removeAttribute("tabindex");
+          const resolved = content ? resolvedLaunchUrl(url, content) : null;
+          if (!resolved) {
+            link.dataset.quizAvailability = "unavailable";
+            link.hidden = true;
+            return;
           }
+
+          const href = `${resolved.pathname}${resolved.search}${resolved.hash}`;
+          const resolvedScope = `${bundleId}:${resolved.searchParams.get("course") || ""}:${resolved.searchParams.get("lecture") || ""}`;
+          if (link.getAttribute("href") !== href) link.setAttribute("href", href);
+          link.dataset.quizScope = resolvedScope;
+          link.dataset.quizAvailability = "ready";
+          link.hidden = false;
+          link.removeAttribute("aria-hidden");
+          link.removeAttribute("tabindex");
         });
       });
     }
