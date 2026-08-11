@@ -6,6 +6,7 @@ import { FiActivity, FiBarChart2, FiBookOpen, FiRefreshCw } from "react-icons/fi
 import { useAuth } from "./auth-provider";
 import { useLocale } from "./locale-provider";
 import "./student-progress-control.css";
+import "./student-progress-control-fix.css";
 
 type StudentCourse = {
   completionPercentage: string;
