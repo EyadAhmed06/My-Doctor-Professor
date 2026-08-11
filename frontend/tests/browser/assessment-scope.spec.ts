@@ -93,13 +93,19 @@ test('lecture assessment draft requires and sends course, week, and lecture scop
   });
 
   await page.goto('/instructor/assessments');
+  await expect(page.getByRole('heading', { name: 'Assessment builder' })).toBeVisible();
+  await expect(page.getByText('No assessments yet')).toBeVisible();
   await page.getByRole('button', { name: /New assessment/i }).click();
-  await page.getByLabel('Title').fill('Lecture scope test');
-  await page.getByLabel('Type').selectOption('LECTURE');
-  await page.getByLabel('Course').selectOption(courseId);
-  await page.getByLabel('Week').selectOption(weekId);
-  await page.getByLabel('Lecture').selectOption(lectureId);
-  await page.getByRole('button', { name: /Create draft/i }).click();
+  const dialog = page.getByRole('dialog', { name: 'Create assessment draft' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('Title').fill('Lecture scope test');
+  await dialog.getByLabel('Type').selectOption('LECTURE');
+  await dialog.getByLabel('Course').selectOption(courseId);
+  await expect(dialog.getByLabel('Week')).toBeEnabled();
+  await dialog.getByLabel('Week').selectOption(weekId);
+  await expect(dialog.getByLabel('Lecture')).toBeEnabled();
+  await dialog.getByLabel('Lecture').selectOption(lectureId);
+  await dialog.getByRole('button', { name: /Create draft/i }).click();
 
   await expect.poll(() => createBody).not.toBeNull();
   expect(createBody).toMatchObject({
