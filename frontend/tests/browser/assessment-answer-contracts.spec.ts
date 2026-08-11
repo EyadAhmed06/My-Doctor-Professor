@@ -4,8 +4,11 @@ const frontendOrigin = 'http://127.0.0.1:3001';
 const attemptId = '71111111-1111-4111-8111-111111111111';
 const testId = '72222222-2222-4222-8222-222222222222';
 const questionId = '73333333-3333-4333-8333-333333333333';
-const correctOptionId = '74444444-4444-4444-8444-444444444441';
-const wrongOptionId = '74444444-4444-4444-8444-444444444442';
+// These mirror persisted PostgreSQL UUID text from the demo question bank. The
+// variant nibble is not RFC-v4-conformant, but PostgreSQL's uuid type accepts the
+// canonical text and the backend answer DTO intentionally accepts it as well.
+const correctOptionId = '71000000-0000-4000-0001-000000000004';
+const wrongOptionId = '71000000-0000-4000-0001-000000000005';
 
 const student = {
   id: 'student-answer-contracts',
@@ -130,7 +133,7 @@ async function installAssessmentMock(page: Page, mode: 'TUTOR' | 'TIMED') {
   };
 }
 
-test('Timed mode lets a student change an answer before submission without leaking feedback', async ({ page }) => {
+test('Timed mode lets a student change a persisted demo-ID answer before submission without leaking feedback', async ({ page }) => {
   const state = await installAssessmentMock(page, 'TIMED');
   await page.goto(`/mock-exam/session?attempt=${attemptId}&test=${testId}&source=past-exams`);
 
@@ -152,7 +155,7 @@ test('Timed mode lets a student change an answer before submission without leaki
   await expect(page.locator('.answer-incorrect')).toHaveCount(0);
 });
 
-test('Tutor mode locks the answer after grading and always exposes the explanation', async ({ page }) => {
+test('Tutor mode locks the persisted demo-ID answer after grading and always exposes the explanation', async ({ page }) => {
   const state = await installAssessmentMock(page, 'TUTOR');
   await page.goto(`/mock-exam/session?attempt=${attemptId}&test=${testId}&source=rounds`);
 
