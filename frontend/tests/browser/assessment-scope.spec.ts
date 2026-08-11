@@ -98,13 +98,18 @@ test('lecture assessment draft requires and sends course, week, and lecture scop
   await page.getByRole('button', { name: /New assessment/i }).click();
   const dialog = page.getByRole('dialog', { name: 'Create assessment draft' });
   await expect(dialog).toBeVisible();
+  const field = (label: RegExp) => dialog.locator('label').filter({ hasText: label }).locator('select');
+  const typeSelect = field(/^Type/);
+  const courseSelect = field(/^Course/);
+  const weekSelect = field(/^Week/);
+  const lectureSelect = field(/^Lecture/);
   await dialog.getByLabel('Title').fill('Lecture scope test');
-  await dialog.getByLabel('Type').selectOption('LECTURE');
-  await dialog.getByLabel('Course').selectOption(courseId);
-  await expect(dialog.getByLabel('Week')).toBeEnabled();
-  await dialog.getByLabel('Week').selectOption(weekId);
-  await expect(dialog.getByLabel('Lecture')).toBeEnabled();
-  await dialog.getByLabel('Lecture').selectOption(lectureId);
+  await typeSelect.selectOption('LECTURE');
+  await courseSelect.selectOption(courseId);
+  await expect(weekSelect).toBeEnabled();
+  await weekSelect.selectOption(weekId);
+  await expect(lectureSelect).toBeEnabled();
+  await lectureSelect.selectOption(lectureId);
   await dialog.getByRole('button', { name: /Create draft/i }).click();
 
   await expect.poll(() => createBody).not.toBeNull();
