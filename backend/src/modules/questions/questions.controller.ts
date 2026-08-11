@@ -10,8 +10,12 @@ import {
   Post,
   Put,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { UploadedResourceFile } from '../academic/resource-storage.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -23,11 +27,14 @@ import {
   CreateQuestionDto,
   CreateTagDto,
   EssayConfigurationDto,
+  InspectQuestionImportDto,
+  PublishQuestionImportDto,
   QuestionQueryDto,
   SearchQuestionsDto,
   UpdateMcqOptionDto,
   UpdateQuestionDto,
 } from './dtos/questions.dto';
+import { QuestionImportService } from './question-import.service';
 import { QuestionsService } from './questions.service';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
@@ -35,7 +42,10 @@ const uuid = new ParseUUIDPipe({ version: '4' });
 @Controller('questions')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class QuestionsController {
-  constructor(private readonly questions: QuestionsService) {}
+  constructor(
+    private readonly questions: QuestionsService,
+    private readonly imports: QuestionImportService,
+  ) {}
 
   @Post()
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
@@ -71,6 +81,28 @@ export class QuestionsController {
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   createTag(@Body() dto: CreateTagDto) {
     return this.questions.createTag(dto);
+  }
+
+  @Post('imports/inspect')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  @UseInterceptors(FileInterceptor('file', {
+    limits: { fileSize: 25 * 1024 * 1024, files: 1 },
+  }))
+  inspectImport(
+    @Body() dto: InspectQuestionImportDto,
+    @UploadedFile() file: UploadedResourceFile | undefined,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.imports.inspectPdf(dto, file, actor);
+  }
+
+  @Post('imports/publish')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  publishImport(
+    @Body() dto: PublishQuestionImportDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.imports.publish(dto, actor);
   }
 
   @Put('options/:optionId')

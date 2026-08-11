@@ -8,6 +8,7 @@ CREATE TYPE bundle_status AS ENUM ('DRAFT','PUBLISHED','ARCHIVED');
 CREATE TYPE bundle_access_mode AS ENUM ('MANUAL','CODE','PUBLIC','SUBSCRIPTION');
 CREATE TYPE bundle_enrollment_status AS ENUM ('ACTIVE','EXPIRED','REVOKED');
 CREATE TYPE bundle_enrollment_source AS ENUM ('MANUAL','CODE','PUBLIC','SUBSCRIPTION');
+CREATE TYPE bundle_payment_status AS ENUM ('NOT_REQUIRED','PENDING','PAID','CANCELLED');
 
 CREATE TABLE bundles (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -18,6 +19,8 @@ CREATE TABLE bundles (
     status bundle_status NOT NULL DEFAULT 'DRAFT',
     access_mode bundle_access_mode NOT NULL DEFAULT 'PUBLIC',
     is_free boolean NOT NULL DEFAULT true,
+    price_amount numeric(10,2),
+    price_currency varchar(3) NOT NULL DEFAULT 'EGP',
     enrollment_code_hash text,
     available_from timestamp,
     available_until timestamp,
@@ -28,6 +31,12 @@ CREATE TABLE bundles (
         available_until IS NULL
         OR available_from IS NULL
         OR available_until > available_from
+    ),
+    CONSTRAINT ck_bundle_price_positive CHECK (
+        price_amount IS NULL OR price_amount > 0
+    ),
+    CONSTRAINT ck_bundle_price_currency CHECK (
+        price_currency ~ '^[A-Z]{3}$'
     )
 );
 CREATE UNIQUE INDEX uq_bundles_slug ON bundles(slug);
@@ -71,6 +80,9 @@ CREATE TABLE bundle_enrollments (
     student_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     status bundle_enrollment_status NOT NULL DEFAULT 'ACTIVE',
     source bundle_enrollment_source NOT NULL,
+    payment_status bundle_payment_status NOT NULL DEFAULT 'NOT_REQUIRED',
+    paid_at timestamp,
+    payment_reference varchar(200),
     starts_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at timestamp,
     granted_by uuid REFERENCES users(id) ON DELETE SET NULL,
@@ -83,3 +95,5 @@ CREATE TABLE bundle_enrollments (
 );
 CREATE INDEX idx_bundle_enrollment_student_status
     ON bundle_enrollments(student_id, status);
+CREATE INDEX idx_bundle_enrollment_payment_status
+    ON bundle_enrollments(bundle_id, payment_status);

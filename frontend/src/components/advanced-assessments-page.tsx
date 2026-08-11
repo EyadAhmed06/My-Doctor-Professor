@@ -26,7 +26,9 @@ import { useUx } from "./ux-provider";
 import "./role-workspace.css";
 
 type PageResponse<T> = { data: T[]; total?: number; page?: number; limit?: number; total_pages?: number };
-type Course = { id: string; courseCode: string; courseName: string };
+type AssessmentLecture = { id: string; title: string; lectureNumber: number };
+type AssessmentWeek = { id: string; weekNumber: number; title: string | null; lectures?: AssessmentLecture[] };
+type Course = { id: string; courseCode: string; courseName: string; weeks?: AssessmentWeek[] };
 type QuestionOption = { id: string; optionText?: string; option_text?: string; isCorrect?: boolean; is_correct?: boolean };
 type Question = {
   id: string;
@@ -82,6 +84,8 @@ type DraftForm = {
   description: string;
   test_type: Test["testType"];
   course_id: string;
+  week_id: string;
+  lecture_id: string;
   duration_minutes: number;
   passing_marks: number;
   available_from: string;
@@ -93,6 +97,8 @@ const initialDraft: DraftForm = {
   description: "",
   test_type: "CUSTOM",
   course_id: "",
+  week_id: "",
+  lecture_id: "",
   duration_minutes: 60,
   passing_marks: 50,
   available_from: "",
@@ -115,6 +121,8 @@ export function AdvancedAssessmentsPage({ admin = false }: { admin?: boolean }) 
   const { notify, celebrate } = useUx();
   const [tests, setTests] = useState<Test[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [draftCourse, setDraftCourse] = useState<Course | null>(null);
+  const [draftCourseLoading, setDraftCourseLoading] = useState(false);
   const [questionBank, setQuestionBank] = useState<Question[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [testQuestions, setTestQuestions] = useState<TestQuestion[]>([]);
@@ -190,7 +198,7 @@ export function AdvancedAssessmentsPage({ admin = false }: { admin?: boolean }) 
     try {
       const saved = localStorage.getItem(draftKey);
       if (!saved) return;
-      const parsed = JSON.parse(saved) as DraftForm;
+      const parsed = JSON.parse(saved) as Partial<DraftForm>;
       setDraft({ ...initialDraft, ...parsed });
       setDraftRestored(true);
     } catch {
@@ -210,9 +218,32 @@ export function AdvancedAssessmentsPage({ admin = false }: { admin?: boolean }) 
     return () => window.clearTimeout(autosaveTimer.current);
   }, [draft, draftKey]);
 
+  useEffect(() => {
+    if (!draft.course_id) {
+      setDraftCourse(null);
+      setDraftCourseLoading(false);
+      return;
+    }
+    let active = true;
+    setDraftCourseLoading(true);
+    void request<Course>(`/academic/courses/${draft.course_id}`)
+      .then((course) => { if (active) setDraftCourse(course); })
+      .catch((cause) => {
+        if (!active) return;
+        setDraftCourse(null);
+        notify({ title: "Could not load course structure", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+      })
+      .finally(() => { if (active) setDraftCourseLoading(false); });
+    return () => { active = false; };
+  }, [draft.course_id, notify, request]);
+
   const selected = tests.find((test) => test.id === selectedId) || null;
   const validationErrors = authoring?.validation.issues.filter((issue) => issue.severity === "ERROR") || [];
   const validationWarnings = authoring?.validation.issues.filter((issue) => issue.severity === "WARNING") || [];
+  const draftWeeks = draftCourse?.weeks || [];
+  const draftWeek = draftWeeks.find((week) => week.id === draft.week_id) || null;
+  const draftLectures = draftWeek?.lectures || [];
+  const scopedType = draft.test_type === "LECTURE" || draft.test_type === "WEEK" || draft.test_type === "COURSE";
   const filteredBank = useMemo(() => {
     const needle = attachSearch.trim().toLowerCase();
     const attached = new Set(testQuestions.map((item) => item.questionId));
@@ -229,6 +260,18 @@ export function AdvancedAssessmentsPage({ admin = false }: { admin?: boolean }) 
   async function createTest(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
+    if (scopedType && !draft.course_id) {
+      notify({ title: "Choose a course", description: `${draft.test_type} assessments must be attached to the academic hierarchy.`, tone: "error" });
+      return;
+    }
+    if ((draft.test_type === "LECTURE" || draft.test_type === "WEEK") && !draft.week_id) {
+      notify({ title: "Choose a week", description: `${draft.test_type} assessments require a week.`, tone: "error" });
+      return;
+    }
+    if (draft.test_type === "LECTURE" && !draft.lecture_id) {
+      notify({ title: "Choose a lecture", description: "LECTURE assessments require the exact lecture they belong to.", tone: "error" });
+      return;
+    }
     setBusy(true);
     try {
       const created = await request<Test>("/tests", {
@@ -238,6 +281,8 @@ export function AdvancedAssessmentsPage({ admin = false }: { admin?: boolean }) 
           description: draft.description.trim() || undefined,
           test_type: draft.test_type,
           course_id: draft.course_id || undefined,
+          week_id: draft.test_type === "LECTURE" || draft.test_type === "WEEK" ? draft.week_id || undefined : undefined,
+          lecture_id: draft.test_type === "LECTURE" ? draft.lecture_id || undefined : undefined,
           duration_minutes: Number(draft.duration_minutes),
           passing_marks: Number(draft.passing_marks),
           available_from: draft.available_from || undefined,
@@ -247,6 +292,7 @@ export function AdvancedAssessmentsPage({ admin = false }: { admin?: boolean }) 
       localStorage.removeItem(draftKey);
       setDraft(initialDraft);
       setDraftRestored(false);
+      setDraftCourse(null);
       setCreateOpen(false);
       await load();
       setSelectedId(created.id);
@@ -424,7 +470,7 @@ export function AdvancedAssessmentsPage({ admin = false }: { admin?: boolean }) 
       </> : <EmptyState title="Select an assessment" description="Choose an assessment to manage questions, validation, publishing, and attempts." />}</section>
     </div>}
 
-    <Modal title="Create assessment draft" open={createOpen} onClose={() => setCreateOpen(false)} wide><form className="role-form" onSubmit={createTest}><div className="draft-autosave-status"><FiSave /><span><b>Autosaved locally</b><small>{draftRestored ? "A previous unfinished draft was restored." : "Your fields are saved in this browser while you type."}</small></span>{JSON.stringify(draft) !== JSON.stringify(initialDraft) && <button type="button" onClick={() => { setDraft(initialDraft); setDraftRestored(false); localStorage.removeItem(draftKey); }}>Clear draft</button>}</div><div className="role-form-grid"><label>Title<input required value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} /></label><label>Type<select value={draft.test_type} onChange={(event) => setDraft((current) => ({ ...current, test_type: event.target.value as Test["testType"] }))}>{["LECTURE", "WEEK", "COURSE", "CUSTOM", "QUESTION_BANK"].map((value) => <option key={value}>{value}</option>)}</select></label><label>Course<select value={draft.course_id} onChange={(event) => setDraft((current) => ({ ...current, course_id: event.target.value }))}><option value="">No course</option>{courses.map((course) => <option value={course.id} key={course.id}>{course.courseCode} · {course.courseName}</option>)}</select></label><label>Duration minutes<input required min={1} type="number" value={draft.duration_minutes} onChange={(event) => setDraft((current) => ({ ...current, duration_minutes: Number(event.target.value) }))} /></label><label>Passing marks<input required min={0} step="0.01" type="number" value={draft.passing_marks} onChange={(event) => setDraft((current) => ({ ...current, passing_marks: Number(event.target.value) }))} /></label><label>Available from<input type="datetime-local" value={draft.available_from} onChange={(event) => setDraft((current) => ({ ...current, available_from: event.target.value }))} /></label><label>Available until<input type="datetime-local" value={draft.available_until} onChange={(event) => setDraft((current) => ({ ...current, available_until: event.target.value }))} /></label><label className="wide">Description<textarea rows={3} value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} /></label></div><footer><button className="pp-button secondary" type="button" onClick={() => setCreateOpen(false)}>Close</button><button className="pp-button" disabled={busy} type="submit"><FiSave /> {busy ? "Creating…" : "Create draft"}</button></footer></form></Modal>
+    <Modal title="Create assessment draft" open={createOpen} onClose={() => setCreateOpen(false)} wide><form className="role-form" onSubmit={createTest}><div className="draft-autosave-status"><FiSave /><span><b>Autosaved locally</b><small>{draftRestored ? "A previous unfinished draft was restored." : "Your fields are saved in this browser while you type."}</small></span>{JSON.stringify(draft) !== JSON.stringify(initialDraft) && <button type="button" onClick={() => { setDraft(initialDraft); setDraftRestored(false); setDraftCourse(null); localStorage.removeItem(draftKey); }}>Clear draft</button>}</div><div className="role-form-grid"><label>Title<input required value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} /></label><label>Type<select value={draft.test_type} onChange={(event) => { const testType = event.target.value as Test["testType"]; setDraft((current) => ({ ...current, test_type: testType, week_id: "", lecture_id: "" })); }}>{["LECTURE", "WEEK", "COURSE", "CUSTOM", "QUESTION_BANK"].map((value) => <option key={value}>{value}</option>)}</select></label><label>{scopedType ? "Course" : "Course (optional)"}<select required={scopedType} value={draft.course_id} onChange={(event) => setDraft((current) => ({ ...current, course_id: event.target.value, week_id: "", lecture_id: "" }))}><option value="">{scopedType ? "Select course" : "No course"}</option>{courses.map((course) => <option value={course.id} key={course.id}>{course.courseCode} · {course.courseName}</option>)}</select></label>{(draft.test_type === "LECTURE" || draft.test_type === "WEEK") && <label>Week<select required value={draft.week_id} disabled={!draft.course_id || draftCourseLoading} onChange={(event) => setDraft((current) => ({ ...current, week_id: event.target.value, lecture_id: "" }))}><option value="">{draftCourseLoading ? "Loading weeks…" : "Select week"}</option>{draftWeeks.map((week) => <option value={week.id} key={week.id}>Week {week.weekNumber}{week.title ? ` · ${week.title}` : ""}</option>)}</select></label>}{draft.test_type === "LECTURE" && <label>Lecture<select required value={draft.lecture_id} disabled={!draft.week_id || draftCourseLoading} onChange={(event) => setDraft((current) => ({ ...current, lecture_id: event.target.value }))}><option value="">Select lecture</option>{draftLectures.map((lecture) => <option value={lecture.id} key={lecture.id}>{lecture.lectureNumber}. {lecture.title}</option>)}</select></label>}<label>Duration minutes<input required min={1} type="number" value={draft.duration_minutes} onChange={(event) => setDraft((current) => ({ ...current, duration_minutes: Number(event.target.value) }))} /></label><label>Passing marks<input required min={0} step="0.01" type="number" value={draft.passing_marks} onChange={(event) => setDraft((current) => ({ ...current, passing_marks: Number(event.target.value) }))} /></label><label>Available from<input type="datetime-local" value={draft.available_from} onChange={(event) => setDraft((current) => ({ ...current, available_from: event.target.value }))} /></label><label>Available until<input type="datetime-local" value={draft.available_until} onChange={(event) => setDraft((current) => ({ ...current, available_until: event.target.value }))} /></label><label className="wide">Description<textarea rows={3} value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} /></label></div><footer><button className="pp-button secondary" type="button" onClick={() => setCreateOpen(false)}>Close</button><button className="pp-button" disabled={busy || draftCourseLoading} type="submit"><FiSave /> {busy ? "Creating…" : "Create draft"}</button></footer></form></Modal>
 
     <Modal title="Attach questions" open={attachOpen} onClose={() => setAttachOpen(false)} wide><div className="assessment-attach-workspace"><div className="role-search"><FiSearch /><input value={attachSearch} onChange={(event) => setAttachSearch(event.target.value)} placeholder="Search question bank" /></div><div className="assessment-bank-list">{filteredBank.length ? filteredBank.map((question) => <label className={attachIds.has(question.id) ? "selected" : ""} key={question.id}><input type="checkbox" checked={attachIds.has(question.id)} onChange={() => setAttachIds((current) => { const next = new Set(current); if (next.has(question.id)) next.delete(question.id); else next.add(question.id); return next; })} /><span><b>{question.title || question.questionText}</b><small>{question.questionType} · {question.difficulty} · {question.marks} marks</small></span></label>) : <EmptyState title="No available questions" description="Every active question is already attached or the search has no match." />}</div><footer><span>{attachIds.size} selected</span><button className="pp-button secondary" type="button" onClick={() => { setAttachIds(new Set()); setAttachOpen(false); }}>Cancel</button><button className="pp-button" type="button" disabled={!attachIds.size || busy} onClick={() => void attachSelected()}><FiPlus /> {busy ? "Adding…" : `Add ${attachIds.size || ""} question${attachIds.size === 1 ? "" : "s"}`}</button></footer></div></Modal>
 
