@@ -107,8 +107,11 @@ test('logout navigates immediately even when server revocation is slow', async (
 
   await page.goto('/settings');
   await page.locator('.profile-menu-trigger').click();
-  const startedAt = Date.now();
   await page.getByRole('menuitem', { name: /Log out/i }).click();
+  const confirmation = page.getByRole('alertdialog', { name: 'Log out?' });
+  await expect(confirmation).toBeVisible();
+  const startedAt = Date.now();
+  await confirmation.getByRole('button', { name: /^Log out$/i }).click();
   await expect(page).toHaveURL(/\/login/, { timeout: 3500 });
   expect(Date.now() - startedAt).toBeLessThan(3500);
   await page.reload();
