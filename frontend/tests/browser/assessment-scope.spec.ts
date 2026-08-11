@@ -45,15 +45,15 @@ async function baseMock(page: Page, handler: (endpoint: string, request: import(
 test('lecture assessment draft requires and sends course, week, and lecture scope', async ({ page }) => {
   let createBody: Record<string, unknown> | null = null;
   await baseMock(page, async (endpoint, request, respond) => {
-    if (endpoint === '/tests?limit=100') {
+    if (endpoint === '/tests' && request.method() === 'GET') {
       await respond({ data: [] });
       return true;
     }
-    if (endpoint === '/academic/courses?limit=100') {
+    if (endpoint === '/academic/courses') {
       await respond({ data: [{ id: courseId, courseCode: 'CVS-301', courseName: 'Cardiovascular Medicine' }] });
       return true;
     }
-    if (endpoint === '/questions?limit=100&is_active=true') {
+    if (endpoint === '/questions') {
       await respond({ data: [] });
       return true;
     }
