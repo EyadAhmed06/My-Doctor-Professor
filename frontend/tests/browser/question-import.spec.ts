@@ -26,7 +26,7 @@ async function authenticatedInstructor(page: Page) {
   return user;
 }
 
-async function routeApi(page: Page, handler: (path: string, method: string, page: Page) => Promise<{ status?: number; body?: unknown } | null> | { status?: number; body?: unknown } | null) {
+async function routeApi(page: Page, handler: (path: string, method: string) => Promise<{ status?: number; body?: unknown } | null> | { status?: number; body?: unknown } | null) {
   await page.route('**/*', async route => {
     const request = route.request();
     const url = new URL(request.url());
@@ -40,7 +40,7 @@ async function routeApi(page: Page, handler: (path: string, method: string, page
       'cache-control': 'no-store',
     };
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
-    const result = await handler(endpoint(request.url()), request.method(), page);
+    const result = await handler(endpoint(request.url()), request.method());
     return route.fulfill({
       status: result?.status ?? 200,
       headers,
@@ -70,24 +70,11 @@ test('instructor inspects a real PDF candidate queue, reviews it, and publishes 
     }],
   };
 
-  await page.route('**/api/v1/questions/imports/publish', async route => {
-    publishBody = route.request().postDataJSON() as Record<string, unknown>;
-    await route.fulfill({
-      status: 201,
-      headers: {
-        'access-control-allow-origin': frontendOrigin,
-        'access-control-allow-credentials': 'true',
-      },
-      contentType: 'application/json',
-      body: JSON.stringify({ created: 1, reused: 0, skipped: 0 }),
-    });
-  });
-
   await routeApi(page, async (path, method) => {
     if (path === '/auth/me') return { body: user };
     if (path === '/notifications/unread/count') return { body: { count: 0 } };
     if (path === '/notifications') return { body: { data: [] } };
-    if (path === '/academic/courses?limit=100' || path === '/academic/courses') return { body: { data: [{ id: course.id, courseCode: course.courseCode, courseName: course.courseName }] } };
+    if (path === '/academic/courses') return { body: { data: [{ id: course.id, courseCode: course.courseCode, courseName: course.courseName }] } };
     if (path === `/academic/courses/${course.id}`) return { body: course };
     if (path === '/questions/imports/inspect' && method === 'POST') return { body: {
       original_filename: 'cardiac-questions.pdf',
@@ -124,6 +111,19 @@ test('instructor inspects a real PDF candidate queue, reviews it, and publishes 
     return null;
   });
 
+  await page.route('**/api/v1/questions/imports/publish', async route => {
+    publishBody = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      status: 201,
+      headers: {
+        'access-control-allow-origin': frontendOrigin,
+        'access-control-allow-credentials': 'true',
+      },
+      contentType: 'application/json',
+      body: JSON.stringify({ created: 1, reused: 0, skipped: 0 }),
+    });
+  });
+
   await page.goto('/instructor/questions/import');
   await expect(page.getByRole('heading', { name: 'PDF Question Inspector' })).toBeVisible();
   await page.getByLabel('Course').selectOption(course.id);
@@ -136,10 +136,11 @@ test('instructor inspects a real PDF candidate queue, reviews it, and publishes 
   await page.getByText(/I confirm I have permission/i).click();
   await page.getByRole('button', { name: /Inspect PDF/i }).click();
 
-  await expect(page.getByText('Candidate 1')).toBeVisible();
-  await expect(page.getByText('96%')).toBeVisible();
+  await expect(page.getByText('Candidate 1').first()).toBeVisible();
+  await expect(page.getByText('96%').first()).toBeVisible();
   await expect(page.getByDisplayValue('Left atrium')).toBeVisible();
-  await expect(page.getByText('1 approved')).toBeVisible();
+  await expect(page.locator('.question-import-review-heading')).toContainText('1');
+  await expect(page.locator('.question-import-review-heading')).toContainText('approved');
 
   await page.getByRole('button', { name: /Publish approved/i }).click();
   await expect.poll(() => publishBody).not.toBeNull();
