@@ -108,6 +108,6 @@ test('curriculum exposes the 40-MCQ quiz entry only after the server reports a f
 test('question-bank lecture entry does not open the fixed quiz builder until that lecture itself has forty eligible MCQs', async ({ page }) => {
   await mockBundle(page, 1);
   await page.goto('/bundles?bundle=clinical-foundations&tab=questions');
-  await expect(page.getByText('Cardiac anatomy')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Bundle Question Bank' })).toBeVisible();
   await expect(page.locator(`a[href*="lecture=${lectureId}"]`)).toBeHidden();
 });
