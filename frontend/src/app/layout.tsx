@@ -21,6 +21,7 @@ import "@/components/study-plan-completion.css";
 import "@/components/notebook-completion.css";
 import "@/components/study-guides-completion.css";
 import "@/components/bundles-completion.css";
+import "@/components/bundle-quiz-availability.css";
 import "@/components/settings-completion.css";
 import "@/components/assessment-authoring-completion.css";
 import "@/components/admin-operations-completion.css";
