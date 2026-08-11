@@ -29,6 +29,7 @@ import {
   WorkspaceBreadcrumbs,
   WorkspaceHelpDrawer,
 } from "./phase-five-ux";
+import { StudentProgressControl } from "./student-progress-control";
 import { useUx } from "./ux-provider";
 import { useWorkspaceContinuity } from "./workspace-continuity";
 
@@ -118,6 +119,7 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
+  const [progressOpen, setProgressOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -175,6 +177,7 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
       event.preventDefault();
       setHelpOpen(value => !value);
       setAchievementsOpen(false);
+      setProgressOpen(false);
       setProfileOpen(false);
       setNotificationsOpen(false);
     };
@@ -266,6 +269,7 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
     });
     if (!accepted) return;
     setProfileOpen(false);
+    setProgressOpen(false);
     startNavigation();
     void logout();
     window.location.replace("/login");
@@ -282,6 +286,7 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
 
   function navigate(href: string) {
     setProfileOpen(false);
+    setProgressOpen(false);
     setNotificationsOpen(false);
     startNavigation();
     router.push(href);
@@ -299,14 +304,23 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
       </nav>
       <button className="pp-search-command" type="button" onClick={openPalette} aria-label={`${translate("Open command palette")}. ${translate(search)}`}><FiSearch /><span>{translate(search)}</span><kbd>⌘ K</kbd></button>
       <div className="pp-profile">
-        <button className="phase5-header-action" type="button" aria-label={translate("Open contextual help")} aria-expanded={helpOpen} onClick={() => { setHelpOpen(true); setAchievementsOpen(false); setProfileOpen(false); setNotificationsOpen(false); }}><FiHelpCircle /></button>
-        <button className="phase5-header-action" type="button" aria-label={locale === "ar" ? `${achievements.length} إنجازات مفتوحة` : `${achievements.length} unlocked achievements`} aria-expanded={achievementsOpen} onClick={() => { setAchievementsOpen(true); setHelpOpen(false); setProfileOpen(false); setNotificationsOpen(false); }}><FiAward />{achievements.length > 0 && <i>{achievements.length > 99 ? "99+" : achievements.length}</i>}</button>
+        <button className="phase5-header-action" type="button" aria-label={translate("Open contextual help")} aria-expanded={helpOpen} onClick={() => { setHelpOpen(true); setAchievementsOpen(false); setProgressOpen(false); setProfileOpen(false); setNotificationsOpen(false); }}><FiHelpCircle /></button>
+        <button className="phase5-header-action" type="button" aria-label={locale === "ar" ? `${achievements.length} إنجازات مفتوحة` : `${achievements.length} unlocked achievements`} aria-expanded={achievementsOpen} onClick={() => { setAchievementsOpen(true); setHelpOpen(false); setProgressOpen(false); setProfileOpen(false); setNotificationsOpen(false); }}><FiAward />{achievements.length > 0 && <i>{achievements.length > 99 ? "99+" : achievements.length}</i>}</button>
         <div className="header-popover-anchor" ref={notificationsRef}>
-          <button ref={notificationsButtonRef} aria-label={locale === "ar" ? `${unread} إشعارات غير مقروءة` : `${unread} unread notifications`} aria-expanded={notificationsOpen} aria-haspopup="dialog" onClick={() => { const next = !notificationsOpen; setNotificationsOpen(next); setProfileOpen(false); setHelpOpen(false); setAchievementsOpen(false); if (next) void loadPreview(); }}><FiBell />{unread > 0 && <i>{unread > 99 ? "99+" : unread}</i>}</button>
+          <button ref={notificationsButtonRef} aria-label={locale === "ar" ? `${unread} إشعارات غير مقروءة` : `${unread} unread notifications`} aria-expanded={notificationsOpen} aria-haspopup="dialog" onClick={() => { const next = !notificationsOpen; setNotificationsOpen(next); setProfileOpen(false); setHelpOpen(false); setAchievementsOpen(false); setProgressOpen(false); if (next) void loadPreview(); }}><FiBell />{unread > 0 && <i>{unread > 99 ? "99+" : unread}</i>}</button>
           {notificationsOpen && <section className="header-popover notification-preview" role="dialog" aria-label={translate("Notification preview")}><header><div><b>{translate("Notifications")}</b><small>{locale === "ar" ? `${unreadPreview} غير مقروء في المعاينة` : `${unreadPreview} unread in preview`}</small></div><button type="button" disabled={!unread} onClick={() => void markAllPreviewRead()}><FiCheck /> {translate("Mark all read")}</button></header>{previewLoading ? <PageSkeleton variant="list" label={translate("Loading notification preview")} /> : preview.length ? <div className="notification-preview-list">{preview.map(item => <button type="button" className={item.status === "UNREAD" ? "unread" : ""} key={item.id} onClick={() => void openNotification(item)}><span /><div><b>{item.title}</b><p>{item.message}</p><small>{new Date(item.created_at).toLocaleString(locale === "ar" ? "ar-EG" : undefined)}</small></div></button>)}</div> : <p className="header-popover-empty">{translate("No notifications yet.")}</p>}<footer><button type="button" onClick={() => navigate("/notifications")}>{translate("View all notifications")}</button></footer></section>}
         </div>
+        <StudentProgressControl open={progressOpen} onOpenChange={(next) => {
+          setProgressOpen(next);
+          if (next) {
+            setHelpOpen(false);
+            setAchievementsOpen(false);
+            setProfileOpen(false);
+            setNotificationsOpen(false);
+          }
+        }} />
         <div className="header-popover-anchor profile-menu-anchor" ref={profileRef}>
-          <button ref={profileButtonRef} className="profile-menu-trigger" type="button" aria-expanded={profileOpen} aria-haspopup="menu" onClick={() => { setProfileOpen(value => !value); setNotificationsOpen(false); setHelpOpen(false); setAchievementsOpen(false); }}><span className="avatar-fallback">{initials}</span><span><b>{displayName}</b><small>{roleLabel}</small></span><FiChevronDown /></button>
+          <button ref={profileButtonRef} className="profile-menu-trigger" type="button" aria-expanded={profileOpen} aria-haspopup="menu" onClick={() => { setProfileOpen(value => !value); setNotificationsOpen(false); setHelpOpen(false); setAchievementsOpen(false); setProgressOpen(false); }}><span className="avatar-fallback">{initials}</span><span><b>{displayName}</b><small>{roleLabel}</small></span><FiChevronDown /></button>
           {profileOpen && <div className="header-popover profile-menu" role="menu"><div className="profile-menu-summary"><span className="avatar-fallback">{initials}</span><div><b>{displayName}</b><small>{user.email}</small></div></div><button type="button" role="menuitem" onClick={() => navigate("/settings")}><FiSettings /> {translate("Settings")}</button><div className="profile-theme-row"><span>{translate("Theme")}</span><ThemeToggle compact /></div><button className="danger" data-phase5-confirmed="true" type="button" role="menuitem" onClick={() => void confirmLogout()}><FiLogOut /> {translate("Log out")}</button></div>}
         </div>
       </div>
