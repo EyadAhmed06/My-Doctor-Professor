@@ -32,7 +32,7 @@ async function routeApi(page: Page, handler: (requestEndpoint: string, method: s
   await page.route('**/*', async route => {
     const request = route.request();
     const url = new URL(request.url());
-    const isApi = (request.resourceType() === 'fetch' || request.resourceType() === 'xhr') && (url.pathname.includes('/api/v1') || url.port === '3000');
+    const isApi = url.pathname.includes('/api/v1') || url.port === '3000';
     if (!isApi) return route.fallback();
     const headers = {
       'access-control-allow-origin': frontendOrigin,
