@@ -1,0 +1,234 @@
+/* Shared first-load motion for login, registration, verification, and recovery pages. */
+.auth-first-load {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 16px;
+  overflow: hidden;
+  background: var(--background, #f7f7f3);
+  color: var(--foreground, #16251f);
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 500ms ease, transform 560ms cubic-bezier(.22, 1, .36, 1), visibility 500ms ease;
+}
+
+html[data-theme="dark"] .auth-first-load {
+  background: var(--background, #07120f);
+  color: var(--foreground, #edf7f2);
+}
+
+.auth-first-load.is-leaving {
+  opacity: 0;
+  transform: scale(1.018);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.auth-first-load-glow {
+  position: absolute;
+  width: min(58vw, 620px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 48%, color-mix(in srgb, currentColor 9%, transparent) 0%, transparent 64%),
+    radial-gradient(circle at 58% 42%, color-mix(in srgb, currentColor 4%, transparent) 0%, transparent 45%);
+  animation: auth-load-breathe 1800ms ease-in-out infinite;
+  pointer-events: none;
+}
+
+.auth-first-load-mark {
+  position: relative;
+  width: 82px;
+  height: 82px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 28px;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+  box-shadow: 0 20px 60px color-mix(in srgb, currentColor 10%, transparent);
+  animation: auth-load-mark-in 650ms cubic-bezier(.16, 1, .3, 1) both;
+}
+
+.auth-first-load-mark strong {
+  position: relative;
+  z-index: 1;
+  font-size: 1.02rem;
+  letter-spacing: .16em;
+  transform: translateX(.08em);
+}
+
+.auth-first-load-pulse {
+  position: absolute;
+  inset: 11px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 20px;
+  animation: auth-load-ring 1400ms ease-out infinite;
+}
+
+.auth-first-load-copy {
+  position: relative;
+  display: grid;
+  min-height: 78px;
+  align-items: center;
+  justify-items: center;
+  gap: 7px;
+  text-align: center;
+  animation: auth-load-copy-in 620ms ease 110ms both;
+}
+
+.auth-first-load-copy > span {
+  font-size: .73rem;
+  font-weight: 850;
+  letter-spacing: .22em;
+}
+
+.auth-first-load-slide {
+  min-width: min(620px, 82vw);
+  font: 500 clamp(1.05rem, 2.4vw, 1.55rem)/1.25 Georgia, serif;
+  animation: auth-slide-in 500ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.auth-first-load-copy small {
+  opacity: .54;
+  font-size: .68rem;
+  letter-spacing: .13em;
+}
+
+.auth-first-load-dots {
+  display: flex;
+  gap: 7px;
+  height: 6px;
+  align-items: center;
+}
+
+.auth-first-load-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 25%, transparent);
+  transition: width 240ms ease, background 240ms ease;
+}
+
+.auth-first-load-dots i.active {
+  width: 20px;
+  background: currentColor;
+}
+
+.auth-first-load-line {
+  position: relative;
+  width: min(230px, 58vw);
+  height: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  animation: auth-load-copy-in 620ms ease 180ms both;
+}
+
+.auth-first-load-line i {
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  transform-origin: left center;
+  animation: auth-load-progress 1250ms cubic-bezier(.22, 1, .36, 1) infinite;
+}
+
+.auth-motion-ready {
+  overflow-x: clip;
+}
+
+.auth-motion-ready .auth-motion-story,
+.auth-motion-ready .auth-motion-form,
+.auth-motion-ready .auth-motion-footer {
+  opacity: 0;
+  filter: blur(4px);
+  will-change: opacity, transform, filter;
+}
+
+.auth-motion-ready .auth-motion-story {
+  transform: translate3d(-34px, 16px, 0) scale(.985);
+  transition: opacity 620ms ease, transform 820ms cubic-bezier(.22, 1, .36, 1), filter 600ms ease;
+}
+
+.auth-motion-ready .auth-motion-form {
+  transform: translate3d(34px, 16px, 0) scale(.985);
+  transition: opacity 660ms ease 90ms, transform 900ms cubic-bezier(.22, 1, .36, 1) 90ms, filter 620ms ease 90ms;
+}
+
+.auth-motion-ready .auth-motion-footer {
+  transform: translate3d(0, 20px, 0);
+  transition: opacity 520ms ease 190ms, transform 720ms cubic-bezier(.22, 1, .36, 1) 190ms, filter 520ms ease 190ms;
+}
+
+.auth-motion-ready.auth-motion-entered .auth-motion-story,
+.auth-motion-ready.auth-motion-entered .auth-motion-form,
+.auth-motion-ready.auth-motion-entered .auth-motion-footer {
+  opacity: 1;
+  filter: none;
+  transform: none;
+  will-change: auto;
+}
+
+.auth-motion-ready.auth-motion-entered .auth-motion-form > * {
+  animation: auth-card-settle 580ms cubic-bezier(.22, 1, .36, 1) 110ms both;
+}
+
+@keyframes auth-load-mark-in {
+  from { opacity: 0; transform: translate3d(0, 18px, 0) scale(.88) rotate(-4deg); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes auth-load-copy-in {
+  from { opacity: 0; transform: translate3d(0, 12px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes auth-slide-in {
+  from { opacity: 0; transform: translate3d(18px, 0, 0); filter: blur(4px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+@keyframes auth-load-ring {
+  0% { opacity: .7; transform: scale(.88); }
+  75%, 100% { opacity: 0; transform: scale(1.28); }
+}
+
+@keyframes auth-load-breathe {
+  0%, 100% { opacity: .52; transform: scale(.94); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes auth-load-progress {
+  0% { transform: translateX(-100%) scaleX(.18); }
+  45% { transform: translateX(-18%) scaleX(.72); }
+  100% { transform: translateX(100%) scaleX(.25); }
+}
+
+@keyframes auth-card-settle {
+  from { opacity: .7; transform: translate3d(0, 9px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 760px) {
+  .auth-first-load-mark { width: 72px; height: 72px; border-radius: 24px; }
+  .auth-first-load-slide { min-width: min(330px, 84vw); font-size: 1.05rem; }
+  .auth-first-load-copy > span { font-size: .66rem; letter-spacing: .17em; }
+  .auth-motion-ready .auth-motion-story,
+  .auth-motion-ready .auth-motion-form { transform: translate3d(0, 26px, 0) scale(.99); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-first-load { display: none !important; }
+  .auth-motion-ready .auth-motion-story,
+  .auth-motion-ready .auth-motion-form,
+  .auth-motion-ready .auth-motion-footer,
+  .auth-motion-ready.auth-motion-entered .auth-motion-form > * {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}
