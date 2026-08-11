@@ -79,7 +79,7 @@ test('student progress shield sits beside the user and reveals the live progress
   await expect(dialog.getByText('25 / 100 XP')).toBeVisible();
   await expect(dialog.getByText('3 of 6 lectures')).toBeVisible();
   await expect(dialog.getByText('75%')).toBeVisible();
-  await expect(dialog.getByText('5')).toBeVisible();
+  await expect(dialog.getByText('5', { exact: true })).toBeVisible();
 
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
