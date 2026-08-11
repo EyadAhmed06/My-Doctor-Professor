@@ -3,6 +3,7 @@ import "./globals.css";
 import { AppThemeProvider } from "@/components/app-theme";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/components/brand";
 import { AuthProvider } from "@/components/auth-provider";
+import { BundleQuizAvailabilityGuard } from "@/components/bundle-quiz-availability-guard";
 import { GlobalKeyboardShortcuts } from "@/components/global-keyboard-shortcuts";
 import { LocaleProvider } from "@/components/locale-provider";
 import { PublicThemeAccess } from "@/components/public-theme-access";
@@ -69,6 +70,6 @@ const preferenceBootstrap = `(() => {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en" suppressHydrationWarning>
     <head><script dangerouslySetInnerHTML={{ __html: preferenceBootstrap }} /></head>
-    <body><LocaleProvider><AppThemeProvider><PublicThemeAccess /><AuthProvider><UxProvider><GlobalKeyboardShortcuts />{children}</UxProvider></AuthProvider></AppThemeProvider></LocaleProvider></body>
+    <body><LocaleProvider><AppThemeProvider><PublicThemeAccess /><AuthProvider><UxProvider><GlobalKeyboardShortcuts /><BundleQuizAvailabilityGuard />{children}</UxProvider></AuthProvider></AppThemeProvider></LocaleProvider></body>
   </html>;
 }
