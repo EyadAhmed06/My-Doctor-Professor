@@ -63,7 +63,8 @@ export function ResourceUploadPage(){
     const resourceType=typeFor(next);
     if(!resourceType){setFile(null);setError("Allowed files: PDF, PNG, JPEG, WebP, MP4, and WebM.");return;}
     if(next.size<=0||next.size>maxBytes){setFile(null);setError("The file must be non-empty and no larger than 50 MB.");return;}
-    setFile(next);if(!name.trim())setName(next.name.replace(/\.[^.]+$/,"").slice(0,200));
+    const derivedName=next.name.replace(/\.[^.]+$/,"").slice(0,200);
+    setFile(next);setName(current=>current.trim()?current:derivedName);
   }
   function drop(event:DragEvent<HTMLDivElement>){event.preventDefault();setDragging(false);chooseFile(event.dataTransfer.files[0]||null);}
   function browse(event:ChangeEvent<HTMLInputElement>){chooseFile(event.target.files?.[0]||null);}
