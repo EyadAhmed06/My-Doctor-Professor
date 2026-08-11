@@ -27,6 +27,11 @@ type Generated = { test: { id: string }; attempt: { id: string }; question_count
 
 const PRACTICE_QUESTION_COUNT = 40;
 
+function numericCount(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : 0;
+}
+
 export function ConnectedRoundsPage() {
   const { request } = useAuth();
   const router = useRouter();
@@ -102,16 +107,16 @@ export function ConnectedRoundsPage() {
   const lectureRows = useMemo(() => weeks.flatMap((week) => week.lectures.map((lecture) => ({ week, lecture }))), [weeks]);
   const totals = useMemo(
     () => lectureRows.reduce((value, row) => ({
-      questions: value.questions + row.lecture.question_count,
-      mcqs: value.mcqs + row.lecture.mcq_count,
-      decks: value.decks + row.lecture.flashcard_deck_count,
-      resources: value.resources + row.lecture.resource_count,
+      questions: value.questions + numericCount(row.lecture.question_count),
+      mcqs: value.mcqs + numericCount(row.lecture.mcq_count),
+      decks: value.decks + numericCount(row.lecture.flashcard_deck_count),
+      resources: value.resources + numericCount(row.lecture.resource_count),
     }), { questions: 0, mcqs: 0, decks: 0, resources: 0 }),
     [lectureRows],
   );
   const currentBundle = bundles.find((item) => item.id === bundleId);
   const selectedLectures = lectureRows.filter(({ lecture }) => selectedIds.includes(lecture.id));
-  const selectedQuestionPool = selectedLectures.reduce((sum, item) => sum + item.lecture.mcq_count, 0);
+  const selectedQuestionPool = selectedLectures.reduce((sum, item) => sum + numericCount(item.lecture.mcq_count), 0);
   const ready = selectedIds.length > 0 && selectedQuestionPool >= PRACTICE_QUESTION_COUNT && !currentBundle?.read_only;
 
   useEffect(() => {
@@ -192,7 +197,7 @@ export function ConnectedRoundsPage() {
               <div className="rounds-nav-title"><span>SELECT LECTURE(S)</span><b>{course.courseCode}</b></div>
               {weeks.map((week) => {
                 const isOpen = openWeeks.includes(week.id);
-                const weekMcqs = week.lectures.reduce((sum, item) => sum + item.mcq_count, 0);
+                const weekMcqs = week.lectures.reduce((sum, item) => sum + numericCount(item.mcq_count), 0);
                 const allSelected = week.lectures.length > 0 && week.lectures.every((lecture) => selectedIds.includes(lecture.id));
                 return (
                   <section key={week.id}>
@@ -209,7 +214,7 @@ export function ConnectedRoundsPage() {
                           return (
                             <button key={lecture.id} type="button" className={`${activeLecture?.id === lecture.id ? "active" : ""} ${checked ? "selected-for-practice" : ""}`} onClick={() => toggleLecture(lecture)}>
                               <span className={`practice-check ${checked ? "checked" : ""}`}>{checked ? <FiCheck /> : ""}</span>
-                              <span><b>{lecture.title}</b><small>{lecture.mcq_count} eligible MCQs · {lecture.flashcard_deck_count} decks</small></span>
+                              <span><b>{lecture.title}</b><small>{numericCount(lecture.mcq_count)} eligible MCQs · {numericCount(lecture.flashcard_deck_count)} decks</small></span>
                               <small>{checked ? "Selected" : "Select"}</small>
                             </button>
                           );
