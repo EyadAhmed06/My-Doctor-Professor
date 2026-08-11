@@ -2,12 +2,14 @@ import { Controller, Get, Param, ParseUUIDPipe, UseGuards } from '@nestjs/common
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { QuestionType } from '../../common/entities/question.entity';
+import { TestAttempt, TestAttemptStatus } from '../../common/entities/test-attempt.entity';
 import { TestQuestion } from '../../common/entities/test-question.entity';
 import { TestType } from '../../common/entities/test.entity';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { UserRole } from '../users/entities/user.entity';
 import { TestsService } from './tests.service';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
@@ -19,6 +21,7 @@ export class TestLaunchController {
   constructor(
     private readonly tests: TestsService,
     @InjectRepository(TestQuestion) private readonly testQuestions: Repository<TestQuestion>,
+    @InjectRepository(TestAttempt) private readonly attempts: Repository<TestAttempt>,
   ) {}
 
   @Get(':testId')
@@ -27,11 +30,19 @@ export class TestLaunchController {
     @CurrentUser() actor: AuthenticatedUser,
   ) {
     const test = await this.tests.getOne(testId, actor);
-    const assignments = await this.testQuestions.find({
-      where: { testId },
-      relations: { question: true },
-      order: { displayOrder: 'ASC' },
-    });
+    const [assignments, activeAttempt] = await Promise.all([
+      this.testQuestions.find({
+        where: { testId },
+        relations: { question: true },
+        order: { displayOrder: 'ASC' },
+      }),
+      actor.role === UserRole.STUDENT
+        ? this.attempts.findOne({
+            where: { testId, studentId: actor.userId, status: TestAttemptStatus.IN_PROGRESS },
+            order: { createdAt: 'DESC' },
+          })
+        : Promise.resolve(null),
+    ]);
     const questionCount = assignments.length;
     const mcqCount = assignments.filter((item) => item.question.questionType === QuestionType.MCQ).length;
     const isFinal = test.testType === TestType.COURSE || /\bfinal\b/i.test(test.title);
@@ -56,6 +67,11 @@ export class TestLaunchController {
       required_question_count: isFinal ? FINAL_QUESTION_COUNT : questionCount,
       timed_available: Boolean(test.durationMinutes),
       launch_ready: questionCount > 0 && (!isFinal || (questionCount === FINAL_QUESTION_COUNT && mcqCount === FINAL_QUESTION_COUNT)),
+      active_attempt: activeAttempt ? {
+        id: activeAttempt.id,
+        test_mode: activeAttempt.testMode,
+        started_at: activeAttempt.startedAt,
+      } : null,
       issues,
     };
   }
