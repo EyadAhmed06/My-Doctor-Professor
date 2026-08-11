@@ -170,7 +170,7 @@ test('student previews a protected managed resource through an authenticated blo
   const user = await authenticated(page, 'STUDENT');
   const bundle = { id: 'bundle-1', title: 'Clinical Foundations', slug: 'clinical-foundations', status: 'PUBLISHED' };
   const content = { courses: [{ id: 'course-1', courseCode: 'MED101', courseName: 'Medicine I', weeks: [{ id: 'week-1', weekNumber: 1, title: 'Cardiac', lectures: [{ id: 'lecture-1', lectureNumber: 1, title: 'Cardiac cycle', description: 'Core cardiac physiology.' }] }] }] };
-  const resource = { id: 'resource-1', resourceName: 'Cardiac diagram', resourceType: 'IMAGE', uploadStatus: 'COMPLETED', fileUrl: '/api/v1/academic/resources/resource-1/file', description: 'Protected diagram', mimeType: 'image/png' };
+  const resource = { id: 'resource-1', resourceName: 'Cardiac diagram', resourceType: 'IMAGE', uploadStatus: 'COMPLETED', fileUrl: '/api/v1/academic/resources/resource-1/file', description: 'Protected diagram', mimeType: 'image/png', storageKey: 'managed/lecture-1/resource-1.png', originalFilename: 'cardiac-diagram.png' };
   const onePixelPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
   await routeApi(page, async path => {
     if (path === '/auth/me') return { body: user };
