@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   FiArrowRight,
   FiBookOpen,
@@ -32,9 +32,25 @@ function numericCount(value: unknown) {
   return Number.isFinite(number) && number >= 0 ? number : 0;
 }
 
+function defaultPracticeLectures(lectures: Lecture[]) {
+  const selected: string[] = [];
+  let pool = 0;
+  for (const lecture of lectures) {
+    const count = numericCount(lecture.mcq_count);
+    if (count <= 0) continue;
+    selected.push(lecture.id);
+    pool += count;
+    if (pool >= PRACTICE_QUESTION_COUNT) break;
+  }
+  return selected;
+}
+
+function sessionHref(generated: Generated, bundleId: string, lectureIds: string[]) {
+  return `/mock-exam/session?attempt=${encodeURIComponent(generated.attempt.id)}&test=${encodeURIComponent(generated.test.id)}&mode=TUTOR&source=rounds&bundle=${encodeURIComponent(bundleId)}&lectures=${encodeURIComponent(lectureIds.join(","))}`;
+}
+
 export function ConnectedRoundsPage() {
   const { request } = useAuth();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const requestedBundle = searchParams.get("bundle");
   const requestedCourse = searchParams.get("course");
@@ -128,12 +144,14 @@ export function ConnectedRoundsPage() {
     const allLectures = weeks.flatMap((item) => item.lectures);
     const requested = requestedLectures.filter((id) => allLectures.some((lecture) => lecture.id === id));
     if (!requested.length && requestedLecture && allLectures.some((lecture) => lecture.id === requestedLecture)) requested.push(requestedLecture);
-    const initial = requested.length ? requested : allLectures[0] ? [allLectures[0].id] : [];
+    const initial = requested.length ? requested : defaultPracticeLectures(allLectures);
     setSelectedIds(initial);
     const first = allLectures.find((lecture) => lecture.id === initial[0]) || allLectures[0] || null;
     setActiveLecture(first);
+    const initialSet = new Set(initial);
+    const selectedWeeks = weeks.filter((item) => item.lectures.some((lecture) => initialSet.has(lecture.id))).map((item) => item.id);
     const firstWeek = first ? weeks.find((item) => item.lectures.some((lecture) => lecture.id === first.id)) : undefined;
-    setOpenWeeks(firstWeek ? [firstWeek.id] : []);
+    setOpenWeeks(selectedWeeks.length ? selectedWeeks : firstWeek ? [firstWeek.id] : []);
   }, [courseId, requestedLecture, requestedLectures, weeks]);
 
   function toggleWeek(id: string) {
@@ -165,10 +183,9 @@ export function ConnectedRoundsPage() {
           test_mode: "TUTOR",
         },
       });
-      router.push(`/mock-exam/session?attempt=${generated.attempt.id}&test=${generated.test.id}&mode=TUTOR&source=rounds&bundle=${bundleId}&lectures=${selectedIds.join(",")}`);
+      window.location.assign(sessionHref(generated, bundleId, selectedIds));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to build this 40-question quiz.");
-    } finally {
       setStarting(false);
     }
   }
@@ -235,7 +252,7 @@ export function ConnectedRoundsPage() {
                   </div>
                   <div className="rounds-action-grid">
                     <article><FiFileText /><div><b>{PRACTICE_QUESTION_COUNT}</b><span>Quiz size</span><small>Fixed 40-question MCQ practice set.</small></div></article>
-                    <article><FiLayers /><div><b>{selectedIds.length}</b><span>Lectures selected</span><small>You can mix lectures from this course.</small></div></article>
+                    <article><FiLayers /><div><b>{selectedIds.length}</b><span>Lectures selected</span><small>Preselected only as far as needed to reach the 40-MCQ pool.</small></div></article>
                     <article><FiBookOpen /><div><b>{selectedQuestionPool}</b><span>Eligible MCQ pool</span><small>At least 40 active question-bank MCQs are required.</small></div></article>
                   </div>
                   <div className={`rounds-primary-action practice-launch ${ready ? "ready" : "needs-questions"}`}>

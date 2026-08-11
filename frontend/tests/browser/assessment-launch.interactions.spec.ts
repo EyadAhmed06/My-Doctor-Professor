@@ -49,7 +49,7 @@ async function baseMock(page: Page, handler: (endpoint: string, request: import(
   });
 }
 
-test('lecture quiz builder requires a 40-MCQ pool and launches exactly 40 questions in Tutor mode', async ({ page }) => {
+test('lecture quiz builder auto-selects the minimum lecture set that reaches 40 MCQs and launches exactly 40 in Tutor mode', async ({ page }) => {
   let generatedBody: Record<string, unknown> | null = null;
   await baseMock(page, async (endpoint, request, respond) => {
     if (endpoint === '/bundles/mine') {
@@ -86,10 +86,6 @@ test('lecture quiz builder requires a 40-MCQ pool and launches exactly 40 questi
   await page.goto(`/rounds?bundle=${bundleId}&course=${courseId}`);
   await expect(page.getByRole('heading', { name: 'Internal Medicine' })).toBeVisible();
   const launch = page.getByRole('button', { name: /Start 40 questions/i });
-  await expect(launch).toBeDisabled();
-  await expect(page.getByText(/Need 15 more eligible MCQs/i)).toBeVisible();
-
-  await page.getByRole('button', { name: /Acute coronary syndromes/i }).click();
   await expect(launch).toBeEnabled();
   await expect(page.getByText('Start a 40-MCQ Tutor quiz')).toBeVisible();
   await launch.click();
@@ -128,6 +124,7 @@ for (const mode of ['TUTOR', 'TIMED'] as const) {
           required_question_count: 200,
           timed_available: true,
           launch_ready: true,
+          active_attempt: null,
           issues: [],
         });
         return true;

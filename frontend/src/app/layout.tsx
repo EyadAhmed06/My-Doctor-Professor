@@ -3,6 +3,7 @@ import "./globals.css";
 import { AppThemeProvider } from "@/components/app-theme";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/components/brand";
 import { AuthProvider } from "@/components/auth-provider";
+import { BundleQuizAvailabilityGuard } from "@/components/bundle-quiz-availability-guard";
 import { GlobalKeyboardShortcuts } from "@/components/global-keyboard-shortcuts";
 import { LocaleProvider } from "@/components/locale-provider";
 import { PublicThemeAccess } from "@/components/public-theme-access";
@@ -18,9 +19,11 @@ import "@/components/completion-ux.css";
 import "@/components/notifications-completion.css";
 import "@/components/analytics-completion.css";
 import "@/components/study-plan-completion.css";
+import "@/components/study-plan-calendar-polish.css";
 import "@/components/notebook-completion.css";
 import "@/components/study-guides-completion.css";
 import "@/components/bundles-completion.css";
+import "@/components/bundle-quiz-availability.css";
 import "@/components/settings-completion.css";
 import "@/components/assessment-authoring-completion.css";
 import "@/components/admin-operations-completion.css";
@@ -38,6 +41,7 @@ import "@/components/reference-light-palette-exact.css";
 import "@/components/reference-light-palette-metallic.css";
 import "@/components/brand-light-navbar.css";
 import "@/components/assessment-session-responsive-fix.css";
+import "@/components/logout-modal-polish.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
@@ -67,6 +71,6 @@ const preferenceBootstrap = `(() => {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en" suppressHydrationWarning>
     <head><script dangerouslySetInnerHTML={{ __html: preferenceBootstrap }} /></head>
-    <body><LocaleProvider><AppThemeProvider><PublicThemeAccess /><AuthProvider><UxProvider><GlobalKeyboardShortcuts />{children}</UxProvider></AuthProvider></AppThemeProvider></LocaleProvider></body>
+    <body><LocaleProvider><AppThemeProvider><PublicThemeAccess /><AuthProvider><UxProvider><GlobalKeyboardShortcuts /><BundleQuizAvailabilityGuard />{children}</UxProvider></AuthProvider></AppThemeProvider></LocaleProvider></body>
   </html>;
 }

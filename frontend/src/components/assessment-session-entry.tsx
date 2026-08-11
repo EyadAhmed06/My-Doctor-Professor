@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { ConnectedAssessmentSession } from "./connected-assessment-session";
 import { ProductShell } from "./product-shell";
 
@@ -22,7 +21,6 @@ export function AssessmentSessionEntry({
   testId?: string;
   source?: string;
 }) {
-  const router = useRouter();
   const [session, setSession] = useState<SessionRef | null>(() =>
     attemptId && testId ? { attemptId, testId, source } : null,
   );
@@ -34,7 +32,6 @@ export function AssessmentSessionEntry({
       setSession(next);
       try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* best-effort */ }
       setRestoring(false);
-      router.replace("/mock-exam/session", { scroll: false });
       return;
     }
 
@@ -53,7 +50,7 @@ export function AssessmentSessionEntry({
     } finally {
       setRestoring(false);
     }
-  }, [attemptId, router, source, testId]);
+  }, [attemptId, source, testId]);
 
   if (restoring) {
     return <ProductShell><div className="product-auth-loading">Restoring assessment session…</div></ProductShell>;
