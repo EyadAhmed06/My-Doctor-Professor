@@ -51,7 +51,8 @@ async function installApi(page: Page, role: Role, theme: 'light' | 'dark') {
 
     const endpoint = endpointOf(request.url());
     const headers = {
-      'access-control-allow-origin': '*',
+      'access-control-allow-origin': 'http://127.0.0.1:3001',
+      'access-control-allow-credentials': 'true',
       'access-control-allow-headers': 'authorization,content-type',
       'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
     };
@@ -89,7 +90,7 @@ async function installApi(page: Page, role: Role, theme: 'light' | 'dark') {
     if (endpoint === '/bundles/bundle-1/content') return respond({ courses: [course] });
     if (endpoint === '/academic/lectures/lecture-1/resources') return respond([{
       id: 'resource-1', resourceName: 'Cardiac cycle diagram', resourceType: 'IMAGE',
-      uploadStatus: 'READY', fileUrl: '/brand/my-doctor-professor-emblem.png',
+      uploadStatus: 'READY', fileUrl: 'https://example.test/cardiac-cycle.png',
       description: 'A previewable cardiac diagram.', mimeType: 'image/png',
     }]);
     if (endpoint === '/progress/lectures/lecture-1') return respond({
