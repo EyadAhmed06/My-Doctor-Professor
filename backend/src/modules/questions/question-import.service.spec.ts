@@ -74,13 +74,14 @@ describe('QuestionImportService', () => {
     const topics = {
       findOne: jest.fn().mockResolvedValue(topic),
     } as unknown as Repository<Topic>;
+    const assertTopicReadable = jest.fn().mockResolvedValue(undefined);
     const access = {
-      assertTopicReadable: jest.fn().mockResolvedValue(undefined),
+      assertTopicReadable,
     } as unknown as AcademicAccessService;
     const dataSource = {} as DataSource;
     return {
       service: new QuestionImportService(questions, topics, dataSource, access),
-      access,
+      assertTopicReadable,
     };
   }
 
@@ -104,14 +105,14 @@ describe('QuestionImportService', () => {
   });
 
   it('extracts a numbered MCQ and its answer key into the review queue', async () => {
-    const { service, access } = build();
+    const { service, assertTopicReadable } = build();
     const result = await service.inspectPdf(
       { topic_id: topic.id, copyright_confirmed: true },
       file(textPdf()),
       actor,
     );
 
-    expect(access.assertTopicReadable).toHaveBeenCalledWith(topic.id, actor);
+    expect(assertTopicReadable).toHaveBeenCalledWith(topic.id, actor);
     expect(result.page_count).toBe(1);
     expect(result.candidates).toHaveLength(1);
     expect(result.candidates[0].question_text).toContain('Which chamber receives oxygenated blood');
