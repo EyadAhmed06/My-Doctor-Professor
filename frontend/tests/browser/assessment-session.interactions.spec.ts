@@ -184,16 +184,23 @@ test('Tutor mode supports highlighter, strike-out, flags, notes, labs, and immed
   await expect(page.getByText('Tutor Practice')).toBeVisible();
   await expect(page.getByText('Tutor explanations appear after you answer each question.')).toBeVisible();
 
-  await page.getByRole('button', { name: /Highlighter/i }).click();
+  const highlighter = page.getByRole('button', { name: /Highlighter/i });
+  await highlighter.click();
+  await expect(highlighter).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.exam-tool-hint')).toContainText('Highlighter active');
   await highlightFirstWords(page);
   await expect(page.locator('.exam-question-stem-text mark')).toHaveCount(1);
 
-  await page.getByRole('button', { name: /Highlighter/i }).click();
-  await page.getByRole('button', { name: /Strike out$/i }).first().click();
+  await highlighter.click();
+  await expect(highlighter).toHaveAttribute('aria-pressed', 'false');
+  const strikeOut = page.getByRole('button', { name: /Strike out$/i }).first();
+  await strikeOut.click();
+  await expect(strikeOut).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('radio').nth(2).click();
   await expect(page.locator('.exam-answer-row').nth(2)).toHaveClass(/struck/);
   await expect(page.locator('.exam-number-grid button').first()).not.toHaveClass(/answered/);
-  await page.getByRole('button', { name: /Strike out$/i }).first().click();
+  await strikeOut.click();
+  await expect(strikeOut).toHaveAttribute('aria-pressed', 'false');
 
   await page.getByRole('button', { name: /^Flag$/ }).click();
   await expect.poll(state.isFlagged).toBe(true);
