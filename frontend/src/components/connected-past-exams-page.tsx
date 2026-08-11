@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { FiBookOpen, FiCheck, FiClock, FiFileText, FiPlayCircle } from "react-icons/fi";
 import { useAuth } from "./auth-provider";
 import { Panel, ProductShell } from "./product-shell";
@@ -33,9 +33,12 @@ type LaunchConfig = {
 type Attempt = { id: string; testId: string; testMode: "TUTOR" | "TIMED" };
 type Mode = "TUTOR" | "TIMED";
 
+function sessionHref(attemptId: string, testId: string, mode: Mode) {
+  return `/mock-exam/session?attempt=${encodeURIComponent(attemptId)}&test=${encodeURIComponent(testId)}&source=past-exams&mode=${mode}`;
+}
+
 export function ConnectedPastExamsPage() {
   const { request } = useAuth();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const requestedBundle = searchParams.get("bundle");
   const requestedTest = searchParams.get("test");
@@ -81,9 +84,11 @@ export function ConnectedPastExamsPage() {
     void request<BundleContent>(`/bundles/${bundleId}/content`)
       .then((content) => {
         if (!active) return;
-        setExams(content.past_exams || []);
-        const requested = content.past_exams.find((exam) => exam.id === requestedTest);
-        setSelectedId(requested?.id || content.past_exams[0]?.id || "");
+        const rows = content.past_exams || [];
+        setExams(rows);
+        const requested = rows.find((exam) => exam.id === requestedTest);
+        const configured = rows.find((exam) => exam.testType !== "CUSTOM");
+        setSelectedId(requested?.id || configured?.id || rows[0]?.id || "");
       })
       .catch((cause) => {
         if (active) setError(cause instanceof Error ? cause.message : "Unable to load configured exams.");
@@ -136,16 +141,15 @@ export function ConnectedPastExamsPage() {
     setError(null);
     try {
       if (activeAttempt) {
-        router.push(`/mock-exam/session?attempt=${activeAttempt.id}&test=${selected.id}&source=past-exams&mode=${activeAttempt.test_mode}`);
+        window.location.assign(sessionHref(activeAttempt.id, selected.id, activeAttempt.test_mode));
         return;
       }
       if (!mode) return;
       const attempt = await request<Attempt>(`/tests/${selected.id}/attempts`, { method: "POST", body: { test_mode: mode } });
       const actualMode = attempt.testMode || mode;
-      router.push(`/mock-exam/session?attempt=${attempt.id}&test=${selected.id}&source=past-exams&mode=${actualMode}`);
+      window.location.assign(sessionHref(attempt.id, selected.id, actualMode));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to start this exam.");
-    } finally {
       setStarting(false);
     }
   }
@@ -154,7 +158,7 @@ export function ConnectedPastExamsPage() {
     <ProductShell search="Search configured exams">
       <main className="pp-page exam-launch-page">
         <header className="exam-launch-heading">
-          <div><small>ASSESSMENT LAUNCHER</small><h1>Mock Exam</h1><p>Choose a configured exam or resume an unfinished practice attempt. New exams require an explicit Tutor or Timed mode choice.</p></div>
+          <div><small>ASSESSMENT LAUNCHER</small><h1>Mock Exam</h1><p>Configured exams use instructor rules. Generated practice is Tutor-only and can be resumed if an unfinished attempt exists.</p></div>
           <label>Bundle<select value={bundleId} onChange={(event) => setBundleId(event.target.value)}>{bundles.map((bundle) => <option key={bundle.id} value={bundle.id}>{bundle.title}{bundle.read_only ? " · read-only" : ""}</option>)}</select></label>
         </header>
 
@@ -162,11 +166,11 @@ export function ConnectedPastExamsPage() {
         {loading ? <div className="product-auth-loading">Loading configured exams…</div> : !bundles.length ? <Panel title="No bundle access"><p>You need an active bundle before configured exams can be launched.</p></Panel> : !exams.length ? <Panel title="No configured exams"><p>The instructor has not attached a published exam to this bundle yet.</p></Panel> : (
           <div className="exam-launch-layout">
             <aside className="exam-launch-list">
-              <header><b>Available exams & practice</b><small>{exams.length}</small></header>
+              <header><b>Configured exams & practice history</b><small>{exams.length}</small></header>
               {exams.map((exam) => (
                 <button type="button" className={exam.id === selectedId ? "active" : ""} key={exam.id} onClick={() => setSelectedId(exam.id)}>
                   <span><FiFileText /></span>
-                  <div><b>{exam.title}</b><small>{exam.testType === "CUSTOM" ? "PRACTICE · Tutor session" : `${exam.testType} · ${exam.durationMinutes ? `${exam.durationMinutes} min timed configuration` : "Tutor only"}`}</small></div>
+                  <div><b>{exam.title}</b><small>{exam.testType === "CUSTOM" ? "PRACTICE · generated Tutor session" : `${exam.testType} · ${exam.durationMinutes ? `${exam.durationMinutes} min timed configuration` : "Tutor only"}`}</small></div>
                 </button>
               ))}
             </aside>
@@ -184,7 +188,7 @@ export function ConnectedPastExamsPage() {
                   </section>
 
                   {activeAttempt ? <section className="exam-resume-banner" role="status">
-                    <div><small>UNFINISHED ATTEMPT</small><h3>Continue where you stopped</h3><p>This {selected.testType === "CUSTOM" ? "practice session" : "exam"} is already in progress in <b>{activeAttempt.test_mode === "TIMED" ? "Timed" : "Tutor"}</b> mode. Starting again will resume the same attempt instead of creating a duplicate.</p></div>
+                    <div><small>UNFINISHED ATTEMPT</small><h3>Continue where you stopped</h3><p>This {selected.testType === "CUSTOM" ? "practice session" : "exam"} is already in progress in <b>{activeAttempt.test_mode === "TIMED" ? "Timed" : "Tutor"}</b> mode. Resume opens that exact attempt; it never creates a duplicate.</p></div>
                     <FiPlayCircle />
                   </section> : <section className="exam-mode-picker">
                     <div className="exam-mode-intro"><small>CHOOSE MODE BEFORE STARTING</small><h3>How do you want to take this exam?</h3><p>Timed mode uses the duration configured by the instructor. Tutor mode is untimed and reveals explanations after each answer.</p></div>
