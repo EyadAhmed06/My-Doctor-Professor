@@ -141,6 +141,12 @@ html[data-theme] body .dashboard-embedded .pearl-card blockquote {
   font-size: 12px !important;
 }
 
+/* Progress lives in the persistent header shield now. Keep a single source of
+   interaction and avoid showing the same level/XP card twice on the dashboard. */
+html[data-theme] body .dashboard-embedded .progress-card {
+  display: none !important;
+}
+
 html[data-theme] body .dashboard-embedded .mastery-list button {
   padding: 12px 0 !important;
 }
