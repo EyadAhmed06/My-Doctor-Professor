@@ -7,6 +7,7 @@ import { TestsService } from './tests.service';
 
 const student = {
   userId: '11111111-1111-4111-8111-111111111111',
+  sessionId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   email: 'student@example.test',
   role: UserRole.STUDENT,
 };
