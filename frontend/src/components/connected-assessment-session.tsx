@@ -1,5 +1,6 @@
 "use client";
 
+import { ApiError } from "@/lib/api";
 import { useAuth } from "./auth-provider";
 import { Panel, ProductShell, Progress } from "./product-shell";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -18,6 +19,7 @@ import {
 } from "react-icons/fi";
 import { useRouter } from "next/navigation";
 import { getQuestionVisual } from "./medical-image-assets";
+import { useUx } from "./ux-provider";
 import "./assessment-session.css";
 
 type Option = { id: string; optionText: string; displayOrder: number };
@@ -126,7 +128,8 @@ function HighlightableText({
 }
 
 export function ConnectedAssessmentSession({ attemptId, testId, source = "assessments" }: { attemptId: string; testId: string; source?: string }) {
-  const { request } = useAuth();
+  const { request, user } = useAuth();
+  const { notify, celebrate } = useUx();
   const router = useRouter();
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [items, setItems] = useState<Assignment[]>([]);
@@ -149,10 +152,13 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   const [localToolsLoaded, setLocalToolsLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingQuestionId, setSavingQuestionId] = useState<string | null>(null);
+  const [savingNoteId, setSavingNoteId] = useState<string | null>(null);
+  const [savedNoteId, setSavedNoteId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState<number | null>(null);
   const autoSubmitStarted = useRef(false);
+  const answerRequests = useRef(new Set<string>());
 
   useEffect(() => {
     try {
@@ -221,6 +227,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
     setMoreOpen(false);
     setHighlightMode(false);
     setStrikeMode(false);
+    setSavedNoteId(null);
   }, [index]);
 
   const current = items[index];
@@ -276,8 +283,10 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   async function choose(optionId: string) {
     if (!current || expired || Boolean(tutor && feedback[current.question.id])) return;
     const questionId = current.question.id;
+    if (answerRequests.current.has(questionId)) return;
     const previous = answers[questionId];
 
+    answerRequests.current.add(questionId);
     setAnswers((value) => ({ ...value, [questionId]: optionId }));
     setSavingQuestionId(questionId);
     setError(null);
@@ -286,21 +295,51 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
         method: "PUT",
         body: { selected_option_id: optionId },
       });
+      setAnswers((value) => ({ ...value, [questionId]: result.selectedOptionId || optionId }));
       if (tutor) {
         setFeedback((value) => ({
           ...value,
           [questionId]: { isCorrect: result.isCorrect ?? null, explanation: result.explanation },
         }));
       }
-    } catch (cause) {
-      setAnswers((value) => {
-        const next = { ...value };
-        if (previous) next[questionId] = previous;
-        else delete next[questionId];
-        return next;
+      celebrate({
+        id: `assessment-first-answer-${user?.id || "student"}`,
+        title: "First answer recorded",
+        description: "An assessment answer was saved to your learning history.",
+        points: 20,
       });
-      setError(cause instanceof Error ? cause.message : "Unable to save this answer.");
+    } catch (cause) {
+      // A connection can fail after the server commits. Reconcile once with canonical
+      // workspace state before rolling the optimistic selection back.
+      let committed = false;
+      try {
+        const state = await request<WorkspaceState>(`/tests/attempts/${attemptId}/workspace-state`);
+        const saved = state.answers.find((item) => item.questionId === questionId)?.selectedOptionId;
+        if (saved) {
+          setAnswers((value) => ({ ...value, [questionId]: saved }));
+          committed = true;
+        }
+      } catch {
+        // Preserve the original save error below.
+      }
+      if (!committed) {
+        setAnswers((value) => {
+          const next = { ...value };
+          if (previous) next[questionId] = previous;
+          else delete next[questionId];
+          return next;
+        });
+        const message = cause instanceof Error ? cause.message : "Unable to save this answer.";
+        setError(message);
+        notify({
+          title: "Answer was not saved",
+          description: cause instanceof ApiError ? `${message} (${cause.status})` : message,
+          tone: "error",
+          duration: 7000,
+        });
+      }
     } finally {
+      answerRequests.current.delete(questionId);
       setSavingQuestionId(null);
     }
   }
@@ -317,13 +356,28 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   }
 
   async function saveNote() {
-    if (!current || expired) return;
-    const value = notes[current.question.id]?.trim() || "";
+    if (!current || expired || savingNoteId === current.question.id) return;
+    const questionId = current.question.id;
+    const value = notes[questionId]?.trim() || "";
+    setSavingNoteId(questionId);
+    setSavedNoteId(null);
+    setError(null);
     try {
-      if (value) await request(`/tests/attempts/${attemptId}/notes/${current.question.id}`, { method: "PUT", body: { note: value } });
-      else if (notes[current.question.id] !== undefined) await request(`/tests/attempts/${attemptId}/notes/${current.question.id}`, { method: "DELETE" });
+      if (value) {
+        await request(`/tests/attempts/${attemptId}/notes/${questionId}`, { method: "PUT", body: { note: value } });
+        setNotes((currentNotes) => ({ ...currentNotes, [questionId]: value }));
+        notify({ title: "Question note saved", description: "Saved to your account for this assessment question.", tone: "success", duration: 2500 });
+      } else if (notes[questionId] !== undefined) {
+        await request(`/tests/attempts/${attemptId}/notes/${questionId}`, { method: "DELETE" });
+        notify({ title: "Question note removed", tone: "info", duration: 2000 });
+      }
+      setSavedNoteId(questionId);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to save the note.");
+      const message = cause instanceof Error ? cause.message : "Unable to save the note.";
+      setError(message);
+      notify({ title: "Question note was not saved", description: message, tone: "error" });
+    } finally {
+      setSavingNoteId(null);
     }
   }
 
@@ -355,6 +409,12 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
       try {
         await request(`/tests/attempts/${attemptId}/submit`, { method: "POST" });
         setReview(await request<Review>(`/tests/attempts/${attemptId}/review`));
+        celebrate({
+          id: `assessment-complete-${user?.id || "student"}-${attemptId}`,
+          title: "Practice completed",
+          description: "A complete assessment attempt was submitted and preserved.",
+          points: Math.min(100, Math.max(25, items.length)),
+        });
       } catch (cause) {
         if (auto) {
           try {
@@ -369,7 +429,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
         setSubmitting(false);
       }
     },
-    [attemptId, items.length, request, totalAnswered],
+    [attemptId, celebrate, items.length, request, totalAnswered, user?.id],
   );
 
   function endBlock() {
@@ -544,7 +604,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
                             type="button"
                             role="radio"
                             aria-checked={selected}
-                            disabled={expired || Boolean(tutor && feedback[current.question.id])}
+                            disabled={expired || savingQuestionId === current.question.id || Boolean(tutor && feedback[current.question.id])}
                             onClick={() => {
                               if (highlightMode) return;
                               if (strikeMode) {
@@ -597,11 +657,11 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
                       <button type="button" className={lowerTab === "note" ? "active" : ""} onClick={() => setLowerTab("note")}>Question note</button>
                     </nav>
                     {lowerTab === "scratchpad" ? (
-                      <div><textarea value={scratchpad} onChange={(event) => setScratchpad(event.target.value)} placeholder="Use this space for notes or quick calculations…" /><button type="button" onClick={() => setScratchpad("")}>Clear</button></div>
+                      <div><small>Local scratchpad — kept only in this browser session for this attempt.</small><textarea value={scratchpad} onChange={(event) => setScratchpad(event.target.value)} placeholder="Use this space for notes or quick calculations…" /><button type="button" onClick={() => setScratchpad("")}>Clear</button></div>
                     ) : lowerTab === "patient" ? (
                       <div className="exam-empty-context"><p>No structured patient summary is attached to this question.</p></div>
                     ) : (
-                      <div><textarea disabled={expired} value={notes[current.question.id] || ""} onChange={(event) => setNotes((value) => ({ ...value, [current.question.id]: event.target.value }))} placeholder="Save a private note for this question…" /><button type="button" disabled={expired} onClick={() => void saveNote()}><FiSave /> Save note</button></div>
+                      <div><small>Private question note — saved to your account and tied to this assessment attempt + question.</small><textarea disabled={expired} value={notes[current.question.id] || ""} onChange={(event) => { setSavedNoteId(null); setNotes((value) => ({ ...value, [current.question.id]: event.target.value })); }} placeholder="Save a private note for this question…" /><button type="button" disabled={expired || savingNoteId === current.question.id} onClick={() => void saveNote()}><FiSave /> {savingNoteId === current.question.id ? "Saving…" : savedNoteId === current.question.id ? "Saved" : "Save note"}</button></div>
                     )}
                   </section>
 
@@ -622,7 +682,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
                 </dl>
                 <section className="overview-pace"><span><small>Your pace</small><b>{pace}</b></span><Progress value={Math.min(100, Math.max(0, progress))} /></section>
                 <section className="overview-legend"><b>Question status legend</b><span className="answered">Answered</span><span className="unanswered">Unanswered</span><span className="current">Current question</span><span className="flagged">Flagged</span></section>
-                <section className="overview-lock"><FiFileText /><p>{tutor ? "Tutor explanations appear after you answer each question." : "Explanations are hidden during the exam. You will see detailed explanations after submission."}</p></section>
+                <section className="overview-lock"><FiFileText /><p>{tutor ? "Tutor explanations appear after the server confirms each saved answer." : "Explanations are hidden during the exam. You will see detailed explanations after submission."}</p></section>
               </aside>
             </div>
 
