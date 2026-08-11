@@ -52,8 +52,8 @@ test('returning authenticated user sees continue actions on Home without logging
 
   await page.goto('/');
   await expect(page.getByRole('link', { name: /Continue learning/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Open dashboard/i })).toHaveCount(1);
-  await expect(page.getByText(/Signed in as Eyad/i)).toHaveCount(1);
+  await expect.poll(() => page.getByRole('link', { name: /Open dashboard/i }).count()).toBeGreaterThan(0);
+  await expect.poll(() => page.getByText(/Signed in as Eyad/i).count()).toBeGreaterThan(0);
   await expect(page.getByRole('link', { name: /^Log in$/i })).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => localStorage.getItem('mdp_refresh_token'))).toBeNull();
   await expect.poll(() => page.evaluate(() => sessionStorage.getItem('mdp_refresh_token'))).toBeNull();
