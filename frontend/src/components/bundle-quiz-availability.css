@@ -1,1 +1,1 @@
-a[href^="/rounds?bundle="]:not([data-quiz-availability="ready"]),a[href*="/rounds?bundle="]:not([data-quiz-availability="ready"]){display:none!important}
+.bundle-expand-actions a[href^="/rounds?bundle="]:not([data-quiz-availability="ready"]),.bundle-expand-actions a[href*="/rounds?bundle="]:not([data-quiz-availability="ready"]){display:none!important}
