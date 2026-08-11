@@ -82,7 +82,7 @@ test('student assigned to a paid bundle cannot load content before payment', asy
 
   await page.goto(`/bundles?bundle=${paidPendingBundle.slug}`);
   await expect(page.getByRole('heading', { name: 'Payment required' })).toBeVisible();
-  await expect(page.getByText(/EGP 750\.00/)).toBeVisible();
+  await expect(page.getByText(/EGP 750\.00/).first()).toBeVisible();
   await expect(page.getByText(/content is locked/i)).toBeVisible();
   expect(contentRequests).toBe(0);
 });
@@ -162,15 +162,16 @@ test('bundle manager composes weeks, excludes assigned instructors, and confirms
   await expect(page.getByText('Curriculum composition')).toBeVisible();
 
   const instructorPicker = page.getByLabel('Instructor to assign');
-  await expect(instructorPicker.locator('option')).toContainText(['Select unassigned instructor', 'Unassigned Instructor · other@example.test']);
-  await expect(instructorPicker.locator('option')).not.toContainText('Assigned Owner');
+  await expect(instructorPicker.getByRole('option', { name: 'Unassigned Instructor · other@example.test' })).toBeAttached();
+  await expect(instructorPicker.getByRole('option', { name: /Assigned Owner/ })).toHaveCount(0);
 
   await page.getByRole('button', { name: /Week 2 · Clinical cardiology/i }).click();
   await expect.poll(() => weekAttached).toBe(true);
 
-  await expect(page.getByText('PENDING PAYMENT')).toBeVisible();
+  const entitlementBadges = page.locator('.bundle-entitlement-badges');
+  await expect(entitlementBadges).toContainText('PENDING PAYMENT');
   await page.getByRole('button', { name: 'Confirm payment' }).click();
   await expect.poll(() => confirmPaymentBody).not.toBeNull();
-  await expect(page.getByText('PAID')).toBeVisible();
-  await expect(page.getByText('ACTIVE')).toBeVisible();
+  await expect(entitlementBadges).toContainText('PAID');
+  await expect(entitlementBadges).toContainText('ACTIVE');
 });
