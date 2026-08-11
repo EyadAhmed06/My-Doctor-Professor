@@ -46,8 +46,9 @@ async function installApi(page: Page, role: Role, theme: 'light' | 'dark') {
 
   await page.route('**/*', async (route) => {
     const request = route.request();
-    const type = request.resourceType();
-    if (type !== 'fetch' && type !== 'xhr') return route.fallback();
+    const url = new URL(request.url());
+    const isApi = url.pathname.includes('/api/v1') || url.port === '3000';
+    if (!isApi) return route.fallback();
 
     const endpoint = endpointOf(request.url());
     const headers = {
