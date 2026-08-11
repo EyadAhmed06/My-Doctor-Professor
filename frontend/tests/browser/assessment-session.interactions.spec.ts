@@ -182,7 +182,7 @@ test('Tutor mode supports highlighter, strike-out, flags, notes, labs, and immed
   await page.goto(`/mock-exam/session?attempt=${attemptId}&test=${testId}&source=rounds`);
 
   await expect(page.getByText('Tutor Practice')).toBeVisible();
-  await expect(page.getByText('Tutor explanations appear after you answer each question.')).toBeVisible();
+  await expect(page.getByText('Tutor explanations appear after the server confirms each saved answer.')).toBeVisible();
 
   const highlighter = page.getByRole('button', { name: /Highlighter/i });
   await highlighter.click();
