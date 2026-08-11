@@ -160,6 +160,7 @@ export function AchievementDrawer({ open, onClose }: { open: boolean; onClose: (
   const closeButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const frame = window.requestAnimationFrame(() => closeButton.current?.focus());
     const escape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
     window.addEventListener("keydown", escape);
@@ -247,9 +248,6 @@ export function MobileRoleDock({ path, role }: { path: string; role: UserRole })
 }
 
 export function PhaseFiveMilestones({ path, role }: { path: string; role: UserRole }) {
-  // Student achievements must describe a real persisted action, not navigation.
-  // The shell keeps this component for compatibility; actual unlocks are emitted by
-  // the successful action that owns the data (assessment save, flashcard sync, etc.).
   void path;
   void role;
   return null;
