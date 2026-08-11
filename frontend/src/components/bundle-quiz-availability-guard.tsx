@@ -19,12 +19,20 @@ function finiteCount(value: unknown) {
   return Number.isFinite(number) && number > 0 ? number : 0;
 }
 
+function courseMcqCount(course: BundleContent["courses"][number]) {
+  return course.weeks.reduce(
+    (weekTotal, week) => weekTotal + week.lectures.reduce(
+      (lectureTotal, lecture) => lectureTotal + finiteCount(lecture.mcq_count),
+      0,
+    ),
+    0,
+  );
+}
+
 /**
- * The bundle curriculum historically exposed a 40-MCQ builder even when the
- * selected bundle had no usable MCQ pool. Keep that entry point hidden until
- * the server confirms that at least 40 active question-bank MCQs actually
- * exist. This also prevents the extra dead-end page from flashing while the
- * availability check is in flight.
+ * A lecture practice quiz cannot mix lectures from different courses. Hide the
+ * 40-MCQ entry point until the server confirms that at least one single course
+ * in this bundle has a usable pool of 40 active question-bank MCQs.
  */
 export function BundleQuizAvailabilityGuard() {
   const { request } = useAuth();
@@ -37,14 +45,7 @@ export function BundleQuizAvailabilityGuard() {
       const existing = cache.current.get(bundleId);
       if (existing) return existing;
       const pending = request<BundleContent>(`/bundles/${bundleId}/content`)
-        .then((content) => {
-          if (content.bundle.read_only) return false;
-          const total = content.courses.reduce((courseTotal, course) => courseTotal + course.weeks.reduce(
-            (weekTotal, week) => weekTotal + week.lectures.reduce((lectureTotal, lecture) => lectureTotal + finiteCount(lecture.mcq_count), 0),
-            0,
-          ), 0);
-          return total >= REQUIRED_MCQS;
-        })
+        .then((content) => !content.bundle.read_only && content.courses.some((course) => courseMcqCount(course) >= REQUIRED_MCQS))
         .catch(() => false);
       cache.current.set(bundleId, pending);
       return pending;
@@ -55,13 +56,14 @@ export function BundleQuizAvailabilityGuard() {
       links.forEach((link) => {
         const url = new URL(link.href, window.location.origin);
         const bundleId = url.searchParams.get("bundle");
-        if (!bundleId || link.dataset.quizAvailability === "ready") return;
+        if (!bundleId || (link.dataset.quizAvailability === "ready" && link.dataset.quizBundle === bundleId)) return;
         link.hidden = true;
         link.setAttribute("aria-hidden", "true");
         link.tabIndex = -1;
         link.dataset.quizAvailability = "checking";
+        link.dataset.quizBundle = bundleId;
         void readiness(bundleId).then((ready) => {
-          if (disposed || !link.isConnected) return;
+          if (disposed || !link.isConnected || link.dataset.quizBundle !== bundleId) return;
           link.dataset.quizAvailability = ready ? "ready" : "unavailable";
           link.hidden = !ready;
           if (ready) {
@@ -74,7 +76,7 @@ export function BundleQuizAvailabilityGuard() {
 
     inspect();
     const observer = new MutationObserver(inspect);
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["href"] });
     return () => {
       disposed = true;
       observer.disconnect();
