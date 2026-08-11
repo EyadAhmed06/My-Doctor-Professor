@@ -91,7 +91,6 @@ test('Arabic dashboard translates dynamic learning copy instead of only changing
 
 test('logout navigates immediately even when server revocation is slow', async ({ page }) => {
   const user = await authenticated(page, 'STUDENT');
-  let serverRevocationFinished = false;
   await routeApi(page, async (path, method) => {
     if (path === '/auth/me') return { body: user };
     if (path === '/auth/security') return { body: { sessions: [], providers: [] } };
@@ -100,7 +99,6 @@ test('logout navigates immediately even when server revocation is slow', async (
     if (path === '/notifications') return { body: { data: [] } };
     if (path === '/auth/logout' && method === 'POST') {
       await new Promise(resolve => setTimeout(resolve, 4000));
-      serverRevocationFinished = true;
       return { status: 204 };
     }
     if (path === '/auth/logout/browser' && method === 'POST') return { status: 204 };
@@ -112,9 +110,10 @@ test('logout navigates immediately even when server revocation is slow', async (
   await page.getByRole('menuitem', { name: /Log out/i }).click();
   const confirmation = page.getByRole('alertdialog', { name: 'Log out?' });
   await expect(confirmation).toBeVisible();
+  const startedAt = Date.now();
   await confirmation.getByRole('button', { name: /^Log out$/i }).click();
   await expect(page).toHaveURL(/\/login/, { timeout: 3500 });
-  expect(serverRevocationFinished).toBe(false);
+  expect(Date.now() - startedAt).toBeLessThan(3500);
   await page.reload();
   await expect(page).toHaveURL(/\/login/);
 });
