@@ -67,6 +67,6 @@ const preferenceBootstrap = `(() => {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en" suppressHydrationWarning>
     <head><script dangerouslySetInnerHTML={{ __html: preferenceBootstrap }} /></head>
-    <body><LocaleProvider><AppThemeProvider><PublicThemeAccess /><UxProvider><AuthProvider><GlobalKeyboardShortcuts />{children}</AuthProvider></UxProvider></AppThemeProvider></LocaleProvider></body>
+    <body><LocaleProvider><AppThemeProvider><PublicThemeAccess /><AuthProvider><UxProvider><GlobalKeyboardShortcuts />{children}</UxProvider></AuthProvider></AppThemeProvider></LocaleProvider></body>
   </html>;
 }
