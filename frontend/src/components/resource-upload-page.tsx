@@ -46,10 +46,14 @@ export function ResourceUploadPage(){
 
   const loadCourses=useCallback(async()=>{
     if(!allowed)return;setLoading(true);setError(null);
-    try{const rows=await request<PageResponse<Course>>("/academic/courses?limit=100");setCourses(rows.data);if(!courseId&&rows.data[0])setCourseId(rows.data[0].id);}
+    try{
+      const rows=await request<PageResponse<Course>>("/academic/courses?limit=100");
+      setCourses(rows.data);
+      setCourseId(current=>current||rows.data[0]?.id||"");
+    }
     catch(cause){setError(cause instanceof Error?cause.message:"Unable to load courses.");}
     finally{setLoading(false);}
-  },[allowed,courseId,request]);
+  },[allowed,request]);
   useEffect(()=>{void loadCourses();},[loadCourses]);
 
   useEffect(()=>{if(!courseId)return;let active=true;setDetailLoading(true);setError(null);void request<Course>(`/academic/courses/${courseId}`).then(value=>{if(!active)return;setCourse(value);const first=value.weeks?.flatMap(week=>week.lectures)[0];setLectureId(current=>value.weeks?.some(week=>week.lectures.some(lecture=>lecture.id===current))?current:first?.id||"");}).catch(cause=>{if(active)setError(cause instanceof Error?cause.message:"Unable to load course hierarchy.");}).finally(()=>{if(active)setDetailLoading(false);});return()=>{active=false};},[courseId,request]);
