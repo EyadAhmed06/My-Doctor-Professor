@@ -39,30 +39,31 @@ async function mockApi(page: Page) {
     if (endpoint === '/bundles/mine') return respond([{ id: bundleId, title: 'Clinical Foundations', slug: 'clinical-foundations', status: 'PUBLISHED', isFree: true }]);
     if (endpoint === `/bundles/${bundleId}/content`) return respond({
       bundle: { id: bundleId, title: 'Clinical Foundations', read_only: false },
-      past_exams: [{ id: testId, title: '40-MCQ Tutor practice · 2026-08-11', description: 'Generated from one selected lecture', testType: 'CUSTOM', durationMinutes: null, totalMarks: '40.00', passingMarks: null }],
+      past_exams: [{ id: testId, title: 'Custom practice · 2026-08-10', description: 'Legacy generated practice', testType: 'CUSTOM', durationMinutes: null, totalMarks: '1.00', passingMarks: null }],
     });
     if (endpoint === `/test-launch/${testId}`) return respond({
-      test: { id: testId, title: '40-MCQ Tutor practice · 2026-08-11', description: 'Generated from one selected lecture', testType: 'CUSTOM', durationMinutes: null, totalMarks: '40.00', passingMarks: null },
-      question_count: 40,
-      mcq_count: 40,
+      test: { id: testId, title: 'Custom practice · 2026-08-10', description: 'Legacy generated practice', testType: 'CUSTOM', durationMinutes: null, totalMarks: '1.00', passingMarks: null },
+      question_count: 1,
+      mcq_count: 1,
       is_final: false,
       required_question_count: 40,
       timed_available: false,
       launch_ready: true,
-      active_attempt: { id: attemptId, test_mode: 'TUTOR', started_at: '2026-08-11T17:00:00.000Z' },
-      issues: [],
+      active_attempt: { id: attemptId, test_mode: 'TUTOR', started_at: '2026-08-10T17:00:00.000Z' },
+      issues: ['Curriculum practice now requires exactly 40 MCQs. This is a legacy 1-question practice with an unfinished attempt that can still be resumed.'],
     });
     if (endpoint === `/tests/${testId}/attempts` && request.method() === 'POST') return respond({ message: 'A new attempt should not be created while resuming.' }, 500);
     return respond({});
   });
 }
 
-test('generated custom practice resumes its active attempt instead of dead-ending on duplicate start', async ({ page }) => {
+test('legacy one-question custom practice resumes its active attempt instead of dead-ending on duplicate start', async ({ page }) => {
   await mockApi(page);
   await page.goto(`/past-exams?bundle=${bundleId}&test=${testId}`);
 
-  await expect(page.getByRole('heading', { name: '40-MCQ Tutor practice · 2026-08-11' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Custom practice · 2026-08-10' })).toBeVisible();
   await expect(page.getByText('Continue where you stopped')).toBeVisible();
+  await expect(page.getByText(/legacy 1-question practice/i)).toBeVisible();
   await expect(page.getByText(/Tutor.*existing attempt/i)).toBeVisible();
   const resume = page.getByRole('button', { name: 'Resume practice' });
   await expect(resume).toBeEnabled();
