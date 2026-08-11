@@ -198,7 +198,7 @@ test('Tutor mode supports highlighter, strike-out, flags, notes, labs, and immed
   await expect(strikeOut).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('radio').nth(2).click();
   await expect(page.locator('.exam-answer-row').nth(2)).toHaveClass(/struck/);
-  await expect(page.locator('.exam-number-grid button').first()).not.toHaveClass(/answered/);
+  await expect(page.locator('.exam-number-grid button').first()).not.toHaveClass(/(^|\s)answered(\s|$)/);
   await strikeOut.click();
   await expect(strikeOut).toHaveAttribute('aria-pressed', 'false');
 
