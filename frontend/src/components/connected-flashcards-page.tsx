@@ -179,12 +179,12 @@ export function ConnectedFlashcardsPage() {
     if (loading || cards.length || pending.length || reviewed === 0 || completionAnnounced.current) return;
     completionAnnounced.current = true;
     celebrate({
-      id: `flashcard-session-complete-${user?.id || "student"}-${reviewed}`,
+      id: "flashcard-session-complete",
       title: translate("Review session complete"),
       description: locale === "ar" ? `راجعت ${reviewed} بطاقة وتم حفظ المراجعات.` : `${reviewed} cards reviewed and synced.`,
       points: Math.min(100, Math.max(10, reviewed * 2)),
     });
-  }, [cards.length, celebrate, loading, locale, pending.length, reviewed, translate, user?.id]);
+  }, [cards.length, celebrate, loading, locale, pending.length, reviewed, translate]);
 
   const restoreReview = useCallback((entry: PendingReview, message?: string) => {
     setCards((current) => {
@@ -214,7 +214,7 @@ export function ConnectedFlashcardsPage() {
       await request(`/flashcards/cards/${entry.card.id}/review`, { method: "POST", body: { rating: entry.rating } });
       removePending(entry.token);
       celebrate({
-        id: `flashcard-first-synced-${user?.id || "student"}`,
+        id: "flashcard-first-synced",
         title: translate("Recall before recognition"),
         description: translate("Your first spaced-repetition review was saved to your learning history."),
         points: 25,
@@ -222,9 +222,6 @@ export function ConnectedFlashcardsPage() {
     } catch (cause) {
       const alreadySaved = cause instanceof ApiError && cause.status === 409 && /not due for review yet/i.test(cause.message);
       if (alreadySaved) {
-        // A stale queued review can survive an older duplicate-sync bug. The server's future
-        // next-review timestamp proves that this card was already committed, so reconciliation
-        // should remove the local pending entry instead of resurrecting the card.
         removePending(entry.token);
         return;
       }
@@ -233,7 +230,7 @@ export function ConnectedFlashcardsPage() {
     } finally {
       committing.current.delete(entry.token);
     }
-  }, [celebrate, removePending, request, restoreReview, translate, user?.id]);
+  }, [celebrate, removePending, request, restoreReview, translate]);
 
   const undoReview = useCallback((token: string) => {
     const entry = pendingRef.current.find((item) => item.token === token);
