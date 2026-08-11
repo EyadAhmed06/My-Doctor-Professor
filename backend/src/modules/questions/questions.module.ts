@@ -6,11 +6,14 @@ import { Question } from '../../common/entities/question.entity';
 import { QuestionTag } from '../../common/entities/question-tag.entity';
 import { Tag } from '../../common/entities/tag.entity';
 import { Topic } from '../../common/entities/topic.entity';
+import { AcademicModule } from '../academic/academic.module';
+import { QuestionImportService } from './question-import.service';
 import { QuestionsController } from './questions.controller';
 import { QuestionsService } from './questions.service';
 
 @Module({
   imports: [
+    AcademicModule,
     TypeOrmModule.forFeature([
       Question,
       McqOption,
@@ -21,7 +24,7 @@ import { QuestionsService } from './questions.service';
     ]),
   ],
   controllers: [QuestionsController],
-  providers: [QuestionsService],
-  exports: [QuestionsService, TypeOrmModule],
+  providers: [QuestionsService, QuestionImportService],
+  exports: [QuestionsService, QuestionImportService, TypeOrmModule],
 })
 export class QuestionsModule {}
