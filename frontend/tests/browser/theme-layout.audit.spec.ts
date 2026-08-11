@@ -99,9 +99,9 @@ async function installApi(page: Page, role: Role, theme: 'light' | 'dark') {
       completionPercentage: '50', timeSpentMinutes: 20, lastAccessedAt: null, completedAt: null,
     });
 
-    if (endpoint.startsWith('/tests?')) return respond({ data: [testRecord], total: 1, page: 1, limit: 100, total_pages: 1 });
-    if (endpoint.startsWith('/academic/courses?')) return respond({ data: [course], total: 1, page: 1, limit: 100, total_pages: 1 });
-    if (endpoint.startsWith('/questions?')) return respond({ data: [], total: 0, page: 1, limit: 100, total_pages: 0 });
+    if (endpoint === '/tests') return respond({ data: [testRecord], total: 1, page: 1, limit: 100, total_pages: 1 });
+    if (endpoint === '/academic/courses') return respond({ data: [course], total: 1, page: 1, limit: 100, total_pages: 1 });
+    if (endpoint === '/questions') return respond({ data: [], total: 0, page: 1, limit: 100, total_pages: 0 });
     if (endpoint === '/tests/test-1/questions') return respond([]);
     if (endpoint === '/tests/test-1/attempts') return respond([]);
     if (endpoint === '/tests/test-1/authoring-state') return respond({
@@ -124,12 +124,14 @@ async function expectNoHorizontalOverflow(page: Page) {
 
 async function expectTheme(page: Page, theme: 'light' | 'dark') {
   await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-  const colors = await page.evaluate(() => ({
+  const themeState = await page.evaluate(() => ({
     body: getComputedStyle(document.body).backgroundColor,
-    surface: getComputedStyle(document.querySelector('.pp-panel, .dash-card, .guide-content') || document.body).backgroundColor,
+    bg: getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(),
+    text: getComputedStyle(document.documentElement).getPropertyValue('--text').trim(),
   }));
-  expect(colors.body).not.toBe('rgba(0, 0, 0, 0)');
-  expect(colors.surface).not.toBe('rgba(0, 0, 0, 0)');
+  expect(themeState.body).not.toBe('rgba(0, 0, 0, 0)');
+  expect(themeState.bg).not.toBe('');
+  expect(themeState.text).not.toBe('');
 }
 
 for (const theme of ['light', 'dark'] as const) {
