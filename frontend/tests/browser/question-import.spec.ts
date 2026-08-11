@@ -138,7 +138,7 @@ test('instructor inspects a real PDF candidate queue, reviews it, and publishes 
 
   await expect(page.getByText('Candidate 1').first()).toBeVisible();
   await expect(page.getByText('96%').first()).toBeVisible();
-  await expect(page.getByDisplayValue('Left atrium')).toBeVisible();
+  await expect(page.locator('input[value="Left atrium"]')).toBeVisible();
   await expect(page.locator('.question-import-review-heading')).toContainText('1');
   await expect(page.locator('.question-import-review-heading')).toContainText('approved');
 
