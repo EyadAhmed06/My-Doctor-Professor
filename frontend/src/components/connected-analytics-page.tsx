@@ -23,18 +23,19 @@ type AccuracySeries = "ACCURACY" | "ANSWERED";
 function buildRecommendations(data: Analytics): Recommendation[] {
   const result: Recommendation[] = [];
   const weakest = Object.entries(data.readiness.components).sort((a, b) => a[1] - b[1])[0];
+  const overallAccuracy = data.readiness.components.accuracy;
   if (data.summary.flashcards_due > 0) result.push({ id: "due-cards", priority: data.summary.flashcards_due >= 20 ? "HIGH" : "MEDIUM", title: "Clear the due flashcard queue", reason: `${data.summary.flashcards_due} card${data.summary.flashcards_due === 1 ? " is" : "s are"} due. Delaying them weakens spaced-repetition timing.`, action: "Review flashcards", href: "/flashcards", metric: `${data.summary.flashcards_due} due` });
-  if (data.summary.questions_answered === 0) result.push({ id: "start-questions", priority: "HIGH", title: "Create an accuracy baseline", reason: "Readiness cannot distinguish strengths from weaknesses until you complete questions.", action: "Open Question Bank", href: "/bundles?tab=questions", metric: "No attempts yet" });
-  else if (data.summary.accuracy < 70) result.push({ id: "accuracy", priority: data.summary.accuracy < 50 ? "HIGH" : "MEDIUM", title: "Prioritize question practice", reason: `Current accuracy is ${Math.round(data.summary.accuracy)}%. More targeted attempts will improve the highest-weight readiness component.`, action: "Practice questions", href: "/bundles?tab=questions", metric: `${Math.round(data.summary.accuracy)}% accuracy` });
+  if (data.summary.questions_answered === 0) result.push({ id: "start-questions", priority: "HIGH", title: "Create an accuracy baseline", reason: "Readiness cannot distinguish strengths from weaknesses until you complete and submit questions.", action: "Open Question Bank", href: "/bundles?tab=questions", metric: "No validated attempts yet" });
+  else if (overallAccuracy < 70) result.push({ id: "accuracy", priority: overallAccuracy < 50 ? "HIGH" : "MEDIUM", title: "Prioritize question practice", reason: `Overall validated accuracy is ${Math.round(overallAccuracy)}%. More targeted attempts will improve the highest-weight readiness component.`, action: "Practice questions", href: "/bundles?tab=questions", metric: `${Math.round(overallAccuracy)}% overall accuracy` });
   const weakestTopic = [...data.topic_mastery].filter((topic) => topic.questions_attempted > 0).sort((a, b) => a.mastery - b.mastery)[0];
-  if (weakestTopic && weakestTopic.mastery < 70) result.push({ id: `topic-${weakestTopic.id}`, priority: weakestTopic.mastery < 45 ? "HIGH" : "MEDIUM", title: `Revisit ${weakestTopic.name}`, reason: `This is your lowest measured topic in ${weakestTopic.course}, based on ${weakestTopic.questions_attempted} attempted questions.`, action: "Open study guides", href: "/guidelines", metric: `${Math.round(weakestTopic.mastery)}% mastery` });
+  if (weakestTopic && weakestTopic.mastery < 70) result.push({ id: `topic-${weakestTopic.id}`, priority: weakestTopic.mastery < 45 ? "HIGH" : "MEDIUM", title: `Revisit ${weakestTopic.name}`, reason: `This is your lowest measured topic in ${weakestTopic.course}, based on ${weakestTopic.questions_attempted} validated attempts.`, action: "Open study guides", href: "/guidelines", metric: `${Math.round(weakestTopic.mastery)}% mastery` });
   if (weakest) {
     const [name, value] = weakest;
     const map: Record<string, { title: string; reason: string; action: string; href: string }> = {
       curriculum: { title: "Advance lecture completion", reason: "Curriculum completion is the weakest readiness input.", action: "Continue a lecture", href: "/guidelines" },
       consistency: { title: "Repair schedule consistency", reason: "Completed versus skipped study sessions is limiting readiness.", action: "Open Study Plan", href: "/study-plan" },
       flashcards: { title: "Build retention coverage", reason: "Flashcard mastery is the weakest readiness input.", action: "Review flashcards", href: "/flashcards" },
-      accuracy: { title: "Strengthen answer accuracy", reason: "Question accuracy is the weakest and most heavily weighted readiness input.", action: "Practice questions", href: "/bundles?tab=questions" },
+      accuracy: { title: "Strengthen answer accuracy", reason: "Validated question accuracy is the weakest and most heavily weighted readiness input.", action: "Practice questions", href: "/bundles?tab=questions" },
     };
     const entry = map[name];
     if (entry && !result.some((item) => item.href === entry.href)) result.push({ id: `weakest-${name}`, priority: value < 40 ? "HIGH" : "MEDIUM", ...entry, metric: `${Math.round(value)}% ${name}` });
@@ -115,60 +116,66 @@ export function ConnectedAnalyticsPage() {
   const comparison = useMemo(() => {
     const currentAccuracy = weightedAccuracy(filteredAccuracy);
     const priorAccuracy = weightedAccuracy(previousAccuracy);
+    const currentAnswered = filteredAccuracy.reduce((sum, point) => sum + point.answered, 0);
+    const priorAnswered = previousAccuracy.reduce((sum, point) => sum + point.answered, 0);
     const currentCompleted = filteredActivity.reduce((sum, day) => sum + day.completed, 0);
     const priorCompleted = previousActivity.reduce((sum, day) => sum + day.completed, 0);
     return {
       currentAccuracy,
+      priorAccuracy,
+      hasAccuracyBaseline: currentAnswered > 0 && priorAnswered > 0,
       accuracyDelta: currentAccuracy - priorAccuracy,
       currentCompleted,
       completionDelta: currentCompleted - priorCompleted,
-      currentAnswered: filteredAccuracy.reduce((sum, point) => sum + point.answered, 0),
+      currentAnswered,
+      priorAnswered,
     };
   }, [filteredAccuracy, filteredActivity, previousAccuracy, previousActivity]);
 
   const explanation = useMemo(() => {
     if (!data) return [];
     const statements: string[] = [];
-    if (comparison.currentAnswered === 0) statements.push("No questions were answered in this range, so accuracy movement is not statistically meaningful.");
+    if (comparison.currentAnswered === 0) statements.push("No validated answers were recorded in this range, so there is no period accuracy to interpret.");
+    else if (!comparison.priorAnswered) statements.push(`You answered ${comparison.currentAnswered} questions in this range. The preceding period has no answer baseline, so an accuracy change is not claimed.`);
     else if (comparison.accuracyDelta > 2) statements.push(`Accuracy improved by ${Math.round(comparison.accuracyDelta)} points while you answered ${comparison.currentAnswered} questions.`);
     else if (comparison.accuracyDelta < -2) statements.push(`Accuracy fell by ${Math.abs(Math.round(comparison.accuracyDelta))} points; revisit the lowest-mastery topic before increasing volume.`);
     else statements.push("Accuracy was broadly stable compared with the preceding period.");
     if (comparison.completionDelta > 0) statements.push(`You completed ${comparison.completionDelta} more scheduled session${comparison.completionDelta === 1 ? "" : "s"} than the previous period.`);
     else if (comparison.completionDelta < 0) statements.push(`You completed ${Math.abs(comparison.completionDelta)} fewer scheduled sessions than the previous period, which can reduce consistency readiness.`);
-    if (data.summary.flashcards_due > 0) statements.push(`${data.summary.flashcards_due} due flashcards are currently pulling down retention coverage until reviewed.`);
+    if (data.summary.flashcards_due > 0) statements.push(`${data.summary.flashcards_due} flashcard${data.summary.flashcards_due === 1 ? " is" : "s are"} currently due. This affects the retention component until reviewed.`);
     return statements;
   }, [comparison, data]);
 
   const maxAnswered = Math.max(1, ...filteredAccuracy.map((point) => point.answered));
 
   return <ProductShell><main className="pp-page analytics-page analytics-exploration-page">
-    <header className="workspace-heading"><div><span className="page-eyebrow">LEARNING INTELLIGENCE</span><h1>Analytics Dashboard</h1><p>Track learning quality, retention, confidence, and exam readiness from your real activity.</p></div></header>
+    <header className="workspace-heading"><div><span className="page-eyebrow">LEARNING INTELLIGENCE</span><h1>Analytics Dashboard</h1><p>Separate current learning state from date-window trends so the numbers remain interpretable.</p></div></header>
 
     {user?.role !== "STUDENT" ? <Panel title="Student analytics"><p>This dashboard is calculated for student accounts.</p></Panel> : loading ? <PageSkeleton variant="chart" label="Calculating analytics" /> : error ? <ErrorState description={error} onRetry={() => globalThis.location.reload()} /> : data ? <>
       <section className="analytics-range-bar" aria-label="Analytics date range">
         <div role="group" aria-label="Preset ranges">{(["7D", "30D", "SEMESTER", "CUSTOM"] as Range[]).map((value) => <button type="button" className={range === value ? "active" : ""} key={value} onClick={() => setRange(value)}>{value === "7D" ? "7 days" : value === "30D" ? "30 days" : value === "SEMESTER" ? "Semester" : "Custom"}</button>)}</div>
         {range === "CUSTOM" && <div className="analytics-custom-range"><label>From<input type="date" value={customFrom} max={customTo} onChange={(event) => setCustomFrom(event.target.value)} /></label><label>To<input type="date" value={customTo} min={customFrom} max={dateKey(new Date())} onChange={(event) => setCustomTo(event.target.value)} /></label></div>}
-        <small>{dateWindow.start.toLocaleDateString()} – {dateWindow.end.toLocaleDateString()} compared with the preceding {dateWindow.days} days</small>
+        <small>{dateWindow.start.toLocaleDateString()} – {dateWindow.end.toLocaleDateString()} compared with the preceding {dateWindow.days} days. This selector controls the trend/comparison panels; overview metrics and readiness are current overall state.</small>
       </section>
 
       <section className="analytics-metrics">
-        <Metric href="/bundles?tab=questions" icon={<FiActivity />} label="Questions answered" value={data.summary.questions_answered} explanation="Count of submitted question attempts across your account." />
-        <Metric href="/bundles?tab=questions" icon={<FiCheckCircle />} label="Accuracy" value={data.summary.accuracy} suffix="%" explanation="Correct attempts divided by all answered questions." />
-        <Metric href="/analytics#confidence" icon={<FiTarget />} label="Calibrated confidence" value={data.summary.calibrated_confidence ?? 0} suffix="%" explanation="How closely confidence judgments align with actual correctness." />
-        <Metric href="/notebook" icon={<FiBookmark />} label="Saved questions" value={data.summary.bookmarked} explanation="Questions bookmarked for later review." />
-        <Metric href="/flashcards" icon={<FiLayers />} label="Flashcards mastered" value={data.summary.flashcards_mastered} explanation="Cards currently classified as mastered by the review scheduler." />
-        <Metric href="/flashcards" icon={<FiClock />} label="Flashcards due" value={data.summary.flashcards_due} explanation="Cards whose scheduled next-review time has arrived." />
+        <Metric href="/bundles?tab=questions" icon={<FiActivity />} label="Validated answers · overall" value={data.summary.questions_answered} explanation="Submitted or expired answers with a known correctness result across your account." />
+        <Metric href="/bundles?tab=questions" icon={<FiCheckCircle />} label="Accuracy · overall" value={data.summary.accuracy} suffix="%" explanation="Correct validated attempts divided by all validated answered questions." />
+        <Metric href="/analytics#confidence" icon={<FiTarget />} label="Evidence confidence" value={data.summary.calibrated_confidence ?? 0} suffix="%" explanation="Evidence strength from sample size, not self-reported confidence calibration. Topic evidence is 20 × √attempts, capped at 100%." />
+        <Metric href="/notebook" icon={<FiBookmark />} label="Saved questions · current" value={data.summary.bookmarked} explanation="Questions currently bookmarked for later review." />
+        <Metric href="/flashcards" icon={<FiLayers />} label="Flashcards mastered · current" value={data.summary.flashcards_mastered} explanation="Reviewed cards currently classified as mastered by the spaced-repetition scheduler." />
+        <Metric href="/flashcards" icon={<FiClock />} label="Flashcards due · current" value={data.summary.flashcards_due} explanation="Reviewed cards whose scheduled next-review time has arrived." />
       </section>
 
       <Panel title="Period comparison" className="analytics-comparison">
-        <div><small>Weighted accuracy</small><b>{Math.round(comparison.currentAccuracy)}%</b><span className={comparison.accuracyDelta >= 0 ? "positive" : "negative"}>{comparison.accuracyDelta >= 0 ? "+" : ""}{Math.round(comparison.accuracyDelta)} pts vs previous</span></div>
-        <div><small>Questions in range</small><b>{comparison.currentAnswered}</b><span>Actual answered volume</span></div>
+        <div><small>Weighted accuracy in range</small><b>{comparison.currentAnswered ? `${Math.round(comparison.currentAccuracy)}%` : "—"}</b><span className={comparison.hasAccuracyBaseline ? (comparison.accuracyDelta >= 0 ? "positive" : "negative") : ""}>{comparison.hasAccuracyBaseline ? `${comparison.accuracyDelta >= 0 ? "+" : ""}${Math.round(comparison.accuracyDelta)} pts vs previous` : "No previous accuracy baseline"}</span></div>
+        <div><small>Answers in range</small><b>{comparison.currentAnswered}</b><span>{comparison.priorAnswered} in preceding period</span></div>
         <div><small>Completed sessions</small><b>{comparison.currentCompleted}</b><span className={comparison.completionDelta >= 0 ? "positive" : "negative"}>{comparison.completionDelta >= 0 ? "+" : ""}{comparison.completionDelta} vs previous</span></div>
       </Panel>
 
       <Panel title="Why did this change?" className="analytics-explanation"><ul>{explanation.map((item) => <li key={item}>{item}</li>)}</ul></Panel>
 
-      <Panel title="Recommended next actions" className="analytics-recommendations"><p className="recommendation-intro">These actions are derived from the weakest measured readiness inputs and current due work—not generic study advice.</p><div>{recommendations.map((item) => <article data-priority={item.priority} key={item.id}><span>{item.priority}</span><div><small>{item.metric}</small><h3>{item.title}</h3><p>{item.reason}</p></div><Link className="pp-button secondary" href={item.href}>{item.action}<FiArrowRight /></Link></article>)}</div></Panel>
+      <Panel title="Recommended next actions" className="analytics-recommendations"><p className="recommendation-intro">These actions are derived from current readiness components, measured topic mastery, and due work—not from the selected chart window alone.</p><div>{recommendations.map((item) => <article data-priority={item.priority} key={item.id}><span>{item.priority}</span><div><small>{item.metric}</small><h3>{item.title}</h3><p>{item.reason}</p></div><Link className="pp-button secondary" href={item.href}>{item.action}<FiArrowRight /></Link></article>)}</div></Panel>
 
       <div className="analytics-grid">
         <Panel title="Accuracy over time" action={<div className="analytics-series-toggle"><button className={series === "ACCURACY" ? "active" : ""} onClick={() => setSeries("ACCURACY")}>Accuracy</button><button className={series === "ANSWERED" ? "active" : ""} onClick={() => setSeries("ANSWERED")}>Answered</button></div>}>
@@ -180,9 +187,9 @@ export function ConnectedAnalyticsPage() {
           }) : <p>No completed answers in this range.</p>}</div>
         </Panel>
 
-        <Panel title="Exam readiness"><div className="readiness-score"><b><AnimatedNumber value={data.readiness.score} /></b><span>/100</span><small>{data.readiness.band.replaceAll("_", " ")}</small></div>{Object.entries(data.readiness.components).map(([label, value]) => <div className="readiness-component" key={label}><span>{label}</span><b><AnimatedNumber value={value} />%</b><Progress value={value} /></div>)}</Panel>
+        <Panel title="Current exam readiness"><div className="readiness-score"><b><AnimatedNumber value={data.readiness.score} /></b><span>/100</span><small>{data.readiness.band.replaceAll("_", " ")}</small></div>{Object.entries(data.readiness.components).map(([label, value]) => <div className="readiness-component" key={label}><span>{label}</span><b><AnimatedNumber value={value} />%</b><Progress value={value} /></div>)}<p>Readiness = 40% overall validated accuracy + 25% current curriculum completion + 20% current flashcard mastery + 15% completed-vs-skipped schedule consistency. It is intentionally not changed by the date selector.</p></Panel>
 
-        <Panel title="Topic mastery" className="analytics-topics">{data.topic_mastery.length ? data.topic_mastery.map((topic) => <Link href="/bundles?tab=questions" key={topic.id}><span><b>{topic.name}</b><small>{topic.course} · {topic.questions_attempted} questions{topic.confidence === null ? "" : ` · ${Math.round(topic.confidence)}% confidence`}</small></span><strong><AnimatedNumber value={topic.mastery} />%</strong><Progress value={topic.mastery} /></Link>) : <p>Practice questions to build your topic map.</p>}</Panel>
+        <Panel title="Topic mastery" className="analytics-topics"><p>Mastery = 70% observed accuracy + 30% active-question coverage. “Evidence” shows sample strength (20 × √attempts, capped at 100%), not subjective confidence.</p>{data.topic_mastery.length ? data.topic_mastery.map((topic) => <Link href="/bundles?tab=questions" key={topic.id}><span><b>{topic.name}</b><small>{topic.course} · {topic.questions_attempted} validated attempts{topic.confidence === null ? "" : ` · ${Math.round(topic.confidence)}% evidence`}</small></span><strong><AnimatedNumber value={topic.mastery} />%</strong><Progress value={topic.mastery} /></Link>) : <p>Practice questions to build your topic map.</p>}</Panel>
 
         <Panel title="Study consistency"><div className="activity-bars">{filteredActivity.length ? filteredActivity.map((day) => {
           const percentage = Math.max(5, 100 * day.completed / Math.max(1, day.planned));
@@ -190,7 +197,7 @@ export function ConnectedAnalyticsPage() {
           const fullDate = new Date(day.date).toLocaleDateString(undefined, { month: "short", day: "numeric" });
           const tooltip = `${fullDate}: ${day.completed} completed, ${day.skipped} skipped, ${day.planned} planned`;
           return <ChartBar key={day.date} height={percentage} label={label} tooltip={tooltip} />;
-        }) : <p>No scheduled activity in this range.</p>}</div><p>Completed sessions are measured from your generated schedule—not estimated data.</p></Panel>
+        }) : <p>No scheduled activity in this range.</p>}</div><p>Completed sessions come from your generated study-plan records—not estimated behavior.</p></Panel>
       </div>
     </> : null}
   </main></ProductShell>;

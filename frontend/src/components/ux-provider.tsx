@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { FiAlertTriangle, FiAward, FiCheck, FiInfo, FiX } from "react-icons/fi";
+import { useAuth } from "./auth-provider";
 
 export type ToastTone = "success" | "error" | "warning" | "info";
 export type ToastInput = {
@@ -42,11 +43,11 @@ type UxContextValue = {
 const UxContext = createContext<UxContextValue | null>(null);
 const REQUEST_START = "mdp:request-start";
 const REQUEST_END = "mdp:request-end";
-const ACHIEVEMENT_KEY = "mdp_unlocked_achievements_v1";
+const ACHIEVEMENT_KEY_PREFIX = "mdp_unlocked_achievements_v2";
 
-function readAchievements(): UnlockedAchievement[] {
+function readAchievements(storageKey: string): UnlockedAchievement[] {
   try {
-    const parsed = JSON.parse(localStorage.getItem(ACHIEVEMENT_KEY) || "[]") as unknown;
+    const parsed = JSON.parse(localStorage.getItem(storageKey) || "[]") as unknown;
     if (!Array.isArray(parsed)) return [];
     return parsed.filter((item): item is UnlockedAchievement => {
       if (!item || typeof item !== "object") return false;
@@ -79,6 +80,8 @@ function confirmationCopy(label: string) {
 
 export function UxProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { user } = useAuth();
+  const achievementStorageKey = `${ACHIEVEMENT_KEY_PREFIX}:${user?.id || "anonymous"}`;
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [requestCount, setRequestCount] = useState(0);
   const [routeBusy, setRouteBusy] = useState(false);
@@ -132,7 +135,8 @@ export function UxProvider({ children }: { children: React.ReactNode }) {
   }), []);
 
   const celebrate = useCallback((input: AchievementInput) => {
-    const stored = readAchievements();
+    if (!user) return false;
+    const stored = readAchievements(achievementStorageKey);
     if (unlockedIds.current.has(input.id) || stored.some(item => item.id === input.id)) {
       unlockedIds.current.add(input.id);
       return false;
@@ -142,7 +146,7 @@ export function UxProvider({ children }: { children: React.ReactNode }) {
     setAchievements(current => {
       const existing = current.length ? current : stored;
       const next = [unlocked, ...existing.filter(item => item.id !== unlocked.id)].slice(0, 100);
-      localStorage.setItem(ACHIEVEMENT_KEY, JSON.stringify(next));
+      localStorage.setItem(achievementStorageKey, JSON.stringify(next));
       return next;
     });
     setActiveAchievement(unlocked);
@@ -155,13 +159,14 @@ export function UxProvider({ children }: { children: React.ReactNode }) {
       duration: 4500,
     });
     return true;
-  }, [notify]);
+  }, [achievementStorageKey, notify, user]);
 
   useEffect(() => {
-    const stored = readAchievements();
+    const stored = user ? readAchievements(achievementStorageKey) : [];
     setAchievements(stored);
+    setActiveAchievement(null);
     unlockedIds.current = new Set(stored.map(item => item.id));
-  }, []);
+  }, [achievementStorageKey, user]);
 
   useEffect(() => {
     const start = () => setRequestCount(count => count + 1);

@@ -9,7 +9,11 @@ import { AssessmentAuthoringService } from './assessment-authoring.service';
 import { AddTestQuestionDto, CreateTestDto, GeneratePracticeTestDto, GradeEssayDto, PracticeCatalogQueryDto, QuestionNoteDto, ReorderTestQuestionsDto, SaveAnswerDto, StartTestAttemptDto, TestQueryDto, UpdateTestDto } from './dtos/tests.dto';
 import { McqPracticeService } from './mcq-practice.service';
 import { TestsService } from './tests.service';
-const uuid = new ParseUUIDPipe({version:'4'});
+
+// Persisted/imported assessment data can contain any standards-compliant UUID version.
+// PostgreSQL's uuid type does not require v4, so route parsing must not reject a valid
+// question/option workflow merely because a historical/imported id is v1/v5/etc.
+const uuid = new ParseUUIDPipe();
 
 @Controller('tests')
 @UseGuards(JwtAuthGuard,RolesGuard)

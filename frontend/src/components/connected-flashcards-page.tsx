@@ -76,6 +76,7 @@ export function ConnectedFlashcardsPage() {
 
   const pendingRef = useRef<PendingReview[]>([]);
   const timers = useRef(new Map<string, number>());
+  const committing = useRef(new Set<string>());
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const swiped = useRef(false);
   const completionAnnounced = useRef(false);
@@ -175,15 +176,15 @@ export function ConnectedFlashcardsPage() {
   }, []);
 
   useEffect(() => {
-    if (loading || cards.length || reviewed === 0 || completionAnnounced.current) return;
+    if (loading || cards.length || pending.length || reviewed === 0 || completionAnnounced.current) return;
     completionAnnounced.current = true;
     celebrate({
-      id: `flashcard-session-complete-${user?.id || "student"}-${reviewed}`,
+      id: "flashcard-session-complete",
       title: translate("Review session complete"),
-      description: locale === "ar" ? `راجعت ${reviewed} بطاقة.` : `${reviewed} cards reviewed.`,
+      description: locale === "ar" ? `راجعت ${reviewed} بطاقة وتم حفظ المراجعات.` : `${reviewed} cards reviewed and synced.`,
       points: Math.min(100, Math.max(10, reviewed * 2)),
     });
-  }, [cards.length, celebrate, loading, locale, reviewed, translate, user?.id]);
+  }, [cards.length, celebrate, loading, locale, pending.length, reviewed, translate]);
 
   const restoreReview = useCallback((entry: PendingReview, message?: string) => {
     setCards((current) => {
@@ -207,19 +208,33 @@ export function ConnectedFlashcardsPage() {
   }, []);
 
   const commitReview = useCallback(async (entry: PendingReview) => {
-    if (!navigator.onLine) return;
+    if (!navigator.onLine || committing.current.has(entry.token)) return;
+    committing.current.add(entry.token);
     try {
       await request(`/flashcards/cards/${entry.card.id}/review`, { method: "POST", body: { rating: entry.rating } });
       removePending(entry.token);
+      celebrate({
+        id: "flashcard-first-synced",
+        title: translate("Recall before recognition"),
+        description: translate("Your first spaced-repetition review was saved to your learning history."),
+        points: 25,
+      });
     } catch (cause) {
+      const alreadySaved = cause instanceof ApiError && cause.status === 409 && /not due for review yet/i.test(cause.message);
+      if (alreadySaved) {
+        removePending(entry.token);
+        return;
+      }
       removePending(entry.token);
       restoreReview(entry, cause instanceof Error ? cause.message : translate("The review could not be saved."));
+    } finally {
+      committing.current.delete(entry.token);
     }
-  }, [removePending, request, restoreReview, translate]);
+  }, [celebrate, removePending, request, restoreReview, translate]);
 
   const undoReview = useCallback((token: string) => {
     const entry = pendingRef.current.find((item) => item.token === token);
-    if (!entry) return;
+    if (!entry || committing.current.has(token)) return;
     removePending(token);
     restoreReview(entry);
     notify({ title: translate("Review undone"), description: translate("The card is back in your queue."), tone: "info", duration: 2500 });
@@ -228,9 +243,12 @@ export function ConnectedFlashcardsPage() {
   useEffect(() => {
     if (!online) return;
     for (const entry of pending) {
-      if (timers.current.has(entry.token)) continue;
+      if (timers.current.has(entry.token) || committing.current.has(entry.token)) continue;
       const remaining = Math.max(0, entry.createdAt + REVIEW_UNDO_MS - Date.now());
-      const timer = window.setTimeout(() => { timers.current.delete(entry.token); void commitReview(entry); }, remaining);
+      const timer = window.setTimeout(() => {
+        timers.current.delete(entry.token);
+        void commitReview(entry);
+      }, remaining);
       timers.current.set(entry.token, timer);
     }
   }, [commitReview, online, pending]);
@@ -344,6 +362,7 @@ export function ConnectedFlashcardsPage() {
   async function startOver() {
     for (const timer of timers.current.values()) window.clearTimeout(timer);
     timers.current.clear();
+    committing.current.clear();
     try { localStorage.removeItem(sessionKey); } catch { /* best-effort */ }
     setReviewed(0);
     setPending([]);

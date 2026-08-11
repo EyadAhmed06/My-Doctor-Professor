@@ -160,16 +160,18 @@ export function AchievementDrawer({ open, onClose }: { open: boolean; onClose: (
   const closeButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const frame = window.requestAnimationFrame(() => closeButton.current?.focus());
     const escape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
     window.addEventListener("keydown", escape);
     return () => {
       window.cancelAnimationFrame(frame);
       window.removeEventListener("keydown", escape);
+      previous?.focus();
     };
   }, [onClose, open]);
   if (!open) return null;
-  return <div className="phase5-drawer-backdrop" role="presentation" onMouseDown={onClose}><aside className="phase5-drawer phase5-achievement-drawer" role="dialog" aria-modal="true" aria-label="Achievements" onMouseDown={event => event.stopPropagation()}><header><div><small>PROGRESS MEMORY</small><h2>Achievements</h2></div><button ref={closeButton} type="button" onClick={onClose} aria-label="Close achievements"><FiX /></button></header>{achievements.length ? <div className="phase5-achievement-list">{achievements.map(item => <article key={item.id}><span><FiAward /></span><div><b>{item.title}</b><p>{item.description}</p><small>{new Date(item.unlockedAt).toLocaleString()}{item.points ? ` · +${item.points} XP` : ""}</small></div></article>)}</div> : <div className="phase5-achievement-empty"><FiAward /><h3>No achievements yet</h3><p>Meaningful milestones will appear here as you complete real learning or operating loops.</p></div>}</aside></div>;
+  return <div className="phase5-drawer-backdrop" role="presentation" onMouseDown={onClose}><aside className="phase5-drawer phase5-achievement-drawer" role="dialog" aria-modal="true" aria-label="Achievements" onMouseDown={event => event.stopPropagation()}><header><div><small>CONFIRMED MILESTONES</small><h2>Achievements</h2></div><button ref={closeButton} type="button" onClick={onClose} aria-label="Close achievements"><FiX /></button></header><p className="phase5-achievement-note">Achievements now unlock only after a confirmed saved action or a verified operating milestone. They are scoped to your account on this browser. XP is an informational progress marker; it does not change grades or access.</p>{achievements.length ? <div className="phase5-achievement-list">{achievements.map(item => <article key={item.id}><span><FiAward /></span><div><b>{item.title}</b><p>{item.description}</p><small>{new Date(item.unlockedAt).toLocaleString()}{item.points ? ` · +${item.points} XP` : ""}</small></div></article>)}</div> : <div className="phase5-achievement-empty"><FiAward /><h3>No confirmed achievements yet</h3><p>Opening a page is not an achievement. Saved answers, synced reviews, completed attempts, and verified workflow milestones will appear here.</p></div>}</aside></div>;
 }
 
 function coachSteps(role: UserRole, stats: RoleStats): CoachStep[] {
@@ -246,19 +248,7 @@ export function MobileRoleDock({ path, role }: { path: string; role: UserRole })
 }
 
 export function PhaseFiveMilestones({ path, role }: { path: string; role: UserRole }) {
-  const { celebrate } = useUx();
-  useEffect(() => {
-    if (role !== "STUDENT") return;
-    const milestone = path.startsWith("/notebook")
-      ? { id: "student-notebook-opened", title: "Clinical memory started", description: "You opened the notebook workflow for durable reasoning and retrieval.", points: 25 }
-      : path.startsWith("/flashcards")
-        ? { id: "student-review-workflow", title: "Recall before recognition", description: "You entered the spaced-repetition workflow.", points: 25 }
-        : path.startsWith("/analytics")
-          ? { id: "student-analytics-opened", title: "Feedback loop discovered", description: "You used measured performance to guide the next action.", points: 25 }
-          : path.startsWith("/study-plan")
-            ? { id: "student-plan-opened", title: "Plan before pressure", description: "You opened the study-planning workflow before adding more work.", points: 25 }
-            : null;
-    if (milestone) celebrate(milestone);
-  }, [celebrate, path, role]);
+  void path;
+  void role;
   return null;
 }

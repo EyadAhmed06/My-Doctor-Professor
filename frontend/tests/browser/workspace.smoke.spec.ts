@@ -209,7 +209,7 @@ test('Analytics counters and chart points expose real values to keyboard users',
   await page.goto('/analytics');
   await expect(page.getByRole('heading', { name: 'Analytics Dashboard' })).toBeVisible();
 
-  const questionsMetric = page.locator('.analytics-metric').filter({ hasText: 'Questions answered' });
+  const questionsMetric = page.locator('.analytics-metric').filter({ hasText: 'Validated answers · overall' });
   await expect(questionsMetric.locator('b')).toHaveText('120');
 
   const chartPoint = page.locator('.chart-bar-point').first();
@@ -224,7 +224,7 @@ test('reduced motion resolves animated values immediately', async ({ page }) => 
   await mockApi(page);
   await page.goto('/analytics');
 
-  const questionsMetric = page.locator('.analytics-metric').filter({ hasText: 'Questions answered' });
+  const questionsMetric = page.locator('.analytics-metric').filter({ hasText: 'Validated answers · overall' });
   await expect(questionsMetric.locator('b')).toHaveText('120');
   await expect.poll(() => questionsMetric.evaluate((element) => getComputedStyle(element).animationName)).toBe('none');
 });

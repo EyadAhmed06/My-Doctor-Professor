@@ -1,8 +1,14 @@
 import { Transform, Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 import { QuestionDifficulty } from '../../../common/entities/question.entity';
 import { TestMode } from '../../../common/entities/test-attempt.entity';
 import { TestType } from '../../../common/entities/test.entity';
+
+// PostgreSQL's uuid type accepts the canonical 8-4-4-4-12 hexadecimal shape even
+// when historical/demo rows do not carry an RFC variant nibble. The demo seed has
+// existing mcq_options ids in that form, so answer validation must match persisted
+// database reality instead of rejecting a selectable option before the service runs.
+const POSTGRES_UUID_TEXT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export class CreateTestDto {
  @IsString() @IsNotEmpty() @MaxLength(200) title:string;
@@ -58,7 +64,7 @@ export class GeneratePracticeTestDto {
  @IsOptional() @IsInt() @Min(1) @Max(600) duration_minutes?:number;
 }
 export class SaveAnswerDto {
- @IsOptional() @IsUUID() selected_option_id?:string;
+ @IsOptional() @IsString() @Matches(POSTGRES_UUID_TEXT,{message:'selected_option_id must use UUID text format'}) selected_option_id?:string;
  @IsOptional() @IsString() @MaxLength(50000) essay_answer?:string;
 }
 export class QuestionNoteDto { @IsString() @IsNotEmpty() @MaxLength(5000) note:string; }
