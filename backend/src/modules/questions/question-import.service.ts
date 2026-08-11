@@ -103,7 +103,7 @@ export class QuestionImportService {
     }
     await this.academicAccess.assertTopicReadable(dto.topic_id, actor);
     this.validatePdfFile(file);
-    const safeFile = file as UploadedResourceFile;
+    const safeFile = file;
     const sha256 = createHash('sha256').update(safeFile.buffer).digest('hex');
     const pdf = this.extractPdf(safeFile.buffer);
     const previouslyPublished = await this.questions
@@ -565,7 +565,7 @@ export class QuestionImportService {
         const text = option[2].replace(/\s+/g, ' ').trim();
         if (text) options.push({ label: option[1].toUpperCase(), text });
       }
-      const inlineAnswer = block.match(/(?:Correct\s+Answer|Answer)\s*[:\-]\s*([A-D])\b/i)?.[1]?.toUpperCase() || null;
+      const inlineAnswer = block.match(/(?:Correct\s+Answer|Answer)\s*[:-]\s*([A-D])\b/i)?.[1]?.toUpperCase() || null;
       const correctLabel = inlineAnswer || answerKey.get(questionNumber) || null;
       const explanation = block.match(/(?:Explanation|Rationale)\s*:\s*([\s\S]+?)(?=$)/i)?.[1]
         ?.replace(/\s+/g, ' ')
@@ -591,7 +591,7 @@ export class QuestionImportService {
     const marker = value.search(/answer\s*key/i);
     if (marker < 0) return result;
     const tail = value.slice(marker);
-    const pattern = /(?:^|\s)(\d{1,3})\s*[.)\-:]?\s*([A-D])\b/gim;
+    const pattern = /(?:^|\s)(\d{1,3})\s*[.):-]?\s*([A-D])\b/gim;
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(tail)) !== null) {
       result.set(Number(match[1]), match[2].toUpperCase());
