@@ -16,6 +16,8 @@ export class Bundle {
   @Column({ type:'enum', enum:BundleStatus, enumName:'bundle_status', default:BundleStatus.DRAFT }) status: BundleStatus;
   @Column({ type:'enum', enum:BundleAccessMode, enumName:'bundle_access_mode', name:'access_mode', default:BundleAccessMode.PUBLIC }) accessMode: BundleAccessMode;
   @Column({ type:'boolean', name:'is_free', default:true }) isFree: boolean;
+  @Column({ type:'numeric', precision:10, scale:2, name:'price_amount', nullable:true }) priceAmount: string|null;
+  @Column({ type:'varchar', length:3, name:'price_currency', default:'EGP' }) priceCurrency: string;
   @Column({ type:'text', name:'enrollment_code_hash', nullable:true, select:false }) enrollmentCodeHash: string|null;
   @Column({ type:'timestamp', name:'available_from', nullable:true }) availableFrom: Date|null;
   @Column({ type:'timestamp', name:'available_until', nullable:true }) availableUntil: Date|null;
