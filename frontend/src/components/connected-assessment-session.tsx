@@ -75,22 +75,9 @@ function normalizeRanges(ranges: HighlightRange[], textLength: number) {
   return merged;
 }
 
-function HighlightableText({
-  text,
-  ranges,
-  enabled,
-  onHighlight,
-  className,
-}: {
-  text: string;
-  ranges: HighlightRange[];
-  enabled: boolean;
-  onHighlight: (start: number, end: number) => void;
-  className?: string;
-}) {
+function HighlightableText({ text, ranges, enabled, onHighlight, className }: { text: string; ranges: HighlightRange[]; enabled: boolean; onHighlight: (start: number, end: number) => void; className?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const normalized = useMemo(() => normalizeRanges(ranges, text.length), [ranges, text.length]);
-
   function captureSelection() {
     if (!enabled || !ref.current) return;
     const selection = window.getSelection();
@@ -105,7 +92,6 @@ function HighlightableText({
     if (range.toString().trim() && end > start) onHighlight(start, end);
     selection.removeAllRanges();
   }
-
   const content: ReactNode[] = [];
   let cursor = 0;
   normalized.forEach((range, index) => {
@@ -114,21 +100,11 @@ function HighlightableText({
     cursor = range.end;
   });
   if (cursor < text.length) content.push(text.slice(cursor));
-
-  return (
-    <span
-      ref={ref}
-      className={`${className || ""} exam-highlightable ${enabled ? "is-highlight-mode" : ""}`.trim()}
-      onMouseUp={captureSelection}
-      title={enabled ? "Select text to highlight it" : undefined}
-    >
-      {content.length ? content : text}
-    </span>
-  );
+  return <span ref={ref} className={`${className || ""} exam-highlightable ${enabled ? "is-highlight-mode" : ""}`.trim()} onMouseUp={captureSelection} title={enabled ? "Select text to highlight it" : undefined}>{content.length ? content : text}</span>;
 }
 
 export function ConnectedAssessmentSession({ attemptId, testId, source = "assessments" }: { attemptId: string; testId: string; source?: string }) {
-  const { request, user } = useAuth();
+  const { request } = useAuth();
   const { notify, celebrate } = useUx();
   const router = useRouter();
   const [attempt, setAttempt] = useState<Attempt | null>(null);
@@ -168,45 +144,27 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
       setHighlights(savedHighlights && typeof savedHighlights === "object" ? savedHighlights : {});
       setStruck(savedStrikes && typeof savedStrikes === "object" ? savedStrikes : {});
     } catch {
-      setScratchpad("");
-      setHighlights({});
-      setStruck({});
-    } finally {
-      setLocalToolsLoaded(true);
-    }
+      setScratchpad(""); setHighlights({}); setStruck({});
+    } finally { setLocalToolsLoaded(true); }
   }, [attemptId]);
 
   useEffect(() => {
     if (!attemptId || !testId) return;
     let active = true;
-    void Promise.all([
-      request<WorkspaceState>(`/tests/attempts/${attemptId}/workspace-state`),
-      request<Assignment[]>(`/tests/${testId}/questions`),
-    ])
+    void Promise.all([request<WorkspaceState>(`/tests/attempts/${attemptId}/workspace-state`), request<Assignment[]>(`/tests/${testId}/questions`)])
       .then(([state, questions]) => {
         if (!active) return;
-        setAttempt(state.attempt);
-        setItems(questions);
+        setAttempt(state.attempt); setItems(questions);
         setAnswers(Object.fromEntries(state.answers.filter((item) => item.selectedOptionId).map((item) => [item.questionId, item.selectedOptionId!])));
-        setFlags(state.flagged_question_ids);
-        setNotes(Object.fromEntries(state.notes.map((item) => [item.question_id, item.note])));
+        setFlags(state.flagged_question_ids); setNotes(Object.fromEntries(state.notes.map((item) => [item.question_id, item.note])));
       })
-      .catch((cause) => {
-        if (active) setError(cause instanceof Error ? cause.message : "Unable to load this attempt.");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
+      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "Unable to load this attempt."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [attemptId, testId, request]);
 
   useEffect(() => {
-    if (!attempt?.deadline) {
-      setNow(Date.now());
-      return;
-    }
+    if (!attempt?.deadline) { setNow(Date.now()); return; }
     setNow(Date.now());
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
@@ -218,17 +176,10 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
       sessionStorage.setItem(`mdp:scratchpad:${attemptId}`, scratchpad);
       sessionStorage.setItem(`mdp:highlights:${attemptId}`, JSON.stringify(highlights));
       sessionStorage.setItem(`mdp:strikes:${attemptId}`, JSON.stringify(struck));
-    } catch {
-      // Local assessment tools are best-effort and never block answering.
-    }
+    } catch { /* best effort */ }
   }, [attemptId, highlights, localToolsLoaded, scratchpad, struck]);
 
-  useEffect(() => {
-    setMoreOpen(false);
-    setHighlightMode(false);
-    setStrikeMode(false);
-    setSavedNoteId(null);
-  }, [index]);
+  useEffect(() => { setMoreOpen(false); setHighlightMode(false); setStrikeMode(false); setSavedNoteId(null); }, [index]);
 
   const current = items[index];
   const questionVisual = current ? getQuestionVisual(current.question.questionText) : null;
@@ -248,100 +199,43 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   const elapsedSeconds = attempt?.startedAt && now !== null ? Math.max(0, Math.floor((now - new Date(attempt.startedAt).getTime()) / 1000)) : 0;
   const pace = totalAnswered ? formatPace(elapsedSeconds / totalAnswered) : "—";
 
-  function questionHighlights(questionId: string): QuestionHighlights {
-    return highlights[questionId] || { stem: [], options: {} };
-  }
-
+  function questionHighlights(questionId: string): QuestionHighlights { return highlights[questionId] || { stem: [], options: {} }; }
   function addHighlight(questionId: string, target: "stem" | string, start: number, end: number) {
     setHighlights((value) => {
       const existing = value[questionId] || { stem: [], options: {} };
-      if (target === "stem") {
-        return { ...value, [questionId]: { ...existing, stem: normalizeRanges([...existing.stem, { start, end }], current?.question.questionText.length || end) } };
-      }
+      if (target === "stem") return { ...value, [questionId]: { ...existing, stem: normalizeRanges([...existing.stem, { start, end }], current?.question.questionText.length || end) } };
       const optionText = current?.question.options.find((option) => option.id === target)?.optionText || "";
-      return {
-        ...value,
-        [questionId]: {
-          ...existing,
-          options: {
-            ...existing.options,
-            [target]: normalizeRanges([...(existing.options[target] || []), { start, end }], optionText.length || end),
-          },
-        },
-      };
+      return { ...value, [questionId]: { ...existing, options: { ...existing.options, [target]: normalizeRanges([...(existing.options[target] || []), { start, end }], optionText.length || end) } } };
     });
   }
-
-  function clearQuestionHighlights(questionId: string) {
-    setHighlights((value) => {
-      const next = { ...value };
-      delete next[questionId];
-      return next;
-    });
-  }
+  function clearQuestionHighlights(questionId: string) { setHighlights((value) => { const next = { ...value }; delete next[questionId]; return next; }); }
 
   async function choose(optionId: string) {
     if (!current || expired || Boolean(tutor && feedback[current.question.id])) return;
     const questionId = current.question.id;
     if (answerRequests.current.has(questionId)) return;
     const previous = answers[questionId];
-
     answerRequests.current.add(questionId);
-    setAnswers((value) => ({ ...value, [questionId]: optionId }));
-    setSavingQuestionId(questionId);
-    setError(null);
+    setAnswers((value) => ({ ...value, [questionId]: optionId })); setSavingQuestionId(questionId); setError(null);
     try {
-      const result = await request<Answer & TutorFeedback>(`/tests/attempts/${attemptId}/answers/${questionId}`, {
-        method: "PUT",
-        body: { selected_option_id: optionId },
-      });
+      const result = await request<Answer & TutorFeedback>(`/tests/attempts/${attemptId}/answers/${questionId}`, { method: "PUT", body: { selected_option_id: optionId } });
       setAnswers((value) => ({ ...value, [questionId]: result.selectedOptionId || optionId }));
-      if (tutor) {
-        setFeedback((value) => ({
-          ...value,
-          [questionId]: { isCorrect: result.isCorrect ?? null, explanation: result.explanation },
-        }));
-      }
-      celebrate({
-        id: `assessment-first-answer-${user?.id || "student"}`,
-        title: "First answer recorded",
-        description: "An assessment answer was saved to your learning history.",
-        points: 20,
-      });
+      if (tutor) setFeedback((value) => ({ ...value, [questionId]: { isCorrect: result.isCorrect ?? null, explanation: result.explanation } }));
+      celebrate({ id: "assessment-first-answer", title: "First answer recorded", description: "An assessment answer was saved to your learning history.", points: 20 });
     } catch (cause) {
-      // A connection can fail after the server commits. Reconcile once with canonical
-      // workspace state before rolling the optimistic selection back.
       let committed = false;
       try {
         const state = await request<WorkspaceState>(`/tests/attempts/${attemptId}/workspace-state`);
         const saved = state.answers.find((item) => item.questionId === questionId)?.selectedOptionId;
-        if (saved) {
-          setAnswers((value) => ({ ...value, [questionId]: saved }));
-          committed = true;
-        }
-      } catch {
-        // Preserve the original save error below.
-      }
+        if (saved) { setAnswers((value) => ({ ...value, [questionId]: saved })); committed = true; }
+      } catch { /* preserve original failure */ }
       if (!committed) {
-        setAnswers((value) => {
-          const next = { ...value };
-          if (previous) next[questionId] = previous;
-          else delete next[questionId];
-          return next;
-        });
+        setAnswers((value) => { const next = { ...value }; if (previous) next[questionId] = previous; else delete next[questionId]; return next; });
         const message = cause instanceof Error ? cause.message : "Unable to save this answer.";
         setError(message);
-        notify({
-          title: "Answer was not saved",
-          description: cause instanceof ApiError ? `${message} (${cause.status})` : message,
-          tone: "error",
-          duration: 7000,
-        });
+        notify({ title: "Answer was not saved", description: cause instanceof ApiError ? `${message} (${cause.status})` : message, tone: "error", duration: 7000 });
       }
-    } finally {
-      answerRequests.current.delete(questionId);
-      setSavingQuestionId(null);
-    }
+    } finally { answerRequests.current.delete(questionId); setSavingQuestionId(null); }
   }
 
   async function toggleFlag() {
@@ -350,18 +244,13 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
     try {
       await request(`/tests/attempts/${attemptId}/flags/${current.question.id}`, { method: active ? "DELETE" : "POST" });
       setFlags((value) => (active ? value.filter((id) => id !== current.question.id) : [...value, current.question.id]));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to update the flag.");
-    }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to update the flag."); }
   }
 
   async function saveNote() {
     if (!current || expired || savingNoteId === current.question.id) return;
-    const questionId = current.question.id;
-    const value = notes[questionId]?.trim() || "";
-    setSavingNoteId(questionId);
-    setSavedNoteId(null);
-    setError(null);
+    const questionId = current.question.id; const value = notes[questionId]?.trim() || "";
+    setSavingNoteId(questionId); setSavedNoteId(null); setError(null);
     try {
       if (value) {
         await request(`/tests/attempts/${attemptId}/notes/${questionId}`, { method: "PUT", body: { note: value } });
@@ -373,341 +262,68 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
       }
       setSavedNoteId(questionId);
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : "Unable to save the note.";
-      setError(message);
-      notify({ title: "Question note was not saved", description: message, tone: "error" });
-    } finally {
-      setSavingNoteId(null);
-    }
+      const message = cause instanceof Error ? cause.message : "Unable to save the note."; setError(message); notify({ title: "Question note was not saved", description: message, tone: "error" });
+    } finally { setSavingNoteId(null); }
   }
 
   function toggleStrike(optionId: string) {
     if (!current || expired) return;
     const questionId = current.question.id;
-    setStruck((value) => {
-      const currentIds = value[questionId] || [];
-      return {
-        ...value,
-        [questionId]: currentIds.includes(optionId) ? currentIds.filter((id) => id !== optionId) : [...currentIds, optionId],
-      };
-    });
+    setStruck((value) => { const currentIds = value[questionId] || []; return { ...value, [questionId]: currentIds.includes(optionId) ? currentIds.filter((id) => id !== optionId) : [...currentIds, optionId] }; });
   }
+  function clearQuestionStrikes(questionId: string) { setStruck((value) => { const next = { ...value }; delete next[questionId]; return next; }); }
 
-  function clearQuestionStrikes(questionId: string) {
-    setStruck((value) => {
-      const next = { ...value };
-      delete next[questionId];
-      return next;
-    });
-  }
-
-  const finalize = useCallback(
-    async (auto = false) => {
-      if (!auto && !window.confirm(`Submit this assessment with ${totalAnswered} of ${items.length} questions answered?`)) return;
-      setSubmitting(true);
-      setError(null);
-      try {
-        await request(`/tests/attempts/${attemptId}/submit`, { method: "POST" });
-        setReview(await request<Review>(`/tests/attempts/${attemptId}/review`));
-        celebrate({
-          id: `assessment-complete-${user?.id || "student"}-${attemptId}`,
-          title: "Practice completed",
-          description: "A complete assessment attempt was submitted and preserved.",
-          points: Math.min(100, Math.max(25, items.length)),
-        });
-      } catch (cause) {
-        if (auto) {
-          try {
-            setReview(await request<Review>(`/tests/attempts/${attemptId}/review`));
-            return;
-          } catch {
-            // The server may still be finalizing. Keep the attempt locked for retry.
-          }
-        }
-        setError(cause instanceof Error ? cause.message : "Unable to submit the assessment.");
-      } finally {
-        setSubmitting(false);
+  const finalize = useCallback(async (auto = false) => {
+    if (!auto && !window.confirm(`Submit this assessment with ${totalAnswered} of ${items.length} questions answered?`)) return;
+    setSubmitting(true); setError(null);
+    try {
+      await request(`/tests/attempts/${attemptId}/submit`, { method: "POST" });
+      setReview(await request<Review>(`/tests/attempts/${attemptId}/review`));
+      celebrate({ id: `assessment-complete-${attemptId}`, title: "Practice completed", description: "A complete assessment attempt was submitted and preserved.", points: Math.min(100, Math.max(25, items.length)) });
+    } catch (cause) {
+      if (auto) {
+        try { setReview(await request<Review>(`/tests/attempts/${attemptId}/review`)); return; } catch { /* server may still be finalizing */ }
       }
-    },
-    [attemptId, celebrate, items.length, request, totalAnswered, user?.id],
-  );
+      setError(cause instanceof Error ? cause.message : "Unable to submit the assessment.");
+    } finally { setSubmitting(false); }
+  }, [attemptId, celebrate, items.length, request, totalAnswered]);
 
   function endBlock() {
-    if (tutor || blockIndex === blockCount - 1) {
-      void finalize(Boolean(expired));
-      return;
-    }
+    if (tutor || blockIndex === blockCount - 1) { void finalize(Boolean(expired)); return; }
     const remaining = blockItems.length - blockAnswered;
     if (remaining > 0 && !window.confirm(`This block still has ${remaining} unanswered question${remaining === 1 ? "" : "s"}. Move to the next block?`)) return;
-    setIndex((blockIndex + 1) * BLOCK_SIZE);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setIndex((blockIndex + 1) * BLOCK_SIZE); window.scrollTo({ top: 0, behavior: "smooth" });
   }
-
-  useEffect(() => {
-    if (!expired || review || autoSubmitStarted.current) return;
-    autoSubmitStarted.current = true;
-    void finalize(true);
-  }, [expired, finalize, review]);
-
+  useEffect(() => { if (!expired || review || autoSubmitStarted.current) return; autoSubmitStarted.current = true; void finalize(true); }, [expired, finalize, review]);
   const exitPath = source === "rounds" ? "/rounds" : "/past-exams";
 
-  if (!attemptId || !testId) {
-    return <ProductShell><div className="product-auth-loading">Missing attempt information. Start an assessment from Questions or Past Exams.</div></ProductShell>;
-  }
+  if (!attemptId || !testId) return <ProductShell><div className="product-auth-loading">Missing attempt information. Start an assessment from Questions or Past Exams.</div></ProductShell>;
 
-  return (
-    <ProductShell search="Search cases, topics, or concepts">
-      <main className={`pp-page exam-session-page ${tutor ? "is-tutor" : "is-timed"}`}>
-        {error && <p className="form-error exam-session-error" role="alert">{error}</p>}
-        {expired && !review && <p className="form-success exam-session-error" role="status">Time expired. Answers are locked while the server finalizes this assessment.</p>}
-
-        {loading ? (
-          <div className="product-auth-loading">Loading assessment…</div>
-        ) : review ? (
-          <Panel title="Assessment submitted" className="exam-review-panel">
-            <h2>{review.attempt.test?.title || "Assessment complete"}</h2>
-            <p>Your submitted answers are saved. Detailed explanations are shown below.</p>
-            {review.questions.map((item, i) => {
-              const selectedOption = item.question.options.find((option) => option.id === item.answer?.selectedOptionId);
-              const correctOption = item.question.options.find((option) => option.isCorrect);
-              const resultLabel = item.answer?.isCorrect === true ? "Correct" : item.answer?.isCorrect === false ? "Incorrect" : "Not answered / pending grading";
-              return (
-                <article className={`review-answer ${item.answer?.isCorrect === true ? "correct" : item.answer?.isCorrect === false ? "incorrect" : ""}`} key={item.question.id}>
-                  <b>{i + 1}. {item.question.questionText}</b>
-                  <strong>{resultLabel}</strong>
-                  {selectedOption && <p><span>Your answer:</span> {selectedOption.optionText}</p>}
-                  {correctOption && item.answer?.isCorrect !== true && <p><span>Correct answer:</span> {correctOption.optionText}</p>}
-                  <div className="review-explanation"><b>Explanation</b><p>{item.question.explanation || "No explanation has been published for this question."}</p></div>
-                </article>
-              );
-            })}
-            <button className="pp-button" type="button" onClick={() => router.push(exitPath)}>Back</button>
-          </Panel>
-        ) : current ? (
-          <>
-            <section className="exam-command-strip" aria-label="Exam status">
-              <button className="exam-exit" type="button" onClick={() => router.push(exitPath)}><FiArrowLeft /> Exit {tutor ? "practice" : "exam"}</button>
-              <div><small>Exam</small><b>{attempt?.test?.title || (tutor ? "40 Question Practice" : "Mock Exam")}</b></div>
-              <div><small>Mode</small><b>{tutor ? "Tutor" : "Timed"}</b></div>
-              <div><small>Scope</small><b>{source === "rounds" ? "Selected lectures" : attempt?.test?.testType || "Configured exam"}</b></div>
-              <div><small>Block</small><b>Block {blockIndex + 1} of {blockCount}</b></div>
-              <div className="exam-time-cell"><small>Time remaining</small><b><FiClock /> {hideTime ? "••:••:••" : clock}</b></div>
-              <div><small>Progress</small><b>Question {questionInBlock} of {blockItems.length}</b><Progress value={progress} /></div>
-            </section>
-
-            <div className="exam-workspace-grid">
-              <aside className="exam-navigator-card">
-                <header><FiFileText /><b>Question Navigator</b></header>
-                <div className="exam-mini-legend"><span className="answered">Answered</span><span className="unanswered">Unanswered</span><span className="current">Current</span><span className="flagged">Flagged</span></div>
-                <div className="exam-number-grid">
-                  {blockItems.map((item, i) => {
-                    const globalIndex = blockStart + i;
-                    const isCurrent = globalIndex === index;
-                    const isAnswered = Boolean(answers[item.question.id]);
-                    const isFlagged = flags.includes(item.question.id);
-                    return (
-                      <button
-                        type="button"
-                        className={`${isAnswered ? "answered" : "unanswered"} ${isCurrent ? "current" : ""} ${isFlagged ? "flagged" : ""}`}
-                        onClick={() => setIndex(globalIndex)}
-                        key={item.question.id}
-                        aria-label={`Question ${i + 1}${isAnswered ? ", answered" : ", unanswered"}${isFlagged ? ", flagged" : ""}`}
-                      >
-                        {i + 1}{isFlagged && <FiFlag />}
-                      </button>
-                    );
-                  })}
-                </div>
-                <footer>
-                  <b>Block progress</b>
-                  <Progress value={progress} />
-                  <span><small>{blockAnswered}/{blockItems.length} answered</small><strong>{progress}%</strong></span>
-                </footer>
-              </aside>
-
-              <section className="exam-main-column">
-                <article className="exam-question-card">
-                  <div className="exam-question-toolbar">
-                    <div><span>{tutor ? "Tutor" : "Timed"}</span><span>MCQ</span></div>
-                    <div>
-                      <button type="button" className={flags.includes(current.question.id) ? "active" : ""} disabled={expired} onClick={() => void toggleFlag()}><FiFlag /> Flag</button>
-                      <button
-                        type="button"
-                        className={highlightMode ? "active" : ""}
-                        aria-pressed={highlightMode}
-                        disabled={expired}
-                        onClick={() => {
-                          setHighlightMode((value) => !value);
-                          setStrikeMode(false);
-                        }}
-                      ><FiEdit3 /> Highlighter</button>
-                      <button
-                        type="button"
-                        className={strikeMode ? "active" : ""}
-                        aria-pressed={strikeMode}
-                        disabled={expired}
-                        onClick={() => {
-                          setStrikeMode((value) => !value);
-                          setHighlightMode(false);
-                        }}
-                      >S̶ Strike out</button>
-                      <button type="button" onClick={() => setLabOpen(true)}>⚗ Lab values</button>
-                      <button type="button" onClick={() => setLowerTab("note")}>▣ Notes</button>
-                      <div className="exam-more-actions">
-                        <button type="button" aria-label="More question actions" aria-expanded={moreOpen} onClick={() => setMoreOpen((value) => !value)}><FiMoreVertical /></button>
-                        {moreOpen && (
-                          <div className="exam-more-menu" role="menu">
-                            <button type="button" role="menuitem" disabled={!questionHighlights(current.question.id).stem.length && !Object.values(questionHighlights(current.question.id).options).some((ranges) => ranges.length)} onClick={() => { clearQuestionHighlights(current.question.id); setMoreOpen(false); }}>Clear highlights</button>
-                            <button type="button" role="menuitem" disabled={!(struck[current.question.id] || []).length} onClick={() => { clearQuestionStrikes(current.question.id); setMoreOpen(false); }}>Clear strike-outs</button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {highlightMode && <p className="exam-tool-hint" role="status"><FiEdit3 /> Highlighter active — select any words in the question or answer choices. Highlights stay in this assessment session.</p>}
-                  {strikeMode && <p className="exam-tool-hint" role="status">S̶ Strike-out active — click an answer choice to cross it out without answering.</p>}
-
-                  {questionVisual && (
-                    <>
-                      <button type="button" className={`question-visual question-visual--${questionVisual.specialty}`} onClick={() => setVisualOpen(true)} aria-label={`Open larger ${questionVisual.specialty} illustration`}>
-                        <img src={questionVisual.src} alt={questionVisual.alt} />
-                        <span>{questionVisual.specialty} · open image</span>
-                      </button>
-                      {visualOpen && (
-                        <div className="question-visual-modal" role="dialog" aria-modal="true" aria-label={questionVisual.alt} onClick={() => setVisualOpen(false)}>
-                          <button type="button" aria-label="Close image" onClick={() => setVisualOpen(false)}>×</button>
-                          <img src={questionVisual.src} alt={questionVisual.alt} />
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  <h1>
-                    <HighlightableText
-                      className="exam-question-stem-text"
-                      text={current.question.questionText}
-                      ranges={questionHighlights(current.question.id).stem}
-                      enabled={highlightMode}
-                      onHighlight={(start, end) => addHighlight(current.question.id, "stem", start, end)}
-                    />
-                  </h1>
-                  <div className="exam-answer-list" role="radiogroup" aria-label={`Answers for question ${index + 1}`}>
-                    {current.question.options.map((option, i) => {
-                      const selected = answers[current.question.id] === option.id;
-                      const crossed = (struck[current.question.id] || []).includes(option.id);
-                      const tutorResult = feedback[current.question.id];
-                      const judgedClass = tutorResult && selected ? (tutorResult.isCorrect ? "answer-correct" : "answer-incorrect") : "";
-                      return (
-                        <div className={`exam-answer-row ${selected ? "selected" : ""} ${crossed ? "struck" : ""} ${judgedClass}`} key={option.id}>
-                          <button
-                            type="button"
-                            role="radio"
-                            aria-checked={selected}
-                            disabled={expired || savingQuestionId === current.question.id || Boolean(tutor && feedback[current.question.id])}
-                            onClick={() => {
-                              if (highlightMode) return;
-                              if (strikeMode) {
-                                toggleStrike(option.id);
-                                return;
-                              }
-                              void choose(option.id);
-                            }}
-                          >
-                            <b>{String.fromCharCode(65 + i)}</b>
-                            <span>
-                              <HighlightableText
-                                className="exam-option-highlight-text"
-                                text={option.optionText}
-                                ranges={questionHighlights(current.question.id).options[option.id] || []}
-                                enabled={highlightMode}
-                                onHighlight={(start, end) => addHighlight(current.question.id, option.id, start, end)}
-                              />
-                            </span>
-                            {savingQuestionId === current.question.id && selected ? <small>Saving…</small> : selected ? <FiCheck /> : null}
-                          </button>
-                          <button
-                            type="button"
-                            className="exam-strike-toggle"
-                            aria-label={`${crossed ? "Restore" : "Strike out"} option ${String.fromCharCode(65 + i)}`}
-                            aria-pressed={crossed}
-                            disabled={expired}
-                            onClick={() => toggleStrike(option.id)}
-                          >
-                            S̶
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {tutor && feedback[current.question.id] && (
-                    <div className={`tutor-explanation ${feedback[current.question.id].isCorrect ? "correct" : "incorrect"}`} role="status">
-                      <b>{feedback[current.question.id].isCorrect ? "Correct" : "Incorrect"}</b>
-                      <p>{feedback[current.question.id].explanation || "No explanation has been published for this question."}</p>
-                    </div>
-                  )}
-                </article>
-
-                <div className="exam-lower-grid">
-                  <section className="exam-scratchpad-card">
-                    <nav>
-                      <button type="button" className={lowerTab === "scratchpad" ? "active" : ""} onClick={() => setLowerTab("scratchpad")}>Scratchpad</button>
-                      <button type="button" className={lowerTab === "patient" ? "active" : ""} onClick={() => setLowerTab("patient")}>Patient summary</button>
-                      <button type="button" className={lowerTab === "note" ? "active" : ""} onClick={() => setLowerTab("note")}>Question note</button>
-                    </nav>
-                    {lowerTab === "scratchpad" ? (
-                      <div><small>Local scratchpad — kept only in this browser session for this attempt.</small><textarea value={scratchpad} onChange={(event) => setScratchpad(event.target.value)} placeholder="Use this space for notes or quick calculations…" /><button type="button" onClick={() => setScratchpad("")}>Clear</button></div>
-                    ) : lowerTab === "patient" ? (
-                      <div className="exam-empty-context"><p>No structured patient summary is attached to this question.</p></div>
-                    ) : (
-                      <div><small>Private question note — saved to your account and tied to this assessment attempt + question.</small><textarea disabled={expired} value={notes[current.question.id] || ""} onChange={(event) => { setSavedNoteId(null); setNotes((value) => ({ ...value, [current.question.id]: event.target.value })); }} placeholder="Save a private note for this question…" /><button type="button" disabled={expired || savingNoteId === current.question.id} onClick={() => void saveNote()}><FiSave /> {savingNoteId === current.question.id ? "Saving…" : savedNoteId === current.question.id ? "Saved" : "Save note"}</button></div>
-                    )}
-                  </section>
-
-                  <section className="exam-lab-preview" id="exam-lab-preview">
-                    <header><span>⚗</span><b>Lab values (preview)</b><button type="button" onClick={() => setLabOpen(true)}>View all</button></header>
-                    <div className="exam-empty-context"><p>No structured lab values are attached to this question.</p></div>
-                  </section>
-                </div>
-              </section>
-
-              <aside className="exam-overview-card">
-                <header><b>Exam Overview</b></header>
-                <section className="overview-time"><small>Time remaining</small><strong>{hideTime ? "••:••:••" : clock}</strong><button type="button" onClick={() => setHideTime((value) => !value)}><FiEyeOff /> {hideTime ? "Show" : "Hide"}</button></section>
-                <dl>
-                  <div className="answered"><dt>Answered</dt><dd>{blockAnswered} / {blockItems.length} <small>{progress}%</small></dd></div>
-                  <div className="flagged"><dt>Flagged</dt><dd>{blockItems.filter((item) => flags.includes(item.question.id)).length}</dd></div>
-                  <div className="unanswered"><dt>Unanswered</dt><dd>{unanswered}</dd></div>
-                </dl>
-                <section className="overview-pace"><span><small>Your pace</small><b>{pace}</b></span><Progress value={Math.min(100, Math.max(0, progress))} /></section>
-                <section className="overview-legend"><b>Question status legend</b><span className="answered">Answered</span><span className="unanswered">Unanswered</span><span className="current">Current question</span><span className="flagged">Flagged</span></section>
-                <section className="overview-lock"><FiFileText /><p>{tutor ? "Tutor explanations appear after the server confirms each saved answer." : "Explanations are hidden during the exam. You will see detailed explanations after submission."}</p></section>
-              </aside>
-            </div>
-
-            <footer className="exam-session-footer">
-              <button type="button" disabled={index === 0} onClick={() => setIndex((value) => value - 1)}><FiArrowLeft /> Previous</button>
-              <b>Question {questionInBlock} of {blockItems.length}</b>
-              <div>
-                <button type="button" className="end" disabled={submitting} onClick={endBlock}>{expired ? (submitting ? "Submitting…" : "Retry submission") : tutor ? "End practice" : blockIndex === blockCount - 1 ? "Submit exam" : "End block"}</button>
-                <button type="button" className="next" disabled={questionInBlock === blockItems.length} onClick={() => setIndex((value) => value + 1)}>Next question <FiArrowRight /></button>
-              </div>
-            </footer>
-          </>
-        ) : (
-          <Panel title="No questions"><p>This assessment contains no accessible questions.</p></Panel>
-        )}
-
-        {labOpen && (
-          <div className="exam-tool-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setLabOpen(false); }}>
-            <section className="exam-tool-modal" role="dialog" aria-modal="true" aria-labelledby="exam-lab-title">
-              <header><div><small>QUESTION REFERENCE</small><h2 id="exam-lab-title">Lab values</h2></div><button type="button" aria-label="Close lab values" onClick={() => setLabOpen(false)}><FiX /></button></header>
-              <div className="exam-tool-modal-empty"><span>⚗</span><b>No structured lab values attached</b><p>This question does not currently include a structured lab panel. The control remains functional and will render question-specific values when they are provided by the assessment data.</p></div>
-            </section>
-          </div>
-        )}
-      </main>
-    </ProductShell>
-  );
+  return <ProductShell search="Search cases, topics, or concepts"><main className={`pp-page exam-session-page ${tutor ? "is-tutor" : "is-timed"}`}>
+    {error && <p className="form-error exam-session-error" role="alert">{error}</p>}
+    {expired && !review && <p className="form-success exam-session-error" role="status">Time expired. Answers are locked while the server finalizes this assessment.</p>}
+    {loading ? <div className="product-auth-loading">Loading assessment…</div> : review ? <Panel title="Assessment submitted" className="exam-review-panel">
+      <h2>{review.attempt.test?.title || "Assessment complete"}</h2><p>Your submitted answers are saved. Detailed explanations are shown below.</p>
+      {review.questions.map((item, i) => { const selectedOption = item.question.options.find((option) => option.id === item.answer?.selectedOptionId); const correctOption = item.question.options.find((option) => option.isCorrect); const resultLabel = item.answer?.isCorrect === true ? "Correct" : item.answer?.isCorrect === false ? "Incorrect" : "Not answered / pending grading"; return <article className={`review-answer ${item.answer?.isCorrect === true ? "correct" : item.answer?.isCorrect === false ? "incorrect" : ""}`} key={item.question.id}><b>{i + 1}. {item.question.questionText}</b><strong>{resultLabel}</strong>{selectedOption && <p><span>Your answer:</span> {selectedOption.optionText}</p>}{correctOption && item.answer?.isCorrect !== true && <p><span>Correct answer:</span> {correctOption.optionText}</p>}<div className="review-explanation"><b>Explanation</b><p>{item.question.explanation || "No explanation has been published for this question."}</p></div></article>; })}
+      <button className="pp-button" type="button" onClick={() => router.push(exitPath)}>Back</button>
+    </Panel> : current ? <>
+      <section className="exam-command-strip" aria-label="Exam status"><button className="exam-exit" type="button" onClick={() => router.push(exitPath)}><FiArrowLeft /> Exit {tutor ? "practice" : "exam"}</button><div><small>Exam</small><b>{attempt?.test?.title || (tutor ? "40 Question Practice" : "Mock Exam")}</b></div><div><small>Mode</small><b>{tutor ? "Tutor" : "Timed"}</b></div><div><small>Scope</small><b>{source === "rounds" ? "Selected lectures" : attempt?.test?.testType || "Configured exam"}</b></div><div><small>Block</small><b>Block {blockIndex + 1} of {blockCount}</b></div><div className="exam-time-cell"><small>Time remaining</small><b><FiClock /> {hideTime ? "••:••:••" : clock}</b></div><div><small>Progress</small><b>Question {questionInBlock} of {blockItems.length}</b><Progress value={progress} /></div></section>
+      <div className="exam-workspace-grid">
+        <aside className="exam-navigator-card"><header><FiFileText /><b>Question Navigator</b></header><div className="exam-mini-legend"><span className="answered">Answered</span><span className="unanswered">Unanswered</span><span className="current">Current</span><span className="flagged">Flagged</span></div><div className="exam-number-grid">{blockItems.map((item, i) => { const globalIndex = blockStart + i; const isCurrent = globalIndex === index; const isAnswered = Boolean(answers[item.question.id]); const isFlagged = flags.includes(item.question.id); return <button type="button" className={`${isAnswered ? "answered" : "unanswered"} ${isCurrent ? "current" : ""} ${isFlagged ? "flagged" : ""}`} onClick={() => setIndex(globalIndex)} key={item.question.id} aria-label={`Question ${i + 1}${isAnswered ? ", answered" : ", unanswered"}${isFlagged ? ", flagged" : ""}`}>{i + 1}{isFlagged && <FiFlag />}</button>; })}</div><footer><b>Block progress</b><Progress value={progress} /><span><small>{blockAnswered}/{blockItems.length} answered</small><strong>{progress}%</strong></span></footer></aside>
+        <section className="exam-main-column"><article className="exam-question-card">
+          <div className="exam-question-toolbar"><div><span>{tutor ? "Tutor" : "Timed"}</span><span>MCQ</span></div><div><button type="button" className={flags.includes(current.question.id) ? "active" : ""} disabled={expired} onClick={() => void toggleFlag()}><FiFlag /> Flag</button><button type="button" className={highlightMode ? "active" : ""} aria-pressed={highlightMode} disabled={expired} onClick={() => { setHighlightMode((value) => !value); setStrikeMode(false); }}><FiEdit3 /> Highlighter</button><button type="button" className={strikeMode ? "active" : ""} aria-pressed={strikeMode} disabled={expired} onClick={() => { setStrikeMode((value) => !value); setHighlightMode(false); }}>S̶ Strike out</button><button type="button" onClick={() => setLabOpen(true)}>⚗ Lab values</button><button type="button" onClick={() => setLowerTab("note")}>▣ Notes</button><div className="exam-more-actions"><button type="button" aria-label="More question actions" aria-expanded={moreOpen} onClick={() => setMoreOpen((value) => !value)}><FiMoreVertical /></button>{moreOpen && <div className="exam-more-menu" role="menu"><button type="button" role="menuitem" disabled={!questionHighlights(current.question.id).stem.length && !Object.values(questionHighlights(current.question.id).options).some((ranges) => ranges.length)} onClick={() => { clearQuestionHighlights(current.question.id); setMoreOpen(false); }}>Clear highlights</button><button type="button" role="menuitem" disabled={!(struck[current.question.id] || []).length} onClick={() => { clearQuestionStrikes(current.question.id); setMoreOpen(false); }}>Clear strike-outs</button></div>}</div></div></div>
+          {highlightMode && <p className="exam-tool-hint" role="status"><FiEdit3 /> Highlighter active — select any words in the question or answer choices. Highlights stay in this assessment session.</p>}{strikeMode && <p className="exam-tool-hint" role="status">S̶ Strike-out active — click an answer choice to cross it out without answering.</p>}
+          {questionVisual && <>{<button type="button" className={`question-visual question-visual--${questionVisual.specialty}`} onClick={() => setVisualOpen(true)} aria-label={`Open larger ${questionVisual.specialty} illustration`}><img src={questionVisual.src} alt={questionVisual.alt} /><span>{questionVisual.specialty} · open image</span></button>}{visualOpen && <div className="question-visual-modal" role="dialog" aria-modal="true" aria-label={questionVisual.alt} onClick={() => setVisualOpen(false)}><button type="button" aria-label="Close image" onClick={() => setVisualOpen(false)}>×</button><img src={questionVisual.src} alt={questionVisual.alt} /></div>}</>}
+          <h1><HighlightableText className="exam-question-stem-text" text={current.question.questionText} ranges={questionHighlights(current.question.id).stem} enabled={highlightMode} onHighlight={(start, end) => addHighlight(current.question.id, "stem", start, end)} /></h1>
+          <div className="exam-answer-list" role="radiogroup" aria-label={`Answers for question ${index + 1}`}>{current.question.options.map((option, i) => { const selected = answers[current.question.id] === option.id; const crossed = (struck[current.question.id] || []).includes(option.id); const tutorResult = feedback[current.question.id]; const judgedClass = tutorResult && selected ? (tutorResult.isCorrect ? "answer-correct" : "answer-incorrect") : ""; return <div className={`exam-answer-row ${selected ? "selected" : ""} ${crossed ? "struck" : ""} ${judgedClass}`} key={option.id}><button type="button" role="radio" aria-checked={selected} disabled={expired || savingQuestionId === current.question.id || Boolean(tutor && feedback[current.question.id])} onClick={() => { if (highlightMode) return; if (strikeMode) { toggleStrike(option.id); return; } void choose(option.id); }}><b>{String.fromCharCode(65 + i)}</b><span><HighlightableText className="exam-option-highlight-text" text={option.optionText} ranges={questionHighlights(current.question.id).options[option.id] || []} enabled={highlightMode} onHighlight={(start, end) => addHighlight(current.question.id, option.id, start, end)} /></span>{savingQuestionId === current.question.id && selected ? <small>Saving…</small> : selected ? <FiCheck /> : null}</button><button type="button" className="exam-strike-toggle" aria-label={`${crossed ? "Restore" : "Strike out"} option ${String.fromCharCode(65 + i)}`} aria-pressed={crossed} disabled={expired} onClick={() => toggleStrike(option.id)}>S̶</button></div>; })}</div>
+          {tutor && feedback[current.question.id] && <div className={`tutor-explanation ${feedback[current.question.id].isCorrect ? "correct" : "incorrect"}`} role="status"><b>{feedback[current.question.id].isCorrect ? "Correct" : "Incorrect"}</b><p>{feedback[current.question.id].explanation || "No explanation has been published for this question."}</p></div>}
+        </article>
+        <div className="exam-lower-grid"><section className="exam-scratchpad-card"><nav><button type="button" className={lowerTab === "scratchpad" ? "active" : ""} onClick={() => setLowerTab("scratchpad")}>Scratchpad</button><button type="button" className={lowerTab === "patient" ? "active" : ""} onClick={() => setLowerTab("patient")}>Patient summary</button><button type="button" className={lowerTab === "note" ? "active" : ""} onClick={() => setLowerTab("note")}>Question note</button></nav>{lowerTab === "scratchpad" ? <div><small>Local scratchpad — kept only in this browser session for this attempt.</small><textarea value={scratchpad} onChange={(event) => setScratchpad(event.target.value)} placeholder="Use this space for notes or quick calculations…" /><button type="button" onClick={() => setScratchpad("")}>Clear</button></div> : lowerTab === "patient" ? <div className="exam-empty-context"><p>No structured patient summary is attached to this question.</p></div> : <div><small>Private question note — saved to your account and tied to this assessment attempt + question.</small><textarea disabled={expired} value={notes[current.question.id] || ""} onChange={(event) => { setSavedNoteId(null); setNotes((value) => ({ ...value, [current.question.id]: event.target.value })); }} placeholder="Save a private note for this question…" /><button type="button" disabled={expired || savingNoteId === current.question.id} onClick={() => void saveNote()}><FiSave /> {savingNoteId === current.question.id ? "Saving…" : savedNoteId === current.question.id ? "Saved" : "Save note"}</button></div>}</section><section className="exam-lab-preview" id="exam-lab-preview"><header><span>⚗</span><b>Lab values (preview)</b><button type="button" onClick={() => setLabOpen(true)}>View all</button></header><div className="exam-empty-context"><p>No structured lab values are attached to this question.</p></div></section></div>
+        </section>
+        <aside className="exam-overview-card"><header><b>Exam Overview</b></header><section className="overview-time"><small>Time remaining</small><strong>{hideTime ? "••:••:••" : clock}</strong><button type="button" onClick={() => setHideTime((value) => !value)}><FiEyeOff /> {hideTime ? "Show" : "Hide"}</button></section><dl><div className="answered"><dt>Answered</dt><dd>{blockAnswered} / {blockItems.length} <small>{progress}%</small></dd></div><div className="flagged"><dt>Flagged</dt><dd>{blockItems.filter((item) => flags.includes(item.question.id)).length}</dd></div><div className="unanswered"><dt>Unanswered</dt><dd>{unanswered}</dd></div></dl><section className="overview-pace"><span><small>Your pace</small><b>{pace}</b></span><Progress value={Math.min(100, Math.max(0, progress))} /></section><section className="overview-legend"><b>Question status legend</b><span className="answered">Answered</span><span className="unanswered">Unanswered</span><span className="current">Current question</span><span className="flagged">Flagged</span></section><section className="overview-lock"><FiFileText /><p>{tutor ? "Tutor explanations appear after the server confirms each saved answer." : "Explanations are hidden during the exam. You will see detailed explanations after submission."}</p></section></aside>
+      </div>
+      <footer className="exam-session-footer"><button type="button" disabled={index === 0} onClick={() => setIndex((value) => value - 1)}><FiArrowLeft /> Previous</button><b>Question {questionInBlock} of {blockItems.length}</b><div><button type="button" className="end" disabled={submitting} onClick={endBlock}>{expired ? (submitting ? "Submitting…" : "Retry submission") : tutor ? "End practice" : blockIndex === blockCount - 1 ? "Submit exam" : "End block"}</button><button type="button" className="next" disabled={questionInBlock === blockItems.length} onClick={() => setIndex((value) => value + 1)}>Next question <FiArrowRight /></button></div></footer>
+    </> : <Panel title="No questions"><p>This assessment contains no accessible questions.</p></Panel>}
+    {labOpen && <div className="exam-tool-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setLabOpen(false); }}><section className="exam-tool-modal" role="dialog" aria-modal="true" aria-labelledby="exam-lab-title"><header><div><small>QUESTION REFERENCE</small><h2 id="exam-lab-title">Lab values</h2></div><button type="button" aria-label="Close lab values" onClick={() => setLabOpen(false)}><FiX /></button></header><div className="exam-tool-modal-empty"><span>⚗</span><b>No structured lab values attached</b><p>This question does not currently include a structured lab panel. The control remains functional and will render question-specific values when they are provided by the assessment data.</p></div></section></div>}
+  </main></ProductShell>;
 }
