@@ -46,10 +46,14 @@ export function ResourceUploadPage(){
 
   const loadCourses=useCallback(async()=>{
     if(!allowed)return;setLoading(true);setError(null);
-    try{const rows=await request<PageResponse<Course>>("/academic/courses?limit=100");setCourses(rows.data);if(!courseId&&rows.data[0])setCourseId(rows.data[0].id);}
+    try{
+      const rows=await request<PageResponse<Course>>("/academic/courses?limit=100");
+      setCourses(rows.data);
+      setCourseId(current=>current||rows.data[0]?.id||"");
+    }
     catch(cause){setError(cause instanceof Error?cause.message:"Unable to load courses.");}
     finally{setLoading(false);}
-  },[allowed,courseId,request]);
+  },[allowed,request]);
   useEffect(()=>{void loadCourses();},[loadCourses]);
 
   useEffect(()=>{if(!courseId)return;let active=true;setDetailLoading(true);setError(null);void request<Course>(`/academic/courses/${courseId}`).then(value=>{if(!active)return;setCourse(value);const first=value.weeks?.flatMap(week=>week.lectures)[0];setLectureId(current=>value.weeks?.some(week=>week.lectures.some(lecture=>lecture.id===current))?current:first?.id||"");}).catch(cause=>{if(active)setError(cause instanceof Error?cause.message:"Unable to load course hierarchy.");}).finally(()=>{if(active)setDetailLoading(false);});return()=>{active=false};},[courseId,request]);
@@ -63,7 +67,8 @@ export function ResourceUploadPage(){
     const resourceType=typeFor(next);
     if(!resourceType){setFile(null);setError("Allowed files: PDF, PNG, JPEG, WebP, MP4, and WebM.");return;}
     if(next.size<=0||next.size>maxBytes){setFile(null);setError("The file must be non-empty and no larger than 50 MB.");return;}
-    setFile(next);if(!name.trim())setName(next.name.replace(/\.[^.]+$/,"").slice(0,200));
+    const derivedName=next.name.replace(/\.[^.]+$/,"").slice(0,200);
+    setFile(next);setName(current=>current.trim()?current:derivedName);
   }
   function drop(event:DragEvent<HTMLDivElement>){event.preventDefault();setDragging(false);chooseFile(event.dataTransfer.files[0]||null);}
   function browse(event:ChangeEvent<HTMLInputElement>){chooseFile(event.target.files?.[0]||null);}

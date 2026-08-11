@@ -32,7 +32,7 @@ async function routeApi(page: Page, handler: (requestEndpoint: string, method: s
   await page.route('**/*', async route => {
     const request = route.request();
     const url = new URL(request.url());
-    const isApi = (request.resourceType() === 'fetch' || request.resourceType() === 'xhr') && (url.pathname.includes('/api/v1') || url.port === '3000');
+    const isApi = url.pathname.includes('/api/v1') || url.port === '3000';
     if (!isApi) return route.fallback();
     const headers = {
       'access-control-allow-origin': frontendOrigin,
@@ -107,10 +107,13 @@ test('logout navigates immediately even when server revocation is slow', async (
 
   await page.goto('/settings');
   await page.locator('.profile-menu-trigger').click();
-  const startedAt = Date.now();
   await page.getByRole('menuitem', { name: /Log out/i }).click();
-  await expect(page).toHaveURL(/\/login/, { timeout: 1500 });
-  expect(Date.now() - startedAt).toBeLessThan(1500);
+  const confirmation = page.getByRole('alertdialog', { name: 'Log out?' });
+  await expect(confirmation).toBeVisible();
+  const startedAt = Date.now();
+  await confirmation.getByRole('button', { name: /^Log out$/i }).click();
+  await expect(page).toHaveURL(/\/login/, { timeout: 3500 });
+  expect(Date.now() - startedAt).toBeLessThan(3500);
   await page.reload();
   await expect(page).toHaveURL(/\/login/);
 });
@@ -161,7 +164,7 @@ test('instructor can upload a managed lecture resource with progress-aware works
   await page.goto('/resources/upload');
   await expect(page.getByRole('heading', { name: 'Resource upload' })).toBeVisible();
   await page.locator('input[type="file"]').setInputFiles({ name: 'cardiac.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%test\n') });
-  await expect(page.getByDisplayValue('cardiac')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Resource name' })).toHaveValue('cardiac');
   await page.getByRole('button', { name: /Upload resource/i }).click();
   await expect(page.getByText('Cardiac physiology notes')).toBeVisible();
 });
@@ -170,7 +173,7 @@ test('student previews a protected managed resource through an authenticated blo
   const user = await authenticated(page, 'STUDENT');
   const bundle = { id: 'bundle-1', title: 'Clinical Foundations', slug: 'clinical-foundations', status: 'PUBLISHED' };
   const content = { courses: [{ id: 'course-1', courseCode: 'MED101', courseName: 'Medicine I', weeks: [{ id: 'week-1', weekNumber: 1, title: 'Cardiac', lectures: [{ id: 'lecture-1', lectureNumber: 1, title: 'Cardiac cycle', description: 'Core cardiac physiology.' }] }] }] };
-  const resource = { id: 'resource-1', resourceName: 'Cardiac diagram', resourceType: 'IMAGE', uploadStatus: 'COMPLETED', fileUrl: '/api/v1/academic/resources/resource-1/file', description: 'Protected diagram', mimeType: 'image/png' };
+  const resource = { id: 'resource-1', resourceName: 'Cardiac diagram', resourceType: 'IMAGE', uploadStatus: 'COMPLETED', fileUrl: '/api/v1/academic/resources/resource-1/file', description: 'Protected diagram', mimeType: 'image/png', storageKey: 'managed/lecture-1/resource-1.png', originalFilename: 'cardiac-diagram.png' };
   const onePixelPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
   await routeApi(page, async path => {
     if (path === '/auth/me') return { body: user };

@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - agent/backend-foundation-rebuild
+      - agent/phase1-interactions
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
@@ -22,7 +23,7 @@ concurrency:
 jobs:
   lint-build-browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: frontend
@@ -44,6 +45,9 @@ jobs:
 
       - name: Lint frontend
         run: npm run lint
+
+      - name: Audit UI action contracts
+        run: npm run audit:ui-actions
 
       - name: Build frontend
         run: npm run build

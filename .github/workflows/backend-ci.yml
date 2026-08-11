@@ -52,8 +52,11 @@ jobs:
     name: PostgreSQL bootstrap, upgrade, drift, integration, recovery
     runs-on: ubuntu-latest
     services:
+      # Ubuntu 24.04 currently ships PostgreSQL client 16. Keep the CI server on the
+      # same major version so pg_dump/pg_restore recovery gates exercise the product
+      # instead of failing before the backup starts because of a client/server mismatch.
       postgres:
-        image: postgres:18
+        image: postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres-ci-password
@@ -137,16 +140,23 @@ jobs:
         run: |
           set -euo pipefail
           git fetch origin Eyad
+          applied=0
           while IFS= read -r schema; do
-            echo "Applying baseline ${schema}"
-            git show "origin/Eyad:${schema}" |
-              psql -h localhost -U postgres -d upgrade_test -v ON_ERROR_STOP=1
+            repo_schema="backend/${schema}"
+            if git cat-file -e "origin/Eyad:${repo_schema}" 2>/dev/null; then
+              echo "Applying baseline ${repo_schema}"
+              git show "origin/Eyad:${repo_schema}" |
+                psql -h localhost -U postgres -d upgrade_test -v ON_ERROR_STOP=1
+              applied=$((applied + 1))
+            fi
           done < <(
-            git ls-tree -r --name-only origin/Eyad -- backend/database/schemas |
-              grep -E '\.sql$' |
+            find database/schemas -maxdepth 1 -type f -name '*.sql' |
               grep -v '/11_permissions\.sql$' |
               sort
           )
+          test "${applied}" -gt 0
+          psql -h localhost -U postgres -d upgrade_test -Atc \
+            "SELECT to_regclass('public.users') IS NOT NULL" | grep -qx t
       - name: Apply forward SQL and TypeORM migrations
         run: |
           set -euo pipefail

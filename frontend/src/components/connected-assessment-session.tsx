@@ -2,24 +2,26 @@
 
 import { useAuth } from "./auth-provider";
 import { Panel, ProductShell, Progress } from "./product-shell";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FiArrowLeft,
   FiArrowRight,
   FiCheck,
   FiClock,
+  FiEdit3,
   FiEyeOff,
   FiFileText,
   FiFlag,
   FiMoreVertical,
   FiSave,
+  FiX,
 } from "react-icons/fi";
 import { useRouter } from "next/navigation";
 import { getQuestionVisual } from "./medical-image-assets";
 import "./assessment-session.css";
 
 type Option = { id: string; optionText: string; displayOrder: number };
-type Question = { id: string; questionText: string; questionType: "MCQ" | "ESSAY"; options: Option[] };
+type Question = { id: string; questionText: string; questionType: "MCQ" | "ESSAY"; options: Option[]; explanation?: string | null };
 type Assignment = { questionId: string; displayOrder: number; marks?: string; question: Question };
 type Attempt = {
   id: string;
@@ -38,14 +40,89 @@ type WorkspaceState = {
   notes: Array<{ question_id: string; note: string }>;
 };
 type TutorFeedback = { isCorrect: boolean | null; explanation?: string | null };
-type Review = { attempt: Attempt; questions: Array<Assignment & { answer: { selectedOptionId: string | null; isCorrect: boolean | null } | null }> };
+type ReviewOption = Option & { isCorrect?: boolean };
+type ReviewQuestion = Omit<Question, "options"> & { options: ReviewOption[]; explanation?: string | null };
+type ReviewAssignment = Omit<Assignment, "question"> & {
+  question: ReviewQuestion;
+  answer: { selectedOptionId: string | null; isCorrect: boolean | null } | null;
+};
+type Review = { attempt: Attempt; questions: ReviewAssignment[] };
 type LowerTab = "scratchpad" | "patient" | "note";
+type HighlightRange = { start: number; end: number };
+type QuestionHighlights = { stem: HighlightRange[]; options: Record<string, HighlightRange[]> };
+type HighlightState = Record<string, QuestionHighlights>;
 
 const BLOCK_SIZE = 40;
 
 function formatPace(seconds: number) {
   const safe = Math.max(0, Math.round(seconds));
   return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}/question`;
+}
+
+function normalizeRanges(ranges: HighlightRange[], textLength: number) {
+  const ordered = ranges
+    .map((range) => ({ start: Math.max(0, Math.min(textLength, range.start)), end: Math.max(0, Math.min(textLength, range.end)) }))
+    .filter((range) => range.end > range.start)
+    .sort((left, right) => left.start - right.start || left.end - right.end);
+  const merged: HighlightRange[] = [];
+  for (const range of ordered) {
+    const previous = merged[merged.length - 1];
+    if (previous && range.start <= previous.end) previous.end = Math.max(previous.end, range.end);
+    else merged.push({ ...range });
+  }
+  return merged;
+}
+
+function HighlightableText({
+  text,
+  ranges,
+  enabled,
+  onHighlight,
+  className,
+}: {
+  text: string;
+  ranges: HighlightRange[];
+  enabled: boolean;
+  onHighlight: (start: number, end: number) => void;
+  className?: string;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const normalized = useMemo(() => normalizeRanges(ranges, text.length), [ranges, text.length]);
+
+  function captureSelection() {
+    if (!enabled || !ref.current) return;
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+    if (!ref.current.contains(range.commonAncestorContainer)) return;
+    const prefix = document.createRange();
+    prefix.selectNodeContents(ref.current);
+    prefix.setEnd(range.startContainer, range.startOffset);
+    const start = prefix.toString().length;
+    const end = start + range.toString().length;
+    if (range.toString().trim() && end > start) onHighlight(start, end);
+    selection.removeAllRanges();
+  }
+
+  const content: ReactNode[] = [];
+  let cursor = 0;
+  normalized.forEach((range, index) => {
+    if (range.start > cursor) content.push(text.slice(cursor, range.start));
+    content.push(<mark className="exam-text-highlight" key={`${range.start}-${range.end}-${index}`}>{text.slice(range.start, range.end)}</mark>);
+    cursor = range.end;
+  });
+  if (cursor < text.length) content.push(text.slice(cursor));
+
+  return (
+    <span
+      ref={ref}
+      className={`${className || ""} exam-highlightable ${enabled ? "is-highlight-mode" : ""}`.trim()}
+      onMouseUp={captureSelection}
+      title={enabled ? "Select text to highlight it" : undefined}
+    >
+      {content.length ? content : text}
+    </span>
+  );
 }
 
 export function ConnectedAssessmentSession({ attemptId, testId, source = "assessments" }: { attemptId: string; testId: string; source?: string }) {
@@ -59,18 +136,39 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState<Record<string, TutorFeedback>>({});
   const [struck, setStruck] = useState<Record<string, string[]>>({});
+  const [highlights, setHighlights] = useState<HighlightState>({});
   const [strikeMode, setStrikeMode] = useState(false);
+  const [highlightMode, setHighlightMode] = useState(false);
   const [scratchpad, setScratchpad] = useState("");
   const [lowerTab, setLowerTab] = useState<LowerTab>("scratchpad");
   const [review, setReview] = useState<Review | null>(null);
   const [visualOpen, setVisualOpen] = useState(false);
   const [hideTime, setHideTime] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [labOpen, setLabOpen] = useState(false);
+  const [localToolsLoaded, setLocalToolsLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingQuestionId, setSavingQuestionId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState<number | null>(null);
   const autoSubmitStarted = useRef(false);
+
+  useEffect(() => {
+    try {
+      setScratchpad(sessionStorage.getItem(`mdp:scratchpad:${attemptId}`) || "");
+      const savedHighlights = JSON.parse(sessionStorage.getItem(`mdp:highlights:${attemptId}`) || "{}") as HighlightState;
+      const savedStrikes = JSON.parse(sessionStorage.getItem(`mdp:strikes:${attemptId}`) || "{}") as Record<string, string[]>;
+      setHighlights(savedHighlights && typeof savedHighlights === "object" ? savedHighlights : {});
+      setStruck(savedStrikes && typeof savedStrikes === "object" ? savedStrikes : {});
+    } catch {
+      setScratchpad("");
+      setHighlights({});
+      setStruck({});
+    } finally {
+      setLocalToolsLoaded(true);
+    }
+  }, [attemptId]);
 
   useEffect(() => {
     if (!attemptId || !testId) return;
@@ -86,11 +184,6 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
         setAnswers(Object.fromEntries(state.answers.filter((item) => item.selectedOptionId).map((item) => [item.questionId, item.selectedOptionId!])));
         setFlags(state.flagged_question_ids);
         setNotes(Object.fromEntries(state.notes.map((item) => [item.question_id, item.note])));
-        try {
-          setScratchpad(sessionStorage.getItem(`mdp:scratchpad:${attemptId}`) || "");
-        } catch {
-          setScratchpad("");
-        }
       })
       .catch((cause) => {
         if (active) setError(cause instanceof Error ? cause.message : "Unable to load this attempt.");
@@ -114,12 +207,21 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   }, [attempt?.deadline]);
 
   useEffect(() => {
+    if (!localToolsLoaded) return;
     try {
       sessionStorage.setItem(`mdp:scratchpad:${attemptId}`, scratchpad);
+      sessionStorage.setItem(`mdp:highlights:${attemptId}`, JSON.stringify(highlights));
+      sessionStorage.setItem(`mdp:strikes:${attemptId}`, JSON.stringify(struck));
     } catch {
-      // Scratchpad persistence is best-effort.
+      // Local assessment tools are best-effort and never block answering.
     }
-  }, [attemptId, scratchpad]);
+  }, [attemptId, highlights, localToolsLoaded, scratchpad, struck]);
+
+  useEffect(() => {
+    setMoreOpen(false);
+    setHighlightMode(false);
+    setStrikeMode(false);
+  }, [index]);
 
   const current = items[index];
   const questionVisual = current ? getQuestionVisual(current.question.questionText) : null;
@@ -139,12 +241,43 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   const elapsedSeconds = attempt?.startedAt && now !== null ? Math.max(0, Math.floor((now - new Date(attempt.startedAt).getTime()) / 1000)) : 0;
   const pace = totalAnswered ? formatPace(elapsedSeconds / totalAnswered) : "—";
 
+  function questionHighlights(questionId: string): QuestionHighlights {
+    return highlights[questionId] || { stem: [], options: {} };
+  }
+
+  function addHighlight(questionId: string, target: "stem" | string, start: number, end: number) {
+    setHighlights((value) => {
+      const existing = value[questionId] || { stem: [], options: {} };
+      if (target === "stem") {
+        return { ...value, [questionId]: { ...existing, stem: normalizeRanges([...existing.stem, { start, end }], current?.question.questionText.length || end) } };
+      }
+      const optionText = current?.question.options.find((option) => option.id === target)?.optionText || "";
+      return {
+        ...value,
+        [questionId]: {
+          ...existing,
+          options: {
+            ...existing.options,
+            [target]: normalizeRanges([...(existing.options[target] || []), { start, end }], optionText.length || end),
+          },
+        },
+      };
+    });
+  }
+
+  function clearQuestionHighlights(questionId: string) {
+    setHighlights((value) => {
+      const next = { ...value };
+      delete next[questionId];
+      return next;
+    });
+  }
+
   async function choose(optionId: string) {
     if (!current || expired || Boolean(tutor && feedback[current.question.id])) return;
     const questionId = current.question.id;
     const previous = answers[questionId];
 
-    // Optimistic selection: the answer visibly selects immediately, while persistence runs.
     setAnswers((value) => ({ ...value, [questionId]: optionId }));
     setSavingQuestionId(questionId);
     setError(null);
@@ -203,6 +336,14 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
         ...value,
         [questionId]: currentIds.includes(optionId) ? currentIds.filter((id) => id !== optionId) : [...currentIds, optionId],
       };
+    });
+  }
+
+  function clearQuestionStrikes(questionId: string) {
+    setStruck((value) => {
+      const next = { ...value };
+      delete next[questionId];
+      return next;
     });
   }
 
@@ -265,13 +406,21 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
         ) : review ? (
           <Panel title="Assessment submitted" className="exam-review-panel">
             <h2>{review.attempt.test?.title || "Assessment complete"}</h2>
-            <p>Your submitted answers are saved. Review is shown below.</p>
-            {review.questions.map((item, i) => (
-              <article className="review-answer" key={item.question.id}>
-                <b>{i + 1}. {item.question.questionText}</b>
-                <p>{item.answer?.isCorrect === true ? "Correct" : item.answer?.isCorrect === false ? "Incorrect" : "Not answered / pending grading"}</p>
-              </article>
-            ))}
+            <p>Your submitted answers are saved. Detailed explanations are shown below.</p>
+            {review.questions.map((item, i) => {
+              const selectedOption = item.question.options.find((option) => option.id === item.answer?.selectedOptionId);
+              const correctOption = item.question.options.find((option) => option.isCorrect);
+              const resultLabel = item.answer?.isCorrect === true ? "Correct" : item.answer?.isCorrect === false ? "Incorrect" : "Not answered / pending grading";
+              return (
+                <article className={`review-answer ${item.answer?.isCorrect === true ? "correct" : item.answer?.isCorrect === false ? "incorrect" : ""}`} key={item.question.id}>
+                  <b>{i + 1}. {item.question.questionText}</b>
+                  <strong>{resultLabel}</strong>
+                  {selectedOption && <p><span>Your answer:</span> {selectedOption.optionText}</p>}
+                  {correctOption && item.answer?.isCorrect !== true && <p><span>Correct answer:</span> {correctOption.optionText}</p>}
+                  <div className="review-explanation"><b>Explanation</b><p>{item.question.explanation || "No explanation has been published for this question."}</p></div>
+                </article>
+              );
+            })}
             <button className="pp-button" type="button" onClick={() => router.push(exitPath)}>Back</button>
           </Panel>
         ) : current ? (
@@ -322,12 +471,42 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
                     <div><span>{tutor ? "Tutor" : "Timed"}</span><span>MCQ</span></div>
                     <div>
                       <button type="button" className={flags.includes(current.question.id) ? "active" : ""} disabled={expired} onClick={() => void toggleFlag()}><FiFlag /> Flag</button>
-                      <button type="button" className={strikeMode ? "active" : ""} disabled={expired} onClick={() => setStrikeMode((value) => !value)}>S̶ Strike out</button>
-                      <button type="button" onClick={() => document.getElementById("exam-lab-preview")?.scrollIntoView({ behavior: "smooth", block: "nearest" })}>⚗ Lab values</button>
+                      <button
+                        type="button"
+                        className={highlightMode ? "active" : ""}
+                        aria-pressed={highlightMode}
+                        disabled={expired}
+                        onClick={() => {
+                          setHighlightMode((value) => !value);
+                          setStrikeMode(false);
+                        }}
+                      ><FiEdit3 /> Highlighter</button>
+                      <button
+                        type="button"
+                        className={strikeMode ? "active" : ""}
+                        aria-pressed={strikeMode}
+                        disabled={expired}
+                        onClick={() => {
+                          setStrikeMode((value) => !value);
+                          setHighlightMode(false);
+                        }}
+                      >S̶ Strike out</button>
+                      <button type="button" onClick={() => setLabOpen(true)}>⚗ Lab values</button>
                       <button type="button" onClick={() => setLowerTab("note")}>▣ Notes</button>
-                      <button type="button" aria-label="More question actions"><FiMoreVertical /></button>
+                      <div className="exam-more-actions">
+                        <button type="button" aria-label="More question actions" aria-expanded={moreOpen} onClick={() => setMoreOpen((value) => !value)}><FiMoreVertical /></button>
+                        {moreOpen && (
+                          <div className="exam-more-menu" role="menu">
+                            <button type="button" role="menuitem" disabled={!questionHighlights(current.question.id).stem.length && !Object.values(questionHighlights(current.question.id).options).some((ranges) => ranges.length)} onClick={() => { clearQuestionHighlights(current.question.id); setMoreOpen(false); }}>Clear highlights</button>
+                            <button type="button" role="menuitem" disabled={!(struck[current.question.id] || []).length} onClick={() => { clearQuestionStrikes(current.question.id); setMoreOpen(false); }}>Clear strike-outs</button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
+
+                  {highlightMode && <p className="exam-tool-hint" role="status"><FiEdit3 /> Highlighter active — select any words in the question or answer choices. Highlights stay in this assessment session.</p>}
+                  {strikeMode && <p className="exam-tool-hint" role="status">S̶ Strike-out active — click an answer choice to cross it out without answering.</p>}
 
                   {questionVisual && (
                     <>
@@ -344,22 +523,47 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
                     </>
                   )}
 
-                  <h1>{current.question.questionText}</h1>
+                  <h1>
+                    <HighlightableText
+                      className="exam-question-stem-text"
+                      text={current.question.questionText}
+                      ranges={questionHighlights(current.question.id).stem}
+                      enabled={highlightMode}
+                      onHighlight={(start, end) => addHighlight(current.question.id, "stem", start, end)}
+                    />
+                  </h1>
                   <div className="exam-answer-list" role="radiogroup" aria-label={`Answers for question ${index + 1}`}>
                     {current.question.options.map((option, i) => {
                       const selected = answers[current.question.id] === option.id;
                       const crossed = (struck[current.question.id] || []).includes(option.id);
+                      const tutorResult = feedback[current.question.id];
+                      const judgedClass = tutorResult && selected ? (tutorResult.isCorrect ? "answer-correct" : "answer-incorrect") : "";
                       return (
-                        <div className={`exam-answer-row ${selected ? "selected" : ""} ${crossed ? "struck" : ""}`} key={option.id}>
+                        <div className={`exam-answer-row ${selected ? "selected" : ""} ${crossed ? "struck" : ""} ${judgedClass}`} key={option.id}>
                           <button
                             type="button"
                             role="radio"
                             aria-checked={selected}
                             disabled={expired || Boolean(tutor && feedback[current.question.id])}
-                            onClick={() => void choose(option.id)}
+                            onClick={() => {
+                              if (highlightMode) return;
+                              if (strikeMode) {
+                                toggleStrike(option.id);
+                                return;
+                              }
+                              void choose(option.id);
+                            }}
                           >
                             <b>{String.fromCharCode(65 + i)}</b>
-                            <span>{option.optionText}</span>
+                            <span>
+                              <HighlightableText
+                                className="exam-option-highlight-text"
+                                text={option.optionText}
+                                ranges={questionHighlights(current.question.id).options[option.id] || []}
+                                enabled={highlightMode}
+                                onHighlight={(start, end) => addHighlight(current.question.id, option.id, start, end)}
+                              />
+                            </span>
                             {savingQuestionId === current.question.id && selected ? <small>Saving…</small> : selected ? <FiCheck /> : null}
                           </button>
                           <button
@@ -378,8 +582,8 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
                   </div>
 
                   {tutor && feedback[current.question.id] && (
-                    <div className={`tutor-explanation ${feedback[current.question.id].isCorrect ? "correct" : "incorrect"}`}>
-                      <b>{feedback[current.question.id].isCorrect ? "Correct answer" : "Review this answer"}</b>
+                    <div className={`tutor-explanation ${feedback[current.question.id].isCorrect ? "correct" : "incorrect"}`} role="status">
+                      <b>{feedback[current.question.id].isCorrect ? "Correct" : "Incorrect"}</b>
                       <p>{feedback[current.question.id].explanation || "No explanation has been published for this question."}</p>
                     </div>
                   )}
@@ -402,7 +606,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
                   </section>
 
                   <section className="exam-lab-preview" id="exam-lab-preview">
-                    <header><span>⚗</span><b>Lab values (preview)</b><button type="button">View all</button></header>
+                    <header><span>⚗</span><b>Lab values (preview)</b><button type="button" onClick={() => setLabOpen(true)}>View all</button></header>
                     <div className="exam-empty-context"><p>No structured lab values are attached to this question.</p></div>
                   </section>
                 </div>
@@ -433,6 +637,15 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
           </>
         ) : (
           <Panel title="No questions"><p>This assessment contains no accessible questions.</p></Panel>
+        )}
+
+        {labOpen && (
+          <div className="exam-tool-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setLabOpen(false); }}>
+            <section className="exam-tool-modal" role="dialog" aria-modal="true" aria-labelledby="exam-lab-title">
+              <header><div><small>QUESTION REFERENCE</small><h2 id="exam-lab-title">Lab values</h2></div><button type="button" aria-label="Close lab values" onClick={() => setLabOpen(false)}><FiX /></button></header>
+              <div className="exam-tool-modal-empty"><span>⚗</span><b>No structured lab values attached</b><p>This question does not currently include a structured lab panel. The control remains functional and will render question-specific values when they are provided by the assessment data.</p></div>
+            </section>
+          </div>
         )}
       </main>
     </ProductShell>

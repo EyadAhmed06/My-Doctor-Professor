@@ -112,7 +112,7 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
   const path = usePathname();
   const router = useRouter();
   const { translate, locale } = useLocale();
-  const { startNavigation, notify, achievements } = useUx();
+  const { startNavigation, notify, confirm, achievements } = useUx();
   const { user, loading, logout, request } = useAuth();
   const [open, setOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -256,6 +256,21 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
     }
   }
 
+  async function confirmLogout() {
+    const accepted = await confirm({
+      title: "Log out?",
+      description: "Your current session on this device will end. Unsaved form changes may be lost.",
+      confirmLabel: "Log out",
+      cancelLabel: "Cancel",
+      tone: "danger",
+    });
+    if (!accepted) return;
+    setProfileOpen(false);
+    startNavigation();
+    void logout();
+    window.location.replace("/login");
+  }
+
   if (loading || !user) {
     return <main className="product-auth-loading"><PageSkeleton variant="workspace" label={translate("Loading your workspace")} /></main>;
   }
@@ -292,7 +307,7 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
         </div>
         <div className="header-popover-anchor profile-menu-anchor" ref={profileRef}>
           <button ref={profileButtonRef} className="profile-menu-trigger" type="button" aria-expanded={profileOpen} aria-haspopup="menu" onClick={() => { setProfileOpen(value => !value); setNotificationsOpen(false); setHelpOpen(false); setAchievementsOpen(false); }}><span className="avatar-fallback">{initials}</span><span><b>{displayName}</b><small>{roleLabel}</small></span><FiChevronDown /></button>
-          {profileOpen && <div className="header-popover profile-menu" role="menu"><div className="profile-menu-summary"><span className="avatar-fallback">{initials}</span><div><b>{displayName}</b><small>{user.email}</small></div></div><button type="button" role="menuitem" onClick={() => navigate("/settings")}><FiSettings /> {translate("Settings")}</button><div className="profile-theme-row"><span>{translate("Theme")}</span><ThemeToggle compact /></div><button className="danger" type="button" role="menuitem" onClick={() => void logout().then(() => { setProfileOpen(false); startNavigation(); router.replace("/login"); })}><FiLogOut /> {translate("Log out")}</button></div>}
+          {profileOpen && <div className="header-popover profile-menu" role="menu"><div className="profile-menu-summary"><span className="avatar-fallback">{initials}</span><div><b>{displayName}</b><small>{user.email}</small></div></div><button type="button" role="menuitem" onClick={() => navigate("/settings")}><FiSettings /> {translate("Settings")}</button><div className="profile-theme-row"><span>{translate("Theme")}</span><ThemeToggle compact /></div><button className="danger" data-phase5-confirmed="true" type="button" role="menuitem" onClick={() => void confirmLogout()}><FiLogOut /> {translate("Log out")}</button></div>}
         </div>
       </div>
     </header>

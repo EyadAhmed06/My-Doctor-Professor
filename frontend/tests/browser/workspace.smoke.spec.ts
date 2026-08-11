@@ -143,7 +143,13 @@ async function mockApi(page: Page) {
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
-  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  await expect.poll(async () => {
+    try {
+      return await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
+    } catch {
+      return false;
+    }
+  }).toBe(true);
 }
 
 for (const pathname of ['/', '/login', '/register']) {

@@ -19,7 +19,7 @@ import "./product-pages.css";
 import "./practice-builder.css";
 
 type Bundle = { id: string; title: string; read_only?: boolean };
-type Lecture = { id: string; title: string; description: string | null; lectureNumber: number; question_count: number; flashcard_deck_count: number; resource_count: number };
+type Lecture = { id: string; title: string; description: string | null; lectureNumber: number; question_count: number; mcq_count: number; flashcard_deck_count: number; resource_count: number };
 type Week = { id: string; weekNumber: number; title: string | null; description: string | null; lectures: Lecture[] };
 type Course = { id: string; courseName: string; courseCode: string; description: string | null; weeks: Week[] };
 type Content = { bundle: Bundle; courses: Course[] };
@@ -103,14 +103,15 @@ export function ConnectedRoundsPage() {
   const totals = useMemo(
     () => lectureRows.reduce((value, row) => ({
       questions: value.questions + row.lecture.question_count,
+      mcqs: value.mcqs + row.lecture.mcq_count,
       decks: value.decks + row.lecture.flashcard_deck_count,
       resources: value.resources + row.lecture.resource_count,
-    }), { questions: 0, decks: 0, resources: 0 }),
+    }), { questions: 0, mcqs: 0, decks: 0, resources: 0 }),
     [lectureRows],
   );
   const currentBundle = bundles.find((item) => item.id === bundleId);
   const selectedLectures = lectureRows.filter(({ lecture }) => selectedIds.includes(lecture.id));
-  const selectedQuestionPool = selectedLectures.reduce((sum, item) => sum + item.lecture.question_count, 0);
+  const selectedQuestionPool = selectedLectures.reduce((sum, item) => sum + item.lecture.mcq_count, 0);
   const ready = selectedIds.length > 0 && selectedQuestionPool >= PRACTICE_QUESTION_COUNT && !currentBundle?.read_only;
 
   useEffect(() => {
@@ -191,13 +192,13 @@ export function ConnectedRoundsPage() {
               <div className="rounds-nav-title"><span>SELECT LECTURE(S)</span><b>{course.courseCode}</b></div>
               {weeks.map((week) => {
                 const isOpen = openWeeks.includes(week.id);
-                const weekQuestions = week.lectures.reduce((sum, item) => sum + item.question_count, 0);
+                const weekMcqs = week.lectures.reduce((sum, item) => sum + item.mcq_count, 0);
                 const allSelected = week.lectures.length > 0 && week.lectures.every((lecture) => selectedIds.includes(lecture.id));
                 return (
                   <section key={week.id}>
                     <div className="practice-week-heading">
                       <button className="rounds-week-button" type="button" onClick={() => toggleWeek(week.id)}>
-                        <span><b>Week {week.weekNumber}</b><small>{week.title || "Untitled week"} · {weekQuestions} questions</small></span><FiChevronDown className={isOpen ? "open" : ""} />
+                        <span><b>Week {week.weekNumber}</b><small>{week.title || "Untitled week"} · {weekMcqs} eligible MCQs</small></span><FiChevronDown className={isOpen ? "open" : ""} />
                       </button>
                       <button className={`practice-week-select ${allSelected ? "active" : ""}`} type="button" onClick={() => toggleWholeWeek(week)}>{allSelected ? <FiCheck /> : "+"}</button>
                     </div>
@@ -208,7 +209,7 @@ export function ConnectedRoundsPage() {
                           return (
                             <button key={lecture.id} type="button" className={`${activeLecture?.id === lecture.id ? "active" : ""} ${checked ? "selected-for-practice" : ""}`} onClick={() => toggleLecture(lecture)}>
                               <span className={`practice-check ${checked ? "checked" : ""}`}>{checked ? <FiCheck /> : ""}</span>
-                              <span><b>{lecture.title}</b><small>{lecture.question_count} MCQ candidates · {lecture.flashcard_deck_count} decks</small></span>
+                              <span><b>{lecture.title}</b><small>{lecture.mcq_count} eligible MCQs · {lecture.flashcard_deck_count} decks</small></span>
                               <small>{checked ? "Selected" : "Select"}</small>
                             </button>
                           );
@@ -230,13 +231,13 @@ export function ConnectedRoundsPage() {
                   <div className="rounds-action-grid">
                     <article><FiFileText /><div><b>{PRACTICE_QUESTION_COUNT}</b><span>Quiz size</span><small>Fixed 40-question MCQ practice set.</small></div></article>
                     <article><FiLayers /><div><b>{selectedIds.length}</b><span>Lectures selected</span><small>You can mix lectures from this course.</small></div></article>
-                    <article><FiBookOpen /><div><b>{selectedQuestionPool}</b><span>Available question pool</span><small>At least 40 eligible questions are required.</small></div></article>
+                    <article><FiBookOpen /><div><b>{selectedQuestionPool}</b><span>Eligible MCQ pool</span><small>At least 40 active question-bank MCQs are required.</small></div></article>
                   </div>
                   <div className={`rounds-primary-action practice-launch ${ready ? "ready" : "needs-questions"}`}>
                     <div>
                       <small>{ready ? "READY" : "QUESTION POOL"}</small>
                       <h3>{ready ? "Start a 40-MCQ Tutor quiz" : `Need ${Math.max(0, PRACTICE_QUESTION_COUNT - selectedQuestionPool)} more eligible MCQs`}</h3>
-                      <p>{ready ? "Questions are sampled from exactly the lectures you selected and answers are saved to the backend." : "Select additional lectures or ask the instructor to publish more MCQs. The app will not silently duplicate questions."}</p>
+                      <p>{ready ? "Questions are sampled from exactly the lectures you selected and answers are saved to the backend." : "Select additional lectures or ask the instructor to publish more active question-bank MCQs. The app will not silently duplicate questions."}</p>
                     </div>
                     <button className="pp-button" type="button" disabled={!ready || starting} onClick={() => void startTutor()}><FiPlayCircle />{starting ? "Building quiz…" : "Start 40 questions"}<FiArrowRight /></button>
                   </div>
@@ -247,7 +248,7 @@ export function ConnectedRoundsPage() {
 
             <aside className="rounds-context-rail">
               <Panel title="Selection"><div className="rounds-coverage-number">{selectedIds.length}<small> lectures</small></div><Progress value={Math.min(100, Math.round(selectedQuestionPool / PRACTICE_QUESTION_COUNT * 100))} />
-                <dl><div><dt>Required MCQs</dt><dd>{PRACTICE_QUESTION_COUNT}</dd></div><div><dt>Question pool</dt><dd>{selectedQuestionPool}</dd></div><div><dt>Course total</dt><dd>{totals.questions}</dd></div></dl>
+                <dl><div><dt>Required MCQs</dt><dd>{PRACTICE_QUESTION_COUNT}</dd></div><div><dt>Eligible MCQ pool</dt><dd>{selectedQuestionPool}</dd></div><div><dt>Course eligible MCQs</dt><dd>{totals.mcqs}</dd></div></dl>
               </Panel>
               <Panel title={currentBundle?.read_only ? "Read-only access" : "Quiz rule"}><p>{currentBundle?.read_only ? "You may review existing content, but cannot start a new attempt from this bundle." : "Lecture practice is a fixed 40-MCQ Tutor session. Pre-authored exams use their instructor configuration instead."}</p></Panel>
               <button className="rounds-refresh" type="button" onClick={() => setRefreshKey((value) => value + 1)}><FiRefreshCw /> Refresh content</button>

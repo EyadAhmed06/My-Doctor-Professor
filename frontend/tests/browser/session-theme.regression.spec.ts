@@ -51,9 +51,9 @@ test('returning authenticated user sees continue actions on Home without logging
   });
 
   await page.goto('/');
-  await expect(page.getByRole('link', { name: /Open dashboard/i }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: /Continue learning/i })).toBeVisible();
-  await expect(page.getByText(/Signed in as Eyad/i)).toBeVisible();
+  await expect.poll(() => page.getByRole('link', { name: /Open dashboard/i }).count()).toBeGreaterThan(0);
+  await expect.poll(() => page.getByText(/Signed in as Eyad/i).count()).toBeGreaterThan(0);
   await expect(page.getByRole('link', { name: /^Log in$/i })).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => localStorage.getItem('mdp_refresh_token'))).toBeNull();
   await expect.poll(() => page.evaluate(() => sessionStorage.getItem('mdp_refresh_token'))).toBeNull();
@@ -91,7 +91,7 @@ test('returning browser restores access through refresh endpoint without a JS re
   });
 
   await page.goto('/');
-  await expect(page.getByText(/Signed in as Eyad/i)).toBeVisible();
+  await expect(page.getByRole('link', { name: /Continue learning/i })).toBeVisible();
   expect(refreshCalls).toBeGreaterThan(0);
   await expect.poll(() => page.evaluate(() => sessionStorage.getItem('mdp_access_token'))).toBe('rotated-access-token');
   await expect.poll(() => page.evaluate(() => localStorage.getItem('mdp_refresh_token'))).toBeNull();

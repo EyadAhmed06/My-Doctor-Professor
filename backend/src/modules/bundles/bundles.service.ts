@@ -19,6 +19,9 @@ import { BundleCourse } from '../../common/entities/bundle-course.entity';import
    this.dataSource.query(`
     SELECT lecture.id,
       COUNT(DISTINCT question.id)::int AS question_count,
+      COUNT(DISTINCT question.id) FILTER (
+        WHERE question.question_type = 'MCQ' AND question.is_question_bank = TRUE
+      )::int AS mcq_count,
       COUNT(DISTINCT deck.id)::int AS flashcard_deck_count,
       COUNT(DISTINCT resource.id)::int AS resource_count
     FROM bundle_weeks bundle_week JOIN weeks week ON week.id=bundle_week.week_id
@@ -29,8 +32,8 @@ import { BundleCourse } from '../../common/entities/bundle-course.entity';import
     LEFT JOIN resources resource ON resource.lecture_id=lecture.id
     WHERE bundle_week.bundle_id=$1 GROUP BY lecture.id`,[id]),
   ]);
-  const stats=new Map((lectureStats as {id:string;question_count:number;flashcard_deck_count:number;resource_count:number}[]).map(row=>[row.id,row]));
-  const courses=courseLinks.map(link=>({...link.course,weeks:weekLinks.filter(item=>item.week.courseId===link.courseId).map(item=>({...item.week,lectures:item.week.lectures.filter(lecture=>actor.role!==UserRole.STUDENT||lecture.isPublished).map(lecture=>({...lecture,...(stats.get(lecture.id)??{question_count:0,flashcard_deck_count:0,resource_count:0})}))}))}));
+  const stats=new Map((lectureStats as {id:string;question_count:number;mcq_count:number;flashcard_deck_count:number;resource_count:number}[]).map(row=>[row.id,row]));
+  const courses=courseLinks.map(link=>({...link.course,weeks:weekLinks.filter(item=>item.week.courseId===link.courseId).map(item=>({...item.week,lectures:item.week.lectures.filter(lecture=>actor.role!==UserRole.STUDENT||lecture.isPublished).map(lecture=>({...lecture,...(stats.get(lecture.id)??{question_count:0,mcq_count:0,flashcard_deck_count:0,resource_count:0})}))}))}));
   return {bundle:access,courses,past_exams:testLinks.map(link=>link.test),selected_week_count:weekLinks.length,
    totals:{courses:courses.length,weeks:weekLinks.length,lectures:courses.flatMap(course=>course.weeks).flatMap(week=>week.lectures).length,
     questions:[...stats.values()].reduce((sum,row)=>sum+Number(row.question_count),0),flashcard_decks:[...stats.values()].reduce((sum,row)=>sum+Number(row.flashcard_deck_count),0),resources:[...stats.values()].reduce((sum,row)=>sum+Number(row.resource_count),0),past_exams:testLinks.length}};

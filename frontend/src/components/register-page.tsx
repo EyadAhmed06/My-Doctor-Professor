@@ -109,7 +109,7 @@ export function RegisterPage() {
             </div>
             <div className="registration-divider"><span>Academic information</span></div>
             <div className="form-grid academic-grid"><Field label="Current semester" placeholder="1" type="number" value={form.current_semester} onChange={update("current_semester")} required/></div>
-            <label className="checkline terms"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/><span>I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</span></label>
+            <label className="checkline terms"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/><span>I agree to the <Link href="/terms">Terms of Service</Link> and <Link href="/privacy">Privacy Policy</Link>.</span></label>
           </SubmitForm>
           {googleLoading&&<p className="google-auth-status" role="status">Verifying your Google account…</p>}
           <footer className="registration-proof-strip">
