@@ -6,6 +6,7 @@ import { FiBarChart2, FiBookOpen, FiShield, FiTrendingUp } from "react-icons/fi"
 import { Brand, Field, icons, SubmitForm } from "./ui";
 import { useAuth } from "./auth-provider";
 import { GoogleSignInButton } from "./google-sign-in-button";
+import { AuthMotion } from "./auth-motion";
 
 const loginProof=[
   {Icon:FiShield,title:"Trusted by learners",copy:"Join a global community"},
@@ -56,14 +57,15 @@ export function LoginPage(){
     }
   },[authLoading,googleLoading,googleLogin,router]);
 
-  return <main className="auth-page login-page reference-login">
-    <section className="story-side">
+  return <main className="auth-page login-page reference-login auth-motion-page" data-auth-motion-root>
+    <AuthMotion variant="login" />
+    <section className="story-side auth-motion-story">
       <Brand/>
       <figure className="auth-organ-visual heart-story-image">
         <img src="/media/login-heart-reference.png" alt="Luminous anatomical heart with an electrocardiogram trace" />
       </figure>
     </section>
-    <section className="form-side">
+    <section className="form-side auth-motion-form">
       <div className="login-card panel">
         <h2>Welcome back</h2>
         <p className="subhead">{authLoading?"Restoring your session…":"Log in to continue your learning journey."}</p>
@@ -78,7 +80,7 @@ export function LoginPage(){
         <p className="switch-copy">New here? <Link href="/register">Create an account</Link></p>
       </div>
     </section>
-    <footer className="auth-proof-strip">
+    <footer className="auth-proof-strip auth-motion-footer">
       {loginProof.map(({Icon,title,copy})=><div key={title}><Icon/><span><b>{title}</b><small>{copy}</small></span></div>)}
     </footer>
   </main>;

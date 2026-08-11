@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "./auth-provider";
 import type { GoogleOnboardingResult } from "./auth-provider";
 import { GoogleSignInButton } from "./google-sign-in-button";
+import { AuthMotion } from "./auth-motion";
 
 const registrationProof=[
   {Icon:FiShield,title:"Secure & Private",copy:"Your account actions use protected links"},
@@ -88,14 +89,15 @@ export function RegisterPage() {
     finally{setGoogleLoading(false);}
   },[authLoading,googleLoading,googleLogin,router]);
 
-  return <main className="registration-page reference-register">
-    <section className="registration-story">
+  return <main className="registration-page reference-register auth-motion-page" data-auth-motion-root>
+    <AuthMotion variant="register" />
+    <section className="registration-story auth-motion-story">
       <Brand />
       <figure className="auth-organ-visual lungs-story-image">
         <img src="/media/register-lungs-reference.png" alt="Luminous respiratory system anatomy illustration" />
       </figure>
     </section>
-    <section className="registration-form-side">
+    <section className="registration-form-side auth-motion-form">
       <div className="registration-card">
         <div className="registration-top"><Link href="/"><FiArrowLeft /> Back to home</Link><span>Already registered? <Link href="/login">Log in</Link></span></div>
         <div className="registration-content">
@@ -112,7 +114,7 @@ export function RegisterPage() {
             <label className="checkline terms"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/><span>I agree to the <Link href="/terms">Terms of Service</Link> and <Link href="/privacy">Privacy Policy</Link>.</span></label>
           </SubmitForm>
           {googleLoading&&<p className="google-auth-status" role="status">Verifying your Google account…</p>}
-          <footer className="registration-proof-strip">
+          <footer className="registration-proof-strip auth-motion-footer">
             {registrationProof.map(({Icon,title,copy})=><div key={title}><Icon/><b>{title}</b><small>{copy}</small></div>)}
           </footer>
         </div>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { FiBookOpen, FiFolder, FiPlus } from "react-icons/fi";
+import { FiBookOpen, FiFolder, FiPlus, FiStar } from "react-icons/fi";
 import { useAuth } from "./auth-provider";
 import { PageSkeleton } from "./async-state";
 import { useLocale } from "./locale-provider";
@@ -21,6 +21,7 @@ type Note = {
   id: string;
   title: string;
   content: string;
+  noteType: "PERSONAL" | "EXPLANATION" | "PEARL" | "IMAGE" | "LINKED_CASE";
   collectionId: string | null;
   collection: Collection | null;
   updatedAt: string;
@@ -73,6 +74,12 @@ export function ConnectedNotebookPage() {
     return notes.filter((note) => note.collectionId === id).length;
   }
 
+  function noteHref(note: Note) {
+    return note.noteType === "PEARL"
+      ? `/notebook/pearl?note=${encodeURIComponent(note.id)}`
+      : `/notebook/new?note=${encodeURIComponent(note.id)}`;
+  }
+
   async function createCollection(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -104,7 +111,10 @@ export function ConnectedNotebookPage() {
         <h1>{translate("Notebook")}</h1>
         <p>{translate("Write your notes and keep them together in collections you create.")}</p>
       </div>
-      <Link className="pp-button" href="/notebook/new"><FiPlus /> {translate("New notebook")}</Link>
+      <div style={{ display: "flex", gap: ".65rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
+        <Link className="pp-button secondary" href="/notebook/pearl"><FiStar /> {translate("New pearl")}</Link>
+        <Link className="pp-button" href="/notebook/new"><FiPlus /> {translate("New notebook")}</Link>
+      </div>
     </header>
 
     {error && <p className="form-error" role="alert">{error}</p>}
@@ -133,12 +143,13 @@ export function ConnectedNotebookPage() {
         </div>
 
         {visibleNotes.length ? <div className="simple-note-list">
-          {visibleNotes.map((note) => <Link className="simple-note-row" href={`/notebook/new?note=${note.id}`} key={note.id}>
+          {visibleNotes.map((note) => <Link className="simple-note-row" href={noteHref(note)} key={note.id}>
             <div>
               <h3 data-academic-content>{note.title}</h3>
               <p data-academic-content>{note.content}</p>
             </div>
             <div className="simple-note-row-meta">
+              {note.noteType === "PEARL" && <span><FiStar /> {translate("Pearl")}</span>}
               <span><FiFolder /> <span data-academic-content>{note.collection?.name || translate("No collection")}</span></span>
               <small>{translate("Updated")} {new Date(note.updatedAt).toLocaleDateString(locale === "ar" ? "ar-EG" : undefined)}</small>
             </div>
