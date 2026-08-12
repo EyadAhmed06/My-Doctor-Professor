@@ -7,6 +7,8 @@ import { QuestionTag } from '../../common/entities/question-tag.entity';
 import { Tag } from '../../common/entities/tag.entity';
 import { Topic } from '../../common/entities/topic.entity';
 import { AcademicModule } from '../academic/academic.module';
+import { EssayQuestionImportController } from './essay-question-import.controller';
+import { EssayQuestionImportService } from './essay-question-import.service';
 import { QuestionImportService } from './question-import.service';
 import { QuestionsController } from './questions.controller';
 import { QuestionsService } from './questions.service';
@@ -23,8 +25,8 @@ import { QuestionsService } from './questions.service';
       Topic,
     ]),
   ],
-  controllers: [QuestionsController],
-  providers: [QuestionsService, QuestionImportService],
-  exports: [QuestionsService, QuestionImportService, TypeOrmModule],
+  controllers: [QuestionsController, EssayQuestionImportController],
+  providers: [QuestionsService, QuestionImportService, EssayQuestionImportService],
+  exports: [QuestionsService, QuestionImportService, EssayQuestionImportService, TypeOrmModule],
 })
 export class QuestionsModule {}
