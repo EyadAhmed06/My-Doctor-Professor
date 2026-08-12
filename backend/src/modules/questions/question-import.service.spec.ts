@@ -37,6 +37,73 @@ endobj
   return Buffer.from(body, 'latin1');
 }
 
+function fiveOptionLecturePdf(): Buffer {
+  const body = `%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 1600 >>
+stream
+BT
+(Lecture One: Cardiac anatomy and circulation) Tj
+(1. Which chamber receives oxygenated blood directly from the pulmonary veins?) Tj
+(A. Right atrium) Tj
+(B. Left atrium) Tj
+(C. Right ventricle) Tj
+(D. Left ventricle) Tj
+(E. Coronary sinus) Tj
+(2. Which chamber ejects oxygenated blood into the systemic circulation?) Tj
+(A. Right atrium) Tj
+(B. Left atrium) Tj
+(C. Right ventricle) Tj
+(D. Pulmonary trunk) Tj
+(E. Left ventricle) Tj
+(1) B 2) E) Tj
+ET
+endstream
+endobj
+%%EOF`;
+  return Buffer.from(body, 'latin1');
+}
+
+function repeatedOptionSequencePdf(): Buffer {
+  const body = `%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 1200 >>
+stream
+BT
+(Lecture One: Cardiac anatomy and circulation) Tj
+(1. Which chamber receives oxygenated blood directly from the pulmonary veins?) Tj
+(A. Right atrium) Tj
+(B. Left atrium) Tj
+(C. Right ventricle) Tj
+(D. Left ventricle) Tj
+(A. contamination from the next extraction block) Tj
+(B. more contamination) Tj
+(1) B 2) C) Tj
+ET
+endstream
+endobj
+%%EOF`;
+  return Buffer.from(body, 'latin1');
+}
+
 function scannedPdf(): Buffer {
   return Buffer.from(`%PDF-1.4
 1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
@@ -119,6 +186,41 @@ describe('QuestionImportService', () => {
     expect(result.candidates[0].options).toHaveLength(4);
     expect(result.candidates[0].options.find((option) => option.is_correct)?.option_text).toBe('Left atrium');
     expect(result.candidates[0].explanation).toContain('Pulmonary veins return oxygenated blood');
+  });
+
+  it('supports A-E options and compact lecture answer keys without requiring explanations', async () => {
+    const { service } = build();
+    const result = await service.inspectPdf(
+      { topic_id: topic.id, copyright_confirmed: true },
+      file(fiveOptionLecturePdf()),
+      actor,
+    );
+
+    expect(result.candidates).toHaveLength(2);
+    expect(result.sections).toEqual([
+      expect.objectContaining({ title: expect.stringContaining('Lecture One'), questions: 2 }),
+    ]);
+    expect(result.candidates[0].options).toHaveLength(5);
+    expect(result.candidates[0].options.find((option) => option.is_correct)?.label).toBe('B');
+    expect(result.candidates[1].options.find((option) => option.is_correct)?.label).toBe('E');
+    expect(result.candidates[0].issues.some((issue) => issue.code === 'MISSING_EXPLANATION')).toBe(false);
+    expect(result.candidates[0].issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'NO_SOURCE_EXPLANATION', severity: 'INFO' }),
+    ]));
+    expect(result.candidates[0].status).not.toBe('INVALID');
+  });
+
+  it('auto-stops an impossible repeated option label sequence instead of treating it as eight options', async () => {
+    const { service } = build();
+    const result = await service.inspectPdf(
+      { topic_id: topic.id, copyright_confirmed: true },
+      file(repeatedOptionSequencePdf()),
+      actor,
+    );
+
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0].options.map((option) => option.label)).toEqual(['A', 'B', 'C', 'D']);
+    expect(result.candidates[0].issues.some((issue) => issue.code === 'INVALID_OPTION_COUNT')).toBe(false);
   });
 
   it('does not invent questions when a PDF has no safely extractable text layer', async () => {

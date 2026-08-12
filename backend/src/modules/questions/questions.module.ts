@@ -9,6 +9,7 @@ import { Topic } from '../../common/entities/topic.entity';
 import { AcademicModule } from '../academic/academic.module';
 import { EssayQuestionImportController } from './essay-question-import.controller';
 import { EssayQuestionImportService } from './essay-question-import.service';
+import { QuestionImportEnrichmentService } from './question-import-enrichment.service';
 import { QuestionImportService } from './question-import.service';
 import { QuestionsController } from './questions.controller';
 import { QuestionsService } from './questions.service';
@@ -26,7 +27,18 @@ import { QuestionsService } from './questions.service';
     ]),
   ],
   controllers: [QuestionsController, EssayQuestionImportController],
-  providers: [QuestionsService, QuestionImportService, EssayQuestionImportService],
-  exports: [QuestionsService, QuestionImportService, EssayQuestionImportService, TypeOrmModule],
+  providers: [
+    QuestionsService,
+    QuestionImportService,
+    QuestionImportEnrichmentService,
+    EssayQuestionImportService,
+  ],
+  exports: [
+    QuestionsService,
+    QuestionImportService,
+    QuestionImportEnrichmentService,
+    EssayQuestionImportService,
+    TypeOrmModule,
+  ],
 })
 export class QuestionsModule {}

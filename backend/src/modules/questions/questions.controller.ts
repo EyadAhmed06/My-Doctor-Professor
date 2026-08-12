@@ -34,6 +34,7 @@ import {
   UpdateMcqOptionDto,
   UpdateQuestionDto,
 } from './dtos/questions.dto';
+import { QuestionImportEnrichmentService } from './question-import-enrichment.service';
 import { QuestionImportService } from './question-import.service';
 import { QuestionsService } from './questions.service';
 
@@ -45,6 +46,7 @@ export class QuestionsController {
   constructor(
     private readonly questions: QuestionsService,
     private readonly imports: QuestionImportService,
+    private readonly importEnrichment: QuestionImportEnrichmentService,
   ) {}
 
   @Post()
@@ -88,12 +90,13 @@ export class QuestionsController {
   @UseInterceptors(FileInterceptor('file', {
     limits: { fileSize: 25 * 1024 * 1024, files: 1 },
   }))
-  inspectImport(
+  async inspectImport(
     @Body() dto: InspectQuestionImportDto,
     @UploadedFile() file: UploadedResourceFile | undefined,
     @CurrentUser() actor: AuthenticatedUser,
   ) {
-    return this.imports.inspectPdf(dto, file, actor);
+    const inspection = await this.imports.inspectPdf(dto, file, actor);
+    return this.importEnrichment.enrichInspection(inspection);
   }
 
   @Post('imports/publish')
