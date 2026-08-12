@@ -38,8 +38,16 @@ const REQUEST_TIMEOUT_MS = 40_000;
 @Injectable()
 export class QuestionImportEnrichmentService {
   async enrichInspection<T extends ImportInspection>(inspection: T): Promise<T> {
-    const candidates = inspection.candidates;
-    if (!Array.isArray(candidates) || candidates.length === 0) return inspection;
+    const rawCandidates = inspection.candidates;
+    if (!Array.isArray(rawCandidates) || rawCandidates.length === 0) return inspection;
+
+    // NO_SOURCE_EXPLANATION belonged to the old manual-review contract. The current
+    // contract generates explanations automatically for eligible questions, so this
+    // legacy warning must never leak into v2 responses (including invalid candidates).
+    const candidates = rawCandidates.map((candidate) => ({
+      ...candidate,
+      issues: candidate.issues.filter((issue) => issue.code !== 'NO_SOURCE_EXPLANATION'),
+    }));
 
     const eligible = candidates.filter((candidate) =>
       candidate.status !== 'INVALID' &&
@@ -48,7 +56,13 @@ export class QuestionImportEnrichmentService {
       candidate.options.length <= 6 &&
       candidate.options.filter((option) => option.is_correct).length === 1,
     );
-    if (eligible.length === 0) return inspection;
+    if (eligible.length === 0) {
+      return this.withRecalculatedSummary(inspection, candidates, {
+        code: 'AI_ENRICHMENT_NOT_APPLICABLE',
+        severity: 'INFO',
+        message: 'No structurally eligible questions were available for automatic explanation and difficulty enrichment.',
+      });
+    }
 
     const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) {
