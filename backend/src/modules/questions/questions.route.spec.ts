@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { QuestionImportEnrichmentService } from './question-import-enrichment.service';
 import { QuestionImportService } from './question-import.service';
 import { QuestionsController } from './questions.controller';
 import { QuestionsService } from './questions.service';
@@ -10,6 +11,7 @@ import { QuestionsService } from './questions.service';
 describe('QuestionsController route registration', () => {
   let app: INestApplication;
   const inspectPdf = jest.fn().mockResolvedValue({ status: 'OK', candidates: [] });
+  const enrichInspection = jest.fn().mockImplementation(async (inspection) => inspection);
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -17,6 +19,7 @@ describe('QuestionsController route registration', () => {
       providers: [
         { provide: QuestionsService, useValue: {} },
         { provide: QuestionImportService, useValue: { inspectPdf, publish: jest.fn() } },
+        { provide: QuestionImportEnrichmentService, useValue: { enrichInspection } },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -44,6 +47,7 @@ describe('QuestionsController route registration', () => {
 
   beforeEach(() => {
     inspectPdf.mockClear();
+    enrichInspection.mockClear();
   });
 
   it('registers POST /api/v1/questions/imports/inspect as multipart', async () => {
@@ -58,6 +62,7 @@ describe('QuestionsController route registration', () => {
 
     expect(response.status).toBe(201);
     expect(inspectPdf).toHaveBeenCalledTimes(1);
+    expect(enrichInspection).toHaveBeenCalledTimes(1);
     expect(response.body).toEqual({ status: 'OK', candidates: [] });
   });
 });
