@@ -39,7 +39,7 @@ import { QuestionImportService } from './question-import.service';
 import { QuestionsService } from './questions.service';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
-const PDF_INSPECTOR_CONTRACT_VERSION = 2;
+const PDF_INSPECTOR_CONTRACT_VERSION = 3;
 
 @Controller('questions')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -107,6 +107,7 @@ export class QuestionsController {
     return {
       ...enriched,
       inspector_contract_version: PDF_INSPECTOR_CONTRACT_VERSION,
+      enrichment_contract: 'answer+explanation+difficulty',
       candidates,
     };
   }
