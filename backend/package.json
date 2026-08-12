@@ -27,6 +27,7 @@
     "migration:show": "npm run typeorm -- migration:show -d src/database/data-source.ts",
     "schema:log": "npm run typeorm -- schema:log -d src/database/data-source.ts",
     "schema:check": "node scripts/check-schema-compatibility.cjs",
+    "schema:repair": "node scripts/repair-schema-drift.cjs",
     "postman:generate": "node scripts/generate-postman-safe.mjs",
     "postman:extractor:test": "node scripts/test-controller-route-extractor.mjs",
     "postman:verify-inventory": "node scripts/verify-generated-route-inventory.mjs",
