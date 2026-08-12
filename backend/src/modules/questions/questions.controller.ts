@@ -39,6 +39,7 @@ import { QuestionImportService } from './question-import.service';
 import { QuestionsService } from './questions.service';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
+const PDF_INSPECTOR_CONTRACT_VERSION = 2;
 
 @Controller('questions')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -96,7 +97,11 @@ export class QuestionsController {
     @CurrentUser() actor: AuthenticatedUser,
   ) {
     const inspection = await this.imports.inspectPdf(dto, file, actor);
-    return this.importEnrichment.enrichInspection(inspection);
+    const enriched = await this.importEnrichment.enrichInspection(inspection);
+    return {
+      ...enriched,
+      inspector_contract_version: PDF_INSPECTOR_CONTRACT_VERSION,
+    };
   }
 
   @Post('imports/publish')
