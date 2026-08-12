@@ -21,6 +21,7 @@ type ImportInspection = {
 };
 type EnrichmentRow = {
   candidate_id: string;
+  correct_label: string;
   difficulty: 'EASY' | 'MEDIUM' | 'HARD';
   explanation_lines: string[];
 };
@@ -40,26 +41,28 @@ export class QuestionImportEnrichmentService {
     const rawCandidates = inspection.candidates;
     if (rawCandidates.length === 0) return inspection;
 
-    // NO_SOURCE_EXPLANATION belonged to the old manual-review contract. The current
-    // contract generates explanations automatically for eligible questions, so this
-    // legacy warning must never leak into v2 responses (including invalid candidates).
     const candidates = rawCandidates.map((candidate) => ({
       ...candidate,
       issues: candidate.issues.filter((issue) => issue.code !== 'NO_SOURCE_EXPLANATION'),
     }));
 
-    const eligible = candidates.filter((candidate) =>
-      candidate.status !== 'INVALID' &&
-      candidate.question_text.trim().length >= 8 &&
-      candidate.options.length >= 2 &&
-      candidate.options.length <= 6 &&
-      candidate.options.filter((option) => option.is_correct).length === 1,
-    );
+    // A question is eligible when the stem/options are structurally usable. A source
+    // answer key is preferred, but a missing key no longer blocks explanation and
+    // difficulty automation: the model may infer one of the supplied labels and the
+    // response is explicitly tagged as AI-inferred.
+    const eligible = candidates.filter((candidate) => {
+      const correctCount = candidate.options.filter((option) => option.is_correct).length;
+      return candidate.status !== 'INVALID' &&
+        candidate.question_text.trim().length >= 8 &&
+        candidate.options.length >= 2 &&
+        candidate.options.length <= 6 &&
+        correctCount <= 1;
+    });
     if (eligible.length === 0) {
       return this.withRecalculatedSummary(inspection, candidates, {
         code: 'AI_ENRICHMENT_NOT_APPLICABLE',
         severity: 'INFO',
-        message: 'No structurally eligible questions were available for automatic explanation and difficulty enrichment.',
+        message: 'No structurally eligible questions were available for automatic answer, explanation, and difficulty enrichment.',
       });
     }
 
@@ -74,7 +77,7 @@ export class QuestionImportEnrichmentService {
       return this.withRecalculatedSummary(inspection, updated, {
         code: 'AI_ENRICHMENT_UNAVAILABLE',
         severity: 'WARNING',
-        message: 'Automatic explanations and difficulty estimates were skipped because OPENAI_API_KEY is not configured.',
+        message: 'Automatic answers, explanations, and difficulty estimates were skipped because OPENAI_API_KEY is not configured.',
       });
     }
 
@@ -99,9 +102,18 @@ export class QuestionImportEnrichmentService {
       const row = results.get(candidate.candidate_id);
       if (!row) {
         if (failedIds.has(candidate.candidate_id)) {
-          return this.withEnrichmentFailure(candidate, 'The automated explanation request failed. Review this question before publishing.');
+          return this.withEnrichmentFailure(candidate, 'The automated enrichment request failed. Review this question before publishing.');
         }
         return candidate;
+      }
+
+      const existingCorrect = candidate.options.find((option) => option.is_correct)?.label.toUpperCase() || null;
+      const correctLabel = row.correct_label.trim().toUpperCase();
+      const availableLabels = new Set(candidate.options.map((option) => option.label.toUpperCase()));
+      if (!availableLabels.has(correctLabel) || (existingCorrect && correctLabel !== existingCorrect)) {
+        return this.withEnrichmentFailure(candidate, existingCorrect
+          ? 'The automated enrichment attempted to change the source answer key, so it was rejected.'
+          : 'The automated enrichment returned a correct option that does not exist in the extracted choices.');
       }
 
       const explanation = this.validateExplanation(row, candidate);
@@ -109,20 +121,35 @@ export class QuestionImportEnrichmentService {
         return this.withEnrichmentFailure(candidate, 'The generated explanation did not pass the 4–7 line validation rules.');
       }
 
+      const inferredAnswer = !existingCorrect;
+      const issues: ImportIssue[] = [
+        ...candidate.issues.filter((issue) =>
+          !['AI_ENRICHMENT_FAILED', 'NO_SOURCE_EXPLANATION', 'DIFFICULTY_ESTIMATED', 'MISSING_ANSWER_KEY'].includes(issue.code),
+        ),
+        ...(inferredAnswer ? [{
+          code: 'AI_ANSWER_INFERRED',
+          severity: 'INFO',
+          message: `The PDF parser did not recover a source answer key, so ${MODEL} selected ${correctLabel} from the extracted options.`,
+        }] : []),
+        {
+          code: 'AI_ENRICHED',
+          severity: 'INFO',
+          message: `A concise 4–7 line explanation and estimated difficulty were generated automatically with ${MODEL}.`,
+        },
+      ];
+      const hardError = issues.some((issue) => issue.severity === 'ERROR');
+      const needsReview = issues.some((issue) => issue.severity === 'WARNING');
+
       return {
         ...candidate,
+        options: candidate.options.map((option) => ({
+          ...option,
+          is_correct: option.label.toUpperCase() === correctLabel,
+        })),
         explanation,
         difficulty: row.difficulty as QuestionDifficulty,
-        issues: [
-          ...candidate.issues.filter((issue) =>
-            !['AI_ENRICHMENT_FAILED', 'NO_SOURCE_EXPLANATION', 'DIFFICULTY_ESTIMATED'].includes(issue.code),
-          ),
-          {
-            code: 'AI_ENRICHED',
-            severity: 'INFO',
-            message: `Explanation and estimated difficulty were generated automatically with ${MODEL}. The source answer key remained authoritative and was not changed by AI.`,
-          },
-        ],
+        status: hardError ? 'INVALID' as const : needsReview ? 'NEEDS_REVIEW' as const : 'VALID' as const,
+        issues,
       };
     });
 
@@ -142,7 +169,7 @@ export class QuestionImportEnrichmentService {
         : {
             code: 'AI_ENRICHMENT_COMPLETE',
             severity: 'INFO',
-            message: `${results.size} question(s) received concise answer explanations and estimated difficulty automatically.`,
+            message: `${results.size} question(s) received automatic answer resolution where needed, concise explanations, and estimated difficulty.`,
           },
     );
   }
@@ -151,10 +178,10 @@ export class QuestionImportEnrichmentService {
     const payload = candidates.map((candidate) => ({
       candidate_id: candidate.candidate_id,
       question: candidate.question_text,
+      source_correct_label: candidate.options.find((option) => option.is_correct)?.label || null,
       options: candidate.options.map((option) => ({
         label: option.label,
         text: option.option_text,
-        correct: option.is_correct,
       })),
     }));
 
@@ -175,7 +202,9 @@ export class QuestionImportEnrichmentService {
           reasoning: { effort: 'low' },
           instructions: [
             'You are enriching instructor-authored medical MCQs for a study platform.',
-            'The supplied correct option is authoritative. Never change, dispute, or infer a different correct option.',
+            'Return exactly one correct_label from the supplied option labels for every question.',
+            'If source_correct_label is present, it is authoritative: return exactly that label and never change or dispute it.',
+            'If source_correct_label is null, select the medically best answer only from the supplied options; never invent an option.',
             'For every question, write a concise explanation of 4 to 7 non-empty lines total.',
             'Start each option-specific line with its option label, for example "B: ...".',
             'One line must directly explain why the correct option is correct.',
@@ -183,7 +212,7 @@ export class QuestionImportEnrichmentService {
             'If covering all options produces fewer than four lines, add one or two short lines beginning with "Key:" to reach four lines.',
             'Keep each line straightforward and focused; avoid introductions, conclusions, filler, repetition, citations, and long paragraphs.',
             'Estimate difficulty as EASY, MEDIUM, or HARD from the reasoning burden required, not from how obscure the fact sounds.',
-            'If the question is medically ambiguous, explain according to the supplied correct answer and use appropriately qualified wording rather than inventing certainty.',
+            'If the question is medically ambiguous, choose the best supplied option and use appropriately qualified wording rather than inventing certainty.',
           ].join(' '),
           input: JSON.stringify(payload),
           text: {
@@ -202,9 +231,10 @@ export class QuestionImportEnrichmentService {
                     items: {
                       type: 'object',
                       additionalProperties: false,
-                      required: ['candidate_id', 'difficulty', 'explanation_lines'],
+                      required: ['candidate_id', 'correct_label', 'difficulty', 'explanation_lines'],
                       properties: {
                         candidate_id: { type: 'string' },
+                        correct_label: { type: 'string' },
                         difficulty: { type: 'string', enum: ['EASY', 'MEDIUM', 'HARD'] },
                         explanation_lines: { type: 'array', items: { type: 'string' } },
                       },
