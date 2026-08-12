@@ -47,6 +47,7 @@ type DuplicateMatch = {
 type ImportCandidate = {
   candidate_id: string;
   source_page: number | null;
+  source_section: string | null;
   question_text: string;
   options: ExtractedOption[];
   explanation: string | null;
@@ -68,10 +69,26 @@ type ParsedPdf = {
   extractionConfidence: number;
 };
 
+type ParsedQuestion = {
+  sourcePage: number | null;
+  sourceSection: string | null;
+  questionText: string;
+  options: Array<{ label: string; text: string }>;
+  correctLabel: string | null;
+  explanation: string | null;
+};
+
+type ParsingSection = {
+  title: string | null;
+  text: string;
+  offset: number;
+};
+
 const MAX_PDF_BYTES = 25 * 1024 * 1024;
 const MAX_PDF_PAGES = 200;
 const MAX_IMPORT_CANDIDATES = 500;
 const MIN_TEXT_LENGTH = 80;
+const MAX_MCQ_OPTIONS = 6;
 const IMPORT_REFERENCE_PREFIX = 'MDP_PDF_IMPORT';
 
 const STOPWORDS = new Set([
@@ -138,6 +155,7 @@ export class QuestionImportService {
               'The PDF appears scanned or its text encoding is not safely extractable. OCR is required before questions can be reviewed.',
           },
         ],
+        sections: [] as Array<{ title: string; questions: number }>,
         candidates: [] as ImportCandidate[],
       };
     }
@@ -176,7 +194,7 @@ export class QuestionImportService {
         code: 'NO_QUESTIONS_DETECTED',
         severity: 'ERROR',
         message:
-          'No supported numbered MCQs were detected. Use question numbering plus A-D options and an answer key, or create the questions manually.',
+          'No supported numbered MCQs were detected. Use numbered questions with A-F answer options, or create the questions manually.',
       });
     }
     if (previouslyPublished > 0) {
@@ -185,6 +203,15 @@ export class QuestionImportService {
         severity: 'WARNING',
         message: `${previouslyPublished} question(s) from this exact PDF hash already exist in the question bank. Reuse detected matches instead of creating copies.`,
       });
+    }
+
+    const sectionCounts = new Map<string, number>();
+    for (const candidate of candidates) {
+      if (!candidate.source_section) continue;
+      sectionCounts.set(
+        candidate.source_section,
+        (sectionCounts.get(candidate.source_section) || 0) + 1,
+      );
     }
 
     return {
@@ -204,6 +231,7 @@ export class QuestionImportService {
         invalid,
         duplicates: candidates.filter((candidate) => candidate.duplicate).length,
       },
+      sections: Array.from(sectionCounts.entries()).map(([title, questions]) => ({ title, questions })),
       issues,
       candidates,
     };
@@ -256,8 +284,7 @@ export class QuestionImportService {
       }
       if (candidate.reuse_question_id) {
         const reusable = existing.find(
-          (question) =>
-            question.id === candidate.reuse_question_id && question.isActive,
+          (question) => question.id === candidate.reuse_question_id && question.isActive,
         );
         if (!reusable) {
           throw new BadRequestException(
@@ -417,7 +444,9 @@ export class QuestionImportService {
     }).length;
     const printableRatio = text.length ? printable / text.length : 0;
     const density = Math.min(1, text.trim().length / Math.max(300, declaredPageCount * 250));
-    const extractionConfidence = Number(Math.max(0, Math.min(1, printableRatio * 0.65 + density * 0.35)).toFixed(2));
+    const extractionConfidence = Number(
+      Math.max(0, Math.min(1, printableRatio * 0.65 + density * 0.35)).toFixed(2),
+    );
     return {
       pages,
       pageCount: declaredPageCount,
@@ -515,13 +544,7 @@ export class QuestionImportService {
     return output;
   }
 
-  private parseQuestions(pdf: ParsedPdf): Array<{
-    sourcePage: number | null;
-    questionText: string;
-    options: Array<{ label: string; text: string }>;
-    correctLabel: string | null;
-    explanation: string | null;
-  }> {
+  private parseQuestions(pdf: ParsedPdf): ParsedQuestion[] {
     const preparedPages = pdf.pages.map((page) => ({
       page: page.page,
       text: this.prepareForParsing(page.text),
@@ -529,28 +552,48 @@ export class QuestionImportService {
     const combined = preparedPages
       .map((page) => `\n[[MDP_PAGE_${page.page}]]\n${page.text}`)
       .join('\n');
-    const answerKey = this.extractAnswerKey(combined);
+    const sections = this.splitLectureSections(combined);
+    return sections.flatMap((section) => this.parseSectionQuestions(section, combined));
+  }
+
+  private splitLectureSections(combined: string): ParsingSection[] {
+    const headingPattern = /^\s*(Lecture\s+(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|\d+)(?:\s*[:\-])?[^\n]*)$/gim;
+    const headings = Array.from(combined.matchAll(headingPattern));
+    if (headings.length === 0) {
+      return [{ title: null, text: combined, offset: 0 }];
+    }
+
+    const sections: ParsingSection[] = [];
+    for (let index = 0; index < headings.length; index += 1) {
+      const heading = headings[index];
+      const offset = heading.index || 0;
+      const end = headings[index + 1]?.index ?? combined.length;
+      sections.push({
+        title: heading[1].replace(/\s+/g, ' ').trim(),
+        text: combined.slice(offset, end),
+        offset,
+      });
+    }
+    return sections;
+  }
+
+  private parseSectionQuestions(section: ParsingSection, combined: string): ParsedQuestion[] {
+    const answerKey = this.extractCompactAnswerKey(section.text);
     const starts = Array.from(
-      combined.matchAll(/^\s*(?:Q(?:uestion)?\s*)?(\d{1,3})[.)]\s+(.+)$/gim),
-    ).filter((match) => !/answer\s*key/i.test(combined.slice(Math.max(0, (match.index || 0) - 40), match.index)));
-    const candidates: Array<{
-      sourcePage: number | null;
-      questionText: string;
-      options: Array<{ label: string; text: string }>;
-      correctLabel: string | null;
-      explanation: string | null;
-    }> = [];
+      section.text.matchAll(/^\s*(?:Q(?:uestion)?\s*)?(\d{1,3})[.)]\s+(.+)$/gim),
+    ).filter((match) => !this.isCompactAnswerKeyLine(match[0]));
+    const candidates: ParsedQuestion[] = [];
 
     for (let index = 0; index < starts.length; index += 1) {
       const start = starts[index];
-      const startIndex = start.index || 0;
-      const endIndex = starts[index + 1]?.index ?? combined.length;
-      let block = combined.slice(startIndex, endIndex);
-      if (/^\s*answer\s*key/i.test(block)) continue;
-      const sourcePage = this.pageBefore(combined, startIndex);
+      const localStart = start.index || 0;
+      const localEnd = starts[index + 1]?.index ?? section.text.length;
+      let block = section.text.slice(localStart, localEnd);
+      if (this.isCompactAnswerKeyLine(block.split('\n')[0] || '')) continue;
+      const sourcePage = this.pageBefore(combined, section.offset + localStart);
       block = block.replace(/\[\[MDP_PAGE_\d+\]\]/g, '\n');
       const questionNumber = Number(start[1]);
-      const firstOption = block.search(/^\s*[A-D][.)]\s+/im);
+      const firstOption = block.search(/^\s*[A-F][.)]\s+/im);
       if (firstOption < 0) continue;
       const stem = block
         .slice(0, firstOption)
@@ -558,21 +601,60 @@ export class QuestionImportService {
         .replace(/\s+/g, ' ')
         .trim();
       const optionArea = block.slice(firstOption);
-      const options: Array<{ label: string; text: string }> = [];
-      const optionPattern = /^\s*([A-D])[.)]\s*(.+?)(?=^\s*[A-D][.)]\s+|^\s*(?:Correct\s+Answer|Answer|Explanation|Rationale)\s*:|$)/gims;
-      let option: RegExpExecArray | null;
-      while ((option = optionPattern.exec(optionArea)) !== null) {
-        const text = option[2].replace(/\s+/g, ' ').trim();
-        if (text) options.push({ label: option[1].toUpperCase(), text });
-      }
-      const inlineAnswer = block.match(/(?:Correct\s+Answer|Answer)\s*[:-]\s*([A-D])\b/i)?.[1]?.toUpperCase() || null;
+      const options = this.parseOptions(optionArea);
+      const inlineAnswer = block.match(/(?:Correct\s+Answer|Answer)\s*[:-]\s*([A-F])\b/i)?.[1]?.toUpperCase() || null;
       const correctLabel = inlineAnswer || answerKey.get(questionNumber) || null;
       const explanation = block.match(/(?:Explanation|Rationale)\s*:\s*([\s\S]+?)(?=$)/i)?.[1]
         ?.replace(/\s+/g, ' ')
         .trim() || null;
-      if (stem) candidates.push({ sourcePage, questionText: stem, options, correctLabel, explanation });
+      if (stem) {
+        candidates.push({
+          sourcePage,
+          sourceSection: section.title,
+          questionText: stem,
+          options,
+          correctLabel,
+          explanation,
+        });
+      }
     }
     return candidates;
+  }
+
+  private parseOptions(optionArea: string): Array<{ label: string; text: string }> {
+    const metadata = optionArea.search(/^\s*(?:Correct\s+Answer|Answer|Explanation|Rationale)\s*:/im);
+    const compactKey = this.findCompactAnswerKeyOffset(optionArea);
+    const hardEnd = [metadata, compactKey]
+      .filter((value) => value >= 0)
+      .reduce((lowest, value) => Math.min(lowest, value), optionArea.length);
+    const area = optionArea.slice(0, hardEnd);
+    const markers = Array.from(area.matchAll(/^\s*([A-F])[.)]\s*/gim));
+    if (markers.length === 0) return [];
+
+    const accepted: RegExpMatchArray[] = [];
+    let previous = 64;
+    let resetAt = area.length;
+    for (const marker of markers) {
+      const code = marker[1].toUpperCase().charCodeAt(0);
+      if (accepted.length > 0 && code <= previous) {
+        resetAt = marker.index ?? area.length;
+        break;
+      }
+      if (accepted.length > 0 && code !== previous + 1) {
+        resetAt = marker.index ?? area.length;
+        break;
+      }
+      accepted.push(marker);
+      previous = code;
+      if (accepted.length >= MAX_MCQ_OPTIONS) break;
+    }
+
+    return accepted.map((marker, index) => {
+      const start = (marker.index || 0) + marker[0].length;
+      const next = accepted[index + 1]?.index ?? resetAt;
+      const text = area.slice(start, next).replace(/\s+/g, ' ').trim();
+      return { label: marker[1].toUpperCase(), text };
+    }).filter((option) => Boolean(option.text));
   }
 
   private prepareForParsing(value: string): string {
@@ -580,23 +662,47 @@ export class QuestionImportService {
       .replace(/\r/g, '\n')
       .replace(/[\t ]+/g, ' ')
       .replace(/\n{3,}/g, '\n\n')
-      .replace(/\s+([A-D])[.)]\s+/g, '\n$1. ')
+      .replace(/\s+([A-F])[.)]\s+/g, '\n$1. ')
       .replace(/\s+(Correct\s+Answer|Answer|Explanation|Rationale)\s*:/gi, '\n$1:')
       .replace(/\s+(Q(?:uestion)?\s*\d{1,3}[.)])\s+/gi, '\n$1 ')
+      .replace(/\s+(Lecture\s+(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|\d+))/gi, '\n$1')
       .trim();
   }
 
-  private extractAnswerKey(value: string): Map<number, string> {
+  private extractCompactAnswerKey(value: string): Map<number, string> {
     const result = new Map<number, string>();
+    const lines = value.split('\n');
+    for (const line of lines) {
+      const pairs = Array.from(line.matchAll(/(?:^|\s)(\d{1,3})\s*[.)-]?\s*([A-F])\b/gi));
+      if (pairs.length < 2) continue;
+      for (const pair of pairs) {
+        result.set(Number(pair[1]), pair[2].toUpperCase());
+      }
+    }
+
     const marker = value.search(/answer\s*key/i);
-    if (marker < 0) return result;
-    const tail = value.slice(marker);
-    const pattern = /(?:^|\s)(\d{1,3})\s*[.):-]?\s*([A-D])\b/gim;
-    let match: RegExpExecArray | null;
-    while ((match = pattern.exec(tail)) !== null) {
-      result.set(Number(match[1]), match[2].toUpperCase());
+    if (marker >= 0) {
+      const tail = value.slice(marker);
+      const pattern = /(?:^|\s)(\d{1,3})\s*[.):-]?\s*([A-F])\b/gim;
+      let match: RegExpExecArray | null;
+      while ((match = pattern.exec(tail)) !== null) {
+        result.set(Number(match[1]), match[2].toUpperCase());
+      }
     }
     return result;
+  }
+
+  private isCompactAnswerKeyLine(value: string): boolean {
+    return Array.from(value.matchAll(/(?:^|\s)\d{1,3}\s*[.)-]?\s*[A-F]\b/gi)).length >= 2;
+  }
+
+  private findCompactAnswerKeyOffset(value: string): number {
+    let offset = 0;
+    for (const line of value.split('\n')) {
+      if (this.isCompactAnswerKeyLine(line)) return offset;
+      offset += line.length + 1;
+    }
+    return -1;
   }
 
   private pageBefore(value: string, index: number): number | null {
@@ -607,13 +713,7 @@ export class QuestionImportService {
   }
 
   private evaluateCandidate(
-    candidate: {
-      sourcePage: number | null;
-      questionText: string;
-      options: Array<{ label: string; text: string }>;
-      correctLabel: string | null;
-      explanation: string | null;
-    },
+    candidate: ParsedQuestion,
     index: number,
     topicCorpus: string,
     existing: Pick<Question, 'id' | 'questionText' | 'isActive' | 'topicId'>[],
@@ -623,8 +723,12 @@ export class QuestionImportService {
     if (candidate.questionText.length < 8) {
       issues.push({ code: 'STEM_TOO_SHORT', severity: 'ERROR', message: 'Question stem is too short to publish safely.' });
     }
-    if (candidate.options.length < 2 || candidate.options.length > 4) {
-      issues.push({ code: 'INVALID_OPTION_COUNT', severity: 'ERROR', message: 'MCQs must contain between two and four answer options.' });
+    if (candidate.options.length < 2 || candidate.options.length > MAX_MCQ_OPTIONS) {
+      issues.push({
+        code: 'INVALID_OPTION_COUNT',
+        severity: 'ERROR',
+        message: `MCQs must contain between two and ${MAX_MCQ_OPTIONS} answer options.`,
+      });
     }
     if (new Set(optionTexts).size !== optionTexts.length) {
       issues.push({ code: 'DUPLICATE_OPTIONS', severity: 'ERROR', message: 'Two or more answer options contain the same normalized text.' });
@@ -634,10 +738,23 @@ export class QuestionImportService {
     } else if (!candidate.options.some((option) => option.label === candidate.correctLabel)) {
       issues.push({ code: 'ANSWER_OUTSIDE_OPTIONS', severity: 'ERROR', message: `The answer key points to ${candidate.correctLabel}, which is not one of the extracted options.` });
     }
+
+    const difficulty = this.estimateDifficulty(candidate.questionText);
+    issues.push({
+      code: 'DIFFICULTY_ESTIMATED',
+      severity: 'INFO',
+      message: `Difficulty was estimated as ${difficulty}. It can be adjusted later and calibrated from student performance.`,
+    });
     if (!candidate.explanation) {
-      issues.push({ code: 'MISSING_EXPLANATION', severity: 'WARNING', message: 'No explanation was detected. Add one before publishing if tutor-mode feedback is required.' });
+      issues.push({
+        code: 'NO_SOURCE_EXPLANATION',
+        severity: 'INFO',
+        message: 'The source PDF does not provide an explanation. None will be generated automatically.',
+      });
     }
-    const topicConfidence = this.topicConfidence(candidate.questionText, topicCorpus);
+
+    const topicInput = [candidate.sourceSection || '', candidate.questionText].join(' ');
+    const topicConfidence = this.topicConfidence(topicInput, topicCorpus);
     if (topicConfidence < 0.08) {
       issues.push({ code: 'TOPIC_MISMATCH', severity: 'WARNING', message: 'The extracted wording has a very weak lexical match to the selected topic. Instructor confirmation is required.' });
     }
@@ -651,10 +768,15 @@ export class QuestionImportService {
     }
     const hardError = issues.some((issue) => issue.severity === 'ERROR');
     const review = issues.some((issue) => issue.severity === 'WARNING');
-    const extractionConfidence = Number(Math.max(0.2, 1 - issues.length * 0.12).toFixed(2));
+    const structuralPenalty = issues.filter((issue) => issue.severity === 'ERROR').length * 0.22;
+    const reviewPenalty = issues.filter((issue) => issue.severity === 'WARNING').length * 0.1;
+    const extractionConfidence = Number(
+      Math.max(0.2, 1 - structuralPenalty - reviewPenalty).toFixed(2),
+    );
     return {
       candidate_id: `candidate-${index + 1}`,
       source_page: candidate.sourcePage,
+      source_section: candidate.sourceSection,
       question_text: candidate.questionText,
       options: candidate.options.map((option) => ({
         label: option.label,
@@ -662,7 +784,7 @@ export class QuestionImportService {
         is_correct: option.label === candidate.correctLabel,
       })),
       explanation: candidate.explanation,
-      difficulty: QuestionDifficulty.MEDIUM,
+      difficulty,
       marks: 1,
       extraction_confidence: extractionConfidence,
       topic_confidence: topicConfidence,
@@ -672,11 +794,41 @@ export class QuestionImportService {
     };
   }
 
+  private estimateDifficulty(text: string): QuestionDifficulty {
+    const normalized = text.toLocaleLowerCase();
+    const hardSignals = [
+      'most appropriate next step',
+      'best explains',
+      'mechanism',
+      'pathogenesis',
+      'after treatment',
+      'which of the following best',
+      'patient presents',
+      'a patient',
+      'a researcher',
+    ];
+    const easySignals = [
+      'is defined as',
+      'what is the normal',
+      'what is the average',
+      'which artery',
+      'which nerve',
+      'which vitamin',
+      'which cell',
+      'is called',
+    ];
+    const hardScore = hardSignals.filter((signal) => normalized.includes(signal)).length;
+    const easyScore = easySignals.filter((signal) => normalized.includes(signal)).length;
+    if (hardScore >= 2 || text.length > 300) return QuestionDifficulty.HARD;
+    if (easyScore > hardScore && text.length < 180) return QuestionDifficulty.EASY;
+    return QuestionDifficulty.MEDIUM;
+  }
+
   private validatePublishCandidate(candidate: PublishImportedQuestionDto, index: number): void {
     const text = candidate.question_text.trim();
     if (text.length < 8) throw new BadRequestException(`Question ${index + 1} has an invalid stem`);
-    if (candidate.options.length < 2 || candidate.options.length > 4) {
-      throw new BadRequestException(`Question ${index + 1} must contain two to four options`);
+    if (candidate.options.length < 2 || candidate.options.length > MAX_MCQ_OPTIONS) {
+      throw new BadRequestException(`Question ${index + 1} must contain two to ${MAX_MCQ_OPTIONS} options`);
     }
     const normalized = candidate.options.map((option) => this.normalize(option.option_text));
     if (normalized.some((option) => !option) || new Set(normalized).size !== normalized.length) {
