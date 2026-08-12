@@ -108,6 +108,13 @@ function statusClass(status: Candidate["status"]) {
   return "bad";
 }
 
+function inspectionErrorMessage(cause: unknown) {
+  if (cause instanceof DOMException && (cause.name === "TimeoutError" || cause.name === "AbortError")) {
+    return "PDF inspection timed out after 45 seconds. Check that the backend is running, then try again.";
+  }
+  return cause instanceof Error ? cause.message : "Could not inspect PDF.";
+}
+
 export function QuestionImportPage() {
   const { user, loading: authLoading, request } = useAuth();
   const { notify } = useUx();
@@ -161,11 +168,38 @@ export function QuestionImportPage() {
 
   async function inspect(event: FormEvent) {
     event.preventDefault();
-    if (!file || !topicId) return;
+
+    if (!courseId) {
+      notify({ title: "Choose a course first", description: "Select the course that owns these questions.", tone: "info" });
+      return;
+    }
+    if (!topicId) {
+      notify({ title: "Choose a destination topic", description: "The inspector needs the exact topic before it can analyse the PDF.", tone: "info" });
+      return;
+    }
+    if (!file) {
+      notify({ title: "Choose a PDF", description: "Select the question PDF you want to inspect.", tone: "info" });
+      return;
+    }
+    if (!copyrightConfirmed) {
+      notify({ title: "Permission confirmation required", description: "Confirm that you have permission to use this question material before inspection.", tone: "info" });
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      notify({ title: "PDF is too large", description: "Question PDFs are limited to 25 MB.", tone: "error" });
+      return;
+    }
+    if (!/\.pdf$/i.test(file.name)) {
+      notify({ title: "A real PDF is required", description: "Choose a file with a .pdf filename.", tone: "error" });
+      return;
+    }
+
     setInspecting(true);
     setError(null);
     setInspection(null);
     setCandidates([]);
+    notify({ title: "Inspecting PDF", description: `Uploading and analysing ${file.name}…`, tone: "info" });
+
     try {
       const body = new FormData();
       body.append("file", file);
@@ -174,6 +208,7 @@ export function QuestionImportPage() {
       const result = await request<Inspection>("/questions/imports/inspect", {
         method: "POST",
         body,
+        signal: AbortSignal.timeout(45_000),
       });
       setInspection(result);
       setCandidates(
@@ -190,6 +225,12 @@ export function QuestionImportPage() {
           description: "This PDF does not expose a safe text layer yet, so nothing was published.",
           tone: "info",
         });
+      } else if (result.status === "NO_QUESTIONS") {
+        notify({
+          title: "No supported MCQs detected",
+          description: "The PDF was read, but no supported numbered A-D MCQs were found. See the batch checks below.",
+          tone: "info",
+        });
       } else {
         notify({
           title: "PDF inspection complete",
@@ -198,7 +239,9 @@ export function QuestionImportPage() {
         });
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not inspect PDF.");
+      const message = inspectionErrorMessage(cause);
+      setError(message);
+      notify({ title: "PDF inspection failed", description: message, tone: "error" });
     } finally {
       setInspecting(false);
     }
@@ -294,14 +337,19 @@ export function QuestionImportPage() {
       </header>
 
       <Panel className="question-import-upload-panel">
-        <form onSubmit={inspect} className="question-import-upload-form">
+        <form onSubmit={inspect} className="question-import-upload-form" noValidate>
           <div className="question-import-fields">
-            <label><span>Course</span><select required value={courseId} onChange={(event) => void chooseCourse(event.target.value)}><option value="">Select course…</option>{courses.map((item) => <option value={item.id} key={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label>
-            <label><span>Destination topic</span><select required value={topicId} disabled={!course} onChange={(event) => { setTopicId(event.target.value); setInspection(null); setCandidates([]); }}><option value="">Select exact topic…</option>{topics.map((topic) => <option value={topic.id} key={topic.id}>{topic.path} · {topic.topicName}</option>)}</select></label>
-            <label className="question-import-file"><span>Question PDF</span><input required type="file" accept="application/pdf,.pdf" onChange={(event) => { setFile(event.target.files?.[0] || null); setInspection(null); setCandidates([]); }} /><small>Real PDF only · max 25 MB · max 200 pages. Fake extensions, encrypted files, and unreadable structures are rejected.</small></label>
+            <label><span>Course</span><select value={courseId} onChange={(event) => void chooseCourse(event.target.value)}><option value="">Select course…</option>{courses.map((item) => <option value={item.id} key={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label>
+            <label><span>Destination topic</span><select value={topicId} disabled={!course} onChange={(event) => { setTopicId(event.target.value); setInspection(null); setCandidates([]); }}><option value="">Select exact topic…</option>{topics.map((topic) => <option value={topic.id} key={topic.id}>{topic.path} · {topic.topicName}</option>)}</select></label>
+            <label className="question-import-file"><span>Question PDF</span><input type="file" accept="application/pdf,.pdf" onChange={(event) => { setFile(event.target.files?.[0] || null); setInspection(null); setCandidates([]); }} /><small>Real PDF only · max 25 MB · max 200 pages. Fake extensions, encrypted files, and unreadable structures are rejected.</small></label>
           </div>
           <label className="question-import-rights"><input type="checkbox" checked={copyrightConfirmed} onChange={(event) => setCopyrightConfirmed(event.target.checked)} /><span>I confirm I have permission to use and publish questions from this material.</span></label>
-          <div className="question-import-upload-actions"><button type="submit" className="pp-button" disabled={inspecting || !file || !topicId || !copyrightConfirmed}>{inspecting ? <><FiRefreshCw className="spin" /> Inspecting PDF…</> : <><FiUploadCloud /> Inspect PDF</>}</button></div>
+          <div className="question-import-upload-actions">
+            <button type="submit" className="pp-button" disabled={inspecting} aria-busy={inspecting}>
+              {inspecting ? <><FiRefreshCw className="spin" /> Inspecting PDF…</> : <><FiUploadCloud /> Inspect PDF</>}
+            </button>
+            {inspecting && <span role="status" aria-live="polite">Uploading and analysing the PDF. This can take a few seconds.</span>}
+          </div>
         </form>
       </Panel>
 
