@@ -78,10 +78,12 @@ export class QuestionImportEnrichmentService {
 
     const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) {
-      const updated = candidates.map((candidate) => {
-        if (!eligible.some((item) => item.candidate_id === candidate.candidate_id)) return candidate;
-        return this.withEnrichmentFailure(candidate, 'OPENAI_API_KEY is not configured on the backend.');
-      });
+      const eligibleIds = new Set(eligible.map((candidate) => candidate.candidate_id));
+      const updated = candidates.map((candidate) =>
+        eligibleIds.has(candidate.candidate_id)
+          ? this.withEnrichmentFailure(candidate, 'OPENAI_API_KEY is not configured on the backend.')
+          : candidate,
+      );
       return this.withRecalculatedSummary(inspection, updated, {
         code: 'AI_ENRICHMENT_UNAVAILABLE',
         severity: 'WARNING',
@@ -125,13 +127,13 @@ export class QuestionImportEnrichmentService {
       return {
         ...candidate,
         explanation,
-        difficulty: QuestionDifficulty[row.difficulty],
+        difficulty: row.difficulty as QuestionDifficulty,
         issues: [
           ...candidate.issues.filter((issue) => issue.code !== 'AI_ENRICHMENT_FAILED'),
           {
             code: 'AI_ENRICHED',
             severity: 'INFO' as const,
-            message: `Explanation and estimated difficulty were generated automatically with ${MODEL}. The correct answer was fixed by the source answer key and was not changed by AI.`,
+            message: `Explanation and estimated difficulty were generated automatically with ${MODEL}. The source answer key remained authoritative and was not changed by AI.`,
           },
         ],
       };
@@ -186,12 +188,13 @@ export class QuestionImportEnrichmentService {
             'You are enriching instructor-authored medical MCQs for a study platform.',
             'The supplied correct option is authoritative. Never change, dispute, or infer a different correct option.',
             'For every question, write a concise explanation of 4 to 7 non-empty lines total.',
+            'Start each option-specific line with its option label, for example "B: ...".',
             'One line must directly explain why the correct option is correct.',
-            'Every incorrect option must be addressed explicitly by label and state why it is wrong in this question.',
-            'If fewer than four lines are needed to cover all options, add one or two short key-distinction lines to reach four lines.',
+            'Every incorrect option must be addressed exactly once by label and state why it is wrong for this question.',
+            'If covering all options produces fewer than four lines, add one or two short lines beginning with "Key:" to reach four lines.',
             'Keep each line straightforward and focused; avoid introductions, conclusions, filler, repetition, citations, and long paragraphs.',
             'Estimate difficulty as EASY, MEDIUM, or HARD from the reasoning burden required, not from how obscure the fact sounds.',
-            'If the question itself is medically ambiguous, still explain according to the supplied correct answer and keep the wording appropriately qualified.',
+            'If the question is medically ambiguous, explain according to the supplied correct answer and use appropriately qualified wording rather than inventing certainty.',
           ].join(' '),
           input: JSON.stringify(payload),
           text: {
@@ -207,8 +210,6 @@ export class QuestionImportEnrichmentService {
                 properties: {
                   questions: {
                     type: 'array',
-                    minItems: candidates.length,
-                    maxItems: candidates.length,
                     items: {
                       type: 'object',
                       additionalProperties: false,
@@ -218,9 +219,7 @@ export class QuestionImportEnrichmentService {
                         difficulty: { type: 'string', enum: ['EASY', 'MEDIUM', 'HARD'] },
                         explanation_lines: {
                           type: 'array',
-                          minItems: 4,
-                          maxItems: 7,
-                          items: { type: 'string', minLength: 3, maxLength: 260 },
+                          items: { type: 'string' },
                         },
                       },
                     },
@@ -263,14 +262,13 @@ export class QuestionImportEnrichmentService {
     if (!Array.isArray(row.explanation_lines)) return null;
     const lines = row.explanation_lines.map((line) => line.trim()).filter(Boolean);
     if (lines.length < 4 || lines.length > 7) return null;
+    if (lines.some((line) => line.length > 260)) return null;
 
-    const wrongLabels = candidate.options.filter((option) => !option.is_correct).map((option) => option.label.toUpperCase());
-    const correctLabel = candidate.options.find((option) => option.is_correct)?.label.toUpperCase();
-    if (!correctLabel) return null;
-
-    const combined = lines.join('\n').toUpperCase();
-    if (!combined.includes(correctLabel)) return null;
-    if (wrongLabels.some((label) => !combined.includes(label))) return null;
+    const labels = candidate.options.map((option) => option.label.toUpperCase());
+    for (const label of labels) {
+      const pattern = new RegExp(`^(?:OPTION\\s+)?${this.escapeRegExp(label)}(?:\\b|\\s*[:.)\\-–—])`, 'i');
+      if (!lines.some((line) => pattern.test(line))) return null;
+    }
     return lines.join('\n');
   }
 
@@ -323,5 +321,9 @@ export class QuestionImportEnrichmentService {
     const chunks: T[][] = [];
     for (let index = 0; index < items.length; index += size) chunks.push(items.slice(index, index + size));
     return chunks;
+  }
+
+  private escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }
