@@ -7,7 +7,6 @@ import {
   FiArrowLeft,
   FiCheck,
   FiCheckCircle,
-  FiFileText,
   FiRefreshCw,
   FiSearch,
   FiShield,
@@ -80,11 +79,7 @@ type Inspection = {
   candidates: Candidate[];
 };
 
-type PublishResult = {
-  created: number;
-  reused: number;
-  skipped: number;
-};
+type PublishResult = { created: number; reused: number; skipped: number };
 
 function flattenTopics(course: Course | null) {
   if (!course?.weeks) return [] as Array<Topic & { path: string }>;
@@ -99,7 +94,7 @@ function flattenTopics(course: Course | null) {
 }
 
 function percent(value: number) {
-  return `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`;
+  return `${Math.round(Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0)) * 100)}%`;
 }
 
 function statusClass(status: Candidate["status"]) {
@@ -110,9 +105,21 @@ function statusClass(status: Candidate["status"]) {
 
 function inspectionErrorMessage(cause: unknown) {
   if (cause instanceof DOMException && (cause.name === "TimeoutError" || cause.name === "AbortError")) {
-    return "PDF inspection timed out after 45 seconds. Check that the backend is running, then try again.";
+    return "PDF inspection timed out after 90 seconds. Check the backend/OpenAI connection, then try again.";
   }
   return cause instanceof Error ? cause.message : "Could not inspect PDF.";
+}
+
+function hasLegacyInspectorContract(result: Inspection) {
+  const messages = [
+    ...(result.issues || []).map((issue) => issue.message),
+    ...result.candidates.flatMap((candidate) => candidate.issues.map((issue) => issue.message)),
+  ];
+  return messages.some((message) =>
+    /between two and four answer options/i.test(message) ||
+    /no explanation was detected\. add one before publishing/i.test(message) ||
+    /none will be generated automatically/i.test(message),
+  );
 }
 
 export function QuestionImportPage() {
@@ -144,9 +151,7 @@ export function QuestionImportPage() {
     }
   }, [request, user]);
 
-  useEffect(() => {
-    void loadCourses();
-  }, [loadCourses]);
+  useEffect(() => { void loadCourses(); }, [loadCourses]);
 
   async function chooseCourse(id: string) {
     setCourseId(id);
@@ -158,17 +163,12 @@ export function QuestionImportPage() {
     try {
       setCourse(await request<Course>(`/academic/courses/${id}`));
     } catch (cause) {
-      notify({
-        title: "Could not load course structure",
-        description: cause instanceof Error ? cause.message : undefined,
-        tone: "error",
-      });
+      notify({ title: "Could not load course structure", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
     }
   }
 
   async function inspect(event: FormEvent) {
     event.preventDefault();
-
     if (!courseId) {
       notify({ title: "Choose a course first", description: "Select the course that owns these questions.", tone: "info" });
       return;
@@ -198,7 +198,7 @@ export function QuestionImportPage() {
     setError(null);
     setInspection(null);
     setCandidates([]);
-    notify({ title: "Inspecting PDF", description: `Uploading and analysing ${file.name}…`, tone: "info" });
+    notify({ title: "Inspecting PDF", description: `Parsing, matching answer keys, validating, and enriching ${file.name}…`, tone: "info" });
 
     try {
       const body = new FormData();
@@ -208,33 +208,34 @@ export function QuestionImportPage() {
       const result = await request<Inspection>("/questions/imports/inspect", {
         method: "POST",
         body,
-        signal: AbortSignal.timeout(45_000),
+        signal: AbortSignal.timeout(90_000),
       });
+
+      if (hasLegacyInspectorContract(result)) {
+        const message = "The running backend is using the old PDF inspector contract (4-option/manual-explanation parser). Restart the backend after pulling this branch, then inspect the PDF again. This stale result was blocked so it cannot be reviewed or published.";
+        setError(message);
+        setInspection(null);
+        setCandidates([]);
+        notify({ title: "Outdated PDF inspector detected", description: message, tone: "error" });
+        return;
+      }
+
       setInspection(result);
-      setCandidates(
-        result.candidates.map((candidate) => ({
-          ...candidate,
-          approved: candidate.status === "VALID" && !candidate.duplicate,
-          allow_topic_override: false,
-          allow_duplicate: false,
-        })),
-      );
+      setCandidates(result.candidates.map((candidate) => ({
+        ...candidate,
+        approved: candidate.status === "VALID" && !candidate.duplicate,
+        allow_topic_override: false,
+        allow_duplicate: false,
+      })));
+
       if (result.status === "NEEDS_OCR") {
-        notify({
-          title: "OCR required",
-          description: "This PDF does not expose a safe text layer yet, so nothing was published.",
-          tone: "info",
-        });
+        notify({ title: "OCR required", description: "This PDF does not expose a safe text layer yet, so nothing was published.", tone: "info" });
       } else if (result.status === "NO_QUESTIONS") {
-        notify({
-          title: "No supported MCQs detected",
-          description: "The PDF was read, but no supported numbered A-D MCQs were found. See the batch checks below.",
-          tone: "info",
-        });
+        notify({ title: "No supported MCQs detected", description: "The PDF was read, but no supported numbered A–F MCQs were found. See the batch checks below.", tone: "info" });
       } else {
         notify({
           title: "PDF inspection complete",
-          description: `${result.candidates.length} candidate question(s) are ready for instructor review.`,
+          description: `${result.summary?.valid ?? 0} ready · ${result.summary?.needs_review ?? 0} need attention · ${result.summary?.invalid ?? 0} invalid. Review exceptions, then publish.`,
           tone: "success",
         });
       }
@@ -248,20 +249,13 @@ export function QuestionImportPage() {
   }
 
   function updateCandidate(index: number, updater: (candidate: Candidate) => Candidate) {
-    setCandidates((current) =>
-      current.map((candidate, candidateIndex) =>
-        candidateIndex === index ? updater(candidate) : candidate,
-      ),
-    );
+    setCandidates((current) => current.map((candidate, candidateIndex) => candidateIndex === index ? updater(candidate) : candidate));
   }
 
   function setCorrectOption(candidateIndex: number, optionIndex: number) {
     updateCandidate(candidateIndex, (candidate) => ({
       ...candidate,
-      options: candidate.options.map((option, index) => ({
-        ...option,
-        is_correct: index === optionIndex,
-      })),
+      options: candidate.options.map((option, index) => ({ ...option, is_correct: index === optionIndex })),
     }));
   }
 
@@ -269,7 +263,7 @@ export function QuestionImportPage() {
     if (!inspection) return;
     const approved = candidates.filter((candidate) => candidate.approved);
     if (!approved.length) {
-      notify({ title: "Nothing approved", description: "Approve at least one reviewed question first.", tone: "info" });
+      notify({ title: "Nothing approved", description: "Approve at least one ready/reviewed question first.", tone: "info" });
       return;
     }
     setPublishing(true);
@@ -288,10 +282,7 @@ export function QuestionImportPage() {
             explanation: candidate.explanation?.trim() || undefined,
             difficulty: candidate.difficulty,
             marks: Number(candidate.marks),
-            options: candidate.options.map((option) => ({
-              option_text: option.option_text.trim(),
-              is_correct: option.is_correct,
-            })),
+            options: candidate.options.map((option) => ({ option_text: option.option_text.trim(), is_correct: option.is_correct })),
             source_page: candidate.source_page ?? undefined,
             reuse_question_id: candidate.reuse_question_id || undefined,
             allow_topic_override: Boolean(candidate.allow_topic_override),
@@ -299,11 +290,7 @@ export function QuestionImportPage() {
           })),
         },
       });
-      notify({
-        title: "Question bank updated",
-        description: `${result.created} created · ${result.reused} reused · ${result.skipped} skipped.`,
-        tone: "success",
-      });
+      notify({ title: "Question bank updated", description: `${result.created} created · ${result.reused} reused · ${result.skipped} skipped.`, tone: "success" });
       setInspection(null);
       setCandidates([]);
       setFile(null);
@@ -316,6 +303,7 @@ export function QuestionImportPage() {
 
   const topics = useMemo(() => flattenTopics(course), [course]);
   const approvedCount = candidates.filter((candidate) => candidate.approved).length;
+  const exceptionCount = candidates.filter((candidate) => candidate.status !== "VALID" || Boolean(candidate.duplicate)).length;
 
   if (authLoading || loading) {
     return <ProductShell><main className="pp-page"><PageSkeleton variant="workspace" label="Loading question importer" /></main></ProductShell>;
@@ -329,26 +317,24 @@ export function QuestionImportPage() {
       <header className="question-import-heading">
         <div>
           <Link href={user.role === "SYSTEM_ADMIN" ? "/admin/questions" : "/instructor/questions"} className="question-import-back"><FiArrowLeft /> Question bank</Link>
-          <span className="page-eyebrow">INSTRUCTOR · CONTROLLED INGESTION</span>
+          <span className="page-eyebrow">INSTRUCTOR · AUTOMATED INGESTION</span>
           <h1>PDF Question Inspector</h1>
-          <p>Extract MCQs into a review queue first. Nothing reaches students until you explicitly approve and publish it.</p>
+          <p>Extract and validate MCQs automatically, match source answer keys, estimate difficulty, and generate concise explanations. You review exceptions before publication.</p>
         </div>
-        <div className="question-import-trust"><FiShield /><span><strong>Human approval required</strong><small>Parsing is not medical verification.</small></span></div>
+        <div className="question-import-trust"><FiShield /><span><strong>Review by exception</strong><small>Source answer keys stay authoritative. Publication still requires instructor approval.</small></span></div>
       </header>
 
       <Panel className="question-import-upload-panel">
         <form onSubmit={inspect} className="question-import-upload-form" noValidate>
           <div className="question-import-fields">
             <label><span>Course</span><select value={courseId} onChange={(event) => void chooseCourse(event.target.value)}><option value="">Select course…</option>{courses.map((item) => <option value={item.id} key={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label>
-            <label><span>Destination topic</span><select value={topicId} disabled={!course} onChange={(event) => { setTopicId(event.target.value); setInspection(null); setCandidates([]); }}><option value="">Select exact topic…</option>{topics.map((topic) => <option value={topic.id} key={topic.id}>{topic.path} · {topic.topicName}</option>)}</select></label>
-            <label className="question-import-file"><span>Question PDF</span><input type="file" accept="application/pdf,.pdf" onChange={(event) => { setFile(event.target.files?.[0] || null); setInspection(null); setCandidates([]); }} /><small>Real PDF only · max 25 MB · max 200 pages. Fake extensions, encrypted files, and unreadable structures are rejected.</small></label>
+            <label><span>Destination topic</span><select value={topicId} disabled={!course} onChange={(event) => { setTopicId(event.target.value); setInspection(null); setCandidates([]); }}><option value="">Select exact topic…</option>{topics.map((topic) => <option value={topic.id} key={itemKey(topic.id, topic.path)}>{topic.path} · {topic.topicName}</option>)}</select></label>
+            <label className="question-import-file"><span>Question PDF</span><input type="file" accept="application/pdf,.pdf" onChange={(event) => { setFile(event.target.files?.[0] || null); setInspection(null); setCandidates([]); }} /><small>Real PDF only · max 25 MB · max 200 pages. MCQs may contain 2–6 options (A–F).</small></label>
           </div>
           <label className="question-import-rights"><input type="checkbox" checked={copyrightConfirmed} onChange={(event) => setCopyrightConfirmed(event.target.checked)} /><span>I confirm I have permission to use and publish questions from this material.</span></label>
           <div className="question-import-upload-actions">
-            <button type="submit" className="pp-button" disabled={inspecting} aria-busy={inspecting}>
-              {inspecting ? <><FiRefreshCw className="spin" /> Inspecting PDF…</> : <><FiUploadCloud /> Inspect PDF</>}
-            </button>
-            {inspecting && <span role="status" aria-live="polite">Uploading and analysing the PDF. This can take a few seconds.</span>}
+            <button type="submit" className="pp-button" disabled={inspecting} aria-busy={inspecting}>{inspecting ? <><FiRefreshCw className="spin" /> Inspecting PDF…</> : <><FiUploadCloud /> Inspect PDF</>}</button>
+            {inspecting && <span role="status" aria-live="polite">Parsing PDF, matching answers, validating questions, and generating concise explanations/difficulty estimates.</span>}
           </div>
         </form>
       </Panel>
@@ -359,41 +345,45 @@ export function QuestionImportPage() {
         <section className="question-import-summary" aria-label="Import summary">
           <Panel><small>FILE</small><strong>{inspection.original_filename}</strong><span>{inspection.page_count} page(s) · {(inspection.file_size / 1024 / 1024).toFixed(2)} MB</span></Panel>
           <Panel><small>EXTRACTION</small><strong>{percent(inspection.extraction_confidence)}</strong><span>{inspection.extraction_method.replaceAll("_", " ")}</span></Panel>
-          <Panel><small>QUESTIONS</small><strong>{inspection.summary?.extracted ?? 0}</strong><span>{inspection.summary ? `${inspection.summary.valid} valid · ${inspection.summary.needs_review} review · ${inspection.summary.invalid} invalid` : inspection.status.replaceAll("_", " ")}</span></Panel>
+          <Panel><small>QUESTIONS</small><strong>{inspection.summary?.extracted ?? 0}</strong><span>{inspection.summary ? `${inspection.summary.valid} ready · ${inspection.summary.needs_review} review · ${inspection.summary.invalid} invalid` : inspection.status.replaceAll("_", " ")}</span></Panel>
           <Panel><small>REUSE</small><strong>{inspection.summary?.duplicates ?? 0}</strong><span>{inspection.previously_published_from_same_file} already published from this exact PDF</span></Panel>
         </section>
 
-        {inspection.issues.length > 0 && <Panel title="Batch checks" className="question-import-batch-issues">{inspection.issues.map((issue) => <div className={`question-import-issue ${issue.severity.toLowerCase()}`} key={`${issue.code}-${issue.message}`}><span>{issue.severity === "ERROR" ? <FiXCircle /> : <FiAlertTriangle />}</span><div><strong>{issue.code.replaceAll("_", " ")}</strong><p>{issue.message}</p></div></div>)}</Panel>}
+        {inspection.issues.length > 0 && <Panel title="Batch checks" className="question-import-batch-issues">{inspection.issues.map((issue, issueIndex) => <div className={`question-import-issue ${issue.severity.toLowerCase()}`} key={`${issue.code}-${issueIndex}`}><span>{issue.severity === "ERROR" ? <FiXCircle /> : <FiAlertTriangle />}</span><div><strong>{issue.code.replaceAll("_", " ")}</strong><p>{issue.message}</p></div></div>)}</Panel>}
 
         {candidates.length > 0 && <section className="question-import-review">
-          <div className="question-import-review-heading"><div><span className="page-eyebrow">REVIEW QUEUE</span><h2>Inspect every extracted question</h2><p>Edit the stem, options, correct answer, explanation, and classification before approval.</p></div><div><strong>{approvedCount}</strong><span>approved</span></div></div>
+          <div className="question-import-review-heading"><div><span className="page-eyebrow">REVIEW BY EXCEPTION</span><h2>Review only what needs attention</h2><p>Clean questions are pre-approved automatically. Focus on the {exceptionCount} warning/invalid/duplicate candidate(s), then bulk publish the ready set.</p></div><div><strong>{approvedCount}</strong><span>ready to publish</span></div></div>
 
-          {candidates.map((candidate, candidateIndex) => <article className={`question-import-candidate ${candidate.approved ? "approved" : ""}`} key={candidate.candidate_id}>
+          {candidates.map((candidate, candidateIndex) => <article className={`question-import-candidate ${candidate.approved ? "approved" : ""}`} key={`${candidate.candidate_id}-${candidateIndex}`}>
             <header>
               <div className="question-import-candidate-number"><span>{candidateIndex + 1}</span><div><strong>Candidate {candidateIndex + 1}</strong><small>{candidate.source_page ? `Source page ${candidate.source_page}` : "Source page unresolved"}</small></div></div>
-              <div className="question-import-candidate-status"><span className={`role-status ${statusClass(candidate.status)}`}>{candidate.status.replaceAll("_", " ")}</span><span>Parse {percent(candidate.extraction_confidence)}</span><span>Topic {percent(candidate.topic_confidence)}</span></div>
+              <div className="question-import-candidate-status"><span className={`role-status ${statusClass(candidate.status)}`}>{candidate.status === "VALID" ? "READY" : candidate.status.replaceAll("_", " ")}</span><span>Parse {percent(candidate.extraction_confidence)}</span><span>Topic {percent(candidate.topic_confidence)}</span></div>
             </header>
 
-            {candidate.issues.length > 0 && <div className="question-import-inline-issues">{candidate.issues.map((issue) => <span className={issue.severity.toLowerCase()} key={issue.code} title={issue.message}>{issue.severity === "ERROR" ? <FiXCircle /> : <FiAlertTriangle />}{issue.message}</span>)}</div>}
+            {candidate.issues.length > 0 && <div className="question-import-inline-issues">{candidate.issues.map((issue, issueIndex) => <span className={issue.severity.toLowerCase()} key={`${candidate.candidate_id}-${issue.code}-${issueIndex}`} title={issue.message}>{issue.severity === "ERROR" ? <FiXCircle /> : <FiAlertTriangle />}{issue.message}</span>)}</div>}
 
             {candidate.duplicate && <div className="question-import-duplicate"><FiSearch /><div><strong>{candidate.duplicate.exact ? "Exact question already exists" : `Possible duplicate · ${percent(candidate.duplicate.similarity)}`}</strong><p>{candidate.duplicate.question_text}</p></div><div className="question-import-duplicate-actions"><button type="button" onClick={() => updateCandidate(candidateIndex, (current) => ({ ...current, reuse_question_id: current.duplicate?.question_id, allow_duplicate: false, approved: true }))}><FiCheckCircle /> Reuse existing</button><button type="button" onClick={() => updateCandidate(candidateIndex, (current) => ({ ...current, reuse_question_id: undefined, allow_duplicate: true }))}>Create separate copy</button></div></div>}
 
             <label className="question-import-stem"><span>Question stem</span><textarea value={candidate.question_text} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, question_text: event.target.value, reuse_question_id: undefined }))} /></label>
 
-            <div className="question-import-options"><span>Answer options</span>{candidate.options.map((option, optionIndex) => <label className={option.is_correct ? "correct" : ""} key={`${candidate.candidate_id}-${option.label}`}><input type="radio" name={`correct-${candidate.candidate_id}`} checked={option.is_correct} onChange={() => setCorrectOption(candidateIndex, optionIndex)} /><strong>{option.label}</strong><input value={option.option_text} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, reuse_question_id: undefined, options: current.options.map((value, index) => index === optionIndex ? { ...value, option_text: event.target.value } : value) }))} /></label>)}</div>
+            <div className="question-import-options"><span>Answer options</span>{candidate.options.map((option, optionIndex) => <label className={option.is_correct ? "correct" : ""} key={`${candidate.candidate_id}-${candidateIndex}-${option.label}-${optionIndex}`}><input type="radio" name={`correct-${candidateIndex}-${candidate.candidate_id}`} checked={option.is_correct} onChange={() => setCorrectOption(candidateIndex, optionIndex)} /><strong>{option.label}</strong><input value={option.option_text} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, reuse_question_id: undefined, options: current.options.map((value, index) => index === optionIndex ? { ...value, option_text: event.target.value } : value) }))} /></label>)}</div>
 
-            <label><span>Explanation</span><textarea value={candidate.explanation || ""} placeholder="Tutor-mode explanation shown after grading" onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, explanation: event.target.value }))} /></label>
+            <label><span>Explanation</span><textarea value={candidate.explanation || ""} placeholder="Automatically generated as 4–7 concise lines when enrichment succeeds; still editable before publish." onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, explanation: event.target.value }))} /></label>
 
-            <div className="question-import-meta-controls"><label>Difficulty<select value={candidate.difficulty} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, difficulty: event.target.value as Candidate["difficulty"] }))}><option value="EASY">Easy</option><option value="MEDIUM">Medium</option><option value="HARD">Hard</option></select></label><label>Marks<input type="number" min="0.01" max="999.99" step="0.01" value={candidate.marks} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, marks: Number(event.target.value) }))} /></label></div>
+            <div className="question-import-meta-controls"><label>Estimated difficulty<select value={candidate.difficulty} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, difficulty: event.target.value as Candidate["difficulty"] }))}><option value="EASY">Easy</option><option value="MEDIUM">Medium</option><option value="HARD">Hard</option></select></label><label>Marks<input type="number" min="0.01" max="999.99" step="0.01" value={candidate.marks} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, marks: Number(event.target.value) }))} /></label></div>
 
             {candidate.topic_confidence < 0.08 && <label className="question-import-confirm"><input type="checkbox" checked={Boolean(candidate.allow_topic_override)} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, allow_topic_override: event.target.checked }))} /><span>I reviewed this mismatch and confirm this question belongs to <strong>{inspection.topic.name}</strong>.</span></label>}
 
             <footer><label className="question-import-approve"><input type="checkbox" checked={Boolean(candidate.approved)} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, approved: event.target.checked }))} /><span>{candidate.reuse_question_id ? "Approve reuse" : "Approve for publication"}</span></label>{candidate.reuse_question_id && <span className="question-import-reuse-chip"><FiCheckCircle /> Existing question will be reused; no duplicate will be created.</span>}</footer>
           </article>)}
 
-          <div className="question-import-publish-bar"><div><strong>{approvedCount} approved</strong><span>Publication re-validates option structure, topic mismatch overrides, duplicate policy, and access permissions on the server.</span></div><button type="button" className="pp-button" onClick={() => void publishApproved()} disabled={publishing || approvedCount === 0}>{publishing ? <><FiRefreshCw className="spin" /> Publishing…</> : <><FiCheck /> Publish approved</>}</button></div>
+          <div className="question-import-publish-bar"><div><strong>{approvedCount} ready</strong><span>Publication re-validates 2–6 option structure, exactly one correct answer, topic overrides, duplicate policy, and access permissions on the server.</span></div><button type="button" className="pp-button" onClick={() => void publishApproved()} disabled={publishing || approvedCount === 0}>{publishing ? <><FiRefreshCw className="spin" /> Publishing…</> : <><FiCheck /> Publish ready questions</>}</button></div>
         </section>}
       </>}
     </main>
   </ProductShell>;
+}
+
+function itemKey(id: string, context: string) {
+  return `${id}-${context}`;
 }
