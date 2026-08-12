@@ -98,9 +98,22 @@ export class QuestionsController {
   ) {
     const inspection = await this.imports.inspectPdf(dto, file, actor);
     const enriched = await this.importEnrichment.enrichInspection(inspection);
+
+    // Invalid questions are deliberately skipped by AI enrichment. The parser may
+    // therefore leave the old NO_SOURCE_EXPLANATION informational issue attached
+    // to those candidates. That message belongs to the v1/manual-explanation
+    // contract and caused the frontend to falsely classify a v2 response as stale.
+    // Strip it from every candidate at the API boundary; v2 explanation status is
+    // represented only by AI_ENRICHED / AI_ENRICHMENT_FAILED issues.
+    const candidates = enriched.candidates.map((candidate) => ({
+      ...candidate,
+      issues: candidate.issues.filter((issue) => issue.code !== 'NO_SOURCE_EXPLANATION'),
+    }));
+
     return {
       ...enriched,
       inspector_contract_version: PDF_INSPECTOR_CONTRACT_VERSION,
+      candidates,
     };
   }
 
