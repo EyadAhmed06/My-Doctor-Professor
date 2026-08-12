@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { QuestionDifficulty } from '../../common/entities/question.entity';
 
-type IssueSeverity = 'INFO' | 'WARNING' | 'ERROR';
-type ImportIssue = { code: string; severity: IssueSeverity; message: string };
+type ImportIssue = { code: string; severity: string; message: string };
 type ImportOption = { label: string; option_text: string; is_correct: boolean };
 type ImportCandidate = {
   candidate_id: string;
@@ -15,9 +14,9 @@ type ImportCandidate = {
   [key: string]: unknown;
 };
 type ImportInspection = {
-  candidates?: ImportCandidate[];
+  candidates: ImportCandidate[];
   summary?: { extracted: number; valid: number; needs_review: number; invalid: number; duplicates: number };
-  issues?: ImportIssue[];
+  issues: ImportIssue[];
   [key: string]: unknown;
 };
 type EnrichmentRow = {
@@ -39,7 +38,7 @@ const REQUEST_TIMEOUT_MS = 40_000;
 export class QuestionImportEnrichmentService {
   async enrichInspection<T extends ImportInspection>(inspection: T): Promise<T> {
     const rawCandidates = inspection.candidates;
-    if (!Array.isArray(rawCandidates) || rawCandidates.length === 0) return inspection;
+    if (rawCandidates.length === 0) return inspection;
 
     // NO_SOURCE_EXPLANATION belonged to the old manual-review contract. The current
     // contract generates explanations automatically for eligible questions, so this
@@ -120,7 +119,7 @@ export class QuestionImportEnrichmentService {
           ),
           {
             code: 'AI_ENRICHED',
-            severity: 'INFO' as const,
+            severity: 'INFO',
             message: `Explanation and estimated difficulty were generated automatically with ${MODEL}. The source answer key remained authoritative and was not changed by AI.`,
           },
         ],
@@ -287,7 +286,7 @@ export class QuestionImportEnrichmentService {
       ...inspection,
       candidates,
       summary,
-      issues: [...(inspection.issues || []), batchIssue],
+      issues: [...inspection.issues, batchIssue],
     } as T;
   }
 
