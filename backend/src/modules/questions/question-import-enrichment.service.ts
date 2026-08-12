@@ -2,19 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { QuestionDifficulty } from '../../common/entities/question.entity';
 
 type IssueSeverity = 'INFO' | 'WARNING' | 'ERROR';
-
-type ImportIssue = {
-  code: string;
-  severity: IssueSeverity;
-  message: string;
-};
-
-type ImportOption = {
-  label: string;
-  option_text: string;
-  is_correct: boolean;
-};
-
+type ImportIssue = { code: string; severity: IssueSeverity; message: string };
+type ImportOption = { label: string; option_text: string; is_correct: boolean };
 type ImportCandidate = {
   candidate_id: string;
   question_text: string;
@@ -25,34 +14,20 @@ type ImportCandidate = {
   issues: ImportIssue[];
   [key: string]: unknown;
 };
-
 type ImportInspection = {
   candidates?: ImportCandidate[];
-  summary?: {
-    extracted: number;
-    valid: number;
-    needs_review: number;
-    invalid: number;
-    duplicates: number;
-  };
+  summary?: { extracted: number; valid: number; needs_review: number; invalid: number; duplicates: number };
   issues?: ImportIssue[];
   [key: string]: unknown;
 };
-
 type EnrichmentRow = {
   candidate_id: string;
   difficulty: 'EASY' | 'MEDIUM' | 'HARD';
   explanation_lines: string[];
 };
-
 type OpenAiResponse = {
   output_text?: string;
-  output?: Array<{
-    content?: Array<{
-      type?: string;
-      text?: string;
-    }>;
-  }>;
+  output?: Array<{ content?: Array<{ type?: string; text?: string }> }>;
 };
 
 const MODEL = process.env.OPENAI_QUESTION_ENRICHMENT_MODEL || process.env.OPENAI_MODEL || 'gpt-5-mini';
@@ -73,7 +48,6 @@ export class QuestionImportEnrichmentService {
       candidate.options.length <= 6 &&
       candidate.options.filter((option) => option.is_correct).length === 1,
     );
-
     if (eligible.length === 0) return inspection;
 
     const apiKey = process.env.OPENAI_API_KEY?.trim();
@@ -97,9 +71,7 @@ export class QuestionImportEnrichmentService {
 
     for (let offset = 0; offset < batches.length; offset += MAX_PARALLEL_BATCHES) {
       const wave = batches.slice(offset, offset + MAX_PARALLEL_BATCHES);
-      const waveResults = await Promise.allSettled(
-        wave.map((batch) => this.enrichBatch(batch, apiKey)),
-      );
+      const waveResults = await Promise.allSettled(wave.map((batch) => this.enrichBatch(batch, apiKey)));
       waveResults.forEach((result, index) => {
         const batch = wave[index];
         if (result.status === 'fulfilled') {
@@ -129,7 +101,9 @@ export class QuestionImportEnrichmentService {
         explanation,
         difficulty: row.difficulty as QuestionDifficulty,
         issues: [
-          ...candidate.issues.filter((issue) => issue.code !== 'AI_ENRICHMENT_FAILED'),
+          ...candidate.issues.filter((issue) =>
+            !['AI_ENRICHMENT_FAILED', 'NO_SOURCE_EXPLANATION', 'DIFFICULTY_ESTIMATED'].includes(issue.code),
+          ),
           {
             code: 'AI_ENRICHED',
             severity: 'INFO' as const,
@@ -183,6 +157,8 @@ export class QuestionImportEnrichmentService {
         signal: controller.signal,
         body: JSON.stringify({
           model: MODEL,
+          store: false,
+          max_output_tokens: 12_000,
           reasoning: { effort: 'low' },
           instructions: [
             'You are enriching instructor-authored medical MCQs for a study platform.',
@@ -217,10 +193,7 @@ export class QuestionImportEnrichmentService {
                       properties: {
                         candidate_id: { type: 'string' },
                         difficulty: { type: 'string', enum: ['EASY', 'MEDIUM', 'HARD'] },
-                        explanation_lines: {
-                          type: 'array',
-                          items: { type: 'string' },
-                        },
+                        explanation_lines: { type: 'array', items: { type: 'string' } },
                       },
                     },
                   },
@@ -264,8 +237,8 @@ export class QuestionImportEnrichmentService {
     if (lines.length < 4 || lines.length > 7) return null;
     if (lines.some((line) => line.length > 260)) return null;
 
-    const labels = candidate.options.map((option) => option.label.toUpperCase());
-    for (const label of labels) {
+    for (const option of candidate.options) {
+      const label = option.label.toUpperCase();
       const pattern = new RegExp(`^(?:OPTION\\s+)?${this.escapeRegExp(label)}(?:\\b|\\s*[:.)\\-–—])`, 'i');
       if (!lines.some((line) => pattern.test(line))) return null;
     }
@@ -277,12 +250,10 @@ export class QuestionImportEnrichmentService {
       ...candidate,
       status: candidate.status === 'INVALID' ? 'INVALID' : 'NEEDS_REVIEW',
       issues: [
-        ...candidate.issues.filter((issue) => issue.code !== 'AI_ENRICHMENT_FAILED'),
-        {
-          code: 'AI_ENRICHMENT_FAILED',
-          severity: 'WARNING',
-          message: reason,
-        },
+        ...candidate.issues.filter((issue) =>
+          !['AI_ENRICHMENT_FAILED', 'NO_SOURCE_EXPLANATION'].includes(issue.code),
+        ),
+        { code: 'AI_ENRICHMENT_FAILED', severity: 'WARNING', message: reason },
       ],
     };
   }
