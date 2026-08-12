@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Course } from '../../common/entities/course.entity';
+import { EssayConfiguration } from '../../common/entities/essay-configuration.entity';
 import { Lecture } from '../../common/entities/lecture.entity';
 import { McqOption } from '../../common/entities/mcq-option.entity';
 import { QuestionFlag } from '../../common/entities/question-flag.entity';
@@ -14,6 +15,8 @@ import { Week } from '../../common/entities/week.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { Student } from '../users/entities/student.entity';
 import { AssessmentAuthoringService } from './assessment-authoring.service';
+import { EssayPracticeController } from './essay-practice.controller';
+import { EssayPracticeService } from './essay-practice.service';
 import { McqPracticeController } from './mcq-practice.controller';
 import { McqPracticeService } from './mcq-practice.service';
 import { TestLaunchController } from './test-launch.controller';
@@ -23,10 +26,10 @@ import { TestsService } from './tests.service';
 @Module({
  imports:[NotificationsModule,TypeOrmModule.forFeature([
   Test,TestQuestion,TestAttempt,StudentAnswer,QuestionFlag,QuestionNote,
-  Question,McqOption,Course,Week,Lecture,Student,
+  Question,McqOption,EssayConfiguration,Course,Week,Lecture,Student,
  ])],
- controllers:[TestsController,TestLaunchController,McqPracticeController],
- providers:[TestsService,AssessmentAuthoringService,McqPracticeService],
+ controllers:[TestsController,TestLaunchController,McqPracticeController,EssayPracticeController],
+ providers:[TestsService,AssessmentAuthoringService,McqPracticeService,EssayPracticeService],
  exports:[TestsService,TypeOrmModule],
 })
 export class TestsModule {}
