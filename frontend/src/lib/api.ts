@@ -33,6 +33,30 @@ function signalRequest(name: typeof REQUEST_START | typeof REQUEST_END) {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(name));
 }
 
+function normalizeProblem(path: string, status: number, payload: unknown, statusText: string): ApiProblem {
+  const problem = typeof payload === "object" && payload !== null
+    ? payload as ApiProblem
+    : { message: String(payload || statusText) };
+
+  const rawMessage = Array.isArray(problem.message)
+    ? problem.message.join(". ")
+    : problem.message || problem.error || "";
+
+  if (
+    status === 404
+    && path.replace(/^\//, "") === "questions/imports/inspect"
+    && /cannot\s+post/i.test(rawMessage)
+  ) {
+    return {
+      statusCode: 404,
+      error: "Question import route unavailable",
+      message: "The running backend does not have POST /api/v1/questions/imports/inspect registered. Pull agent/phase1-interactions and fully restart NestJS; the source route is present but the current backend process is stale or running another build.",
+    };
+  }
+
+  return problem;
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   signalRequest(REQUEST_START);
   try {
@@ -71,10 +95,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       const payload = contentType.includes("application/json")
         ? await response.json() as unknown
         : await response.text();
-      const problem = typeof payload === "object" && payload !== null
-        ? payload as ApiProblem
-        : { message: String(payload || response.statusText) };
-      throw new ApiError(response.status, problem);
+      throw new ApiError(response.status, normalizeProblem(path, response.status, payload, response.statusText));
     }
 
     if (responseType === "blob") return await response.blob() as unknown as T;
