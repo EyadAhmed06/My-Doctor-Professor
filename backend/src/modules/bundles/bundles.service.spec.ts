@@ -7,6 +7,8 @@ import {
   BundlePaymentStatus,
 } from '../../common/entities/bundle-enrollment.entity';
 import { BundleInstructor } from '../../common/entities/bundle-instructor.entity';
+import { BundlePlanGrant } from '../../common/entities/bundle-plan-grant.entity';
+import { BundlePlanWeek } from '../../common/entities/bundle-plan-week.entity';
 import { BundleTest } from '../../common/entities/bundle-test.entity';
 import { BundleWeek } from '../../common/entities/bundle-week.entity';
 import { Bundle, BundleAccessMode, BundleStatus } from '../../common/entities/bundle.entity';
@@ -68,6 +70,8 @@ describe('BundlesService payment entitlement', () => {
       repo<BundleTest>(),
       repo<BundleInstructor>(),
       enrollments,
+      repo<BundlePlanWeek>(),
+      repo<BundlePlanGrant>(),
       repo<Course>(),
       repo<Week>(),
       repo<Test>(),

@@ -278,7 +278,8 @@ export class QuestionImportEnrichmentService {
     body.append('purpose', 'user_data');
     body.append('expires_after[anchor]', 'created_at');
     body.append('expires_after[seconds]', '3600');
-    body.append('file', new Blob([file.buffer], { type: 'application/pdf' }), file.originalname || 'questions.pdf');
+    const pdfBytes = new Uint8Array(file.buffer.buffer, file.buffer.byteOffset, file.buffer.byteLength).slice();
+    body.append('file', new Blob([pdfBytes], { type: 'application/pdf' }), file.originalname || 'questions.pdf');
     const response = await fetch('https://api.openai.com/v1/files', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}` },
@@ -575,3 +576,4 @@ export class QuestionImportEnrichmentService {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }
+

@@ -557,14 +557,14 @@ html[data-theme] body .dashboard-embedded .momentum-card {
 
 html[data-theme] body .dashboard-embedded .metrics {
   width: 100% !important;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  gap: 12px !important;
-  padding: 12px 16px 18px !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  padding: 10px 14px 14px !important;
 }
 
 html[data-theme] body .dashboard-embedded .metric {
   min-width: 0 !important;
-  min-height: 142px !important;
+  min-height: 118px !important;
   overflow: hidden;
 }
 

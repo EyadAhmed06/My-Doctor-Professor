@@ -17,6 +17,7 @@ import { TestsModule } from './modules/tests/tests.module';
 import { UsersModule } from './modules/users/users.module';
 import { WorkspaceModule } from './modules/workspace/workspace.module';
 import { BundlesModule } from './modules/bundles/bundles.module';
+import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { BundlesModule } from './modules/bundles/bundles.module';
     AdminModule,
     WorkspaceModule,
     BundlesModule,
+    SubscriptionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

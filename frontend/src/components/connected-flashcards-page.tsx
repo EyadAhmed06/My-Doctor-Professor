@@ -43,13 +43,34 @@ type Rating = "VERY_HARD" | "HARD" | "GOOD" | "EASY";
 type PendingReview = { token: string; card: Card; rating: Rating; createdAt: number; originalIndex: number };
 type StoredSession = {
   reviewed: number;
-  selectedCardId: string | null;
   pending: PendingReview[];
-  initialCount: number;
+  reviewedRatings: Record<string, Rating>;
+  reviewedCards: Record<string, Card>;
 };
 
 const numberRatings: Record<string, Rating> = { "1": "VERY_HARD", "2": "HARD", "3": "GOOD", "4": "EASY" };
 const REVIEW_UNDO_MS = 5000;
+const ratingLabels: Record<Rating, string> = {
+  VERY_HARD: "Reviewed · Again",
+  HARD: "Reviewed · Hard",
+  GOOD: "Reviewed · Good",
+  EASY: "Reviewed · Easy",
+};
+
+function orderByRating(list: Card[], ratings: Record<string, Rating>): Card[] {
+  const hard: Card[] = [];
+  const neutral: Card[] = [];
+  const good: Card[] = [];
+  const easy: Card[] = [];
+  for (const item of list) {
+    const rating = ratings[item.id];
+    if (rating === "VERY_HARD" || rating === "HARD") hard.push(item);
+    else if (rating === "GOOD") good.push(item);
+    else if (rating === "EASY") easy.push(item);
+    else neutral.push(item);
+  }
+  return [...hard, ...neutral, ...good, ...easy];
+}
 
 export function ConnectedFlashcardsPage() {
   const { user, request } = useAuth();
@@ -70,8 +91,9 @@ export function ConnectedFlashcardsPage() {
   const [error, setError] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
   const [pending, setPending] = useState<PendingReview[]>([]);
+  const [reviewedRatings, setReviewedRatings] = useState<Record<string, Rating>>({});
+  const [reviewedCards, setReviewedCards] = useState<Record<string, Card>>({});
   const [dragX, setDragX] = useState(0);
-  const [initialCount, setInitialCount] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
 
   const pendingRef = useRef<PendingReview[]>([]);
@@ -113,18 +135,38 @@ export function ConnectedFlashcardsPage() {
     setError(null);
     try {
       const session = readSession();
-      const result = await request<Page<Card>>("/flashcards/cards/due?limit=50");
-      const savedPending = session?.pending || [];
-      const hidden = new Set(savedPending.map((item) => item.card.id));
-      const visible = result.data.filter((item) => !hidden.has(item.id));
-      const restoredReviewed = session?.reviewed || 0;
-      setReviewed(restoredReviewed);
-      setPending(savedPending);
-      setCards(visible);
-      setInitialCount(session?.initialCount || visible.length + restoredReviewed);
+      const first = await request<Page<Card>>("/flashcards/cards/mine?limit=100");
+      const fetched = [...first.data];
+      const totalPages = Math.min(first.total_pages, 20);
+      for (let page = 2; page <= totalPages; page += 1) {
+        const next = await request<Page<Card>>(`/flashcards/cards/mine?limit=100&page=${page}`);
+        fetched.push(...next.data);
+      }
+      const storedRatings = session?.reviewedRatings || {};
+      const storedCards = session?.reviewedCards || {};
+
+      const byId = new Map<string, Card>(fetched.map((item) => [item.id, item]));
+      for (const id of Object.keys(storedRatings)) {
+        if (!byId.has(id) && storedCards[id]) byId.set(id, storedCards[id]);
+      }
+      const combined = [...byId.values()];
+      const restoredRatings: Record<string, Rating> = {};
+      const restoredCards: Record<string, Card> = {};
+      for (const item of combined) {
+        if (storedRatings[item.id]) {
+          restoredRatings[item.id] = storedRatings[item.id];
+          restoredCards[item.id] = item;
+        }
+      }
+
+      setReviewed(session?.reviewed || 0);
+      setReviewedRatings(restoredRatings);
+      setReviewedCards(restoredCards);
+      setPending((session?.pending || []).filter((item) => byId.has(item.card.id)));
+      setCards(orderByRating(combined, restoredRatings));
       completionAnnounced.current = false;
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : translate("Unable to load due flashcards."));
+      setError(cause instanceof ApiError ? cause.message : translate("Unable to load flashcards."));
     } finally {
       setLoading(false);
     }
@@ -137,12 +179,12 @@ export function ConnectedFlashcardsPage() {
     try {
       localStorage.setItem(sessionKey, JSON.stringify({
         reviewed,
-        selectedCardId: reviewMode ? cards[index]?.id || null : null,
         pending,
-        initialCount,
+        reviewedRatings,
+        reviewedCards,
       } satisfies StoredSession));
     } catch { /* best-effort */ }
-  }, [cards, index, initialCount, pending, reviewed, reviewMode, sessionKey]);
+  }, [pending, reviewed, reviewedCards, reviewedRatings, sessionKey]);
 
   useEffect(() => {
     if (loading || !cards.length) return;
@@ -176,7 +218,8 @@ export function ConnectedFlashcardsPage() {
   }, []);
 
   useEffect(() => {
-    if (loading || cards.length || pending.length || reviewed === 0 || completionAnnounced.current) return;
+    if (loading || !cards.length || pending.length || completionAnnounced.current) return;
+    if (!cards.every((item) => reviewedRatings[item.id])) return;
     completionAnnounced.current = true;
     celebrate({
       id: "flashcard-session-complete",
@@ -184,16 +227,27 @@ export function ConnectedFlashcardsPage() {
       description: locale === "ar" ? `راجعت ${reviewed} بطاقة وتم حفظ المراجعات.` : `${reviewed} cards reviewed and synced.`,
       points: Math.min(100, Math.max(10, reviewed * 2)),
     });
-  }, [cards.length, celebrate, loading, locale, pending.length, reviewed, translate]);
+  }, [cards, celebrate, loading, locale, pending.length, reviewed, reviewedRatings, translate]);
 
   const restoreReview = useCallback((entry: PendingReview, message?: string) => {
-    setCards((current) => {
-      if (current.some((item) => item.id === entry.card.id)) return current;
-      const next = [...current];
-      next.splice(Math.min(entry.originalIndex, next.length), 0, entry.card);
+    setReviewedRatings((current) => {
+      if (!(entry.card.id in current)) return current;
+      const next = { ...current };
+      delete next[entry.card.id];
+      return next;
+    });
+    setReviewedCards((current) => {
+      if (!(entry.card.id in current)) return current;
+      const next = { ...current };
+      delete next[entry.card.id];
       return next;
     });
     setReviewed((value) => Math.max(0, value - 1));
+    setCards((current) => {
+      const withoutCard = current.filter((item) => item.id !== entry.card.id);
+      const insertAt = Math.min(entry.originalIndex, withoutCard.length);
+      return [...withoutCard.slice(0, insertAt), entry.card, ...withoutCard.slice(insertAt)];
+    });
     setIndex(Math.min(entry.originalIndex, cards.length));
     setRevealed(true);
     setUrl(entry.card, true);
@@ -259,7 +313,8 @@ export function ConnectedFlashcardsPage() {
   }, []);
 
   const card = cards[index];
-  const progress = initialCount ? Math.min(100, Math.round(reviewed / initialCount * 100)) : cards.length ? 0 : 100;
+  const distinctReviewed = Object.keys(reviewedRatings).length;
+  const progress = cards.length ? Math.min(100, Math.round(distinctReviewed / cards.length * 100)) : 100;
 
   const selectCard = useCallback((nextIndex: number) => {
     const next = Math.max(0, Math.min(cards.length - 1, nextIndex));
@@ -272,13 +327,23 @@ export function ConnectedFlashcardsPage() {
   const rate = useCallback((rating: Rating) => {
     if (!card) return;
     const entry: PendingReview = { token: crypto.randomUUID(), card, rating, createdAt: Date.now(), originalIndex: index };
-    const remaining = cards.filter((item) => item.id !== card.id);
+    const rest = cards.filter((item) => item.id !== card.id);
+    const upcoming = rest[Math.min(index, rest.length - 1)] ?? null;
+    const insertAt = rating === "VERY_HARD" || rating === "HARD"
+      ? 0
+      : rating === "GOOD"
+        ? Math.min(rest.length, Math.ceil(rest.length / 2))
+        : rest.length;
+    const reordered = [...rest.slice(0, insertAt), card, ...rest.slice(insertAt)];
     setPending((current) => [...current, entry]);
     setReviewed((value) => value + 1);
-    setCards(remaining);
-    setIndex(0);
+    setReviewedRatings((current) => ({ ...current, [card.id]: rating }));
+    setReviewedCards((current) => ({ ...current, [card.id]: card }));
+    setCards(reordered);
+    setIndex(Math.max(0, upcoming ? reordered.findIndex((item) => item.id === upcoming.id) : 0));
     setRevealed(false);
-    setUrl(remaining[0] || null, true);
+    setDragX(0);
+    setUrl(upcoming || reordered[0] || null, true);
     notify({
       title: translate("Review queued"),
       description: translate(online ? "It will sync after the undo window closes." : "It is saved locally and will sync when you reconnect."),
@@ -366,7 +431,8 @@ export function ConnectedFlashcardsPage() {
     try { localStorage.removeItem(sessionKey); } catch { /* best-effort */ }
     setReviewed(0);
     setPending([]);
-    setInitialCount(0);
+    setReviewedRatings({});
+    setReviewedCards({});
     completionAnnounced.current = false;
     setUrl(null, true);
     await load();
@@ -384,7 +450,7 @@ export function ConnectedFlashcardsPage() {
       <div>
         <small className="page-eyebrow">{translate("SPACED REPETITION")}</small>
         <h1>{translate(reviewMode ? "Flashcard review" : "Flashcards")}</h1>
-        <p>{translate(reviewMode ? "Focus on one card at a time." : "Choose a due card to start reviewing.")}</p>
+        <p>{translate(reviewMode ? "Focus on one card at a time." : "All your flashcards, always here to revisit.")}</p>
       </div>
       <div className="flashcards-header-actions">
         {reviewMode ? <>
@@ -407,28 +473,31 @@ export function ConnectedFlashcardsPage() {
     {error && <p className="form-error" role="alert">{error} <button onClick={() => void load()}>{translate("Retry")}</button></p>}
 
     {loading ? <PageSkeleton variant="workspace" label={translate("Loading your review queue")} /> : !reviewMode ? (
-      cards.length ? <section className="flashcard-queue-page" aria-label={translate("Due queue")}>
+      cards.length ? <section className="flashcard-queue-page" aria-label={translate("Your flashcards")}>
         <header className="flashcard-queue-heading">
-          <div><small className="page-eyebrow">{translate("DUE QUEUE")}</small><h2>{translate("Choose a flashcard")}</h2></div>
+          <div><small className="page-eyebrow">{translate("YOUR FLASHCARDS")}</small><h2>{translate("Choose a flashcard")}</h2></div>
           <span>{locale === "ar" ? `${cards.length} بطاقة` : `${cards.length} cards`}</span>
         </header>
         <div className="flashcard-queue-grid">
-          {cards.map((item) => <button className="flashcard-queue-card" type="button" onClick={() => setUrl(item)} key={item.id}>
-            <span className="flashcard-queue-icon"><FiBookOpen /></span>
-            <small data-academic-content>{item.deck.course?.courseName || translate("Course")}</small>
-            <h3 data-academic-content>{item.deck.title}</h3>
-            <p data-academic-content>{item.frontContent}</p>
-            <footer>
-              <span data-academic-content>{item.deck.lecture?.week?.title || item.deck.lecture?.title || item.title}</span>
-              <b>{translate("Open card")} →</b>
-            </footer>
-          </button>)}
+          {cards.map((item) => {
+            const rating = reviewedRatings[item.id];
+            return <button className="flashcard-queue-card" type="button" onClick={() => setUrl(item)} key={item.id}>
+              <span className="flashcard-queue-icon"><FiBookOpen /></span>
+              <small data-academic-content>{item.deck.course?.courseName || translate("Course")}</small>
+              <h3 data-academic-content>{item.deck.title}</h3>
+              <p data-academic-content>{item.frontContent}</p>
+              <footer>
+                <span data-academic-content>{item.deck.lecture?.week?.title || item.deck.lecture?.title || item.title}</span>
+                {rating ? <b className="flashcard-rated-badge" data-rating={rating.toLowerCase()}>{translate(ratingLabels[rating])}</b> : <b>{translate("Open card")} →</b>}
+              </footer>
+            </button>;
+          })}
         </div>
       </section> : <Panel className="flashcard-session-report">
         <FiAward />
         <small className="page-eyebrow">{translate("QUEUE COMPLETE")}</small>
         <h2>{translate(reviewed ? "Review session complete" : "You are caught up")}</h2>
-        <p>{reviewed ? (locale === "ar" ? `راجعت ${reviewed} بطاقة.` : `You reviewed ${reviewed} card${reviewed === 1 ? "" : "s"}.`) : translate("No flashcards are due right now.")}</p>
+        <p>{reviewed ? (locale === "ar" ? `راجعت ${reviewed} بطاقة.` : `You reviewed ${reviewed} card${reviewed === 1 ? "" : "s"}.`) : translate("No flashcards are available yet.")}</p>
         <Progress value={progress} />
         <div className="flashcard-report-actions"><button className="pp-button secondary" type="button" onClick={() => void load()}><FiRefreshCw /> {translate("Refresh queue")}</button><button className="pp-button" type="button" onClick={() => void startOver()}><FiRotateCcw /> {translate("Start fresh")}</button></div>
       </Panel>
@@ -438,7 +507,7 @@ export function ConnectedFlashcardsPage() {
           <div><small data-academic-content>{card.deck.lecture?.week?.title || translate("Instructor deck")}</small><h2 data-academic-content>{card.deck.title}</h2><p data-academic-content>{card.deck.lecture?.title || card.title}</p></div>
           <div><b>{reviewed}</b><small>{translate("reviewed")}</small></div>
         </div>
-        <div className="flashcard-session-progress"><progress value={reviewed} max={Math.max(initialCount, reviewed + cards.length)} /><span>{translate(`${progress}% complete`)}</span></div>
+        <div className="flashcard-session-progress"><progress value={distinctReviewed} max={cards.length || 1} /><span>{translate(`${progress}% complete`)}</span></div>
         <button
           className={`study-card single-face ${revealed ? "showing-back" : "showing-front"} ${dragX ? "is-dragging" : ""}`}
           style={{ transform: `translateX(${dragX}px) rotate(${dragX / 30}deg)` }}

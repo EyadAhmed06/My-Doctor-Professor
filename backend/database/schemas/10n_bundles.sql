@@ -9,6 +9,8 @@ CREATE TYPE bundle_access_mode AS ENUM ('MANUAL','CODE','PUBLIC','SUBSCRIPTION')
 CREATE TYPE bundle_enrollment_status AS ENUM ('ACTIVE','EXPIRED','REVOKED');
 CREATE TYPE bundle_enrollment_source AS ENUM ('MANUAL','CODE','PUBLIC','SUBSCRIPTION');
 CREATE TYPE bundle_payment_status AS ENUM ('NOT_REQUIRED','PENDING','PAID','CANCELLED');
+CREATE TYPE bundle_plan AS ENUM ('FIRST','FINAL');
+CREATE TYPE bundle_plan_tier AS ENUM ('MCQ','MCQ_ESSAY');
 
 CREATE TABLE bundles (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -21,6 +23,12 @@ CREATE TABLE bundles (
     is_free boolean NOT NULL DEFAULT true,
     price_amount numeric(10,2),
     price_currency varchar(3) NOT NULL DEFAULT 'EGP',
+    first_plan_enabled boolean NOT NULL DEFAULT false,
+    first_plan_price_mcq numeric(10,2),
+    first_plan_price_mcq_essay numeric(10,2),
+    final_plan_enabled boolean NOT NULL DEFAULT false,
+    final_plan_price_mcq numeric(10,2),
+    final_plan_price_mcq_essay numeric(10,2),
     enrollment_code_hash text,
     available_from timestamp,
     available_until timestamp,
@@ -37,6 +45,18 @@ CREATE TABLE bundles (
     ),
     CONSTRAINT ck_bundle_price_currency CHECK (
         price_currency ~ '^[A-Z]{3}$'
+    ),
+    CONSTRAINT ck_bundle_first_plan_price CHECK (
+        first_plan_price_mcq IS NULL OR first_plan_price_mcq > 0
+    ),
+    CONSTRAINT ck_bundle_first_plan_essay_price CHECK (
+        first_plan_price_mcq_essay IS NULL OR first_plan_price_mcq_essay > 0
+    ),
+    CONSTRAINT ck_bundle_final_plan_price CHECK (
+        final_plan_price_mcq IS NULL OR final_plan_price_mcq > 0
+    ),
+    CONSTRAINT ck_bundle_final_plan_essay_price CHECK (
+        final_plan_price_mcq_essay IS NULL OR final_plan_price_mcq_essay > 0
     )
 );
 CREATE UNIQUE INDEX uq_bundles_slug ON bundles(slug);
@@ -97,3 +117,33 @@ CREATE INDEX idx_bundle_enrollment_student_status
     ON bundle_enrollments(student_id, status);
 CREATE INDEX idx_bundle_enrollment_payment_status
     ON bundle_enrollments(bundle_id, payment_status);
+
+CREATE TABLE bundle_plan_weeks (
+    bundle_id uuid NOT NULL REFERENCES bundles(id) ON DELETE CASCADE,
+    plan bundle_plan NOT NULL,
+    week_id uuid NOT NULL REFERENCES weeks(id) ON DELETE RESTRICT,
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (bundle_id, plan, week_id)
+);
+CREATE INDEX idx_bundle_plan_weeks_week ON bundle_plan_weeks(week_id);
+
+CREATE TABLE bundle_plan_grants (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    bundle_id uuid NOT NULL REFERENCES bundles(id) ON DELETE RESTRICT,
+    student_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    plan bundle_plan NOT NULL,
+    tier bundle_plan_tier NOT NULL DEFAULT 'MCQ',
+    status bundle_enrollment_status NOT NULL DEFAULT 'ACTIVE',
+    payment_status bundle_payment_status NOT NULL DEFAULT 'PENDING',
+    paid_at timestamp,
+    payment_reference varchar(200),
+    expires_at timestamp,
+    granted_by uuid REFERENCES users(id) ON DELETE SET NULL,
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_bundle_plan_student UNIQUE (bundle_id, student_id, plan)
+);
+CREATE INDEX idx_bundle_plan_grants_student_status
+    ON bundle_plan_grants(student_id, status);
+CREATE INDEX idx_bundle_plan_grants_payment_status
+    ON bundle_plan_grants(bundle_id, payment_status);

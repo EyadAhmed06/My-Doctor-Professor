@@ -35,6 +35,8 @@ export class FlashcardsController {
  async listCards(@Param('deckId',uuid) id:string,@Query() query:CardQueryDto,@CurrentUser() actor:AuthenticatedUser){await this.access.assertDeckReadable(id,actor);return this.flashcards.listCards(id,query,actor);}
  @Get('cards/due') @Roles(UserRole.STUDENT)
  listDue(@Query() query:CardQueryDto,@CurrentUser() actor:AuthenticatedUser){return this.access.listStudentDue(actor,query);}
+ @Get('cards/mine') @Roles(UserRole.STUDENT)
+ listMine(@Query() query:CardQueryDto,@CurrentUser() actor:AuthenticatedUser){return this.access.listStudentAll(actor,query);}
  @Put('cards/:cardId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
  updateCard(@Param('cardId',uuid) id:string,@Body() dto:UpdateFlashcardDto,@CurrentUser() actor:AuthenticatedUser){return this.flashcards.updateCard(id,dto,actor);}
  @Delete('cards/:cardId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) @HttpCode(HttpStatus.NO_CONTENT)

@@ -27,8 +27,12 @@ import {
   ConfirmBundlePaymentDto,
   CreateBundleDto,
   EnrollByCodeDto,
+  EnrollPlanDto,
   GrantBundleDto,
+  GrantPlanDto,
+  SetPlanWeeksDto,
   UpdateBundleDto,
+  UpdateBundlePlansDto,
 } from './dtos/bundle.dto';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
@@ -240,5 +244,72 @@ export class BundlesController {
     @CurrentUser() actor: AuthenticatedUser,
   ) {
     return this.bundles.revoke(id, actor, studentId);
+  }
+
+  @Put(':bundleId/plans')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  updatePlans(
+    @Param('bundleId', uuid) id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+    @Body() dto: UpdateBundlePlansDto,
+  ) {
+    return this.bundles.updatePlans(id, actor, dto);
+  }
+
+  @Put(':bundleId/plans/:plan/weeks')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  setPlanWeeks(
+    @Param('bundleId', uuid) id: string,
+    @Param('plan') plan: string,
+    @CurrentUser() actor: AuthenticatedUser,
+    @Body() dto: SetPlanWeeksDto,
+  ) {
+    return this.bundles.setPlanWeeks(id, this.bundles.parsePlan(plan), actor, dto);
+  }
+
+  @Post(':bundleId/plans/:plan/enroll')
+  @Roles(UserRole.STUDENT)
+  enrollPlan(
+    @Param('bundleId', uuid) id: string,
+    @Param('plan') plan: string,
+    @CurrentUser() actor: AuthenticatedUser,
+    @Body() dto: EnrollPlanDto,
+  ) {
+    return this.bundles.enrollPlan(id, this.bundles.parsePlan(plan), actor.userId, dto);
+  }
+
+  @Post(':bundleId/plans/:plan/enrollments')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  grantPlan(
+    @Param('bundleId', uuid) id: string,
+    @Param('plan') plan: string,
+    @CurrentUser() actor: AuthenticatedUser,
+    @Body() dto: GrantPlanDto,
+  ) {
+    return this.bundles.grantPlan(id, this.bundles.parsePlan(plan), actor, dto);
+  }
+
+  @Post(':bundleId/plans/:plan/enrollments/:studentId/confirm-payment')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  confirmPlanPayment(
+    @Param('bundleId', uuid) id: string,
+    @Param('plan') plan: string,
+    @Param('studentId', uuid) studentId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+    @Body() dto: ConfirmBundlePaymentDto,
+  ) {
+    return this.bundles.confirmPlanPayment(id, this.bundles.parsePlan(plan), actor, studentId, dto);
+  }
+
+  @Delete(':bundleId/plans/:plan/enrollments/:studentId')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  revokePlanGrant(
+    @Param('bundleId', uuid) id: string,
+    @Param('plan') plan: string,
+    @Param('studentId', uuid) studentId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.bundles.revokePlanGrant(id, this.bundles.parsePlan(plan), actor, studentId);
   }
 }

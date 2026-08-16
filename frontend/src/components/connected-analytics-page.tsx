@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FiActivity, FiArrowRight, FiBookmark, FiCheckCircle, FiClock, FiLayers, FiTarget } from "react-icons/fi";
+import { FiActivity, FiArrowRight, FiBookmark, FiCheckCircle, FiClock, FiLayers } from "react-icons/fi";
 import { useAuth } from "./auth-provider";
 import { ErrorState, PageSkeleton } from "./async-state";
 import { Panel, ProductShell, Progress } from "./product-shell";
@@ -132,20 +132,6 @@ export function ConnectedAnalyticsPage() {
     };
   }, [filteredAccuracy, filteredActivity, previousAccuracy, previousActivity]);
 
-  const explanation = useMemo(() => {
-    if (!data) return [];
-    const statements: string[] = [];
-    if (comparison.currentAnswered === 0) statements.push("No validated answers were recorded in this range, so there is no period accuracy to interpret.");
-    else if (!comparison.priorAnswered) statements.push(`You answered ${comparison.currentAnswered} questions in this range. The preceding period has no answer baseline, so an accuracy change is not claimed.`);
-    else if (comparison.accuracyDelta > 2) statements.push(`Accuracy improved by ${Math.round(comparison.accuracyDelta)} points while you answered ${comparison.currentAnswered} questions.`);
-    else if (comparison.accuracyDelta < -2) statements.push(`Accuracy fell by ${Math.abs(Math.round(comparison.accuracyDelta))} points; revisit the lowest-mastery topic before increasing volume.`);
-    else statements.push("Accuracy was broadly stable compared with the preceding period.");
-    if (comparison.completionDelta > 0) statements.push(`You completed ${comparison.completionDelta} more scheduled session${comparison.completionDelta === 1 ? "" : "s"} than the previous period.`);
-    else if (comparison.completionDelta < 0) statements.push(`You completed ${Math.abs(comparison.completionDelta)} fewer scheduled sessions than the previous period, which can reduce consistency readiness.`);
-    if (data.summary.flashcards_due > 0) statements.push(`${data.summary.flashcards_due} flashcard${data.summary.flashcards_due === 1 ? " is" : "s are"} currently due. This affects the retention component until reviewed.`);
-    return statements;
-  }, [comparison, data]);
-
   const maxAnswered = Math.max(1, ...filteredAccuracy.map((point) => point.answered));
 
   return <ProductShell><main className="pp-page analytics-page analytics-exploration-page">
@@ -161,7 +147,6 @@ export function ConnectedAnalyticsPage() {
       <section className="analytics-metrics">
         <Metric href="/bundles?tab=questions" icon={<FiActivity />} label="Validated answers · overall" value={data.summary.questions_answered} explanation="Submitted or expired answers with a known correctness result across your account." />
         <Metric href="/bundles?tab=questions" icon={<FiCheckCircle />} label="Accuracy · overall" value={data.summary.accuracy} suffix="%" explanation="Correct validated attempts divided by all validated answered questions." />
-        <Metric href="/analytics#confidence" icon={<FiTarget />} label="Evidence confidence" value={data.summary.calibrated_confidence ?? 0} suffix="%" explanation="Evidence strength from sample size, not self-reported confidence calibration. Topic evidence is 20 × √attempts, capped at 100%." />
         <Metric href="/notebook" icon={<FiBookmark />} label="Saved questions · current" value={data.summary.bookmarked} explanation="Questions currently bookmarked for later review." />
         <Metric href="/flashcards" icon={<FiLayers />} label="Flashcards mastered · current" value={data.summary.flashcards_mastered} explanation="Reviewed cards currently classified as mastered by the spaced-repetition scheduler." />
         <Metric href="/flashcards" icon={<FiClock />} label="Flashcards due · current" value={data.summary.flashcards_due} explanation="Reviewed cards whose scheduled next-review time has arrived." />
@@ -172,8 +157,6 @@ export function ConnectedAnalyticsPage() {
         <div><small>Answers in range</small><b>{comparison.currentAnswered}</b><span>{comparison.priorAnswered} in preceding period</span></div>
         <div><small>Completed sessions</small><b>{comparison.currentCompleted}</b><span className={comparison.completionDelta >= 0 ? "positive" : "negative"}>{comparison.completionDelta >= 0 ? "+" : ""}{comparison.completionDelta} vs previous</span></div>
       </Panel>
-
-      <Panel title="Why did this change?" className="analytics-explanation"><ul>{explanation.map((item) => <li key={item}>{item}</li>)}</ul></Panel>
 
       <Panel title="Recommended next actions" className="analytics-recommendations"><p className="recommendation-intro">These actions are derived from current readiness components, measured topic mastery, and due work—not from the selected chart window alone.</p><div>{recommendations.map((item) => <article data-priority={item.priority} key={item.id}><span>{item.priority}</span><div><small>{item.metric}</small><h3>{item.title}</h3><p>{item.reason}</p></div><Link className="pp-button secondary" href={item.href}>{item.action}<FiArrowRight /></Link></article>)}</div></Panel>
 

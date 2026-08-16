@@ -6,12 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import {
   FiActivity,
   FiBarChart2,
-  FiCheck,
   FiClipboard,
   FiClock,
-  FiHeart,
-  FiMove,
-  FiPlay,
   FiRefreshCw,
   FiUsers,
 } from "react-icons/fi";
@@ -104,10 +100,6 @@ function addDays(date: Date, days: number) {
   return next;
 }
 
-function sessionTitle(item: StudyPlanItem) {
-  return item.lecture?.title || item.metadata.title || item.itemType.replaceAll("_", " ");
-}
-
 export function ConnectedDashboardPage() {
   const { user, request } = useAuth();
   const { translate } = useLocale();
@@ -154,7 +146,6 @@ export function ConnectedDashboardPage() {
       data={data as StudentDashboard | null}
       pearl={pearl}
       planItems={planItems}
-      setPlanItems={setPlanItems}
       loading={loading}
       refreshing={refreshing}
       error={error}
@@ -169,7 +160,6 @@ function StudentDashboardScreen({
   data,
   pearl,
   planItems,
-  setPlanItems,
   loading,
   refreshing,
   error,
@@ -178,16 +168,15 @@ function StudentDashboardScreen({
   data: StudentDashboard | null;
   pearl: NotebookPage["data"][number] | null;
   planItems: StudyPlanItem[];
-  setPlanItems: React.Dispatch<React.SetStateAction<StudyPlanItem[]>>;
   loading: boolean;
   refreshing: boolean;
   error: string | null;
   reload: () => Promise<void>;
 }) {
   const router = useRouter();
-  const { user, request } = useAuth();
+  const { user } = useAuth();
   const { translate, locale } = useLocale();
-  const { notify, startNavigation } = useUx();
+  const { startNavigation } = useUx();
   const displayName = user?.fullName || user?.full_name || user?.email || "Student";
   const firstName = displayName.trim().split(/\s+/)[0];
   const accuracy = clamp(number(data?.questions.accuracy));
@@ -197,8 +186,6 @@ function StudentDashboardScreen({
   const mastered = number(data?.flashcards.mastered);
   const level = Math.max(1, Math.floor((number(data?.questions.correct_attempts) + mastered) / 100) + 1);
   const levelProgress = (number(data?.questions.correct_attempts) + mastered) % 100;
-  const todayKey = localDateKey();
-  const todayItems = planItems.filter((item) => item.scheduledDate === todayKey);
   const completedMinutes = planItems.filter((item) => item.status === "COMPLETED").reduce((sum, item) => sum + item.durationMinutes, 0);
 
   const streak = useMemo(() => {
@@ -229,40 +216,6 @@ function StudentDashboardScreen({
     router.push(href);
   }
 
-  function openSession(item: StudyPlanItem) {
-    if (item.itemType === "QUESTIONS") navigate("/rounds");
-    else if (item.itemType === "FLASHCARDS" || item.itemType === "REVIEW") navigate("/flashcards");
-    else if (item.itemType === "LECTURE") navigate("/bundles?tab=curriculum");
-    else navigate("/study-plan");
-  }
-
-  async function toggleSession(item: StudyPlanItem) {
-    try {
-      const updated = await request<StudyPlanItem>(`/study-plan/items/${item.id}`, {
-        method: "PUT",
-        body: { status: item.status === "COMPLETED" ? "PLANNED" : "COMPLETED" },
-      });
-      setPlanItems((current) => current.map((value) => value.id === item.id ? updated : value));
-      notify({ title: translate(updated.status === "COMPLETED" ? "Session completed" : "Session restored"), description: sessionTitle(updated), tone: "success" });
-    } catch (cause) {
-      notify({ title: translate("Could not update session"), description: cause instanceof Error ? cause.message : undefined, tone: "error" });
-    }
-  }
-
-  async function rescheduleSession(item: StudyPlanItem, scheduledDate: string) {
-    if (!scheduledDate || scheduledDate === item.scheduledDate) return;
-    const previous = item.scheduledDate;
-    setPlanItems((current) => current.map((value) => value.id === item.id ? { ...value, scheduledDate } : value));
-    try {
-      const updated = await request<StudyPlanItem>(`/study-plan/items/${item.id}`, { method: "PUT", body: { scheduled_date: scheduledDate, status: "PLANNED" } });
-      setPlanItems((current) => current.map((value) => value.id === item.id ? updated : value));
-      notify({ title: translate("Session rescheduled"), description: locale === "ar" ? `نُقلت من ${previous} إلى ${scheduledDate}.` : `Moved from ${previous} to ${scheduledDate}.`, tone: "success" });
-    } catch (cause) {
-      setPlanItems((current) => current.map((value) => value.id === item.id ? { ...value, scheduledDate: previous } : value));
-      notify({ title: translate("Could not reschedule session"), description: cause instanceof Error ? cause.message : undefined, tone: "error" });
-    }
-  }
-
   const focusText = continueCourse
     ? translate(`Continue ${continueCourse.course.courseName}: ${continueCourse.lecturesCompleted} of ${continueCourse.totalLectures} lectures completed.`)
     : translate("Your focus will appear after you open your first course.");
@@ -280,31 +233,12 @@ function StudentDashboardScreen({
         <div className="metrics">
           <div className="metric primary"><span className="metric-icon"><FiClipboard /></span><div><small>{translate("Questions answered")}</small><b>{number(data?.questions.attempts)}</b><span>{translate("All time")}</span><em>{translate(`${accuracy}% accuracy`)}</em></div><FiBarChart2 /></div>
           <div className="metric"><span className="metric-icon flame"><FiActivity /></span><div><small>{translate("Study streak")}</small><b>{streak} <sup>{locale === "ar" ? "يوم" : "days"}</sup></b><span>{translate(streak ? "Built from completed plan sessions" : "Complete today’s session to begin")}</span><div className="streak">{[0, 1, 2, 3, 4, 5, 6].map((day) => <i className={day < Math.min(streak, 7) ? "" : "off"} key={day} />)}</div></div></div>
-          <div className="metric"><span className="retention-ring" style={{ background: `conic-gradient(var(--db-teal) 0 ${accuracy}%,var(--db-soft) ${accuracy}%)` }}>{accuracy}%</span><div><small>{translate("Retention")}</small><b>{accuracy}%</b><span>{translate("Question accuracy")}</span></div></div>
           <div className="metric"><span className="metric-icon"><FiClock /></span><div><small>{translate("Study hours")}</small><b>{Math.round(completedMinutes / 6) / 10} <sup>{locale === "ar" ? "س" : "hrs"}</sup></b><span>{translate("Completed scheduled sessions")}</span></div></div>
         </div>
       </Card>
 
       {loading && !data ? <PageSkeleton variant="workspace" label={translate("Loading your dashboard")} /> : <div className="main-grid">
         <div className="column-main">
-          <Card title={translate("Today's Plan")} action={<Link href="/study-plan">{translate("View full plan")} →</Link>} className="plan-card">
-            <div className="plan-list">{todayItems.length ? todayItems.slice(0, 5).map((item, index) => <div className={`plan-row dashboard-plan-row ${item.status === "COMPLETED" ? "completed" : ""}`} key={item.id}>
-              <time>{item.durationMinutes}m</time><i className={`timeline-dot d${index}`} /><span className="plan-icon">{item.status === "COMPLETED" ? <FiCheck /> : <FiHeart />}</span>
-              <div><strong data-academic-content>{sessionTitle(item)}</strong><small>{item.targetCount ? `${item.targetCount} ${locale === "ar" ? "عناصر" : "items"} · ` : ""}{translate(item.itemType.replaceAll("_", " "))}</small></div>
-              <div className="dashboard-plan-actions">
-                {item.itemType !== "REST" && <button type="button" onClick={() => openSession(item)} title={translate("Open session")}><FiPlay /></button>}
-                {item.itemType !== "REST" && <button type="button" onClick={() => void toggleSession(item)} title={translate(item.status === "COMPLETED" ? "Mark planned" : "Mark complete")}><FiCheck /></button>}
-                {item.itemType !== "REST" && item.status !== "COMPLETED" && <label title={translate("Reschedule session")}><FiMove /><input aria-label={translate(`Reschedule ${sessionTitle(item)}`)} type="date" min={todayKey} value={item.scheduledDate} onChange={(event) => void rescheduleSession(item, event.target.value)} /></label>}
-              </div>
-            </div>) : <EmptyRow text={translate("No sessions scheduled for today.")} />}</div>
-          </Card>
-
-          <div className="lower-cards">
-            <Card title={translate("Continue Learning")} action={<Link href="/bundles?tab=curriculum">{translate("View all courses")} →</Link>} className="learning-card">
-              <div className="learning-grid">{data?.courses.length ? data.courses.slice(0, 3).map((item) => <button type="button" onClick={() => navigate("/bundles?tab=curriculum")} key={item.id}><span className="tag">{item.course.courseCode}</span><small>{item.lecturesCompleted}/{item.totalLectures}</small><strong data-academic-content>{item.course.courseName}</strong><div className="progress"><i style={{ width: `${clamp(number(item.completionPercentage))}%` }} /></div><span>{translate(`${clamp(number(item.completionPercentage))}% complete`)}</span></button>) : <p>{translate("No courses started yet.")}</p>}</div>
-            </Card>
-          </div>
-
           <Card title={translate("Weekly Activity")} action={<Link href="/analytics">{translate("Open analytics")} →</Link>} className="activity-card">
             <div className="chart-legend"><span><i />{translate("Completed plan items")}</span></div><div className="bar-chart">{activity.map((item) => <div key={item.label}><span title={locale === "ar" ? `${item.value} عنصر مكتمل` : `${item.value} completed items`} style={{ height: `${Math.max(2, Math.round(item.value / maxActivity * 92))}px` }} /><small>{item.label}</small></div>)}</div>
           </Card>
@@ -322,11 +256,6 @@ function StudentDashboardScreen({
 
 function Card({ title, subtitle, action, className = "", children }: { title: string; subtitle?: string; action?: React.ReactNode; className?: string; children: React.ReactNode }) {
   return <section className={`dash-card ${className}`}><header><h2>{title}</h2>{action && <div>{action}</div>}</header>{subtitle && <p className="card-subtitle">{subtitle}</p>}{children}</section>;
-}
-
-function EmptyRow({ text }: { text: string }) {
-  const { translate } = useLocale();
-  return <div className="plan-row"><time>—</time><i className="timeline-dot" /><span className="plan-icon"><FiActivity /></span><div><strong>{text}</strong><small>{translate("Use Study Plan to add or generate sessions.")}</small></div></div>;
 }
 
 function RoleTotals({ data }: { data: InstructorDashboard | AdminDashboard }) {

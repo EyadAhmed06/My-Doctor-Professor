@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { FiCheck } from "react-icons/fi";
 import { extraArabic, extraArabicPattern } from "./locale-arabic-extra";
 import { pageArabic } from "./locale-arabic-pages";
 
@@ -64,7 +65,7 @@ const coreArabic = new Map<string, string>([
   ["Users", "المستخدمون"], ["Academics", "الهيكل الأكاديمي"], ["Audit", "سجل التدقيق"], ["Resources", "الموارد"],
   ["Search", "بحث"], ["Refresh", "تحديث"], ["Refreshing", "جارٍ التحديث"], ["Retry", "إعادة المحاولة"], ["Save", "حفظ"], ["Cancel", "إلغاء"],
   ["Close", "إغلاق"], ["Delete", "حذف"], ["Edit", "تعديل"], ["Create", "إنشاء"], ["Continue", "متابعة"], ["Previous", "السابق"], ["Next", "التالي"],
-  ["Light", "فاتح"], ["Dark", "داكن"], ["System", "النظام"], ["Theme", "المظهر"], ["Language", "اللغة"], ["Log out", "تسجيل الخروج"],
+  ["Light", "فاتح"], ["Dark", "داكن"], ["System", "النظام"], ["Theme", "المظهر"], ["Language", "اللغة"], ["Log out", "تسجيل الخروج"], ["Subscription", "الاشتراك"],
   ["Mark all read", "تحديد الكل كمقروء"], ["View all notifications", "عرض كل الإشعارات"], ["No notifications yet.", "لا توجد إشعارات بعد."],
   ["Active", "نشط"], ["Inactive", "غير نشط"], ["Draft", "مسودة"], ["Published", "منشور"], ["Archived", "مؤرشف"], ["Submitted", "تم التسليم"],
   ["TODAY'S FOCUS", "تركيز اليوم"], ["TODAY’S FOCUS", "تركيز اليوم"], ["You're building clinical expertise every day.", "أنت تبني خبرتك السريرية كل يوم."],
@@ -282,10 +283,30 @@ export function useLocale() {
   return value;
 }
 
-export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
+const LANGUAGE_OPTIONS: { value: AppLocale; avatar: string; native: string; hint: { en: string; ar: string } }[] = [
+  { value: "en", avatar: "EN", native: "English", hint: { en: "Default interface language", ar: "لغة الواجهة الافتراضية" } },
+  { value: "ar", avatar: "ع", native: "العربية", hint: { en: "Right-to-left interface", ar: "واجهة من اليمين إلى اليسار" } },
+];
+
+export function LanguageSwitcher() {
   const { locale, setLocale } = useLocale();
-  return <div className={`language-switcher ${compact ? "compact" : ""}`} role="group" aria-label={locale === "ar" ? "اللغة" : "Language"}>
-    <button type="button" className={locale === "en" ? "active" : ""} onClick={() => setLocale("en")} aria-pressed={locale === "en"}>EN</button>
-    <button type="button" className={locale === "ar" ? "active" : ""} onClick={() => setLocale("ar")} aria-pressed={locale === "ar"}>ع</button>
+  return <div className="language-switcher" role="group" aria-label={locale === "ar" ? "اللغة" : "Language"}>
+    {LANGUAGE_OPTIONS.map((option) => {
+      const active = locale === option.value;
+      return <button
+        key={option.value}
+        type="button"
+        className={active ? "active" : ""}
+        onClick={() => setLocale(option.value)}
+        aria-pressed={active}
+      >
+        <span className="language-avatar" aria-hidden="true">{option.avatar}</span>
+        <span className="language-copy">
+          <b>{option.native}</b>
+          <small>{locale === "ar" ? option.hint.ar : option.hint.en}</small>
+        </span>
+        <span className="language-check" aria-hidden="true">{active && <FiCheck />}</span>
+      </button>;
+    })}
   </div>;
 }

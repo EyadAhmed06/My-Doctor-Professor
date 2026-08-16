@@ -167,6 +167,52 @@ export class FlashcardAccessService {
     return { data, page, limit, total, total_pages: Math.ceil(total / limit) };
   }
 
+  async listStudentAll(actor: AuthenticatedUser, query: CardQueryDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 50;
+    const builder = this.cards.createQueryBuilder('card')
+      .innerJoinAndSelect('card.deck', 'deck')
+      .innerJoinAndSelect('deck.course', 'course')
+      .leftJoinAndSelect('deck.lecture', 'lecture')
+      .leftJoinAndSelect('lecture.week', 'week')
+      .leftJoinAndMapOne(
+        'card.progress', 'student_flashcard_progress', 'progress',
+        'progress.flashcard_id = card.id AND progress.student_id = :studentId',
+        { studentId: actor.userId },
+      )
+      .where('card.is_active = TRUE')
+      .andWhere('deck.is_published = TRUE')
+      .andWhere('course.is_active = TRUE')
+      .andWhere('(deck.lecture_id IS NULL OR lecture.is_published = TRUE)')
+      .andWhere(`EXISTS (
+        SELECT 1
+        FROM bundle_enrollments enrollment
+        JOIN bundles bundle ON bundle.id = enrollment.bundle_id
+        WHERE enrollment.student_id = :studentId
+          AND enrollment.status <> 'REVOKED'
+          AND bundle.status IN ('PUBLISHED','ARCHIVED')
+          AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+          AND (
+            (deck.lecture_id IS NOT NULL AND EXISTS (
+              SELECT 1 FROM bundle_weeks bw
+              WHERE bw.bundle_id = bundle.id AND bw.week_id = lecture.week_id
+            ))
+            OR
+            (deck.lecture_id IS NULL AND EXISTS (
+              SELECT 1 FROM bundle_courses bc
+              WHERE bc.bundle_id = bundle.id AND bc.course_id = deck.course_id
+            ))
+          )
+      )`)
+      .orderBy('deck.display_order', 'ASC')
+      .addOrderBy('card.display_order', 'ASC')
+      .skip((page - 1) * limit)
+      .take(limit);
+    if (query.difficulty) builder.andWhere('card.difficulty = :difficulty', { difficulty: query.difficulty });
+    const [data, total] = await builder.getManyAndCount();
+    return { data, page, limit, total, total_pages: Math.ceil(total / limit) };
+  }
+
   private async exists(sql: string, params: unknown[]): Promise<boolean> {
     const rows = await this.dataSource.query(sql, params) as unknown[];
     return rows.length > 0;

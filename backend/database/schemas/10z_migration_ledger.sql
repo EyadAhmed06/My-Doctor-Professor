@@ -29,7 +29,9 @@ FROM (
         (1850000000000::bigint, 'AddBundleAccessLayer1850000000000'),
         (1860000000000::bigint, 'AddNotebookAnalyticsScheduler1860000000000'),
         (1870000000000::bigint, 'AddExternalAuthIdentities1870000000000'),
-        (1950000000000::bigint, 'AddBundlePricingPayments1950000000000')
+        (1950000000000::bigint, 'AddBundlePricingPayments1950000000000'),
+        (1960000000000::bigint, 'AddBundleSubscriptionPlans1960000000000'),
+        (1970000000000::bigint, 'AddGlobalSubscriptionPlans1970000000000')
 ) AS entry(timestamp, name)
 WHERE NOT EXISTS (
     SELECT 1 FROM migrations current WHERE current.name = entry.name

@@ -6,7 +6,7 @@ import { DatabaseExceptionFilter } from './common/filters/database-exception.fil
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.setGlobalPrefix('api/v1');
+
 
   app.use((_request, response, next) => {
     response.setHeader('X-Content-Type-Options', 'nosniff');
@@ -28,7 +28,7 @@ async function bootstrap() {
   }
 
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3001',
+    origin: true,
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     allowedHeaders: 'Content-Type,Authorization',
@@ -49,7 +49,7 @@ async function bootstrap() {
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);
-  console.log(`Application is running on: http://localhost:${port}/api/v1`);
+  console.log(`Application is running on: http://localhost:${port}`);
 }
 
 void bootstrap();

@@ -25,3 +25,4 @@ frontend/playwright-report/
 .vscode/
 *.log
 *.tsbuildinfo
+.github/workflows/*.yml

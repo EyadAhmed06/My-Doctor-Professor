@@ -18,6 +18,12 @@ export class Bundle {
   @Column({ type:'boolean', name:'is_free', default:true }) isFree: boolean;
   @Column({ type:'numeric', precision:10, scale:2, name:'price_amount', nullable:true }) priceAmount: string|null;
   @Column({ type:'varchar', length:3, name:'price_currency', default:'EGP' }) priceCurrency: string;
+  @Column({ type:'boolean', name:'first_plan_enabled', default:false }) firstPlanEnabled: boolean;
+  @Column({ type:'numeric', precision:10, scale:2, name:'first_plan_price_mcq', nullable:true }) firstPlanPriceMcq: string|null;
+  @Column({ type:'numeric', precision:10, scale:2, name:'first_plan_price_mcq_essay', nullable:true }) firstPlanPriceMcqEssay: string|null;
+  @Column({ type:'boolean', name:'final_plan_enabled', default:false }) finalPlanEnabled: boolean;
+  @Column({ type:'numeric', precision:10, scale:2, name:'final_plan_price_mcq', nullable:true }) finalPlanPriceMcq: string|null;
+  @Column({ type:'numeric', precision:10, scale:2, name:'final_plan_price_mcq_essay', nullable:true }) finalPlanPriceMcqEssay: string|null;
   @Column({ type:'text', name:'enrollment_code_hash', nullable:true, select:false }) enrollmentCodeHash: string|null;
   @Column({ type:'timestamp', name:'available_from', nullable:true }) availableFrom: Date|null;
   @Column({ type:'timestamp', name:'available_until', nullable:true }) availableUntil: Date|null;

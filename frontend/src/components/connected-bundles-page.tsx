@@ -19,6 +19,8 @@ import { PageSkeleton } from "./async-state";
 import { Panel, ProductShell } from "./product-shell";
 import { useUx } from "./ux-provider";
 import "./product-pages.css";
+import "./role-workspace.css";
+import "./bundle-management.css";
 
 type Bundle = {
   id: string;
@@ -28,8 +30,21 @@ type Bundle = {
   academicYear: number;
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   isFree: boolean;
+  priceAmount?: string | null;
+  priceCurrency?: string;
+  firstPlanEnabled?: boolean;
+  firstPlanPriceMcq?: string | null;
+  firstPlanPriceMcqEssay?: string | null;
+  finalPlanEnabled?: boolean;
+  finalPlanPriceMcq?: string | null;
+  finalPlanPriceMcqEssay?: string | null;
   read_only?: boolean;
+  payment_required?: boolean;
+  access_status?: "PENDING_PAYMENT" | "REVOKED" | "DRAFT" | "SCHEDULED" | "EXPIRED" | "ACTIVE" | "PARTIAL";
 };
+
+type PlanKey = "FIRST" | "FINAL";
+type PlanTier = "MCQ" | "MCQ_ESSAY";
 
 type Lecture = {
   id: string;
@@ -101,6 +116,8 @@ export function ConnectedBundlesPage() {
   const [bundleLoading, setBundleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [planPickerBundle, setPlanPickerBundle] = useState<Bundle | null>(null);
+  const [planPickerBusy, setPlanPickerBusy] = useState(false);
 
   const setUrl = useCallback(
     (bundleId: string | null, nextTab: Tab, replace = false) => {
@@ -190,6 +207,18 @@ export function ConnectedBundlesPage() {
   }, [requestedTab]);
 
   function open(bundle: Bundle) {
+    if (bundle.payment_required) {
+      if (bundle.firstPlanEnabled || bundle.finalPlanEnabled) {
+        setPlanPickerBundle(bundle);
+        return;
+      }
+      notify({
+        title: "Payment required",
+        description: `Complete payment for "${bundle.title}" to unlock this bundle.`,
+        tone: "warning",
+      });
+      return;
+    }
     let remembered: Tab = "overview";
     try {
       remembered = validTab(localStorage.getItem(`mdp:bundle-tab:${bundle.id}`));
@@ -230,6 +259,42 @@ export function ConnectedBundlesPage() {
         description: cause instanceof Error ? cause.message : undefined,
         tone: "error",
       });
+    }
+  }
+
+  async function enrollFullFromPicker(bundle: Bundle) {
+    setPlanPickerBusy(true);
+    try {
+      await request(`/bundles/${bundle.id}/enroll`, { method: "POST" });
+      notify({
+        title: "Requested",
+        description: `Full access to "${bundle.title}" is pending payment confirmation.`,
+        tone: "success",
+      });
+      setPlanPickerBundle(null);
+      await load();
+    } catch (cause) {
+      notify({ title: "Unable to request access", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+    } finally {
+      setPlanPickerBusy(false);
+    }
+  }
+
+  async function enrollPlan(bundle: Bundle, plan: PlanKey, tier: PlanTier) {
+    setPlanPickerBusy(true);
+    try {
+      await request(`/bundles/${bundle.id}/plans/${plan}/enroll`, { method: "POST", body: { tier } });
+      notify({
+        title: "Requested",
+        description: `${plan === "FIRST" ? "First 5 Weeks" : "Final 5 Weeks"} access to "${bundle.title}" is pending payment confirmation.`,
+        tone: "success",
+      });
+      setPlanPickerBundle(null);
+      await load();
+    } catch (cause) {
+      notify({ title: "Unable to request access", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+    } finally {
+      setPlanPickerBusy(false);
     }
   }
 
@@ -345,8 +410,13 @@ export function ConnectedBundlesPage() {
               {bundles.length ? (
                 bundles.map((bundle, index) => (
                   <button
-                    className={selected?.bundle.id === bundle.id ? "active" : ""}
+                    className={[
+                      selected?.bundle.id === bundle.id ? "active" : "",
+                      bundle.payment_required ? "locked" : "",
+                    ].join(" ").trim()}
                     key={bundle.id}
+                    aria-disabled={bundle.payment_required || undefined}
+                    title={bundle.payment_required ? "Payment required to unlock this bundle" : undefined}
                     onClick={() => open(bundle)}
                     onKeyDown={(event) => {
                       if (event.key === "ArrowDown") {
@@ -365,10 +435,10 @@ export function ConnectedBundlesPage() {
                     <b>
                       {bundle.title}
                       <small>
-                        Year {bundle.academicYear} · {bundle.status}
+                        Year {bundle.academicYear} · {bundle.payment_required ? "Payment required" : bundle.status}
                       </small>
                     </b>
-                    {bundle.read_only ? <FiLock /> : <FiCheckCircle />}
+                    {bundle.payment_required || bundle.read_only || bundle.status === "DRAFT" ? <FiLock /> : <FiCheckCircle />}
                   </button>
                 ))
               ) : (
@@ -451,13 +521,83 @@ export function ConnectedBundlesPage() {
                   <button className="pp-button" onClick={() => void enroll(bundle)}>
                     Join free bundle
                   </button>
+                  {(bundle.firstPlanEnabled || bundle.finalPlanEnabled) && (
+                    <button className="pp-button secondary" type="button" onClick={() => setPlanPickerBundle(bundle)}>
+                      View subscription plans
+                    </button>
+                  )}
                 </Panel>
               ))}
             </div>
           </section>
         )}
+
+        {planPickerBundle && (
+          <PlanPickerModal
+            bundle={planPickerBundle}
+            busy={planPickerBusy}
+            onClose={() => setPlanPickerBundle(null)}
+            onChooseFull={() => void enrollFullFromPicker(planPickerBundle)}
+            onChoosePlan={(plan, tier) => void enrollPlan(planPickerBundle, plan, tier)}
+          />
+        )}
       </main>
     </ProductShell>
+  );
+}
+
+function PlanPickerModal({
+  bundle,
+  busy,
+  onClose,
+  onChooseFull,
+  onChoosePlan,
+}: {
+  bundle: Bundle;
+  busy: boolean;
+  onClose: () => void;
+  onChooseFull: () => void;
+  onChoosePlan: (plan: PlanKey, tier: PlanTier) => void;
+}) {
+  const currency = bundle.priceCurrency || "EGP";
+  const money = (value?: string | null) => (value ? `${currency} ${Number(value).toFixed(2)}` : null);
+  return (
+    <div className="role-modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <section className="role-modal" role="dialog" aria-modal="true" aria-label={`Choose access for ${bundle.title}`} onMouseDown={(event) => event.stopPropagation()}>
+        <header>
+          <h2>{bundle.title}</h2>
+          <button type="button" onClick={onClose} aria-label="Close dialog">×</button>
+        </header>
+        <div className="role-form">
+          <p>Choose how you&apos;d like to access this bundle.</p>
+
+          {!bundle.isFree && bundle.priceAmount && (
+            <article className="bundle-plan-option">
+              <div><b>Full bundle</b><small>Every course, week, and past exam in this bundle.</small></div>
+              <button className="pp-button" type="button" disabled={busy} onClick={onChooseFull}>{money(bundle.priceAmount)}</button>
+            </article>
+          )}
+
+          {bundle.firstPlanEnabled && (
+            <fieldset className="bundle-plan-fieldset">
+              <legend>First 5 Weeks</legend>
+              {bundle.firstPlanPriceMcq && <article className="bundle-plan-option"><div><b>MCQ only</b><small>Question bank MCQs, flashcards, resources and past exams for the assigned weeks.</small></div><button className="pp-button secondary" type="button" disabled={busy} onClick={() => onChoosePlan("FIRST", "MCQ")}>{money(bundle.firstPlanPriceMcq)}</button></article>}
+              {bundle.firstPlanPriceMcqEssay && <article className="bundle-plan-option"><div><b>MCQ + Essay</b><small>Everything in MCQ only, plus essay-type questions for the assigned weeks.</small></div><button className="pp-button secondary" type="button" disabled={busy} onClick={() => onChoosePlan("FIRST", "MCQ_ESSAY")}>{money(bundle.firstPlanPriceMcqEssay)}</button></article>}
+            </fieldset>
+          )}
+
+          {bundle.finalPlanEnabled && (
+            <fieldset className="bundle-plan-fieldset">
+              <legend>Final 5 Weeks</legend>
+              {bundle.finalPlanPriceMcq && <article className="bundle-plan-option"><div><b>MCQ only</b><small>Question bank MCQs, flashcards, resources and past exams for the assigned weeks.</small></div><button className="pp-button secondary" type="button" disabled={busy} onClick={() => onChoosePlan("FINAL", "MCQ")}>{money(bundle.finalPlanPriceMcq)}</button></article>}
+              {bundle.finalPlanPriceMcqEssay && <article className="bundle-plan-option"><div><b>MCQ + Essay</b><small>Everything in MCQ only, plus essay-type questions for the assigned weeks.</small></div><button className="pp-button secondary" type="button" disabled={busy} onClick={() => onChoosePlan("FINAL", "MCQ_ESSAY")}>{money(bundle.finalPlanPriceMcqEssay)}</button></article>}
+            </fieldset>
+          )}
+
+          <p className="bundle-plan-note">Choosing an option requests access; an administrator confirms payment before content unlocks.</p>
+        </div>
+      </section>
+    </div>
   );
 }
 

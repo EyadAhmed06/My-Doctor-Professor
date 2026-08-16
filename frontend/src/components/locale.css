@@ -1,10 +1,14 @@
-.language-switcher{display:inline-flex;align-items:center;gap:4px;padding:3px;border:1px solid var(--pp-line,#dbe3ef);border-radius:999px;background:var(--pp-surface,#fff)}
-.language-switcher button{min-width:34px;height:30px;border:0;border-radius:999px;background:transparent;color:var(--pp-muted,#64748b);font:700 12px/1 inherit;cursor:pointer}
-.language-switcher button.active{background:var(--pp-accent,#4f46e5);color:#fff}
-.language-switcher.compact button{min-width:29px;height:27px}
-.global-language-access{position:fixed;right:18px;bottom:18px;z-index:120;display:flex;align-items:center;gap:7px;padding:5px 7px;border:1px solid var(--pp-line,#dbe3ef);border-radius:999px;background:color-mix(in srgb,var(--pp-surface,#fff) 92%,transparent);box-shadow:0 10px 30px rgba(15,23,42,.12);backdrop-filter:blur(12px)}
-.global-language-access>svg{margin-inline-start:5px;color:var(--pp-muted,#64748b)}
-html[dir="rtl"] .global-language-access{right:auto;left:18px}
+.language-switcher{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.language-switcher button{display:flex;align-items:center;gap:10px;min-height:60px;padding:9px 12px;border:1px solid var(--line,#dbe3ef);border-radius:10px;background:var(--soft,#fff);color:var(--ink,#14213d);text-align:left;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.language-switcher button:hover{border-color:color-mix(in srgb,var(--accent,#4f46e5) 55%,var(--line,#dbe3ef))}
+.language-switcher button.active{border-color:var(--accent,#4f46e5);box-shadow:inset 0 0 0 1px var(--accent,#4f46e5)}
+.language-avatar{flex:none;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font:700 12px/1 inherit;background:color-mix(in srgb,var(--accent,#4f46e5) 14%,transparent);color:var(--accent,#4f46e5)}
+.language-copy{flex:1;min-width:0}
+.language-copy b,.language-copy small{display:block}
+.language-copy b{font-size:13px}
+.language-copy small{font-size:10px;color:var(--muted,#64748b);margin-top:2px}
+.language-check{flex:none;width:16px;color:var(--accent,#4f46e5);display:flex}
+html[dir="rtl"] .language-switcher button{text-align:right}
 html[dir="rtl"] body{direction:rtl}
 html[dir="rtl"] .product-app,html[dir="rtl"] .pp-page,html[dir="rtl"] .role-workspace,html[dir="rtl"] .settings-complete-page{text-align:right}
 html[dir="rtl"] .pp-topbar,html[dir="rtl"] .pp-topbar nav,html[dir="rtl"] .pp-profile,html[dir="rtl"] .profile-menu-summary,html[dir="rtl"] .command-palette-results button,html[dir="rtl"] .role-person,html[dir="rtl"] .guide-resource-card{direction:rtl}
@@ -16,4 +20,4 @@ html[dir="rtl"] .role-table{direction:rtl}
 html[dir="rtl"] .resource-preview-drawer{right:auto;left:0}
 html[dir="rtl"] .header-popover{right:auto;left:0}
 html[dir="rtl"] .command-palette{direction:rtl}
-@media(max-width:760px){.language-switcher{padding:2px}.language-switcher button{min-width:31px;height:28px}.global-language-access{right:10px;bottom:10px}.global-language-access>svg{display:none}html[dir="rtl"] .global-language-access{left:10px}}
+@media(max-width:760px){.language-switcher{grid-template-columns:1fr}}
