@@ -61,7 +61,6 @@ const instructorNav: NavItem[] = [
   { label: "Resources", href: "/resources/upload" },
   { label: "Questions", href: "/instructor/questions" },
   { label: "Assessments", href: "/instructor/assessments" },
-  { label: "Grading", href: "/instructor/grading" },
   { label: "Flashcards", href: "/instructor/flashcards" },
   { label: "Bundles", href: "/bundles" },
 ];
@@ -73,7 +72,6 @@ const adminNav: NavItem[] = [
   { label: "Resources", href: "/resources/upload" },
   { label: "Questions", href: "/admin/questions" },
   { label: "Assessments", href: "/admin/assessments" },
-  { label: "Grading", href: "/admin/grading" },
   { label: "Flashcards", href: "/admin/flashcards" },
   { label: "Bundles", href: "/bundles" },
   { label: "Audit", href: "/admin/audit" },
