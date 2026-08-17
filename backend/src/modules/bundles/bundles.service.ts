@@ -151,6 +151,9 @@ export class BundlesService {
       return { ...bundle, read_only: false, accessible: true, payment_required: false, partial_access: false, visible_week_ids: null as string[] | null, essay_week_ids: null as string[] | null };
     }
     if (bundle.status === BundleStatus.DRAFT) throw new ForbiddenException('This bundle is not published');
+    if (bundle.status === BundleStatus.ARCHIVED || (bundle.availableUntil && bundle.availableUntil <= new Date())) {
+      throw new ForbiddenException('This bundle has expired');
+    }
 
     const enrollment = await this.enrollments.findOne({ where: { bundleId: id, studentId: actor.userId } });
     const fullGranted = Boolean(enrollment)
@@ -869,7 +872,7 @@ export class BundlesService {
       || row.status === BundleEnrollmentStatus.EXPIRED
       || Boolean(row.expiresAt && row.expiresAt <= now)
       || Boolean(bundle.availableUntil && bundle.availableUntil <= now);
-    const accessible = !paymentRequired && !revoked && !scheduled && !draft;
+    const accessible = !paymentRequired && !revoked && !scheduled && !draft && !expired;
     const accessStatus = paymentRequired
       ? 'PENDING_PAYMENT'
       : revoked
@@ -882,7 +885,7 @@ export class BundlesService {
               ? 'EXPIRED'
               : 'ACTIVE';
     return {
-      read_only: accessible && expired,
+      read_only: false,
       accessible,
       payment_required: paymentRequired,
       access_status: accessStatus,
