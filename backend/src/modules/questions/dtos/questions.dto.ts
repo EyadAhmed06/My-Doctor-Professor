@@ -72,12 +72,14 @@ export class SearchQuestionsDto {
 
 export class CreateMcqOptionDto {
   @IsString() @IsNotEmpty() option_text: string;
+  @IsOptional() @IsString() explanation?: string;
   @IsBoolean() is_correct: boolean;
   @IsInt() @Min(1) display_order: number;
 }
 
 export class UpdateMcqOptionDto {
   @IsOptional() @IsString() @IsNotEmpty() option_text?: string;
+  @IsOptional() @IsString() explanation?: string;
   @IsOptional() @IsBoolean() is_correct?: boolean;
   @IsOptional() @IsInt() @Min(1) display_order?: number;
 }
