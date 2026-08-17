@@ -327,7 +327,7 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
       </div>
     </header>
     <WorkspaceBreadcrumbs path={path} role={user.role} />
-    <RoleWorkflowCoach path={path} role={user.role} />
+    {user.role !== "INSTRUCTOR" && <RoleWorkflowCoach path={path} role={user.role} />}
     <div id="workspace-main" className="phase5-workspace-main" tabIndex={-1}>{children}</div>
     <PhaseFiveMilestones path={path} role={user.role} />
     <MobileRoleDock path={path} role={user.role} />
