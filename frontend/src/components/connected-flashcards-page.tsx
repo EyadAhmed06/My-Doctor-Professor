@@ -466,10 +466,11 @@ export function ConnectedFlashcardsPage() {
     <div className="pp-title hero flashcards-main-header">
       <div>
         <small className="page-eyebrow">{translate("SPACED REPETITION")}</small>
-        <h1>{translate(reviewMode ? "Flashcard review" : "Flashcards")}</h1>
-        <p>{translate(reviewMode ? "Focus on one card at a time." : "All your flashcards, always here to revisit.")}</p>
+        <h1>{translate(choosingCourse ? "Choose a course" : reviewMode ? "Flashcard review" : "Flashcards")}</h1>
+        <p>{translate(choosingCourse ? "Select one of the courses included in your current bundles." : reviewMode ? "Focus on one card at a time." : "Flashcards for your selected course.")}</p>
       </div>
       <div className="flashcards-header-actions">
+        {!choosingCourse && <button className="pp-button secondary" type="button" onClick={() => selectCourse(null)}><FiArrowLeft /> {translate("Change course")}</button>}
         {reviewMode ? <>
           <div className="keyboard-hints" aria-label={translate("Keyboard and touch shortcuts")}>
             <span>{translate("Space · Flip")}</span>
