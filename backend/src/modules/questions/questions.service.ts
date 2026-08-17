@@ -337,6 +337,9 @@ export class QuestionsService {
       throw new ConflictException('An MCQ cannot contain more than five options');
     }
     await this.assertOptionTextUnique(questionId, dto.option_text);
+    if (dto.is_correct && await this.options.exists({ where: { questionId, isCorrect: true } })) {
+      throw new ConflictException('An MCQ can have only one correct option');
+    }
     const option = this.options.create({
       questionId,
       optionText: dto.option_text.trim(),
@@ -373,6 +376,14 @@ export class QuestionsService {
     if (dto.option_text !== undefined) {
       await this.assertOptionTextUnique(option.questionId, dto.option_text, option.id);
       option.optionText = dto.option_text.trim();
+    }
+    if (dto.is_correct) {
+      const existingCorrect = await this.options.createQueryBuilder('option')
+        .where('option.question_id = :questionId', { questionId: option.questionId })
+        .andWhere('option.is_correct = TRUE')
+        .andWhere('option.id <> :optionId', { optionId: option.id })
+        .getExists();
+      if (existingCorrect) throw new ConflictException('An MCQ can have only one correct option');
     }
     if (dto.is_correct !== undefined) option.isCorrect = dto.is_correct;
     if (dto.display_order !== undefined) option.displayOrder = dto.display_order;
