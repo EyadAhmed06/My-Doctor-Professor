@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   FiAward,
+  FiArrowLeft,
   FiBookOpen,
   FiGrid,
   FiMaximize2,
@@ -21,6 +22,14 @@ import { Panel, ProductShell, Progress } from "./product-shell";
 import { useUx } from "./ux-provider";
 import "./product-pages.css";
 import "./flashcards-simple.css";
+
+type Course = {
+  id: string;
+  courseName: string;
+  courseCode: string;
+  deckCount: number;
+  cardCount: number;
+};
 
 type Deck = {
   id: string;
