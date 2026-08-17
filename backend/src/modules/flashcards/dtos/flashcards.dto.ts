@@ -26,6 +26,7 @@ export class DeckQueryDto {
  @IsOptional() @IsString() @MaxLength(200) search?:string;
 }
 export class CardQueryDto {
+ @IsOptional() @IsUUID() course_id?:string;
  @IsOptional() @Transform(({value})=>Number(value)) @IsInt() @Min(1) page?:number;
  @IsOptional() @Transform(({value})=>Number(value)) @IsInt() @Min(1) @Max(100) limit?:number;
  @IsOptional() @IsEnum(QuestionDifficulty) difficulty?:QuestionDifficulty;
