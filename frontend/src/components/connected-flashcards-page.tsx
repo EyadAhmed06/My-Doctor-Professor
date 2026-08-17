@@ -145,6 +145,12 @@ export function ConnectedFlashcardsPage() {
   }, [sessionKey]);
 
   const load = useCallback(async () => {
+    if (!selectedCourseId) {
+      setCards([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -184,7 +190,33 @@ export function ConnectedFlashcardsPage() {
     } finally {
       setLoading(false);
     }
-  }, [readSession, request, translate]);
+  }, [readSession, request, selectedCourseId, translate]);
+
+  useEffect(() => {
+    let active = true;
+    setCoursesLoading(true);
+    request<Course[]>("/flashcards/courses")
+      .then((data) => {
+        if (active) setCourses(data);
+      })
+      .catch((cause) => {
+        if (active) setError(cause instanceof ApiError ? cause.message : translate("Unable to load courses."));
+      })
+      .finally(() => {
+        if (active) setCoursesLoading(false);
+      });
+    return () => { active = false; };
+  }, [request, translate]);
+
+  useEffect(() => {
+    if (!selectedCourseId && (requestedCard || requestedLecture)) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("card");
+      params.delete("lecture");
+      const suffix = params.toString();
+      router.replace(suffix ? `${pathname}?${suffix}` : pathname, { scroll: false });
+    }
+  }, [pathname, requestedCard, requestedLecture, router, searchParams, selectedCourseId]);
 
   useEffect(() => { void load(); }, [load]);
 
