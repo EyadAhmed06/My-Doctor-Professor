@@ -18,7 +18,6 @@ type Analytics = {
 
 type Recommendation = { id: string; priority: "HIGH" | "MEDIUM" | "LOW"; title: string; reason: string; action: string; href: string; metric: string };
 type Range = "7D" | "30D" | "SEMESTER" | "CUSTOM";
-type AccuracySeries = "ACCURACY" | "ANSWERED";
 
 function buildRecommendations(data: Analytics): Recommendation[] {
   const result: Recommendation[] = [];
@@ -55,12 +54,6 @@ function subtractDays(value: Date, days: number) {
   return result;
 }
 
-function weightedAccuracy(points: Analytics["accuracy_over_time"]) {
-  const answered = points.reduce((sum, point) => sum + point.answered, 0);
-  if (!answered) return 0;
-  return points.reduce((sum, point) => sum + point.accuracy * point.answered, 0) / answered;
-}
-
 export function ConnectedAnalyticsPage() {
   const { user, request } = useAuth();
   const [data, setData] = useState<Analytics | null>(null);
@@ -69,7 +62,6 @@ export function ConnectedAnalyticsPage() {
   const [range, setRange] = useState<Range>("30D");
   const [customFrom, setCustomFrom] = useState(() => dateKey(subtractDays(new Date(), 29)));
   const [customTo, setCustomTo] = useState(() => dateKey(new Date()));
-  const [series, setSeries] = useState<AccuracySeries>("ACCURACY");
 
   useEffect(() => {
     if (user?.role !== "STUDENT") {
@@ -91,57 +83,22 @@ export function ConnectedAnalyticsPage() {
     const end = range === "CUSTOM" ? new Date(`${customTo}T23:59:59`) : new Date();
     const days = range === "7D" ? 7 : range === "30D" ? 30 : range === "SEMESTER" ? 120 : Math.max(1, Math.ceil((end.getTime() - new Date(`${customFrom}T00:00:00`).getTime()) / 86400000) + 1);
     const start = range === "CUSTOM" ? new Date(`${customFrom}T00:00:00`) : subtractDays(end, days - 1);
-    const previousEnd = subtractDays(start, 1);
-    const previousStart = subtractDays(previousEnd, days - 1);
-    return { start, end, previousStart, previousEnd, days };
+    return { start, end, days };
   }, [customFrom, customTo, range]);
 
-  const filteredAccuracy = useMemo(() => data?.accuracy_over_time.filter((point) => {
-    const date = new Date(point.date);
-    return date >= dateWindow.start && date <= dateWindow.end;
-  }) || [], [data, dateWindow]);
-  const previousAccuracy = useMemo(() => data?.accuracy_over_time.filter((point) => {
-    const date = new Date(point.date);
-    return date >= dateWindow.previousStart && date <= dateWindow.previousEnd;
-  }) || [], [data, dateWindow]);
   const filteredActivity = useMemo(() => data?.study_activity.filter((point) => {
     const date = new Date(point.date);
     return date >= dateWindow.start && date <= dateWindow.end;
   }) || [], [data, dateWindow]);
-  const previousActivity = useMemo(() => data?.study_activity.filter((point) => {
-    const date = new Date(point.date);
-    return date >= dateWindow.previousStart && date <= dateWindow.previousEnd;
-  }) || [], [data, dateWindow]);
-
-  const comparison = useMemo(() => {
-    const currentAccuracy = weightedAccuracy(filteredAccuracy);
-    const priorAccuracy = weightedAccuracy(previousAccuracy);
-    const currentAnswered = filteredAccuracy.reduce((sum, point) => sum + point.answered, 0);
-    const priorAnswered = previousAccuracy.reduce((sum, point) => sum + point.answered, 0);
-    const currentCompleted = filteredActivity.reduce((sum, day) => sum + day.completed, 0);
-    const priorCompleted = previousActivity.reduce((sum, day) => sum + day.completed, 0);
-    return {
-      currentAccuracy,
-      priorAccuracy,
-      hasAccuracyBaseline: currentAnswered > 0 && priorAnswered > 0,
-      accuracyDelta: currentAccuracy - priorAccuracy,
-      currentCompleted,
-      completionDelta: currentCompleted - priorCompleted,
-      currentAnswered,
-      priorAnswered,
-    };
-  }, [filteredAccuracy, filteredActivity, previousAccuracy, previousActivity]);
-
-  const maxAnswered = Math.max(1, ...filteredAccuracy.map((point) => point.answered));
 
   return <ProductShell><main className="pp-page analytics-page analytics-exploration-page">
-    <header className="workspace-heading"><div><span className="page-eyebrow">LEARNING INTELLIGENCE</span><h1>Analytics Dashboard</h1><p>Separate current learning state from date-window trends so the numbers remain interpretable.</p></div></header>
+    <header className="workspace-heading"><div><span className="page-eyebrow">LEARNING INTELLIGENCE</span><h1>Analytics Dashboard</h1><p>Review your current learning state, readiness, topic mastery, and study consistency.</p></div></header>
 
     {user?.role !== "STUDENT" ? <Panel title="Student analytics"><p>This dashboard is calculated for student accounts.</p></Panel> : loading ? <PageSkeleton variant="chart" label="Calculating analytics" /> : error ? <ErrorState description={error} onRetry={() => globalThis.location.reload()} /> : data ? <>
       <section className="analytics-range-bar" aria-label="Analytics date range">
         <div role="group" aria-label="Preset ranges">{(["7D", "30D", "SEMESTER", "CUSTOM"] as Range[]).map((value) => <button type="button" className={range === value ? "active" : ""} key={value} onClick={() => setRange(value)}>{value === "7D" ? "7 days" : value === "30D" ? "30 days" : value === "SEMESTER" ? "Semester" : "Custom"}</button>)}</div>
         {range === "CUSTOM" && <div className="analytics-custom-range"><label>From<input type="date" value={customFrom} max={customTo} onChange={(event) => setCustomFrom(event.target.value)} /></label><label>To<input type="date" value={customTo} min={customFrom} max={dateKey(new Date())} onChange={(event) => setCustomTo(event.target.value)} /></label></div>}
-        <small>{dateWindow.start.toLocaleDateString()} – {dateWindow.end.toLocaleDateString()} compared with the preceding {dateWindow.days} days. This selector controls the trend/comparison panels; overview metrics and readiness are current overall state.</small>
+        <small>{dateWindow.start.toLocaleDateString()} – {dateWindow.end.toLocaleDateString()}}. This selector controls study consistency; overview metrics and readiness show your current overall state.</small>
       </section>
 
       <section className="analytics-metrics">
@@ -152,24 +109,9 @@ export function ConnectedAnalyticsPage() {
         <Metric href="/flashcards" icon={<FiClock />} label="Flashcards due · current" value={data.summary.flashcards_due} explanation="Reviewed cards whose scheduled next-review time has arrived." />
       </section>
 
-      <Panel title="Period comparison" className="analytics-comparison">
-        <div><small>Weighted accuracy in range</small><b>{comparison.currentAnswered ? `${Math.round(comparison.currentAccuracy)}%` : "—"}</b><span className={comparison.hasAccuracyBaseline ? (comparison.accuracyDelta >= 0 ? "positive" : "negative") : ""}>{comparison.hasAccuracyBaseline ? `${comparison.accuracyDelta >= 0 ? "+" : ""}${Math.round(comparison.accuracyDelta)} pts vs previous` : "No previous accuracy baseline"}</span></div>
-        <div><small>Answers in range</small><b>{comparison.currentAnswered}</b><span>{comparison.priorAnswered} in preceding period</span></div>
-        <div><small>Completed sessions</small><b>{comparison.currentCompleted}</b><span className={comparison.completionDelta >= 0 ? "positive" : "negative"}>{comparison.completionDelta >= 0 ? "+" : ""}{comparison.completionDelta} vs previous</span></div>
-      </Panel>
-
       <Panel title="Recommended next actions" className="analytics-recommendations"><p className="recommendation-intro">These actions are derived from current readiness components, measured topic mastery, and due work—not from the selected chart window alone.</p><div>{recommendations.map((item) => <article data-priority={item.priority} key={item.id}><span>{item.priority}</span><div><small>{item.metric}</small><h3>{item.title}</h3><p>{item.reason}</p></div><Link className="pp-button secondary" href={item.href}>{item.action}<FiArrowRight /></Link></article>)}</div></Panel>
 
       <div className="analytics-grid">
-        <Panel title="Accuracy over time" action={<div className="analytics-series-toggle"><button className={series === "ACCURACY" ? "active" : ""} onClick={() => setSeries("ACCURACY")}>Accuracy</button><button className={series === "ANSWERED" ? "active" : ""} onClick={() => setSeries("ANSWERED")}>Answered</button></div>}>
-          <div className="trend-chart">{filteredAccuracy.length ? filteredAccuracy.map((point) => {
-            const date = new Date(point.date).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-            const tooltip = `${date}: ${Math.round(point.accuracy)}% accuracy across ${point.answered} answered`;
-            const height = series === "ACCURACY" ? Math.max(8, point.accuracy) : Math.max(8, point.answered / maxAnswered * 100);
-            return <ChartBar key={point.date} height={height} label={date} tooltip={tooltip} />;
-          }) : <p>No completed answers in this range.</p>}</div>
-        </Panel>
-
         <Panel title="Current exam readiness"><div className="readiness-score"><b><AnimatedNumber value={data.readiness.score} /></b><span>/100</span><small>{data.readiness.band.replaceAll("_", " ")}</small></div>{Object.entries(data.readiness.components).map(([label, value]) => <div className="readiness-component" key={label}><span>{label}</span><b><AnimatedNumber value={value} />%</b><Progress value={value} /></div>)}<p>Readiness = 40% overall validated accuracy + 25% current curriculum completion + 20% current flashcard mastery + 15% completed-vs-skipped schedule consistency. It is intentionally not changed by the date selector.</p></Panel>
 
         <Panel title="Topic mastery" className="analytics-topics"><p>Mastery = 70% observed accuracy + 30% active-question coverage. “Evidence” shows sample strength (20 × √attempts, capped at 100%), not subjective confidence.</p>{data.topic_mastery.length ? data.topic_mastery.map((topic) => <Link href="/bundles?tab=questions" key={topic.id}><span><b>{topic.name}</b><small>{topic.course} · {topic.questions_attempted} validated attempts{topic.confidence === null ? "" : ` · ${Math.round(topic.confidence)}% evidence`}</small></span><strong><AnimatedNumber value={topic.mastery} />%</strong><Progress value={topic.mastery} /></Link>) : <p>Practice questions to build your topic map.</p>}</Panel>
