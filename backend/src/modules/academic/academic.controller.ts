@@ -335,7 +335,7 @@ export class AcademicController {
     const file = await this.academic.openResourceFile(resourceId, user.role);
     return new StreamableFile(file.stream, {
       type: file.mimeType,
-      disposition: `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
       length: file.size === null ? undefined : Number(file.size),
     });
   }
