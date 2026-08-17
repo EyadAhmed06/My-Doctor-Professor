@@ -32,6 +32,7 @@ export class FlashcardAccessService {
         AND enrollment.status <> 'REVOKED'
         AND bundle.status IN ('PUBLISHED','ARCHIVED')
         AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+        AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
         AND (
           (deck.lecture_id IS NOT NULL AND EXISTS (
             SELECT 1 FROM bundle_weeks bw
@@ -76,6 +77,7 @@ export class FlashcardAccessService {
           AND enrollment.status <> 'REVOKED'
           AND bundle.status IN ('PUBLISHED','ARCHIVED')
           AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+          AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
           AND (
             (deck.lecture_id IS NOT NULL AND EXISTS (
               SELECT 1 FROM bundle_weeks bw
@@ -186,6 +188,7 @@ export class FlashcardAccessService {
           AND enrollment.status <> 'REVOKED'
           AND bundle.status IN ('PUBLISHED','ARCHIVED')
           AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+          AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
           AND (
             (deck.lecture_id IS NOT NULL AND EXISTS (
               SELECT 1 FROM bundle_weeks bw
@@ -233,6 +236,7 @@ export class FlashcardAccessService {
           AND enrollment.status <> 'REVOKED'
           AND bundle.status IN ('PUBLISHED','ARCHIVED')
           AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+          AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
           AND (
             (deck.lecture_id IS NOT NULL AND EXISTS (
               SELECT 1 FROM bundle_weeks bw
