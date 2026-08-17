@@ -26,7 +26,7 @@ type Deck = {
   id: string;
   title: string;
   lecture?: { id?: string; title?: string; week?: { title?: string; weekNumber?: number } };
-  course?: { courseName?: string };
+  course?: { id?: string; courseName?: string };
 };
 
 type Card = {
@@ -79,10 +79,13 @@ export function ConnectedFlashcardsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const selectedCourseId = searchParams.get("course");
   const requestedCard = searchParams.get("card");
   const requestedLecture = searchParams.get("lecture");
-  const reviewMode = Boolean(requestedCard || requestedLecture);
+  const reviewMode = Boolean(selectedCourseId && (requestedCard || requestedLecture));
 
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
   const [cards, setCards] = useState<Card[]>([]);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -103,7 +106,7 @@ export function ConnectedFlashcardsPage() {
   const swiped = useRef(false);
   const completionAnnounced = useRef(false);
   const focusRef = useRef<HTMLDivElement>(null);
-  const sessionKey = `mdp-flashcard-session:${user?.id || "anonymous"}`;
+  const sessionKey = `mdp-flashcard-session:${user?.id || "anonymous"}:${selectedCourseId || "none"}`;
 
   const setUrl = useCallback((card: Card | null, replace = false) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -122,6 +125,17 @@ export function ConnectedFlashcardsPage() {
     else router.push(href, { scroll: false });
   }, [pathname, router, searchParams, startNavigation]);
 
+  const selectCourse = useCallback((courseId: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (courseId) params.set("course", courseId);
+    else params.delete("course");
+    params.delete("card");
+    params.delete("lecture");
+    const suffix = params.toString();
+    startNavigation();
+    router.push(suffix ? `${pathname}?${suffix}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams, startNavigation]);
+
   const readSession = useCallback(() => {
     try {
       return JSON.parse(localStorage.getItem(sessionKey) || "null") as StoredSession | null;
@@ -135,11 +149,11 @@ export function ConnectedFlashcardsPage() {
     setError(null);
     try {
       const session = readSession();
-      const first = await request<Page<Card>>("/flashcards/cards/mine?limit=100");
+      const first = await request<Page<Card>>(`/flashcards/cards/mine?course_id=${encodeURIComponent(selectedCourseId)}&limit=100`);
       const fetched = [...first.data];
       const totalPages = Math.min(first.total_pages, 20);
       for (let page = 2; page <= totalPages; page += 1) {
-        const next = await request<Page<Card>>(`/flashcards/cards/mine?limit=100&page=${page}`);
+        const next = await request<Page<Card>>(`/flashcards/cards/mine?course_id=${encodeURIComponent(selectedCourseId)}&limit=100&page=${page}`);
         fetched.push(...next.data);
       }
       const storedRatings = session?.reviewedRatings || {};
@@ -445,6 +459,9 @@ export function ConnectedFlashcardsPage() {
     <button type="button" onClick={() => void startOver()}><FiRotateCcw /> {translate("Start over")}</button>
   </div>;
 
+  const selectedCourse = courses.find((item) => item.id === selectedCourseId);
+  const choosingCourse = !selectedCourseId || (!coursesLoading && !selectedCourse);
+
   return <ProductShell search={translate("Search flashcards or lectures")}><main className="pp-page flashcards-page flashcards-simplified">
     <div className="pp-title hero flashcards-main-header">
       <div>
@@ -472,7 +489,23 @@ export function ConnectedFlashcardsPage() {
     {pending.length > 0 && <p className="pending-review-notice" role="status"><FiRotateCcw /> {locale === "ar" ? `${pending.length} مراجعة بانتظار المزامنة.` : `${pending.length} review${pending.length === 1 ? "" : "s"} waiting to sync.`}</p>}
     {error && <p className="form-error" role="alert">{error} <button onClick={() => void load()}>{translate("Retry")}</button></p>}
 
-    {loading ? <PageSkeleton variant="workspace" label={translate("Loading your review queue")} /> : !reviewMode ? (
+    {coursesLoading ? <PageSkeleton variant="workspace" label={translate("Loading your courses")} /> : choosingCourse ? (
+      courses.length ? <section className="flashcard-queue-page" aria-label={translate("Choose a course")}>
+        <header className="flashcard-queue-heading">
+          <div><small className="page-eyebrow">{translate("ENROLLED COURSES")}</small><h2>{translate("Which course do you want to review?")}</h2></div>
+          <span>{locale === "ar" ? `${courses.length} مواد` : `${courses.length} courses`}</span>
+        </header>
+        <div className="flashcard-queue-grid">
+          {courses.map((course) => <button className="flashcard-queue-card" type="button" onClick={() => selectCourse(course.id)} key={course.id}>
+            <span className="flashcard-queue-icon"><FiBookOpen /></span>
+            <small data-academic-content>{course.courseCode}</small>
+            <h3 data-academic-content>{course.courseName}</h3>
+            <p>{locale === "ar" ? `${course.deckCount} مجموعات · ${course.cardCount} بطاقات` : `${course.deckCount} decks · ${course.cardCount} cards`}</p>
+            <footer><span>{translate("Included in your current bundles")}</span><b>{translate("Open course")} →</b></footer>
+          </button>)}
+        </div>
+      </section> : <Panel className="flashcard-session-report"><FiBookOpen /><small className="page-eyebrow">{translate("NO COURSES")}</small><h2>{translate("No flashcard courses are available")}</h2><p>{translate("Enroll in a current bundle with published flashcards to see its courses here.")}</p></Panel>
+    ) : loading ? <PageSkeleton variant="workspace" label={translate("Loading your review queue")} /> : !reviewMode ? (
       cards.length ? <section className="flashcard-queue-page" aria-label={translate("Your flashcards")}>
         <header className="flashcard-queue-heading">
           <div><small className="page-eyebrow">{translate("YOUR FLASHCARDS")}</small><h2>{translate("Choose a flashcard")}</h2></div>
