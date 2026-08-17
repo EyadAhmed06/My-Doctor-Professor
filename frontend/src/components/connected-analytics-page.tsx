@@ -98,7 +98,7 @@ export function ConnectedAnalyticsPage() {
       <section className="analytics-range-bar" aria-label="Analytics date range">
         <div role="group" aria-label="Preset ranges">{(["7D", "30D", "SEMESTER", "CUSTOM"] as Range[]).map((value) => <button type="button" className={range === value ? "active" : ""} key={value} onClick={() => setRange(value)}>{value === "7D" ? "7 days" : value === "30D" ? "30 days" : value === "SEMESTER" ? "Semester" : "Custom"}</button>)}</div>
         {range === "CUSTOM" && <div className="analytics-custom-range"><label>From<input type="date" value={customFrom} max={customTo} onChange={(event) => setCustomFrom(event.target.value)} /></label><label>To<input type="date" value={customTo} min={customFrom} max={dateKey(new Date())} onChange={(event) => setCustomTo(event.target.value)} /></label></div>}
-        <small>{dateWindow.start.toLocaleDateString()} – {dateWindow.end.toLocaleDateString()}}. This selector controls study consistency; overview metrics and readiness show your current overall state.</small>
+        <small>{dateWindow.start.toLocaleDateString()} – {dateWindow.end.toLocaleDateString()}. This selector controls study consistency; overview metrics and readiness show your current overall state.</small>
       </section>
 
       <section className="analytics-metrics">
