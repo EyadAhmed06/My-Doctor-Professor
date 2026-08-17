@@ -8,6 +8,7 @@ export class McqOption {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column('uuid', { name: 'question_id' }) questionId: string;
   @Column({ type: 'text', name: 'option_text' }) optionText: string;
+  @Column({ type: 'text', nullable: true }) explanation: string | null;
   @Column({ type: 'boolean', default: false, name: 'is_correct' }) isCorrect: boolean;
   @Column({ type: 'int', name: 'display_order' }) displayOrder: number;
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
