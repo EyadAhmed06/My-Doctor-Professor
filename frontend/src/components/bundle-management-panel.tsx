@@ -26,6 +26,7 @@ type Bundle = {
   isFree: boolean;
   priceAmount: string | null;
   priceCurrency: string;
+  availableUntil: string | null;
 };
 type ManagedWeek = { id: string; weekNumber: number; title: string | null; linked: boolean; inFirstPlan: boolean; inFinalPlan: boolean };
 type ManagedCourse = { id: string; courseCode: string; courseName: string; linked: boolean; weeks: ManagedWeek[] };
@@ -77,6 +78,7 @@ export function BundleManagementPanel({ bundleId, onChanged }: { bundleId: strin
   const [isFree, setIsFree] = useState(true);
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState("EGP");
+  const [expiry, setExpiry] = useState("");
   const [firstEnabled, setFirstEnabled] = useState(false);
   const [firstMcqPrice, setFirstMcqPrice] = useState("");
   const [firstEssayPrice, setFirstEssayPrice] = useState("");
@@ -94,6 +96,7 @@ export function BundleManagementPanel({ bundleId, onChanged }: { bundleId: strin
       setIsFree(result.bundle.isFree);
       setPrice(result.bundle.priceAmount || "");
       setCurrency(result.bundle.priceCurrency || "EGP");
+      setExpiry(result.bundle.availableUntil ? new Date(result.bundle.availableUntil).toISOString().slice(0, 16) : "");
       setInstructorId((current) => result.instructors.available.some((item) => item.id === current) ? current : "");
       setStudentId((current) => result.students.available.some((item) => item.id === current) ? current : "");
       setFirstEnabled(result.plans.first.enabled);
@@ -136,6 +139,7 @@ export function BundleManagementPanel({ bundleId, onChanged }: { bundleId: strin
       is_free: isFree,
       price_amount: isFree ? undefined : Number(price),
       price_currency: currency.toUpperCase(),
+      available_until: expiry ? new Date(expiry).toISOString() : null,
     }, isFree ? "Bundle changed to free access" : "Paid access policy saved");
   }
 
@@ -210,7 +214,7 @@ export function BundleManagementPanel({ bundleId, onChanged }: { bundleId: strin
       </div>
       <form className="bundle-policy-form" onSubmit={savePricing}>
         <label>Access<select value={isFree ? "FREE" : "PAID"} onChange={(event) => setIsFree(event.target.value === "FREE")}><option value="FREE">FREE</option><option value="PAID">PAID</option></select></label>
-        {!isFree && <><label>Price<input aria-label="Bundle price" required min="0.01" step="0.01" type="number" value={price} onChange={(event) => setPrice(event.target.value)} /></label><label>Currency<input aria-label="Bundle currency" required minLength={3} maxLength={3} value={currency} onChange={(event) => setCurrency(event.target.value.toUpperCase())} /></label></>}
+        {!isFree && <><label>Price<input aria-label="Bundle price" required min="0.01" step="0.01" type="number" value={price} onChange={(event) => setPrice(event.target.value)} /></label><label>Currency<input aria-label="Bundle currency" required minLength={3} maxLength={3} value={currency} onChange={(event) => setCurrency(event.target.value.toUpperCase())} /></label></>}<label>Bundle expiry<input aria-label="Bundle expiry" type="datetime-local" value={expiry} onChange={(event) => setExpiry(event.target.value)} /></label>
         <button className="pp-button" type="submit" disabled={busy}>{busy ? "Saving…" : "Save access policy"}</button>
       </form>
     </Panel>
