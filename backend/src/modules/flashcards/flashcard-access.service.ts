@@ -118,6 +118,47 @@ export class FlashcardAccessService {
     };
   }
 
+  async listStudentCourses(actor: AuthenticatedUser) {
+    return this.decks.createQueryBuilder('deck')
+      .innerJoin('deck.course', 'course')
+      .innerJoin('deck.cards', 'card', 'card.is_active = TRUE')
+      .leftJoin('deck.lecture', 'lecture')
+      .where('deck.is_published = TRUE')
+      .andWhere('course.is_active = TRUE')
+      .andWhere('(deck.lecture_id IS NULL OR lecture.is_published = TRUE)')
+      .andWhere(`EXISTS (
+        SELECT 1
+        FROM bundle_enrollments enrollment
+        JOIN bundles bundle ON bundle.id = enrollment.bundle_id
+        WHERE enrollment.student_id = :studentId
+          AND enrollment.status <> 'REVOKED'
+          AND bundle.status IN ('PUBLISHED','ARCHIVED')
+          AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+          AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
+          AND (
+            (deck.lecture_id IS NOT NULL AND EXISTS (
+              SELECT 1 FROM bundle_weeks bw
+              WHERE bw.bundle_id = bundle.id AND bw.week_id = lecture.week_id
+            ))
+            OR
+            (deck.lecture_id IS NULL AND EXISTS (
+              SELECT 1 FROM bundle_courses bc
+              WHERE bc.bundle_id = bundle.id AND bc.course_id = deck.course_id
+            ))
+          )
+      )`, { studentId: actor.userId })
+      .select('course.id', 'id')
+      .addSelect('course.courseName', 'courseName')
+      .addSelect('course.courseCode', 'courseCode')
+      .addSelect('COUNT(DISTINCT deck.id)::int', 'deckCount')
+      .addSelect('COUNT(DISTINCT card.id)::int', 'cardCount')
+      .groupBy('course.id')
+      .addGroupBy('course.courseName')
+      .addGroupBy('course.courseCode')
+      .orderBy('course.courseName', 'ASC')
+      .getRawMany<{ id: string; courseName: string; courseCode: string; deckCount: number; cardCount: number }>();
+  }
+
   async listStudentDue(actor: AuthenticatedUser, query: CardQueryDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 50;
