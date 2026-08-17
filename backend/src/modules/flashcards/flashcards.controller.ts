@@ -18,6 +18,8 @@ export class FlashcardsController {
   private readonly access:FlashcardAccessService,
  ){}
 
+ @Get('courses') @Roles(UserRole.STUDENT)
+ listCourses(@CurrentUser() actor:AuthenticatedUser){return this.access.listStudentCourses(actor);}
  @Get('decks')
  listDecks(@Query() query:DeckQueryDto,@CurrentUser() actor:AuthenticatedUser){return actor.role===UserRole.STUDENT?this.access.listStudentDecks(query,actor):this.flashcards.listDecks(query,actor);}
  @Post('decks') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
