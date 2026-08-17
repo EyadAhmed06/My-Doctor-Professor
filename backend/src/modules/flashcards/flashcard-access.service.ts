@@ -206,6 +206,7 @@ export class FlashcardAccessService {
       .addOrderBy('card.display_order', 'ASC')
       .skip((page - 1) * limit)
       .take(limit);
+    if (query.course_id) builder.andWhere('deck.course_id = :courseId', { courseId: query.course_id });
     if (query.difficulty) builder.andWhere('card.difficulty = :difficulty', { difficulty: query.difficulty });
     const [data, total] = await builder.getManyAndCount();
     return { data, page, limit, total, total_pages: Math.ceil(total / limit) };
@@ -253,6 +254,7 @@ export class FlashcardAccessService {
       .addOrderBy('card.display_order', 'ASC')
       .skip((page - 1) * limit)
       .take(limit);
+    if (query.course_id) builder.andWhere('deck.course_id = :courseId', { courseId: query.course_id });
     if (query.difficulty) builder.andWhere('card.difficulty = :difficulty', { difficulty: query.difficulty });
     const [data, total] = await builder.getManyAndCount();
     return { data, page, limit, total, total_pages: Math.ceil(total / limit) };
