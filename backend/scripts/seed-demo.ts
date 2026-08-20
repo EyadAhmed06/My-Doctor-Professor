@@ -455,7 +455,7 @@ async function main() {
     ];
     for (const note of noteData) {
       await manager.query(
-        `INSERT INTO notebook_notes(id,user_id,title,note_type,content,metadata,collection_id,is_favorite,review_at,linked_question_id,linked_lecture_id) VALUES($1,$2,$3,$4,$5,'{"source":"demo-seed"}'::jsonb,$6,$7,CURRENT_TIMESTAMP+INTERVAL '3 days',$8,$9) ON CONFLICT(id) DO UPDATE SET title=EXCLUDED.title,content=EXCLUDED.content,is_favorite=EXCLUDED.is_favorite`,
+        `INSERT INTO notebook_notes(id,user_id,title,note_type,content,metadata,collection_id,is_favorite,review_at,linked_question_id,linked_lecture_id) VALUES($1,$2,$3,$4,$5,'{"source":"demo-seed"}'::jsonb,$6,$7,CURRENT_TIMESTAMP+INTERVAL '3 days',$8,$9) ON CONFLICT(id) DO UPDATE SET title=EXCLUDED.title,note_type=EXCLUDED.note_type,content=EXCLUDED.content,collection_id=EXCLUDED.collection_id,is_favorite=EXCLUDED.is_favorite,review_at=EXCLUDED.review_at,linked_question_id=EXCLUDED.linked_question_id,linked_lecture_id=EXCLUDED.linked_lecture_id`,
         [
           note[0],
           studentId,
@@ -488,7 +488,7 @@ async function main() {
         .slice(0, 10);
       const status = day < 0 ? "COMPLETED" : "PLANNED";
       await manager.query(
-        `INSERT INTO study_plan_items(id,student_id,scheduled_date,item_type,status,lecture_id,target_count,duration_minutes,metadata,completed_at) VALUES($1,$2,$3,'QUESTIONS',$4,NULL,30,45,'{"title":"Daily question practice"}'::jsonb,$5) ON CONFLICT(id) DO UPDATE SET scheduled_date=EXCLUDED.scheduled_date,status=EXCLUDED.status`,
+        `INSERT INTO study_plan_items(id,student_id,scheduled_date,item_type,status,lecture_id,target_count,duration_minutes,metadata,completed_at) VALUES($1,$2,$3,'QUESTIONS',$4,NULL,30,45,'{"title":"Daily question practice"}'::jsonb,$5) ON CONFLICT(id) DO UPDATE SET scheduled_date=EXCLUDED.scheduled_date,status=EXCLUDED.status,completed_at=EXCLUDED.completed_at`,
         [
           `c0000000-0000-4000-${(day + 10).toString().padStart(4, "0")}-000000000001`,
           studentId,
@@ -498,7 +498,7 @@ async function main() {
         ],
       );
       await manager.query(
-        `INSERT INTO study_plan_items(id,student_id,scheduled_date,item_type,status,lecture_id,target_count,duration_minutes,metadata,completed_at) VALUES($1,$2,$3,'LECTURE',$4,$5,NULL,60,$6::jsonb,$7) ON CONFLICT(id) DO UPDATE SET scheduled_date=EXCLUDED.scheduled_date,status=EXCLUDED.status`,
+        `INSERT INTO study_plan_items(id,student_id,scheduled_date,item_type,status,lecture_id,target_count,duration_minutes,metadata,completed_at) VALUES($1,$2,$3,'LECTURE',$4,$5,NULL,60,$6::jsonb,$7) ON CONFLICT(id) DO UPDATE SET scheduled_date=EXCLUDED.scheduled_date,status=EXCLUDED.status,completed_at=EXCLUDED.completed_at`,
         [
           `c0000000-0000-4000-${(day + 10).toString().padStart(4, "0")}-000000000002`,
           studentId,
