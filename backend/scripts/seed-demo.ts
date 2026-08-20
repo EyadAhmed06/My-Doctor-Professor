@@ -228,7 +228,7 @@ async function main() {
     for (let i = 0; i < questionData.length; i++) {
       const [topicIndex, text, correct, distractors, explanation] = questionData[i];
       await manager.query(
-        `INSERT INTO questions(id,topic_id,question_type,title,question_text,explanation,hint,reference,difficulty,estimated_time_seconds,marks,is_question_bank,version,is_active,created_by) VALUES($1,$2,'MCQ',$3,$3,$4,'Focus on the core mechanism.','Seeded academic content','MEDIUM',75,1,TRUE,1,TRUE,$5) ON CONFLICT(id) DO UPDATE SET topic_id=EXCLUDED.topic_id,question_text=EXCLUDED.question_text,explanation=EXCLUDED.explanation,is_question_bank=TRUE,is_active=TRUE`,
+        `INSERT INTO questions(id,topic_id,question_type,title,question_text,explanation,hint,reference,difficulty,estimated_time_seconds,marks,is_question_bank,version,is_active,created_by) VALUES($1,$2,'MCQ',$3::varchar,$3::text,$4::text,'Focus on the core mechanism.','Seeded academic content','MEDIUM',75,1,TRUE,1,TRUE,$5) ON CONFLICT(id) DO UPDATE SET topic_id=EXCLUDED.topic_id,question_text=EXCLUDED.question_text,explanation=EXCLUDED.explanation,is_question_bank=TRUE,is_active=TRUE`,
         [ids.questions[i], ids.topics[topicIndex], text, explanation, instructorId],
       );
       const options = [correct, ...distractors];
