@@ -55,7 +55,12 @@ export class EssayCasesService {
     const item = await this.requireCase(id); await this.assertCourseAccess(item.course_id, actor, true);
     await this.db.transaction(async (m) => {
       await m.query(`UPDATE essay_cases SET title=COALESCE($2,title),stem=COALESCE($3,stem),section=CASE WHEN $4::boolean THEN $5 ELSE section END,is_published=COALESCE($6,is_published),updated_at=now() WHERE id=$1`, [id,dto.title?.trim()||null,dto.stem?.trim()||null,dto.section!==undefined,dto.section?.trim()||null,dto.is_published ?? null]);
-      if (dto.questions) { await m.query(`DELETE FROM essay_case_questions WHERE case_id=$1`, [id]); for (let i=0;i<dto.questions.length;i++) await m.query(`INSERT INTO essay_case_questions(case_id,prompt,model_answer,display_order) VALUES($1,$2,$3,$4)`, [id,dto.questions[i].prompt.trim(),dto.questions[i].model_answer.trim(),i+1]); }
+      if (dto.questions) {
+        const existing:Row[]=await m.query(`SELECT id FROM essay_case_questions WHERE case_id=$1`,[id]); const kept=new Set(dto.questions.map(q=>q.id).filter(Boolean)); const removed=existing.filter(q=>!kept.has(q.id));
+        if(removed.length){ const used=(await m.query(`SELECT 1 FROM essay_case_answers WHERE question_id=ANY($1::uuid[]) LIMIT 1`,[removed.map(q=>q.id)]))[0]; if(used) throw new ConflictException('A question with student answers cannot be removed; edit it or add a new question instead'); await m.query(`DELETE FROM essay_case_questions WHERE id=ANY($1::uuid[])`,[removed.map(q=>q.id)]); }
+        await m.query(`UPDATE essay_case_questions SET display_order=display_order+1000 WHERE case_id=$1`,[id]);
+        for(let i=0;i<dto.questions.length;i++){ const q=dto.questions[i]; if(q.id) await m.query(`UPDATE essay_case_questions SET prompt=$3,model_answer=$4,display_order=$5,updated_at=now() WHERE id=$1 AND case_id=$2`,[q.id,id,q.prompt.trim(),q.model_answer.trim(),i+1]); else await m.query(`INSERT INTO essay_case_questions(case_id,prompt,model_answer,display_order) VALUES($1,$2,$3,$4)`,[id,q.prompt.trim(),q.model_answer.trim(),i+1]); }
+      }
     }); return this.getCase(id, actor);
   }
   async remove(id: string, actor: AuthenticatedUser) { const item=await this.requireCase(id); await this.assertCourseAccess(item.course_id,actor,true); await this.db.query(`DELETE FROM essay_cases WHERE id=$1`,[id]); }
