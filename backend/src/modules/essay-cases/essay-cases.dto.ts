@@ -30,3 +30,15 @@ export class SubmitEssayCaseDto {
 }
 export class EssayAnswerDto { @IsUUID() question_id: string; @IsString() @IsNotEmpty() answer: string; }
 export class ImportPdfCasesDto { @IsUUID() course_id: string; }
+
+export class EssayCasePositionDto {
+  @IsUUID() case_id: string;
+  @IsUUID() week_id: string;
+  @IsInt() @Min(1) display_order: number;
+}
+
+export class ReorderEssayCasesDto {
+  @IsUUID() course_id: string;
+  @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => EssayCasePositionDto)
+  items: EssayCasePositionDto[];
+}
