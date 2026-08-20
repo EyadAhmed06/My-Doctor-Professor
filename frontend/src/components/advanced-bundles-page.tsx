@@ -13,6 +13,7 @@ import {
   FiLayers,
   FiLock,
   FiPlus,
+  FiPlayCircle,
   FiRefreshCw,
   FiSearch,
 } from "react-icons/fi";
@@ -66,6 +67,7 @@ type Lecture = {
   title: string;
   lectureNumber: number;
   question_count: number;
+  mcq_count: number;
   flashcard_deck_count: number;
   resource_count: number;
 };
@@ -410,6 +412,128 @@ export function AdvancedBundlesPage() {
   </main></ProductShell>;
 }
 
+function BundleQuestionBank({ content, courses }: { content: Content; courses: Course[] }) {
+  const { request } = useAuth();
+  const { notify } = useUx();
+  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [startingMode, setStartingMode] = useState<"TUTOR" | "TIMED" | null>(null);
+  const required = 40;
+
+  useEffect(() => {
+    setSelectedCourseId("");
+    setSelectedIds([]);
+  }, [content.bundle.id]);
+
+  const selectedCourse = courses.find((course) => course.id === selectedCourseId);
+  const selectedLectures = selectedCourse?.weeks.flatMap((week) => week.lectures).filter((lecture) => selectedIds.includes(lecture.id)) || [];
+  const pool = selectedLectures.reduce((sum, lecture) => sum + Number(lecture.mcq_count || 0), 0);
+  const ready = selectedIds.length > 0 && pool >= required && !content.bundle.read_only;
+
+  function toggleLecture(course: Course, lecture: Lecture) {
+    if (selectedCourseId && selectedCourseId !== course.id) {
+      setSelectedCourseId(course.id);
+      setSelectedIds([lecture.id]);
+      return;
+    }
+    setSelectedCourseId(course.id);
+    setSelectedIds((current) => current.includes(lecture.id)
+      ? current.filter((id) => id !== lecture.id)
+      : [...current, lecture.id]);
+  }
+
+  function toggleWeek(course: Course, week: Week) {
+    const eligible = week.lectures.filter((lecture) => Number(lecture.mcq_count || 0) > 0).map((lecture) => lecture.id);
+    if (selectedCourseId && selectedCourseId !== course.id) {
+      setSelectedCourseId(course.id);
+      setSelectedIds(eligible);
+      return;
+    }
+    setSelectedCourseId(course.id);
+    setSelectedIds((current) => eligible.every((id) => current.includes(id))
+      ? current.filter((id) => !eligible.includes(id))
+      : [...new Set([...current, ...eligible])]);
+  }
+
+  async function start(mode: "TUTOR" | "TIMED") {
+    if (!ready || startingMode) return;
+    setStartingMode(mode);
+    try {
+      const generated = await request<{ test: { id: string }; attempt: { id: string } }>("/tests/practice/generate", {
+        method: "POST",
+        body: {
+          bundle_id: content.bundle.id,
+          lecture_ids: selectedIds,
+          question_count: required,
+          test_mode: mode,
+          ...(mode === "TIMED" ? { duration_minutes: 40 } : {}),
+        },
+      });
+      const href = `/mock-exam/session?attempt=${encodeURIComponent(generated.attempt.id)}&test=${encodeURIComponent(generated.test.id)}&mode=${mode}&source=question-bank&bundle=${encodeURIComponent(content.bundle.id)}&lectures=${encodeURIComponent(selectedIds.join(","))}`;
+      window.location.assign(href);
+    } catch (cause) {
+      notify({
+        title: "Could not build quiz",
+        description: cause instanceof Error ? cause.message : undefined,
+        tone: "error",
+      });
+      setStartingMode(null);
+    }
+  }
+
+  if (!courses.length) return <EmptyState title="No curriculum available" description="This bundle has no accessible courses or lectures." />;
+
+  return <section className="bundle-question-builder">
+    <Panel title="Build a 40-MCQ quiz">
+      <div className="question-builder-intro">
+        <div><FiFileText /><span><b>Select lectures from the curriculum</b><small>Forty unique MCQs are randomly sampled from the selected lectures.</small></span></div>
+        <strong className={ready ? "ready" : ""}>{pool} / {required} eligible MCQs</strong>
+      </div>
+      <div className="question-curriculum">
+        {courses.map((course) => {
+          const courseSelected = selectedCourseId === course.id;
+          return <section className={`question-course ${courseSelected ? "selected" : ""}`} key={course.id}>
+            <header><b>{course.courseCode} · {course.courseName}</b><small>Choose lectures from one course per quiz</small></header>
+            {course.weeks.map((week) => {
+              const eligible = week.lectures.filter((lecture) => Number(lecture.mcq_count || 0) > 0);
+              const allSelected = eligible.length > 0 && courseSelected && eligible.every((lecture) => selectedIds.includes(lecture.id));
+              return <fieldset key={week.id}>
+                <legend>
+                  <label>
+                    <input type="checkbox" checked={allSelected} disabled={!eligible.length} onChange={() => toggleWeek(course, week)} />
+                    <span><b>Week {week.weekNumber}: {week.title || "Untitled week"}</b><small>{eligible.reduce((sum, lecture) => sum + Number(lecture.mcq_count || 0), 0)} eligible MCQs</small></span>
+                  </label>
+                </legend>
+                <div>
+                  {week.lectures.map((lecture) => {
+                    const count = Number(lecture.mcq_count || 0);
+                    const checked = courseSelected && selectedIds.includes(lecture.id);
+                    return <label className={checked ? "checked" : ""} key={lecture.id}>
+                      <input type="checkbox" checked={checked} disabled={count <= 0} onChange={() => toggleLecture(course, lecture)} />
+                      <FiBookOpen />
+                      <span><b>{lecture.lectureNumber}. {lecture.title}</b><small>{count > 0 ? `${count} eligible MCQs` : "No published question-bank MCQs"}</small></span>
+                    </label>;
+                  })}
+                </div>
+              </fieldset>;
+            })}
+          </section>;
+        })}
+      </div>
+      <div className={`question-quiz-launch ${ready ? "ready" : ""}`}>
+        <div>
+          <b>{ready ? "Your random 40-question quiz is ready" : `Select lectures containing ${Math.max(0, required - pool)} more MCQs`}</b>
+          <small>{selectedIds.length} lecture{selectedIds.length === 1 ? "" : "s"} selected. Questions will not be duplicated.</small>
+        </div>
+        <span>
+          <button className="pp-button secondary" type="button" disabled={!ready || Boolean(startingMode)} onClick={() => void start("TUTOR")}><FiPlayCircle />{startingMode === "TUTOR" ? "Building…" : "Start Tutor"}</button>
+          <button className="pp-button" type="button" disabled={!ready || Boolean(startingMode)} onClick={() => void start("TIMED")}><FiClock />{startingMode === "TIMED" ? "Building…" : "Start Timed · 40 min"}</button>
+        </span>
+      </div>
+    </Panel>
+  </section>;
+}
+
 export function PlanOptions({ bundle, busy, onChooseFull, onChoosePlan }: {
   bundle: SubscriptionBundle;
   busy: boolean;
@@ -480,7 +604,7 @@ function BundleWorkspaceTab({ content, tab, courses, lectures, openWeeks, setOpe
     }}><span><b>Week {week.weekNumber}: {week.title || "Untitled week"}</b><small>{questions} questions · {decks} decks · {resources} resources</small></span><small>{week.lectures.length} lectures</small><FiChevronDown /></button>{open && <div>{week.lectures.map((lecture) => <Link href={guideHref(course, lecture)} key={lecture.id}><FiBookOpen /><span><b>{lecture.lectureNumber}. {lecture.title}</b><small>{lecture.question_count} questions · {lecture.flashcard_deck_count} decks · {lecture.resource_count} resources</small></span></Link>)}</div>}</section>;
   })}</Panel>)}</section>;
 
-  if (tab === "questions") return <Panel title="Bundle Question Bank"><p>Choose a lecture to solve its published questions.</p>{lectures.map(({ course, week, lecture }) => lecture.question_count > 0 ? <Link className="bundle-row" href={practiceHref(content.bundle, course, lecture)} key={lecture.id}><FiFileText /><span><b>{lecture.title}</b><small>Week {week.weekNumber} · open question practice</small></span><strong>{lecture.question_count} Qs →</strong></Link> : <article className="bundle-row" key={lecture.id}><FiFileText /><span><b>{lecture.title}</b><small>Week {week.weekNumber}</small></span><strong>No questions</strong></article>)}</Panel>;
+  if (tab === "questions") return <BundleQuestionBank content={content} courses={courses} />;
 
   if (tab === "exams") return <Panel title="Bundle Past Exams">{content.past_exams.length ? content.past_exams.map((exam) => <Link className="bundle-row" href={`/past-exams?bundle=${encodeURIComponent(content.bundle.id)}&test=${encodeURIComponent(exam.id)}`} key={exam.id}><FiClock /><span><b>{exam.title}</b><small>{exam.durationMinutes ? `${exam.durationMinutes} minute instructor timer · choose Tutor or Timed` : "Tutor mode available · no timed duration configured"}</small></span><strong>Open →</strong></Link>) : <EmptyState title="No past exams" description="No past exams are assigned to this bundle." />}</Panel>;
 
