@@ -15,7 +15,7 @@ const ids = {
   topics: [1, 2, 3, 4, 5, 6].map(
     (n) => `60000000-0000-4000-8000-${n.toString().padStart(12, "0")}`,
   ),
-  questions: [1, 2, 3, 4, 5, 6, 7, 8].map(
+  questions: Array.from({ length: 40 }, (_, index) => index + 1).map(
     (n) => `70000000-0000-4000-8000-${n.toString().padStart(12, "0")}`,
   ),
   tests: [1, 2].map(
@@ -177,91 +177,70 @@ async function main() {
       );
     }
 
-    const questionData = [
-      [
-        0,
-        "Which chamber receives oxygenated blood directly from the pulmonary veins?",
-        "Left atrium",
-        "The pulmonary veins return oxygenated blood to the left atrium.",
-      ],
-      [
-        1,
-        "Which change most directly increases stroke volume in a healthy heart?",
-        "Increased preload",
-        "Within physiological limits, increased preload increases force of contraction through the Frank-Starling mechanism.",
-      ],
-      [
-        2,
-        "Which modifiable factor is most strongly associated with accelerated atherosclerosis?",
-        "Cigarette smoking",
-        "Smoking promotes endothelial dysfunction, inflammation, and thrombosis.",
-      ],
-      [
-        3,
-        "A patient has persistent chest pain and ST elevation. What is the immediate priority?",
-        "Urgent reperfusion assessment",
-        "STEMI requires rapid assessment for reperfusion while initial antiplatelet and supportive therapy begins.",
-      ],
-      [
-        4,
-        "Which finding most strongly supports left-sided heart failure?",
-        "Bibasal lung crackles",
-        "Pulmonary venous congestion produces interstitial and alveolar fluid, commonly causing bibasal crackles.",
-      ],
-      [
-        5,
-        "Which medicine improves mortality in HFrEF rather than only relieving congestion?",
-        "ACE inhibitor",
-        "ACE inhibition reduces maladaptive neurohormonal activation and improves outcomes in HFrEF.",
-      ],
-      [
-        5,
-        "A patient with HFrEF remains congested with peripheral edema. Which drug gives the fastest symptomatic relief?",
-        "Loop diuretic",
-        "Loop diuretics rapidly reduce volume overload and improve congestion symptoms.",
-      ],
-      [
-        3,
-        "What is the most useful first test when acute coronary syndrome is suspected?",
-        "12-lead ECG",
-        "A 12-lead ECG should be obtained rapidly to identify ischemia and guide the reperfusion pathway.",
-      ],
+    const questionData: Array<[number, string, string, string[], string]> = [
+      [0, "Which chamber receives oxygenated blood directly from the pulmonary veins?", "Left atrium", ["Right atrium", "Left ventricle", "Right ventricle", "Coronary sinus"], "The pulmonary veins return oxygenated blood to the left atrium."],
+      [0, "Which valve lies between the left atrium and left ventricle?", "Mitral valve", ["Tricuspid valve", "Pulmonary valve", "Aortic valve", "Thebesian valve"], "The mitral valve controls flow from the left atrium into the left ventricle."],
+      [0, "Which coronary artery most commonly supplies the anterior interventricular septum?", "Left anterior descending artery", ["Right coronary artery", "Left circumflex artery", "Posterior descending artery", "Obtuse marginal artery"], "Septal branches of the LAD supply the anterior two-thirds of the interventricular septum."],
+      [0, "Venous blood from the myocardium drains predominantly into which structure?", "Coronary sinus", ["Pulmonary trunk", "Left atrial appendage", "Ascending aorta", "Superior vena cava directly"], "Most cardiac venous blood reaches the right atrium through the coronary sinus."],
+      [0, "Which chamber normally has the thickest myocardial wall?", "Left ventricle", ["Right ventricle", "Left atrium", "Right atrium", "Coronary sinus"], "The left ventricle generates the pressure required for systemic circulation and therefore has the thickest wall."],
+      [0, "The sinoatrial node is most commonly supplied by which artery?", "Right coronary artery", ["Left anterior descending artery", "Left circumflex artery in every patient", "Posterior descending artery only", "Internal thoracic artery"], "The SA nodal artery arises from the right coronary artery in most people, although anatomical variation exists."],
+      [0, "Which vessel carries deoxygenated blood from the right ventricle?", "Pulmonary artery", ["Pulmonary vein", "Aorta", "Coronary sinus", "Superior vena cava"], "The pulmonary artery carries deoxygenated blood from the right ventricle to the lungs."],
+
+      [1, "Which change most directly increases stroke volume in a healthy heart?", "Increased preload", ["Increased afterload", "Reduced contractility", "Severe tachycardia", "Reduced venous return"], "Within physiological limits, increased preload raises stroke volume through the Frank-Starling mechanism."],
+      [1, "Cardiac output equals which product?", "Heart rate multiplied by stroke volume", ["Blood pressure multiplied by resistance", "Preload multiplied by afterload", "Ejection fraction multiplied by pressure", "Stroke volume divided by heart rate"], "Cardiac output is the volume ejected per beat multiplied by the number of beats per minute."],
+      [1, "Which phase of the cardiac cycle begins immediately after aortic valve closure?", "Isovolumetric relaxation", ["Rapid ventricular filling", "Atrial systole", "Isovolumetric contraction", "Ventricular ejection"], "Aortic valve closure marks the start of isovolumetric relaxation before the mitral valve opens."],
+      [1, "Ejection fraction is calculated as which ratio?", "Stroke volume divided by end-diastolic volume", ["End-systolic volume divided by stroke volume", "Cardiac output divided by heart rate", "End-diastolic volume divided by stroke volume", "Stroke volume divided by end-systolic volume"], "Ejection fraction is the proportion of end-diastolic volume ejected during systole."],
+      [1, "An acute increase in systemic vascular resistance primarily increases which variable?", "Left ventricular afterload", ["Left ventricular preload", "Venous compliance", "Heart rate directly", "Pulmonary venous oxygen content"], "Systemic vascular resistance is a major component of the load against which the left ventricle ejects."],
+      [1, "Which receptor mediates the main increase in heart rate during sympathetic stimulation?", "Beta-1 adrenergic receptor", ["Beta-2 adrenergic receptor", "Alpha-2 adrenergic receptor", "Muscarinic M2 receptor", "Nicotinic receptor"], "Cardiac beta-1 stimulation increases chronotropy and inotropy."],
+      [1, "The first heart sound is produced mainly by closure of which valves?", "Mitral and tricuspid valves", ["Aortic and pulmonary valves", "Mitral and aortic valves", "Tricuspid and pulmonary valves", "Pulmonary and mitral valves"], "S1 occurs with atrioventricular valve closure at the onset of ventricular systole."],
+
+      [2, "Which modifiable factor strongly accelerates atherosclerosis?", "Cigarette smoking", ["Young age", "Female sex before menopause", "High HDL cholesterol", "Regular aerobic exercise"], "Smoking promotes endothelial dysfunction, inflammation, oxidation, and thrombosis."],
+      [2, "Which lipoprotein is most directly implicated in atherosclerotic plaque formation?", "LDL cholesterol", ["HDL cholesterol", "Chylomicrons only", "Albumin", "Transferrin"], "Retention and modification of LDL particles within the arterial intima drive atherogenesis."],
+      [2, "What is an early cellular feature of an atherosclerotic fatty streak?", "Lipid-laden macrophage foam cells", ["Calcified cardiac myocytes", "Neutrophils filling the media", "Platelets replacing the endothelium", "Smooth muscle loss without lipid"], "Macrophages ingest modified LDL and become foam cells within the intima."],
+      [2, "Which condition is considered a major independent cardiovascular risk factor?", "Hypertension", ["Low LDL cholesterol", "Normal body mass index", "Regular exercise", "High dietary fiber intake"], "Hypertension increases endothelial injury and substantially raises cardiovascular risk."],
+      [2, "Which plaque feature is associated with greater risk of rupture?", "Thin fibrous cap with a large lipid core", ["Thick fibrous cap with little lipid", "Dense stable calcification only", "Small lipid core without inflammation", "Intact endothelium over dense collagen"], "A thin inflamed cap over a large lipid core characterizes a vulnerable plaque."],
+      [2, "Statins reduce cardiovascular risk primarily by lowering which lipid fraction?", "LDL cholesterol", ["HDL cholesterol", "Free fatty acids only", "Phospholipids", "Chylomicron remnants exclusively"], "Statins inhibit hepatic cholesterol synthesis and upregulate LDL receptors, lowering circulating LDL."],
+      [2, "Which lifestyle intervention generally improves cardiovascular risk?", "Regular moderate-intensity aerobic activity", ["Starting tobacco use", "Increasing trans-fat intake", "Avoiding all physical activity", "Replacing vegetables with processed meat"], "Regular physical activity improves blood pressure, insulin sensitivity, weight, and lipid profile."],
+
+      [3, "A patient has persistent chest pain and ST elevation. What is the immediate priority?", "Urgent reperfusion assessment", ["Routine outpatient review", "Delay all treatment for serial lipids", "Exercise stress testing during pain", "Discharge after one normal blood pressure"], "STEMI requires rapid reperfusion assessment with immediate antiplatelet and supportive care."],
+      [3, "What is the first investigation when acute coronary syndrome is suspected?", "12-lead ECG", ["Elective coronary CT months later", "Exercise treadmill test during active pain", "Routine chest MRI", "Fasting lipid profile only"], "A 12-lead ECG should be obtained rapidly to identify ischemia and guide treatment."],
+      [3, "Which biomarker is preferred for detecting myocardial injury?", "Cardiac troponin", ["Serum amylase", "Alkaline phosphatase", "D-dimer in every patient", "C-reactive protein alone"], "Cardiac troponin is the preferred sensitive and specific biomarker for myocardial injury."],
+      [3, "ST depression and T-wave inversion during ischemic symptoms most strongly suggest which process?", "Subendocardial ischemia", ["Transmural infarction in every case", "Acute pericarditis", "Normal repolarization", "Hypercalcemia"], "ST depression and T-wave inversion can reflect subendocardial ischemia in NSTE-ACS."],
+      [3, "Which antiplatelet drug is usually given early in suspected ACS unless contraindicated?", "Aspirin", ["Warfarin", "Furosemide", "Digoxin", "Verapamil in every patient"], "Aspirin rapidly inhibits platelet thromboxane production and reduces recurrent ischemic events."],
+      [3, "Which symptom accompanying chest pain increases suspicion for acute myocardial ischemia?", "Diaphoresis", ["Localized itching", "Isolated ankle trauma", "Chronic painless rash", "Improvement with deep palpation"], "Autonomic symptoms such as sweating, nausea, and pallor commonly accompany acute myocardial ischemia."],
+      [3, "Which complication can cause sudden hypotension after an acute myocardial infarction?", "Cardiogenic shock", ["Stable hypertension", "Uncomplicated sinus bradycardia only", "Chronic venous insufficiency", "Mild hyperlipidemia"], "Severe ventricular dysfunction after infarction can reduce cardiac output and cause cardiogenic shock."],
+
+      [4, "Which finding most strongly supports left-sided heart failure?", "Bibasal lung crackles", ["Isolated finger clubbing", "Unilateral calf bruising", "Hyperactive bowel sounds", "Localized wrist swelling"], "Pulmonary venous congestion produces interstitial or alveolar fluid and bibasal crackles."],
+      [4, "HFrEF is characterized primarily by which abnormality?", "Reduced left ventricular ejection fraction", ["Isolated right atrial enlargement only", "Normal systolic function in every case", "Increased ejection fraction above 90%", "Absence of structural heart disease"], "HFrEF is heart failure associated with impaired left ventricular systolic ejection."],
+      [4, "Which compensatory system promotes sodium retention in heart failure?", "Renin-angiotensin-aldosterone system", ["Kallikrein system alone", "Melatonin pathway", "Thyroid axis only", "Complement pathway"], "Reduced effective perfusion activates RAAS, causing vasoconstriction and sodium and water retention."],
+      [4, "Which peptide is released in response to ventricular wall stress?", "B-type natriuretic peptide", ["Insulin", "Cortisol only", "Erythropoietin", "Gastrin"], "BNP is released with ventricular stretch and supports the evaluation of suspected heart failure."],
+      [4, "Orthopnea in heart failure is breathlessness that occurs in which situation?", "Lying flat", ["Standing upright", "Eating a small meal", "Moving one finger", "Exposure to bright light"], "Recumbency increases venous return and pulmonary congestion, producing orthopnea."],
+      [4, "Which echocardiographic measurement is central to classifying systolic heart failure?", "Left ventricular ejection fraction", ["Aortic diameter alone", "Right atrial pressure by ECG", "Serum sodium concentration", "Respiratory rate"], "Ejection fraction helps distinguish reduced, mildly reduced, and preserved EF phenotypes."],
+
+      [5, "Which medicine improves mortality in HFrEF rather than only relieving congestion?", "ACE inhibitor", ["Short-acting nitrate alone for every patient", "Loop diuretic alone", "Digoxin as universal first-line monotherapy", "Calcium supplement"], "ACE inhibition reduces maladaptive neurohormonal activation and improves outcomes in HFrEF."],
+      [5, "A patient with HFrEF remains congested with peripheral edema. Which drug gives rapid symptomatic relief?", "Loop diuretic", ["Statin", "Aspirin only", "Oral iron without deficiency", "Antacid"], "Loop diuretics reduce volume overload and improve congestion symptoms."],
+      [5, "Which drug class blocks the harmful effects of chronic sympathetic activation in stable HFrEF?", "Evidence-based beta blocker", ["Nonselective alpha agonist", "Short-acting beta agonist", "First-generation antihistamine", "Proton-pump inhibitor"], "Selected beta blockers reduce mortality when introduced carefully in stable HFrEF."],
+      [5, "Which drug class has outcome benefits across a broad range of heart failure ejection fractions?", "SGLT2 inhibitor", ["Routine antibiotic", "Benzodiazepine", "Antacid", "Topical corticosteroid"], "SGLT2 inhibitors reduce heart failure hospitalization and cardiovascular events across EF ranges."],
+      [5, "What is an important daily self-monitoring measure for a patient prone to fluid retention?", "Body weight", ["Hair length", "Pupil diameter", "Shoe color", "Handedness"], "A rapid increase in daily weight can indicate accumulating fluid before severe symptoms develop."],
+      [5, "Which dietary measure is commonly advised when heart failure congestion is difficult to control?", "Avoid excessive sodium intake", ["Increase processed salty foods", "Drink unlimited fluid regardless of status", "Eliminate all protein", "Consume trans fats at every meal"], "Avoiding excessive sodium can help reduce fluid retention; advice should be individualized."],
     ];
     const optionIds: string[] = [];
     for (let i = 0; i < questionData.length; i++) {
-      const [topicIndex, text, correct, explanation] = questionData[i] as [
-        number,
-        string,
-        string,
-        string,
-      ];
+      const [topicIndex, text, correct, distractors, explanation] = questionData[i];
       await manager.query(
-        `INSERT INTO questions(id,topic_id,question_type,title,question_text,explanation,hint,reference,difficulty,estimated_time_seconds,marks,is_question_bank,version,is_active,created_by) VALUES($1,$2,'MCQ',$3,$3,$4,'Focus on the core mechanism.','Seeded academic content','MEDIUM',75,1,TRUE,1,TRUE,$5) ON CONFLICT(id) DO UPDATE SET question_text=EXCLUDED.question_text,explanation=EXCLUDED.explanation,is_active=TRUE`,
-        [
-          ids.questions[i],
-          ids.topics[topicIndex],
-          text,
-          explanation,
-          instructorId,
-        ],
+        `INSERT INTO questions(id,topic_id,question_type,title,question_text,explanation,hint,reference,difficulty,estimated_time_seconds,marks,is_question_bank,version,is_active,created_by) VALUES($1,$2,'MCQ',$3,$3,$4,'Focus on the core mechanism.','Seeded academic content','MEDIUM',75,1,TRUE,1,TRUE,$5) ON CONFLICT(id) DO UPDATE SET topic_id=EXCLUDED.topic_id,question_text=EXCLUDED.question_text,explanation=EXCLUDED.explanation,is_question_bank=TRUE,is_active=TRUE`,
+        [ids.questions[i], ids.topics[topicIndex], text, explanation, instructorId],
       );
-      const distractors = [
-        "A related but less appropriate finding",
-        "A late complication rather than the best answer",
-        "None of the above",
-      ];
-      for (let j = 0; j < 4; j++) {
+      const options = [correct, ...distractors];
+      for (let j = 0; j < options.length; j++) {
         const optionId = `71000000-0000-4000-${(i + 1).toString().padStart(4, "0")}-${(j + 1).toString().padStart(12, "0")}`;
         if (j === 0) optionIds.push(optionId);
+        const optionExplanation = j === 0
+          ? explanation
+          : `This option does not best answer the question. ${explanation}`;
         await manager.query(
-          `INSERT INTO mcq_options(id,question_id,option_text,is_correct,display_order) VALUES($1,$2,$3,$4,$5) ON CONFLICT(id) DO UPDATE SET option_text=EXCLUDED.option_text,is_correct=EXCLUDED.is_correct`,
-          [
-            optionId,
-            ids.questions[i],
-            j === 0 ? correct : distractors[j - 1],
-            j === 0,
-            j + 1,
-          ],
+          `INSERT INTO mcq_options(id,question_id,option_text,explanation,is_correct,display_order) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(id) DO UPDATE SET option_text=EXCLUDED.option_text,explanation=EXCLUDED.explanation,is_correct=EXCLUDED.is_correct,display_order=EXCLUDED.display_order`,
+          [optionId, ids.questions[i], options[j], optionExplanation, j === 0, j + 1],
         );
       }
     }
