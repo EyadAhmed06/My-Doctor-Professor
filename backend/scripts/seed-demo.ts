@@ -319,13 +319,13 @@ async function main() {
     );
     for (let i = 0; i < questionData.length; i++)
       await manager.query(
-        `INSERT INTO flashcards(id,deck_id,title,front_content,back_content,difficulty,explanation,estimated_review_seconds,display_order,is_active) VALUES($1,$2,$3,$3,$4,'MEDIUM',$5,45,$6,TRUE) ON CONFLICT(id) DO UPDATE SET front_content=EXCLUDED.front_content,back_content=EXCLUDED.back_content,is_active=TRUE`,
+        `INSERT INTO flashcards(id,deck_id,title,front_content,back_content,difficulty,explanation,estimated_review_seconds,display_order,is_active) VALUES($1,$2,$3::varchar,$3::text,$4::text,'MEDIUM',$5::text,45,$6,TRUE) ON CONFLICT(id) DO UPDATE SET front_content=EXCLUDED.front_content,back_content=EXCLUDED.back_content,is_active=TRUE`,
         [
           `91000000-0000-4000-8000-${(i + 1).toString().padStart(12, "0")}`,
           ids.deck,
           questionData[i][1],
           questionData[i][2],
-          questionData[i][3],
+          questionData[i][4],
           i + 1,
         ],
       );
