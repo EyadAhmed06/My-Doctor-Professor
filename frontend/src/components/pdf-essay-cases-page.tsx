@@ -1,83 +1,20 @@
 "use client";
-
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FiBookOpen, FiCheck, FiChevronDown, FiChevronLeft, FiEye, FiFileText } from "react-icons/fi";
-import casesData from "@/data/summer-uro-nephrology-essay.json";
+import { useAuth } from "./auth-provider";
 import { Panel, ProductShell } from "./product-shell";
 import "./pdf-essay-cases.css";
-
-type EssayQuestion = { id: string; prompt: string; answer: string };
-type EssayCase = { id: string; section: string; sourceCaseNumber: number; title: string; stem: string; week: number; questions: EssayQuestion[] };
-type Stage = "writing" | "submitted" | "revealed";
-
-const cases = casesData as EssayCase[];
-
-export function PdfEssayCasesPage() {
-  const [openWeeks, setOpenWeeks] = useState<number[]>([1]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [stages, setStages] = useState<Record<string, Stage>>({});
-  const selected = cases.find((item) => item.id === selectedId) || null;
-  const weeks = useMemo(() => Array.from({ length: 12 }, (_, index) => ({
-    number: index + 1,
-    cases: cases.filter((item) => item.week === index + 1),
-  })).filter((week) => week.cases.length), []);
-
-  const stage = selected ? stages[selected.id] || "writing" : "writing";
-  const complete = Boolean(selected?.questions.every((question) => answers[question.id]?.trim()));
-
-  function choose(item: EssayCase) {
-    setSelectedId(item.id);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function submit() {
-    if (!selected || !complete || stage !== "writing") return;
-    setStages((current) => ({ ...current, [selected.id]: "submitted" }));
-  }
-
-  function reveal() {
-    if (!selected || stage !== "submitted") return;
-    setStages((current) => ({ ...current, [selected.id]: "revealed" }));
-  }
-
-  return <ProductShell search="Search essay cases">
-    <main className="pp-page pdf-essay-page">
-      <header className="pdf-essay-heading">
-        <div><span className="page-eyebrow">CASE-BASED ESSAY CURRICULUM</span><h1>Urology & Nephrology Essay</h1><p>Course → Week → Cases. Answer every part before comparing your work with the original model answers.</p></div>
-        <div className="pdf-source-badge"><FiFileText /><span><b>21 cases</b><small>142 questions from the Summer Essay PDF</small></span></div>
-      </header>
-
-      {!selected ? <div className="pdf-curriculum-layout">
-        <aside className="pdf-course-card"><FiBookOpen /><small>COURSE</small><h2>Urology & Nephrology</h2><p>Summer essay curriculum</p><span>{cases.length} cases · 12 weeks</span></aside>
-        <section className="pdf-week-list">
-          {weeks.map((week) => { const open = openWeeks.includes(week.number); return <article className="pdf-week" key={week.number}>
-            <button type="button" className="pdf-week-heading" onClick={() => setOpenWeeks((current) => open ? current.filter((number) => number !== week.number) : [...current, week.number])}>
-              <span><small>WEEK {String(week.number).padStart(2, "0")}</small><b>{week.cases.length} {week.cases.length === 1 ? "case" : "cases"}</b></span><FiChevronDown className={open ? "open" : ""} />
-            </button>
-            {open && <div className="pdf-case-grid">{week.cases.map((item) => <button type="button" key={item.id} onClick={() => choose(item)} className="pdf-case-tile"><span>{item.section}</span><h3>Case {item.sourceCaseNumber}</h3><p>{item.stem}</p><footer><b>{item.questions.length} questions</b><span>Open case →</span></footer></button>)}</div>}
-          </article>; })}
-        </section>
-      </div> : <section className="pdf-case-workspace">
-        <button className="pdf-back" type="button" onClick={() => setSelectedId(null)}><FiChevronLeft /> Back to weeks & cases</button>
-        <Panel className="pdf-case-paper">
-          <header><div><small>{selected.section} · WEEK {selected.week}</small><h2>Case {selected.sourceCaseNumber}</h2></div><span>{selected.questions.length} questions</span></header>
-          <div className="pdf-case-stem"><small>CASE STUDY</small><p>{selected.stem}</p></div>
-          <div className="pdf-question-stack">{selected.questions.map((question, index) => <article className="pdf-question" key={question.id}>
-            <h3><span>Q {index + 1}</span>{question.prompt}</h3>
-            <label>Your answer<textarea rows={6} disabled={stage !== "writing"} value={answers[question.id] || ""} onChange={(event) => setAnswers((current) => ({ ...current, [question.id]: event.target.value }))} placeholder="Write your answer here…" /></label>
-            {stage === "revealed" && <div className="pdf-comparison">
-              <div><small>YOUR ANSWER</small><p>{answers[question.id]}</p></div>
-              <div className="model"><small><FiCheck /> MODEL ANSWER · FROM THE PDF</small><p>{question.answer}</p></div>
-            </div>}
-          </article>)}</div>
-          <footer className="pdf-case-actions">
-            {stage === "writing" && <><div><b>{selected.questions.filter((question) => answers[question.id]?.trim()).length}/{selected.questions.length} answered</b><small>Complete every textbox to submit this case.</small></div><button className="pp-button" disabled={!complete} type="button" onClick={submit}><FiCheck /> Submit case</button></>}
-            {stage === "submitted" && <><div><b>Answers submitted</b><small>Your answers are locked. Reveal the PDF answers when you are ready to compare.</small></div><button className="pp-button" type="button" onClick={reveal}><FiEye /> Reveal answers</button></>}
-            {stage === "revealed" && <><div><b>Comparison mode</b><small>Your answer and the original model answer remain visible together.</small></div><button className="pp-button secondary" type="button" onClick={() => setSelectedId(null)}>Choose next case</button></>}
-          </footer>
-        </Panel>
-      </section>}
-    </main>
-  </ProductShell>;
+type Course={id:string;courseCode:string;courseName:string}; type SummaryQuestion={id:string;prompt:string;display_order:number}; type CaseSummary={id:string;title:string;stem:string;section:string|null;sourceCaseNumber:number|null;questions:SummaryQuestion[]}; type Week={id:string;weekNumber:number;title:string|null;cases:CaseSummary[]}; type Curriculum={course_id:string;weeks:Week[]}; type CaseQuestion={id:string;prompt:string;displayOrder:number;studentAnswer:string|null;modelAnswer?:string}; type CaseDetail={id:string;weekNumber:number;title:string;stem:string;section:string|null;sourceCaseNumber:number|null;attempt:{status:"SUBMITTED"|"REVEALED"}|null;questions:CaseQuestion[]};
+export function PdfEssayCasesPage(){
+ const {request}=useAuth(); const [courses,setCourses]=useState<Course[]>([]); const [courseId,setCourseId]=useState(""); const [curriculum,setCurriculum]=useState<Curriculum|null>(null); const [openWeeks,setOpenWeeks]=useState<string[]>([]); const [selected,setSelected]=useState<CaseDetail|null>(null); const [answers,setAnswers]=useState<Record<string,string>>({}); const [loading,setLoading]=useState(true); const [busy,setBusy]=useState(false); const [error,setError]=useState<string|null>(null);
+ useEffect(()=>{let active=true; request<Course[]>("/essay-cases/courses").then(items=>{if(!active)return;setCourses(items);setCourseId(items[0]?.id||"");if(!items.length)setLoading(false)}).catch(e=>{if(active){setError(e instanceof Error?e.message:"Unable to load essay courses");setLoading(false)}});return()=>{active=false}},[request]);
+ useEffect(()=>{if(!courseId)return;let active=true;setLoading(true);request<Curriculum>(`/essay-cases?course_id=${encodeURIComponent(courseId)}`).then(data=>{if(!active)return;setCurriculum(data);setOpenWeeks(data.weeks[0]?[data.weeks[0].id]:[]);setSelected(null)}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Unable to load cases")}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[courseId,request]);
+ const totalCases=useMemo(()=>curriculum?.weeks.reduce((n,w)=>n+w.cases.length,0)||0,[curriculum]);
+ async function openCase(id:string){setBusy(true);setError(null);try{const item=await request<CaseDetail>(`/essay-cases/${id}`);setSelected(item);setAnswers(Object.fromEntries(item.questions.map(q=>[q.id,q.studentAnswer||""])));window.scrollTo({top:0,behavior:"smooth"})}catch(e){setError(e instanceof Error?e.message:"Unable to open case")}finally{setBusy(false)}}
+ const complete=Boolean(selected?.questions.every(q=>answers[q.id]?.trim())); const submitted=selected?.attempt?.status==="SUBMITTED"; const revealed=selected?.attempt?.status==="REVEALED";
+ async function submit(){if(!selected||!complete)return;setBusy(true);try{setSelected(await request<CaseDetail>(`/essay-cases/${selected.id}/submit`,{method:"POST",body:{answers:selected.questions.map(q=>({question_id:q.id,answer:answers[q.id].trim()}))}}))}catch(e){setError(e instanceof Error?e.message:"Unable to submit case")}finally{setBusy(false)}}
+ async function reveal(){if(!selected||!submitted)return;setBusy(true);try{setSelected(await request<CaseDetail>(`/essay-cases/${selected.id}/reveal`,{method:"POST"}))}catch(e){setError(e instanceof Error?e.message:"Unable to reveal answers")}finally{setBusy(false)}}
+ return <ProductShell search="Search essay cases"><main className="pp-page pdf-essay-page"><header className="pdf-essay-heading"><div><span className="page-eyebrow">CASE-BASED ESSAY CURRICULUM</span><h1>{courses.find(c=>c.id===courseId)?.courseName||"Essay cases"}</h1><p>Course → Week → Cases. Submit every part before revealing the instructor&apos;s model answers.</p></div><div className="pdf-source-badge"><FiFileText/><span><b>{totalCases} cases</b><small>Dynamic course curriculum</small></span></div></header>
+ {courses.length>1&&<label className="essay-course-select">Course<select value={courseId} onChange={e=>setCourseId(e.target.value)}>{courses.map(c=><option key={c.id} value={c.id}>{c.courseCode} · {c.courseName}</option>)}</select></label>}{error&&<p className="form-error" role="alert">{error}</p>}
+ {loading?<Panel><p>Loading essay curriculum…</p></Panel>:!selected?<div className="pdf-curriculum-layout"><aside className="pdf-course-card"><FiBookOpen/><small>COURSE</small><h2>{courses.find(c=>c.id===courseId)?.courseName}</h2><p>Essay curriculum</p><span>{totalCases} cases · {curriculum?.weeks.length||0} weeks</span></aside><section className="pdf-week-list">{curriculum?.weeks.map(week=>{const open=openWeeks.includes(week.id);return <article className="pdf-week" key={week.id}><button type="button" className="pdf-week-heading" onClick={()=>setOpenWeeks(v=>open?v.filter(id=>id!==week.id):[...v,week.id])}><span><small>WEEK {String(week.weekNumber).padStart(2,"0")}</small><b>{week.cases.length} cases</b></span><FiChevronDown className={open?"open":""}/></button>{open&&<div className="pdf-case-grid">{week.cases.map(item=><button type="button" disabled={busy} key={item.id} onClick={()=>void openCase(item.id)} className="pdf-case-tile"><span>{item.section||`Week ${week.weekNumber}`}</span><h3>{item.title}</h3><p>{item.stem}</p><footer><b>{item.questions.length} questions</b><span>Open case →</span></footer></button>)}</div>}</article>})}</section></div>:<section className="pdf-case-workspace"><button className="pdf-back" type="button" onClick={()=>setSelected(null)}><FiChevronLeft/> Back to weeks & cases</button><Panel className="pdf-case-paper"><header><div><small>{selected.section} · WEEK {selected.weekNumber}</small><h2>{selected.title}</h2></div><span>{selected.questions.length} questions</span></header><div className="pdf-case-stem"><small>CASE STUDY</small><p>{selected.stem}</p></div><div className="pdf-question-stack">{selected.questions.map((q,i)=><article className="pdf-question" key={q.id}><h3><span>Q {i+1}</span>{q.prompt}</h3><label>Your answer<textarea rows={6} disabled={Boolean(selected.attempt)} value={answers[q.id]||""} onChange={e=>setAnswers(v=>({...v,[q.id]:e.target.value}))}/></label>{revealed&&<div className="pdf-comparison"><div><small>YOUR ANSWER</small><p>{answers[q.id]}</p></div><div className="model"><small><FiCheck/> MODEL ANSWER · INSTRUCTOR</small><p>{q.modelAnswer}</p></div></div>}</article>)}</div><footer className="pdf-case-actions">{!selected.attempt?<><div><b>{selected.questions.filter(q=>answers[q.id]?.trim()).length}/{selected.questions.length} answered</b><small>Complete every textbox to submit.</small></div><button className="pp-button" disabled={!complete||busy} onClick={()=>void submit()}><FiCheck/> Submit case</button></>:submitted?<><div><b>Answers submitted</b><small>Your answers are locked. Reveal when ready.</small></div><button className="pp-button" disabled={busy} onClick={()=>void reveal()}><FiEye/> Reveal answers</button></>:<><div><b>Comparison mode</b><small>Your answers and model answers stay together.</small></div><button className="pp-button secondary" onClick={()=>setSelected(null)}>Choose next case</button></>}</footer></Panel></section>}</main></ProductShell>
 }
