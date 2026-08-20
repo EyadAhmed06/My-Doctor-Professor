@@ -42,6 +42,7 @@ import { EssayCasesModule } from './modules/essay-cases/essay-cases.module';
     WorkspaceModule,
     BundlesModule,
     SubscriptionsModule,
+    EssayCasesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
