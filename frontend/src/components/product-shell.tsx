@@ -49,6 +49,7 @@ type Page<T> = { data: T[] };
 const studentNav: NavItem[] = [
   { label: "My Bundles", href: "/bundles" },
   { label: "Flashcards", href: "/flashcards" },
+  { label: "Essay Cases", href: "/essay-practice" },
   { label: "Notebook", href: "/notebook" },
   { label: "Study Guides", href: "/guidelines" },
   { label: "Analytics", href: "/analytics" },
@@ -60,6 +61,7 @@ const instructorNav: NavItem[] = [
   { label: "Courses", href: "/instructor/courses" },
   { label: "Resources", href: "/resources/upload" },
   { label: "Questions", href: "/instructor/questions" },
+  { label: "Essay Cases", href: "/instructor/essay-cases" },
   { label: "Assessments", href: "/instructor/assessments" },
   { label: "Flashcards", href: "/instructor/flashcards" },
   { label: "Bundles", href: "/bundles" },
