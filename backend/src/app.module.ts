@@ -18,6 +18,7 @@ import { UsersModule } from './modules/users/users.module';
 import { WorkspaceModule } from './modules/workspace/workspace.module';
 import { BundlesModule } from './modules/bundles/bundles.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
+import { EssayCasesModule } from './modules/essay-cases/essay-cases.module';
 
 @Module({
   imports: [
