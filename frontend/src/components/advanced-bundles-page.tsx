@@ -108,10 +108,6 @@ function guideHref(course: Course, lecture: Lecture) {
   return `/guidelines?course=${encodeURIComponent(courseRouteKey(course))}&lecture=${encodeURIComponent(lectureRouteKey(lecture))}`;
 }
 
-function practiceHref(bundle: Bundle, course: Course, lecture: Lecture) {
-  return `/rounds?bundle=${encodeURIComponent(bundle.id)}&course=${encodeURIComponent(course.id)}&lecture=${encodeURIComponent(lecture.id)}`;
-}
-
 export function AdvancedBundlesPage() {
   const { user, request } = useAuth();
   const { notify, startNavigation } = useUx();
