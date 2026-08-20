@@ -1,6 +1,5 @@
-import { Suspense } from "react";
-import { ConnectedEssayPracticePage } from "@/components/connected-essay-practice-page";
+import { PdfEssayCasesPage } from "@/components/pdf-essay-cases-page";
 
 export default function EssayPracticePage() {
-  return <Suspense fallback={null}><ConnectedEssayPracticePage /></Suspense>;
+  return <PdfEssayCasesPage />;
 }
