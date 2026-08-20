@@ -89,7 +89,7 @@ export class EssayCasesService {
     }
     await this.db.transaction(async (m) => {
       await m.query(
-        `UPDATE essay_cases c SET display_order=display_order+100000 FROM weeks w WHERE w.id=c.week_id AND w.course_id=$1`,
+        `UPDATE essay_cases c SET display_order=c.display_order+100000 FROM weeks w WHERE w.id=c.week_id AND w.course_id=$1`,
         [dto.course_id],
       );
       for (const item of dto.items) {
