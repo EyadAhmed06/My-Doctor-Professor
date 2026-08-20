@@ -378,7 +378,7 @@ async function main() {
       );
     for (let i = 0; i < Math.min(questionData.length, 8); i++)
       await manager.query(
-        `INSERT INTO student_flashcard_progress(student_id,flashcard_id,times_reviewed,times_correct,times_incorrect,review_streak,last_reviewed_at,next_review_at,is_mastered,mastered_at,ease_factor,interval_days) VALUES($1,$2,$3,$4,1,$4,CURRENT_TIMESTAMP-INTERVAL '2 days',$5,$6,$7,2.50,3) ON CONFLICT(student_id,flashcard_id) DO UPDATE SET times_reviewed=EXCLUDED.times_reviewed,times_correct=EXCLUDED.times_correct,next_review_at=EXCLUDED.next_review_at,is_mastered=EXCLUDED.is_mastered`,
+        `INSERT INTO student_flashcard_progress(student_id,flashcard_id,times_reviewed,times_correct,times_incorrect,review_streak,last_reviewed_at,next_review_at,is_mastered,mastered_at,ease_factor,interval_days) VALUES($1,$2,$3,$4,1,$4,CURRENT_TIMESTAMP-INTERVAL '2 days',$5,$6,$7,2.50,3) ON CONFLICT(student_id,flashcard_id) DO UPDATE SET times_reviewed=EXCLUDED.times_reviewed,times_correct=EXCLUDED.times_correct,times_incorrect=EXCLUDED.times_incorrect,review_streak=EXCLUDED.review_streak,last_reviewed_at=EXCLUDED.last_reviewed_at,next_review_at=EXCLUDED.next_review_at,is_mastered=EXCLUDED.is_mastered,mastered_at=EXCLUDED.mastered_at,ease_factor=EXCLUDED.ease_factor,interval_days=EXCLUDED.interval_days`,
         [
           studentId,
           `91000000-0000-4000-8000-${(i + 1).toString().padStart(12, "0")}`,
