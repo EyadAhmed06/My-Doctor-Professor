@@ -347,7 +347,7 @@ async function main() {
     );
     for (let i = 0; i < ids.lectures.length; i++)
       await manager.query(
-        `INSERT INTO student_lecture_progress(student_id,lecture_id,is_completed,completion_percentage,time_spent_minutes,last_accessed_at,completed_at) VALUES($1,$2,$3,$4,$5,CURRENT_TIMESTAMP,$6) ON CONFLICT(student_id,lecture_id) DO UPDATE SET is_completed=EXCLUDED.is_completed,completion_percentage=EXCLUDED.completion_percentage,time_spent_minutes=EXCLUDED.time_spent_minutes`,
+        `INSERT INTO student_lecture_progress(student_id,lecture_id,is_completed,completion_percentage,time_spent_minutes,last_accessed_at,completed_at) VALUES($1,$2,$3,$4,$5,CURRENT_TIMESTAMP,$6) ON CONFLICT(student_id,lecture_id) DO UPDATE SET is_completed=EXCLUDED.is_completed,completion_percentage=EXCLUDED.completion_percentage,time_spent_minutes=EXCLUDED.time_spent_minutes,last_accessed_at=EXCLUDED.last_accessed_at,completed_at=EXCLUDED.completed_at`,
         [
           studentId,
           ids.lectures[i],
