@@ -6,6 +6,7 @@ import { Panel, ProductShell } from "./product-shell";
 import { useUx } from "./ux-provider";
 import "./pdf-essay-cases.css";
 import "./instructor-essay-case-studio.css";
+import "./role-workspace.css";
 type Course={id:string;courseCode:string;courseName:string}; type Q={id?:string;prompt:string;model_answer:string}; type Case={id:string;weekId:string;weekNumber:number;title:string;stem:string;section:string|null;sourceCaseNumber:number|null;isPublished:boolean;questions:Array<{id:string;prompt:string;modelAnswer?:string}>}; type Week={id:string;weekNumber:number;title:string|null;cases:Array<{id:string;title:string;stem:string;section:string|null;isPublished:boolean;questions:unknown[]}>}; type Curriculum={weeks:Week[]};
 const empty={id:"",week_id:"",title:"",stem:"",section:"",is_published:false,questions:[{prompt:"",model_answer:""}] as Q[]};
 export function InstructorEssayCaseStudio(){const {request}=useAuth();const {notify}=useUx();const [courses,setCourses]=useState<Course[]>([]);const [courseId,setCourseId]=useState("");const [curriculum,setCurriculum]=useState<Curriculum|null>(null);const [form,setForm]=useState(empty);const [editing,setEditing]=useState(false);const [saving,setSaving]=useState(false);
