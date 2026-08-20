@@ -52,6 +52,7 @@ export class McqPracticeService {
       INNER JOIN lectures lecture ON lecture.week_id = week.id
       WHERE bundle.id = $1
         AND enrollment.status <> 'REVOKED'
+        AND enrollment.payment_status IN ('NOT_REQUIRED', 'PAID')
         AND bundle.status IN ('PUBLISHED', 'ARCHIVED')
         AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
         AND lecture.is_published = TRUE
