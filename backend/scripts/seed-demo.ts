@@ -317,7 +317,7 @@ async function main() {
       `INSERT INTO flashcard_decks(id,course_id,topic_id,lecture_id,created_by,title,description,is_published,display_order) VALUES($1,$2,$3,$4,$5,'Cardiovascular High-Yield Review','Front-and-back cards linked to the seeded bundle.',TRUE,1) ON CONFLICT(id) DO UPDATE SET is_published=TRUE,title=EXCLUDED.title`,
       [ids.deck, ids.course, ids.topics[5], ids.lectures[5], instructorId],
     );
-    for (let i = 0; i < questionData.length; i++)
+    for (let i = 0; i < Math.min(questionData.length, 8); i++)
       await manager.query(
         `INSERT INTO flashcards(id,deck_id,title,front_content,back_content,difficulty,explanation,estimated_review_seconds,display_order,is_active) VALUES($1,$2,$3::varchar,$3::text,$4::text,'MEDIUM',$5::text,45,$6,TRUE) ON CONFLICT(id) DO UPDATE SET front_content=EXCLUDED.front_content,back_content=EXCLUDED.back_content,is_active=TRUE`,
         [
@@ -376,7 +376,7 @@ async function main() {
         `INSERT INTO student_topic_progress(student_id,topic_id,questions_attempted,questions_correct,questions_incorrect,confidence_level,average_score,mastery_percentage,last_practiced_at) VALUES($1,$2,8,6,2,$3,$4,$4,CURRENT_TIMESTAMP-($5||' days')::interval) ON CONFLICT(student_id,topic_id) DO UPDATE SET confidence_level=EXCLUDED.confidence_level,average_score=EXCLUDED.average_score,mastery_percentage=EXCLUDED.mastery_percentage,last_practiced_at=EXCLUDED.last_practiced_at`,
         [studentId, ids.topics[i], 62 + i * 4, 58 + i * 5, i],
       );
-    for (let i = 0; i < questionData.length; i++)
+    for (let i = 0; i < Math.min(questionData.length, 8); i++)
       await manager.query(
         `INSERT INTO student_flashcard_progress(student_id,flashcard_id,times_reviewed,times_correct,times_incorrect,review_streak,last_reviewed_at,next_review_at,is_mastered,mastered_at,ease_factor,interval_days) VALUES($1,$2,$3,$4,1,$4,CURRENT_TIMESTAMP-INTERVAL '2 days',$5,$6,$7,2.50,3) ON CONFLICT(student_id,flashcard_id) DO UPDATE SET times_reviewed=EXCLUDED.times_reviewed,times_correct=EXCLUDED.times_correct,next_review_at=EXCLUDED.next_review_at,is_mastered=EXCLUDED.is_mastered`,
         [
