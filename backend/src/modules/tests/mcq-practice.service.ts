@@ -28,8 +28,8 @@ export class McqPracticeService {
     if (dto.question_count !== LECTURE_PRACTICE_SIZE) {
       throw new BadRequestException(`Lecture practice must contain exactly ${LECTURE_PRACTICE_SIZE} MCQs`);
     }
-    if (dto.test_mode !== TestMode.TUTOR) {
-      throw new BadRequestException('Lecture practice is available in Tutor mode only');
+    if (![TestMode.TUTOR, TestMode.TIMED].includes(dto.test_mode)) {
+      throw new BadRequestException('Lecture practice is available in Tutor or Timed mode');
     }
     if (!(await this.students.exists({ where: { userId: actor.userId } }))) {
       throw new ForbiddenException('Student profile is required to generate a practice test');
@@ -97,13 +97,13 @@ export class McqPracticeService {
       const now = new Date();
       const total = selected.reduce((sum, question) => sum + Number(question.marks), 0);
       const test = await manager.save(Test, manager.create(Test, {
-        title: `40-MCQ Tutor practice · ${now.toISOString().slice(0, 10)}`,
+        title: `40-MCQ ${dto.test_mode === TestMode.TIMED ? 'Timed' : 'Tutor'} practice · ${now.toISOString().slice(0, 10)}`,
         description: `Generated from ${lectures.length} selected lecture${lectures.length === 1 ? '' : 's'}`,
         testType: TestType.CUSTOM,
         courseId,
         weekId: null,
         lectureId: null,
-        durationMinutes: null,
+        durationMinutes: dto.test_mode === TestMode.TIMED ? (dto.duration_minutes ?? 40) : null,
         totalMarks: total.toFixed(2),
         passingMarks: null,
         isPublished: true,
@@ -122,7 +122,7 @@ export class McqPracticeService {
       const attempt = await manager.save(TestAttempt, manager.create(TestAttempt, {
         studentId: actor.userId,
         testId: test.id,
-        testMode: TestMode.TUTOR,
+        testMode: dto.test_mode,
         status: TestAttemptStatus.IN_PROGRESS,
         score: null,
         startedAt: now,
