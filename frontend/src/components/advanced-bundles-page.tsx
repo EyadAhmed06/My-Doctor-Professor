@@ -410,7 +410,8 @@ export function AdvancedBundlesPage() {
 
 function BundleQuestionBank({ content, courses }: { content: Content; courses: Course[] }) {
   const { request } = useAuth();
-  const { notify } = useUx();
+  const { notify, startNavigation } = useUx();
+  const router = useRouter();
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [startingMode, setStartingMode] = useState<"TUTOR" | "TIMED" | null>(null);
@@ -465,8 +466,18 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
           ...(mode === "TIMED" ? { duration_minutes: 40 } : {}),
         },
       });
-      const href = `/mock-exam/session?attempt=${encodeURIComponent(generated.attempt.id)}&test=${encodeURIComponent(generated.test.id)}&mode=${mode}&source=question-bank&bundle=${encodeURIComponent(content.bundle.id)}&lectures=${encodeURIComponent(selectedIds.join(","))}`;
-      window.location.assign(href);
+      const attemptId = generated?.attempt?.id;
+      const testId = generated?.test?.id;
+      if (!attemptId || !testId) throw new Error("Quiz was generated without a valid session reference");
+      const href = `/mock-exam/session?attempt=${encodeURIComponent(attemptId)}&test=${encodeURIComponent(testId)}&mode=${mode}&source=question-bank&bundle=${encodeURIComponent(content.bundle.id)}&lectures=${encodeURIComponent(selectedIds.join(","))}`;
+      try {
+        sessionStorage.setItem("mdp:active-assessment-session", JSON.stringify({ attemptId, testId, source: "question-bank" }));
+      } catch { /* best-effort session recovery */ }
+      startNavigation();
+      router.push(href);
+      window.setTimeout(() => {
+        if (window.location.pathname !== "/mock-exam/session") window.location.assign(href);
+      }, 800);
     } catch (cause) {
       notify({
         title: "Could not build quiz",
