@@ -437,7 +437,7 @@ async function main() {
       [
         "b2000000-0000-4000-8000-000000000002",
         "Acute coronary syndrome red flags",
-        "CLINICAL_PEARL",
+        "PEARL",
         "Persistent pain, hemodynamic instability, dynamic ECG changes, and malignant arrhythmias require urgent escalation.",
         false,
         ids.questions[3],
@@ -446,7 +446,7 @@ async function main() {
       [
         "b2000000-0000-4000-8000-000000000003",
         "Cardiac cycle checkpoints",
-        "PERSONAL_NOTE",
+        "PERSONAL",
         "Follow pressure changes through atrial systole, isovolumetric contraction, ejection, and ventricular relaxation.",
         false,
         ids.questions[1],
