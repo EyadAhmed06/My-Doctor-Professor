@@ -5,7 +5,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
-import { CreateEssayCaseDto, ImportPdfCasesDto, SubmitEssayCaseDto, UpdateEssayCaseDto } from './essay-cases.dto';
+import { CreateEssayCaseDto, ImportPdfCasesDto, ReorderEssayCasesDto, SubmitEssayCaseDto, UpdateEssayCaseDto } from './essay-cases.dto';
 import { EssayCasesService } from './essay-cases.service';
 const uuid = new ParseUUIDPipe({ version: '4' });
 
@@ -18,6 +18,8 @@ export class EssayCasesController {
   @Get(':caseId') get(@Param('caseId', uuid) id: string, @CurrentUser() actor: AuthenticatedUser) { return this.cases.getCase(id, actor); }
   @Post() @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   create(@Body() dto: CreateEssayCaseDto, @CurrentUser() actor: AuthenticatedUser) { return this.cases.create(dto, actor); }
+  @Put('order') @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  reorder(@Body() dto: ReorderEssayCasesDto, @CurrentUser() actor: AuthenticatedUser) { return this.cases.reorder(dto, actor); }
   @Put(':caseId') @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   update(@Param('caseId', uuid) id: string, @Body() dto: UpdateEssayCaseDto, @CurrentUser() actor: AuthenticatedUser) { return this.cases.update(id, dto, actor); }
   @Delete(':caseId') @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN) @HttpCode(HttpStatus.NO_CONTENT)
