@@ -251,8 +251,8 @@ async function main() {
         "WEEK",
         ids.weeks[0],
         40,
-        "20.00",
-        "12.00",
+        "40.00",
+        "24.00",
       ],
       [
         "Cardiovascular Final Practice",
