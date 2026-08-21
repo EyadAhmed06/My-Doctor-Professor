@@ -12,15 +12,15 @@ import "./bundle-management.css";
 
 type SubscriptionPlan = {
   id: string;
-  key: "free" | "normal" | "first_5_weeks" | "last_5_weeks" | "max";
+  key: "free" | "first_5_weeks" | "last_5_weeks" | "max";
   label: string;
   priceAmount: string | null;
   priceCurrency: string;
+  durationDays: number | null;
 };
 
 const PLAN_DESCRIPTIONS: Record<SubscriptionPlan["key"], string> = {
   free: "Default plan on signup. Unlocks whichever bundles an instructor opts into the Free tier.",
-  normal: "Standard paid tier. Unlocks whichever bundles an instructor opts into the Normal tier.",
   first_5_weeks: "Unlocks whichever bundles an instructor opts into the First 5 Weeks tier.",
   last_5_weeks: "Unlocks whichever bundles an instructor opts into the Last 5 Weeks tier.",
   max: "Unlocks every bundle on the platform, regardless of its allowed plans.",
@@ -65,27 +65,27 @@ export function ConnectedSubscriptionPage() {
   const [mine, setMine] = useState<Bundle[]>([]);
   const [catalog, setCatalog] = useState<Bundle[]>([]);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
-  const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
+  const [activePlanIds, setActivePlanIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [planBusy, setPlanBusy] = useState(false);
+  const [planBusy, setPlanBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (user?.role !== "STUDENT") { setLoading(false); return; }
     setLoading(true);
     setError(null);
     try {
-      const [owned, publicItems, allPlans, myPlan] = await Promise.all([
+      const [owned, publicItems, allPlans, myPlans] = await Promise.all([
         request<Bundle[]>("/bundles/mine"),
         request<Bundle[]>("/catalog/bundles"),
         request<SubscriptionPlan[]>("/subscriptions/plans"),
-        request<SubscriptionPlan>("/subscriptions/me"),
+        request<SubscriptionPlan[]>("/users/me/plans"),
       ]);
       setMine(owned);
       setCatalog(publicItems.filter((item) => !owned.some((ownedItem) => ownedItem.id === item.id)));
       setPlans(allPlans);
-      setCurrentPlanId(myPlan.id);
+      setActivePlanIds(new Set(myPlans.map((plan) => plan.id)));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to load subscription plans.");
     } finally {
@@ -97,17 +97,25 @@ export function ConnectedSubscriptionPage() {
 
   const bundles = useMemo(() => [...mine, ...catalog].filter(offersAnyPlan), [mine, catalog]);
 
-  async function changePlan(plan: SubscriptionPlan) {
-    if (planBusy || plan.id === currentPlanId) return;
-    setPlanBusy(true);
+  async function buyPlan(plan: SubscriptionPlan) {
+    if (planBusy) return;
+    setPlanBusy(plan.id);
     try {
-      await request("/subscriptions/me", { method: "PUT", body: { plan_id: plan.id } });
-      notify({ title: "Plan switched", description: `You're now on the ${plan.label} plan.`, tone: "success" });
-      await load();
+      const result = await request<{ status: string; checkout_url: string | null }>(`/plans/${plan.id}/checkout`, {
+        method: "POST",
+        body: { payment_method: "card" },
+      });
+      if (result.status === "paid") {
+        notify({ title: "Plan activated", description: `You now have the ${plan.label} plan.`, tone: "success" });
+        await load();
+      } else if (result.checkout_url) {
+        notify({ title: "Redirecting to payment", description: "Complete payment in the new tab, then come back here — it activates once payment is confirmed.", tone: "info" });
+        window.open(result.checkout_url, "_blank", "noopener,noreferrer");
+      }
     } catch (cause) {
-      notify({ title: "Unable to switch plan", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+      notify({ title: "Unable to start checkout", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
     } finally {
-      setPlanBusy(false);
+      setPlanBusy(null);
     }
   }
 
@@ -167,22 +175,22 @@ export function ConnectedSubscriptionPage() {
         <div className="pp-title">
           <div>
             <h2>Platform plans</h2>
-            <p>Your account plan. Bundles unlock automatically the moment you open one your plan covers — access is permanent even if you switch plans later.</p>
+            <p>Plans are one-time payments per period, not recurring — you can hold several active plans at once (e.g. First 5 Weeks + Max), and buying a new one never cancels an existing one. Bundles unlock automatically the moment you open one a currently active plan covers.</p>
           </div>
         </div>
         <div className="subscription-plan-grid">
           {plans.map((plan) => {
-            const isCurrent = plan.id === currentPlanId;
+            const isActive = activePlanIds.has(plan.id);
             return (
               <Panel key={plan.id} title={plan.label} className="subscription-plan-card">
                 <div className="subscription-plan-meta">
-                  <small>{plan.priceAmount ? `${plan.priceCurrency} ${Number(plan.priceAmount).toFixed(2)} / month` : "No extra charge"}</small>
-                  {isCurrent && <em className="good"><FiCheckCircle /> Current plan</em>}
+                  <small>{plan.priceAmount ? `${plan.priceCurrency} ${Number(plan.priceAmount).toFixed(2)}${plan.durationDays ? ` / ${plan.durationDays} days` : ""}` : "No extra charge"}</small>
+                  {isActive && <em className="good"><FiCheckCircle /> Active</em>}
                 </div>
                 <p>{PLAN_DESCRIPTIONS[plan.key]}</p>
-                {!isCurrent && (
-                  <button className="pp-button" type="button" disabled={planBusy} onClick={() => void changePlan(plan)}>
-                    {planBusy ? "Switching…" : "Switch to this plan"}
+                {!isActive && (
+                  <button className="pp-button" type="button" disabled={planBusy === plan.id} onClick={() => void buyPlan(plan)}>
+                    {planBusy === plan.id ? "Starting checkout…" : "Buy this plan"}
                   </button>
                 )}
               </Panel>

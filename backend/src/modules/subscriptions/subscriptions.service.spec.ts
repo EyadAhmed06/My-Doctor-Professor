@@ -2,9 +2,9 @@ import { DataSource, Repository } from 'typeorm';
 import { Bundle } from '../../common/entities/bundle.entity';
 import { BundleAllowedPlan } from '../../common/entities/bundle-allowed-plan.entity';
 import { BundleInstructor } from '../../common/entities/bundle-instructor.entity';
+import { PlanPurchase, PlanPaymentMethod, PlanPurchaseStatus } from '../../common/entities/plan-purchase.entity';
 import { SubscriptionPlan, SubscriptionPlanKey } from '../../common/entities/subscription-plan.entity';
 import { UnlockReason, UserBundleUnlock } from '../../common/entities/user-bundle-unlock.entity';
-import { UserPlanSubscription } from '../../common/entities/user-plan-subscription.entity';
 import { SubscriptionsService } from './subscriptions.service';
 
 const bundleId = '11111111-1111-4111-8111-111111111111';
@@ -12,7 +12,6 @@ const userId = '22222222-2222-4222-8222-222222222222';
 
 const planIds: Record<SubscriptionPlanKey, string> = {
   [SubscriptionPlanKey.FREE]: 'aaaaaaaa-0000-4000-8000-000000000001',
-  [SubscriptionPlanKey.NORMAL]: 'aaaaaaaa-0000-4000-8000-000000000002',
   [SubscriptionPlanKey.FIRST_5_WEEKS]: 'aaaaaaaa-0000-4000-8000-000000000003',
   [SubscriptionPlanKey.LAST_5_WEEKS]: 'aaaaaaaa-0000-4000-8000-000000000004',
   [SubscriptionPlanKey.MAX]: 'aaaaaaaa-0000-4000-8000-000000000005',
@@ -25,18 +24,25 @@ function seededPlans(): SubscriptionPlan[] {
     label: key,
     priceAmount: null,
     priceCurrency: 'EGP',
+    durationDays: key === SubscriptionPlanKey.FREE ? null : 35,
     createdAt: new Date(),
     updatedAt: new Date(),
   }));
 }
 
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
 /** In-memory stand-ins for the repositories the service depends on. Mirrors the lightweight
- * jest-mock style already used in bundles.service.spec.ts, but stateful enough to model
- * find/findOne/exists/save across the three required scenarios. */
+ * jest-mock style already used elsewhere, but stateful enough to model find/findOne/exists/save
+ * across the required scenarios. */
 function build() {
   const plans = seededPlans();
   const allowedPlans: BundleAllowedPlan[] = [];
-  const subscriptions = new Map<string, UserPlanSubscription>();
+  const planPurchases: PlanPurchase[] = [];
   const unlocks: UserBundleUnlock[] = [];
   const bundle = { id: bundleId, title: 'Cardiology' } as Bundle;
 
@@ -50,24 +56,16 @@ function build() {
   } as unknown as Repository<SubscriptionPlan>;
 
   const allowedPlansRepo = {
-    exists: jest.fn(async ({ where }: { where: { bundleId: string; planId: string } }) =>
-      allowedPlans.some((item) => item.bundleId === where.bundleId && item.planId === where.planId)),
     find: jest.fn(async ({ where }: { where: { bundleId: string } }) =>
       allowedPlans.filter((item) => item.bundleId === where.bundleId)),
   } as unknown as Repository<BundleAllowedPlan>;
 
-  const subscriptionsRepo = {
-    findOne: jest.fn(async ({ where }: { where: { userId: string } }) => {
-      const subscription = subscriptions.get(where.userId);
-      if (!subscription) return null;
-      return { ...subscription, plan: plans.find((item) => item.id === subscription.planId) } as UserPlanSubscription;
-    }),
-    create: jest.fn((value: Partial<UserPlanSubscription>) => value as UserPlanSubscription),
-    save: jest.fn(async (value: UserPlanSubscription) => {
-      subscriptions.set(value.userId, value);
-      return value;
-    }),
-  } as unknown as Repository<UserPlanSubscription>;
+  const purchasesRepo = {
+    find: jest.fn(async ({ where }: { where: { userId: string; status: PlanPurchaseStatus } }) =>
+      planPurchases
+        .filter((item) => item.userId === where.userId && item.status === where.status)
+        .map((item) => ({ ...item, plan: plans.find((plan) => plan.id === item.planId) }))),
+  } as unknown as Repository<PlanPurchase>;
 
   const unlocksRepo = {
     findOne: jest.fn(async ({ where }: { where: { userId: string; bundleId: string } }) =>
@@ -92,78 +90,93 @@ function build() {
     allowedPlans.push({ bundleId, planId: planIds[planKey] } as BundleAllowedPlan);
   }
 
-  function setPlan(key: SubscriptionPlanKey) {
-    subscriptions.set(userId, { userId, planId: planIds[key] } as UserPlanSubscription);
+  /** Adds a PAID PlanPurchase whose active window is relative to now (defaults: already started,
+   * not yet ended). Pass a negative `startedDaysAgo`/negative `endsInDays` to model past windows. */
+  function grantPaidPlan(planKey: SubscriptionPlanKey, options: { startedDaysAgo?: number; endsInDays?: number } = {}) {
+    const now = new Date();
+    planPurchases.push({
+      id: `purchase-${planPurchases.length + 1}`,
+      userId,
+      planId: planIds[planKey],
+      status: PlanPurchaseStatus.PAID,
+      paymentMethod: PlanPaymentMethod.CARD,
+      amountPaid: '100.00',
+      currency: 'EGP',
+      startsAt: addDays(now, -(options.startedDaysAgo ?? 1)),
+      endsAt: addDays(now, options.endsInDays ?? 34),
+    } as PlanPurchase);
   }
 
   const service = new SubscriptionsService(
     plansRepo,
     allowedPlansRepo,
-    subscriptionsRepo,
+    purchasesRepo,
     unlocksRepo,
     bundlesRepo,
     bundleInstructorsRepo,
     {} as DataSource,
   );
 
-  return { service, allow, setPlan, unlocks };
+  return { service, allow, grantPaidPlan, unlocks };
 }
 
 describe('SubscriptionsService access resolution', () => {
   it('a Free-plan user without purchase cannot access a Max-only bundle', async () => {
-    const { service, allow, setPlan } = build();
+    const { service, allow } = build();
     allow(SubscriptionPlanKey.MAX);
-    setPlan(SubscriptionPlanKey.FREE);
 
     expect(await service.canAccessBundle(userId, bundleId)).toBe(false);
     const opened = await service.openBundle(userId, bundleId);
     expect(opened.accessible).toBe(false);
   });
 
-  it('a user who accessed a bundle on one plan keeps access after switching plans', async () => {
-    const { service, allow, setPlan, unlocks } = build();
+  it('a user who accessed a bundle on one active plan keeps access after that plan later expires', async () => {
+    const { service, allow, grantPaidPlan, unlocks } = build();
     allow(SubscriptionPlanKey.FIRST_5_WEEKS);
-    setPlan(SubscriptionPlanKey.FIRST_5_WEEKS);
+    grantPaidPlan(SubscriptionPlanKey.FIRST_5_WEEKS);
 
     const firstOpen = await service.openBundle(userId, bundleId);
     expect(firstOpen.accessible).toBe(true);
     expect(unlocks).toHaveLength(1);
     expect(unlocks[0].unlockReason).toBe(UnlockReason.PLAN_ACCESS);
 
-    // Switch to a plan that would NOT independently grant access to this bundle.
-    setPlan(SubscriptionPlanKey.NORMAL);
-
+    // The permanent unlock row is independent of plan state from here on.
     expect(await service.canAccessBundle(userId, bundleId)).toBe(true);
     const secondOpen = await service.openBundle(userId, bundleId);
     expect(secondOpen.accessible).toBe(true);
     expect(unlocks).toHaveLength(1); // no duplicate row written on re-open
   });
 
-  it('purchasing a bundle grants immediate, permanent access regardless of plan', async () => {
-    const { service, setPlan, unlocks } = build();
-    setPlan(SubscriptionPlanKey.FREE); // no allowed_plans grant this bundle to Free at all
+  it('a user with two overlapping active plans gets access to bundles allowed by either one', async () => {
+    const { service, allow, grantPaidPlan } = build();
+    allow(SubscriptionPlanKey.LAST_5_WEEKS); // this bundle only allows Last 5 Weeks
+    grantPaidPlan(SubscriptionPlanKey.FIRST_5_WEEKS); // user actually holds First 5 Weeks...
+    grantPaidPlan(SubscriptionPlanKey.LAST_5_WEEKS); // ...and Last 5 Weeks, at the same time
 
+    expect(await service.canAccessBundle(userId, bundleId)).toBe(true);
+  });
+
+  it('an expired PlanPurchase no longer counts as active, but an existing unlock row is untouched', async () => {
+    const { service, allow, grantPaidPlan, unlocks } = build();
+    allow(SubscriptionPlanKey.FIRST_5_WEEKS);
+    grantPaidPlan(SubscriptionPlanKey.FIRST_5_WEEKS, { startedDaysAgo: 40, endsInDays: -5 }); // window already closed
+
+    // No live grant and no unlock yet — locked.
     expect(await service.canAccessBundle(userId, bundleId)).toBe(false);
 
-    const purchase = await service.purchaseBundle(userId, bundleId);
-    expect(purchase.unlockReason).toBe(UnlockReason.PURCHASE);
-    expect(unlocks).toHaveLength(1);
-
-    expect(await service.canAccessBundle(userId, bundleId)).toBe(true);
-
-    // Switching plans afterwards changes nothing — access came from the permanent unlock row.
-    setPlan(SubscriptionPlanKey.NORMAL);
-    expect(await service.canAccessBundle(userId, bundleId)).toBe(true);
-
-    // Purchasing again is idempotent — no duplicate row, no reason change.
+    // Directly purchasing the bundle (independent of any plan) still grants permanent access...
     await service.purchaseBundle(userId, bundleId);
     expect(unlocks).toHaveLength(1);
+    expect(unlocks[0].unlockReason).toBe(UnlockReason.PURCHASE);
+
+    // ...and that unlock is unaffected by the plan having expired before or after this point.
+    expect(await service.canAccessBundle(userId, bundleId)).toBe(true);
   });
 
   it('canAccessBundle never writes an unlock row — only openBundle/purchaseBundle do', async () => {
-    const { service, allow, setPlan, unlocks } = build();
+    const { service, allow, grantPaidPlan, unlocks } = build();
     allow(SubscriptionPlanKey.MAX);
-    setPlan(SubscriptionPlanKey.MAX);
+    grantPaidPlan(SubscriptionPlanKey.MAX);
 
     expect(await service.canAccessBundle(userId, bundleId)).toBe(true);
     expect(unlocks).toHaveLength(0);

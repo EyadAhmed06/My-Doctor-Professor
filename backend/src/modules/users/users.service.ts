@@ -9,8 +9,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as argon2 from 'argon2';
 import * as bcrypt from 'bcrypt';
 import { DataSource, Not, QueryFailedError, Repository } from 'typeorm';
-import { SubscriptionPlan, SubscriptionPlanKey } from '../../common/entities/subscription-plan.entity';
-import { UserPlanSubscription } from '../../common/entities/user-plan-subscription.entity';
 import { AuthSession } from './entities/auth-session.entity';
 import { Instructor } from './entities/instructor.entity';
 import { Student } from './entities/student.entity';
@@ -108,12 +106,6 @@ export class UsersService {
           await manager.save(SystemAdmin,manager.create(SystemAdmin,{
             userId:user.id,employeeNumber:input.employeeNumber?.trim()||null,
             isSuperAdmin:input.isSuperAdmin??false,
-          }));
-        }
-        const freePlan=await manager.findOne(SubscriptionPlan,{where:{key:SubscriptionPlanKey.FREE}});
-        if(freePlan) {
-          await manager.save(UserPlanSubscription,manager.create(UserPlanSubscription,{
-            userId:user.id,planId:freePlan.id,
           }));
         }
         return user;

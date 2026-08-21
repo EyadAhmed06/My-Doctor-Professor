@@ -4,9 +4,9 @@ import { DataSource, In, Repository } from 'typeorm';
 import { Bundle, BundleStatus } from '../../common/entities/bundle.entity';
 import { BundleAllowedPlan } from '../../common/entities/bundle-allowed-plan.entity';
 import { BundleInstructor } from '../../common/entities/bundle-instructor.entity';
+import { PlanPurchase, PlanPurchaseStatus } from '../../common/entities/plan-purchase.entity';
 import { SubscriptionPlan, SubscriptionPlanKey } from '../../common/entities/subscription-plan.entity';
 import { UnlockReason, UserBundleUnlock } from '../../common/entities/user-bundle-unlock.entity';
-import { UserPlanSubscription } from '../../common/entities/user-plan-subscription.entity';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
 import { UpdatePlanDto } from './dtos/subscription.dto';
@@ -21,7 +21,7 @@ export class SubscriptionsService {
   constructor(
     @InjectRepository(SubscriptionPlan) private readonly plans: Repository<SubscriptionPlan>,
     @InjectRepository(BundleAllowedPlan) private readonly allowedPlans: Repository<BundleAllowedPlan>,
-    @InjectRepository(UserPlanSubscription) private readonly subscriptions: Repository<UserPlanSubscription>,
+    @InjectRepository(PlanPurchase) private readonly purchases: Repository<PlanPurchase>,
     @InjectRepository(UserBundleUnlock) private readonly unlocks: Repository<UserBundleUnlock>,
     @InjectRepository(Bundle) private readonly bundles: Repository<Bundle>,
     @InjectRepository(BundleInstructor) private readonly bundleInstructors: Repository<BundleInstructor>,
@@ -38,25 +38,29 @@ export class SubscriptionsService {
     if (dto.label !== undefined) plan.label = dto.label.trim();
     if (dto.price_amount !== undefined) plan.priceAmount = dto.price_amount === null ? null : dto.price_amount.toFixed(2);
     if (dto.price_currency !== undefined) plan.priceCurrency = dto.price_currency.toUpperCase();
+    if (dto.duration_days !== undefined) plan.durationDays = dto.duration_days;
     return this.plans.save(plan);
   }
 
-  /** The user's current active plan. Falls back to "free" if no row exists yet (defensive — every
-   * account-creation path writes one, but this keeps access resolution correct even if that ever drifts). */
-  async myPlan(userId: string): Promise<SubscriptionPlan> {
-    const subscription = await this.subscriptions.findOne({ where: { userId }, relations: { plan: true } });
-    if (subscription) return subscription.plan;
-    return this.requirePlanByKey(SubscriptionPlanKey.FREE);
+  /** Plans the user currently holds, per the parallel-periods model: Free (implicit, never purchased,
+   * always active) plus every plan with a "paid" PlanPurchase row whose window covers right now. A user
+   * can hold several paid plans at once — buying one never touches another's row. */
+  async myActivePlans(userId: string): Promise<SubscriptionPlan[]> {
+    const freePlan = await this.requirePlanByKey(SubscriptionPlanKey.FREE);
+    const now = new Date();
+    const paid = await this.purchases.find({
+      where: { userId, status: PlanPurchaseStatus.PAID },
+      relations: { plan: true },
+    });
+    const activePaidPlans = paid
+      .filter((purchase) => purchase.startsAt && purchase.endsAt && purchase.startsAt <= now && now <= purchase.endsAt)
+      .map((purchase) => purchase.plan);
+    return [freePlan, ...activePaidPlans];
   }
 
-  async changePlan(userId: string, planId: string): Promise<SubscriptionPlan> {
-    const plan = await this.plans.findOne({ where: { id: planId } });
-    if (!plan) throw new NotFoundException('Subscription plan not found');
-    let subscription = await this.subscriptions.findOne({ where: { userId } });
-    if (!subscription) subscription = this.subscriptions.create({ userId, planId });
-    else subscription.planId = planId;
-    await this.subscriptions.save(subscription);
-    return plan;
+  private async activePlanIds(userId: string): Promise<Set<string>> {
+    const plans = await this.myActivePlans(userId);
+    return new Set(plans.map((plan) => plan.id));
   }
 
   async allowedPlansFor(bundleId: string) {
@@ -98,7 +102,8 @@ export class SubscriptionsService {
 
   /** Call this — and only this — from the "open bundle" / "view bundle content" endpoint. Runs the same
    * resolution as canAccessBundle, and lazily persists the permanent unlock row the moment access is
-   * actually exercised via plan membership. Never call this from a plan-change endpoint. */
+   * actually exercised via plan membership. Never call this from a plan-purchase/checkout endpoint —
+   * buying a plan should never retroactively unlock bundles it wasn't used to open. */
   async openBundle(userId: string, bundleId: string): Promise<{ accessible: boolean }> {
     await this.requireBundle(bundleId);
     const result = await this.resolveAccess(userId, bundleId);
@@ -121,13 +126,16 @@ export class SubscriptionsService {
     const existing = await this.unlocks.findOne({ where: { userId, bundleId } });
     if (existing) return { accessible: true, alreadyUnlocked: true };
 
-    const plan = await this.myPlan(userId);
-    if (plan.key === SubscriptionPlanKey.MAX) {
+    const activeIds = await this.activePlanIds(userId);
+
+    const maxPlan = await this.requirePlanByKey(SubscriptionPlanKey.MAX);
+    if (activeIds.has(maxPlan.id)) {
       return { accessible: true, alreadyUnlocked: false, reason: UnlockReason.PLAN_ACCESS };
     }
 
-    const allowed = await this.allowedPlans.exists({ where: { bundleId, planId: plan.id } });
-    if (allowed) return { accessible: true, alreadyUnlocked: false, reason: UnlockReason.PLAN_ACCESS };
+    const allowedRows = await this.allowedPlans.find({ where: { bundleId } });
+    const intersects = allowedRows.some((row) => activeIds.has(row.planId));
+    if (intersects) return { accessible: true, alreadyUnlocked: false, reason: UnlockReason.PLAN_ACCESS };
 
     return { accessible: false, alreadyUnlocked: false };
   }

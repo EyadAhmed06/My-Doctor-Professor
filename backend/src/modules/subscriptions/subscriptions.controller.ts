@@ -5,7 +5,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
-import { ChangePlanDto, SetAllowedPlansDto, UpdatePlanDto } from './dtos/subscription.dto';
+import { SetAllowedPlansDto, UpdatePlanDto } from './dtos/subscription.dto';
 import { SubscriptionsService } from './subscriptions.service';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
@@ -24,16 +24,6 @@ export class SubscriptionsController {
   @Roles(UserRole.SYSTEM_ADMIN)
   updatePlan(@Param('planId', uuid) planId: string, @Body() dto: UpdatePlanDto) {
     return this.subscriptions.updatePlan(planId, dto);
-  }
-
-  @Get('me')
-  myPlan(@CurrentUser() actor: AuthenticatedUser) {
-    return this.subscriptions.myPlan(actor.userId);
-  }
-
-  @Put('me')
-  changePlan(@CurrentUser() actor: AuthenticatedUser, @Body() dto: ChangePlanDto) {
-    return this.subscriptions.changePlan(actor.userId, dto.plan_id);
   }
 
   @Get('bundles')

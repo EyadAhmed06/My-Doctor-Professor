@@ -6,12 +6,16 @@ import {
   FiCheck,
   FiCreditCard,
   FiDollarSign,
+  FiGift,
   FiLock,
   FiPlus,
   FiRefreshCw,
+  FiSunrise,
+  FiSunset,
   FiTrash2,
   FiUserCheck,
   FiUsers,
+  FiX,
 } from "react-icons/fi";
 import { EmptyState, PageSkeleton } from "./async-state";
 import { useAuth } from "./auth-provider";
@@ -64,6 +68,21 @@ type Management = {
   plans: { first: PlanConfig; final: PlanConfig };
   students: { enrollments: ManagedEnrollment[]; planGrants: ManagedPlanGrant[]; available: Person[] };
 };
+type GlobalPlan = { id: string; key: "free" | "first_5_weeks" | "last_5_weeks" | "max"; label: string };
+type AllowedPlanRow = { planId: string; plan: GlobalPlan };
+
+const PLAN_SELECT_ICON: Record<GlobalPlan["key"], React.ReactNode> = {
+  free: <FiGift />,
+  first_5_weeks: <FiSunrise />,
+  last_5_weeks: <FiSunset />,
+  max: <FiCreditCard />,
+};
+const PLAN_SELECT_HINT: Record<GlobalPlan["key"], string> = {
+  free: "Included with every account by default",
+  first_5_weeks: "For students focused on the first half of the term",
+  last_5_weeks: "For students focused on the second half of the term",
+  max: "Always included, regardless of this list",
+};
 
 export function BundleManagementPanel({ bundleId, onChanged }: { bundleId: string; onChanged?: () => void | Promise<void> }) {
   const { request } = useAuth();
@@ -87,12 +106,23 @@ export function BundleManagementPanel({ bundleId, onChanged }: { bundleId: strin
   const [finalEssayPrice, setFinalEssayPrice] = useState("");
   const [planStudentId, setPlanStudentId] = useState<Record<PlanKey, string>>({ FIRST: "", FINAL: "" });
   const [planTier, setPlanTier] = useState<Record<PlanKey, PlanTier>>({ FIRST: "MCQ", FINAL: "MCQ" });
+  const [allPlans, setAllPlans] = useState<GlobalPlan[]>([]);
+  const [allowedPlanIds, setAllowedPlanIds] = useState<Set<string>>(new Set());
+  const [draftPlanIds, setDraftPlanIds] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await request<Management>(`/bundles/${bundleId}/management`);
+      const [result, plans, allowed] = await Promise.all([
+        request<Management>(`/bundles/${bundleId}/management`),
+        request<GlobalPlan[]>("/subscriptions/plans"),
+        request<AllowedPlanRow[]>(`/subscriptions/bundles/${bundleId}/allowed-plans`),
+      ]);
       setData(result);
+      setAllPlans(plans);
+      const allowedIds = new Set(allowed.map((row) => row.planId));
+      setAllowedPlanIds(allowedIds);
+      setDraftPlanIds(allowedIds);
       setIsFree(result.bundle.isFree);
       setPrice(result.bundle.priceAmount || "");
       setCurrency(result.bundle.priceCurrency || "EGP");
@@ -113,6 +143,12 @@ export function BundleManagementPanel({ bundleId, onChanged }: { bundleId: strin
   }, [bundleId, notify, request]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const selectablePlans = useMemo(() => allPlans.filter((plan) => plan.key !== "max"), [allPlans]);
+  const plansDirty = useMemo(
+    () => draftPlanIds.size !== allowedPlanIds.size || [...draftPlanIds].some((id) => !allowedPlanIds.has(id)),
+    [draftPlanIds, allowedPlanIds],
+  );
 
   async function mutate(path: string, method: "POST" | "PUT" | "DELETE", body?: unknown, success = "Bundle updated") {
     if (busy) return;
@@ -141,6 +177,27 @@ export function BundleManagementPanel({ bundleId, onChanged }: { bundleId: strin
       price_currency: currency.toUpperCase(),
       available_until: expiry ? new Date(expiry).toISOString() : null,
     }, isFree ? "Bundle changed to free access" : "Paid access policy saved");
+  }
+
+  function toggleDraftPlan(planId: string) {
+    setDraftPlanIds((current) => {
+      const next = new Set(current);
+      if (next.has(planId)) next.delete(planId);
+      else next.add(planId);
+      return next;
+    });
+  }
+
+  function selectAllDraftPlans() {
+    setDraftPlanIds(new Set(selectablePlans.map((plan) => plan.id)));
+  }
+
+  function clearDraftPlans() {
+    setDraftPlanIds(new Set());
+  }
+
+  async function saveAllowedPlans() {
+    await mutate(`/subscriptions/bundles/${bundleId}/allowed-plans`, "PUT", { plan_ids: [...draftPlanIds] }, "Access plans saved");
   }
 
   async function savePlans(event: FormEvent) {
@@ -217,6 +274,41 @@ export function BundleManagementPanel({ bundleId, onChanged }: { bundleId: strin
         {!isFree && <><label>Price<input aria-label="Bundle price" required min="0.01" step="0.01" type="number" value={price} onChange={(event) => setPrice(event.target.value)} /></label><label>Currency<input aria-label="Bundle currency" required minLength={3} maxLength={3} value={currency} onChange={(event) => setCurrency(event.target.value.toUpperCase())} /></label></>}<label>Bundle expiry<input aria-label="Bundle expiry" type="datetime-local" value={expiry} onChange={(event) => setExpiry(event.target.value)} /></label>
         <button className="pp-button" type="submit" disabled={busy}>{busy ? "Saving…" : "Save access policy"}</button>
       </form>
+    </Panel>
+
+    <Panel
+      title="Who can access this bundle"
+      action={<div className="bundle-plan-select-actions"><button className="bundle-inline-action" type="button" disabled={busy || draftPlanIds.size === selectablePlans.length} onClick={selectAllDraftPlans}><FiCheck /> Select all</button><button className="bundle-inline-action" type="button" disabled={busy || !draftPlanIds.size} onClick={clearDraftPlans}><FiX /> Clear</button></div>}
+    >
+      <div className="bundle-management-note"><FiUsers /><span><b>Platform-wide plan access</b><small>Pick any number of plans — one, several, or all of them. A student on any one of the selected plans unlocks this bundle the moment they open it. Nothing is saved until you click &quot;Save access plans&quot; below.</small></span></div>
+      <div className="bundle-allowed-plans-grid" role="group" aria-label="Plans that unlock this bundle">
+        {selectablePlans.map((plan) => {
+          const selected = draftPlanIds.has(plan.id);
+          return (
+            <button
+              key={plan.id}
+              type="button"
+              className={`bundle-allowed-plan-option ${selected ? "selected" : ""}`}
+              disabled={busy}
+              aria-pressed={selected}
+              onClick={() => toggleDraftPlan(plan.id)}
+            >
+              <span className="bundle-allowed-plan-icon">{PLAN_SELECT_ICON[plan.key]}</span>
+              <span className="bundle-allowed-plan-copy"><b>{plan.label}</b><small>{PLAN_SELECT_HINT[plan.key]}</small></span>
+              <span className="bundle-allowed-plan-check">{selected && <FiCheck />}</span>
+            </button>
+          );
+        })}
+        <div className="bundle-allowed-plan-option muted" aria-hidden="true">
+          <span className="bundle-allowed-plan-icon">{PLAN_SELECT_ICON.max}</span>
+          <span className="bundle-allowed-plan-copy"><b>Max</b><small>{PLAN_SELECT_HINT.max}</small></span>
+          <span className="bundle-allowed-plan-check"><FiCheck /></span>
+        </div>
+      </div>
+      <div className="bundle-plan-save-row">
+        {plansDirty && <button className="bundle-inline-action" type="button" disabled={busy} onClick={() => setDraftPlanIds(allowedPlanIds)}>Discard changes</button>}
+        <button className="pp-button" type="button" disabled={busy || !plansDirty} onClick={() => void saveAllowedPlans()}>{busy ? "Saving…" : plansDirty ? "Save access plans" : "Saved"}</button>
+      </div>
     </Panel>
 
     <Panel title="Curriculum composition" action={<button className="bundle-inline-action" type="button" onClick={() => void load()}><FiRefreshCw /> Refresh</button>}>

@@ -22,7 +22,8 @@ export class AddGlobalSubscriptionPlans1970000000000 implements MigrationInterfa
       );
 
       INSERT INTO subscription_plans (key, label, price_amount) VALUES
-        ('free', 'Free', NULL), ('normal', 'Normal', NULL),
+        ('free', 'Free', NULL),
+        ('normal', 'Normal', NULL),
         ('first_5_weeks', 'First 5 Weeks', NULL),
         ('last_5_weeks', 'Last 5 Weeks', NULL), ('max', 'Max', NULL)
       ON CONFLICT (key) DO NOTHING;
