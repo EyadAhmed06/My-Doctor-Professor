@@ -6,3 +6,29 @@
 @media(max-width:1180px){.advanced-study-plan-page .study-calendar.phase3-calendar{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 @media(max-width:900px){.generation-stepper{grid-template-columns:1fr 1fr;gap:12px}.generation-stepper>div:nth-child(2) em{display:none}.preview-summary{grid-template-columns:1fr 1fr}.preview-sample article{grid-template-columns:90px 1fr}.preview-sample p{grid-column:1/-1}.advanced-session{grid-template-columns:1fr!important}.session-controls{grid-column:1;flex-wrap:wrap;margin-left:39px}.advanced-study-plan-page .study-calendar.phase3-calendar{grid-template-columns:1fr!important}.advanced-study-plan-page .session-controls{grid-template-columns:40px minmax(90px,.75fr) minmax(120px,1fr)!important}}
 @media(max-width:600px){.generation-stepper,.preview-summary{grid-template-columns:1fr}.generation-stepper em{display:none}.generation-preview>footer{display:grid}.generation-preview>footer button{width:100%;justify-content:center}.preview-sample article{grid-template-columns:1fr}.preview-sample p{grid-column:auto}.session-controls{margin-left:0}.session-controls>label{flex:1}.session-rationale{margin-left:0}.day-detail-drawer{width:100%}.advanced-study-plan-page .study-calendar.phase3-calendar>article{padding:12px!important}.advanced-study-plan-page .session-controls{grid-template-columns:40px 1fr!important}.advanced-study-plan-page .session-controls>label:last-child{grid-column:1/-1!important}.advanced-study-plan-page .study-calendar.phase3-calendar>article>header button{display:block!important}.advanced-study-plan-page .study-calendar.phase3-calendar>article>header small{text-align:left!important;margin-top:4px!important}}
+
+
+/* Study plan and calendar now have dedicated views. */
+.plan-metrics.plan-metrics-compact{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
+.plan-dashboard.settings-only{
+  grid-template-columns:1fr;
+}
+.plan-dashboard.settings-only>aside{
+  display:grid;
+  grid-template-columns:minmax(0,.8fr) minmax(420px,1.2fr);
+  gap:24px;
+}
+.plan-dashboard.calendar-only{
+  grid-template-columns:1fr;
+}
+.plan-dashboard.calendar-only>section{
+  min-width:0;
+}
+@media(max-width:900px){
+  .plan-metrics.plan-metrics-compact,
+  .plan-dashboard.settings-only>aside{
+    grid-template-columns:1fr;
+  }
+}
