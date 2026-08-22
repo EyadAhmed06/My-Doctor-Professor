@@ -408,14 +408,12 @@ export function AdvancedStudyPlanPage({ calendarOnly = false }: { calendarOnly?:
           <Panel title="Readiness projection">{readiness ? <><div className="readiness-score"><b>{readiness.score}</b><span>/100</span><small>{readiness.band.replaceAll("_", " ")}</small></div>{Object.entries(readiness.components).map(([label, value]) => <div className="readiness-component" key={label}><span>{label}</span><b>{Math.round(value)}%</b><Progress value={value} /></div>)}</> : <p>Readiness is calculated after activity exists.</p>}</Panel>
 
           <Panel title={scenarioMode ? "Scenario settings" : "Plan settings"}><form className="plan-target-form" onSubmit={save}>
-            <label>Target exam<input value={activePlan.targetExam || ""} onChange={(event) => updateActive({ ...activePlan, targetExam: event.target.value })} /></label>
             <label>Exam date<input type="date" value={activePlan.examDate || ""} onChange={(event) => updateActive({ ...activePlan, examDate: event.target.value })} /></label>
             <label>Daily questions<input type="number" min="1" max="500" value={activePlan.dailyQuestionTarget} onChange={(event) => updateActive({ ...activePlan, dailyQuestionTarget: Number(event.target.value) })} /></label>
             <label>Question session minutes<input type="number" min="5" max="1440" value={Number(activePlan.preferences.questions_minutes ?? Math.max(30, Math.ceil(activePlan.dailyQuestionTarget * 1.5)))} onChange={(event) => setNumericPreference("questions_minutes", Number(event.target.value))} /></label>
             <label>Daily flashcards<input type="number" min="1" max="1000" value={activePlan.dailyFlashcardTarget} onChange={(event) => updateActive({ ...activePlan, dailyFlashcardTarget: Number(event.target.value) })} /></label>
             <label>Flashcard session minutes<input type="number" min="5" max="1440" value={Number(activePlan.preferences.flashcards_minutes ?? Math.max(15, Math.ceil(activePlan.dailyFlashcardTarget * 0.5)))} onChange={(event) => setNumericPreference("flashcards_minutes", Number(event.target.value))} /></label>
             <label>Weekly hours<input type="number" min="1" max="168" value={activePlan.weeklyHoursTarget} onChange={(event) => updateActive({ ...activePlan, weeklyHoursTarget: Number(event.target.value) })} /></label>
-            <label>Protected rest day<select value={String(restDay)} onChange={(event) => setRestDay(Number(event.target.value))}>{weekdays.map((day) => <option key={day.value} value={day.value}>{day.label}</option>)}</select></label>
             <small>Locked sessions survive regeneration. Existing completed sessions are never replaced.</small>
             {!scenarioMode && <button className="pp-button" disabled={busy}><FiSave /> Save settings</button>}
           </form></Panel>
