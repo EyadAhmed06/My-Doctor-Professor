@@ -1599,6 +1599,24 @@ html[data-theme="light"] .reference-login .heart-story-image img,
 html[data-theme="light"] .reference-register .lungs-story-image img{
   filter:saturate(.72) contrast(.94) brightness(1.13);
 }
+
+/* Use a dedicated detailed heart artwork in light mode; preserve the dark artwork unchanged. */
+.reference-login .heart-story-light{
+  display:none;
+}
+html[data-theme="light"] .reference-login .heart-story-dark{
+  display:none;
+}
+html[data-theme="light"] .reference-login .heart-story-light{
+  display:block;
+  filter:none;
+}
+html[data-theme="dark"] .reference-login .heart-story-dark{
+  display:block;
+}
+html[data-theme="dark"] .reference-login .heart-story-light{
+  display:none;
+}
 html[data-theme="light"] .reference-login .auth-proof-strip{
   background:rgba(255,255,255,.97);
   border-color:#dce3ef;
