@@ -219,3 +219,32 @@ html[data-theme="light"] .circulation-feature figure::after {
     transform: none !important;
   }
 }
+
+
+/* Original watermark-free brain pair: theme switching only, with no inherited recoloring. */
+.organ-image-grid .home-brain-light{
+  display:none !important;
+}
+html[data-theme="dark"] .organ-image-grid .home-brain-dark{
+  display:block !important;
+  filter:none !important;
+}
+html[data-theme="dark"] .organ-image-grid .home-brain-light{
+  display:none !important;
+}
+html[data-theme="light"] .organ-image-grid .home-brain-dark{
+  display:none !important;
+}
+html[data-theme="light"] .organ-image-grid .home-brain-light{
+  display:block !important;
+  width:100% !important;
+  height:auto !important;
+  aspect-ratio:1 !important;
+  object-fit:cover !important;
+  object-position:center !important;
+  opacity:1 !important;
+  mix-blend-mode:normal !important;
+  filter:none !important;
+  -webkit-mask-image:none !important;
+  mask-image:none !important;
+}
