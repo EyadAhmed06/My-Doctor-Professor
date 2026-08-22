@@ -237,7 +237,7 @@ html[data-theme="light"] .organ-image-grid figure:nth-child(1) img.home-brain-ar
   opacity:1 !important;
   visibility:visible !important;
   mix-blend-mode:normal !important;
-  filter:none !important;
+  filter:saturate(1.28) contrast(1.18) brightness(.88) !important;
   -webkit-mask-image:none !important;
   mask-image:none !important;
 }
