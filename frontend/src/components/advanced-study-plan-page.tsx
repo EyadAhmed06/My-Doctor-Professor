@@ -1,11 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   FiBookOpen,
   FiCalendar,
   FiCheck,
-  FiChevronRight,
   FiClock,
   FiEdit3,
   FiLock,
@@ -103,7 +103,7 @@ function clonePlan(plan: Plan) {
   return structuredClone(plan);
 }
 
-export function AdvancedStudyPlanPage() {
+export function AdvancedStudyPlanPage({ calendarOnly = false }: { calendarOnly?: boolean }) {
   const { user, request } = useAuth();
   const { notify, celebrate } = useUx();
   const [today] = useState(() => Date.now());
@@ -323,10 +323,6 @@ export function AdvancedStudyPlanPage() {
   }, {}), [calendar]);
   const days = Object.entries(grouped).slice(0, 21);
   const moveDates = Object.keys(grouped).filter((date) => new Date(`${date}T23:59:59`).getTime() >= today && (activePlan?.examDate ? date < activePlan.examDate : true));
-  const completedCount = calendar.filter((item) => item.status === "COMPLETED").length;
-  const completion = calendar.length ? Math.round(completedCount * 100 / calendar.length) : 0;
-  const overdue = calendar.filter((item) => item.status === "PLANNED" && new Date(`${item.scheduledDate}T23:59:59`).getTime() < today).length;
-  const lockedCount = calendar.filter((item) => item.metadata.locked).length;
 
   function updateActive(next: Plan) {
     if (scenarioMode) setScenario(next);
@@ -365,45 +361,35 @@ export function AdvancedStudyPlanPage() {
 
   return <ProductShell><main className="pp-page study-plan-restored advanced-study-plan-page">
     <header className="workspace-heading">
-      <div><span className="page-eyebrow">ADAPTIVE LEARNING SCHEDULE</span><h1>Study Plan</h1><p>Preview, protect, resize, and build a calendar from your exam date, active bundles, and learning targets.</p></div>
+      <div><span className="page-eyebrow">ADAPTIVE LEARNING SCHEDULE</span><h1>{calendarOnly ? "Study Calendar" : "Study Plan"}</h1><p>{calendarOnly ? "Review, complete, protect, resize, and reschedule your generated sessions." : "Set your learning targets and weekly study capacity."}</p></div>
       <div className="plan-header-actions">
-        {plan && !scenarioMode && <button className="pp-button secondary" type="button" onClick={() => setScenario(clonePlan(plan))}><FiTarget /> What-if mode</button>}
-        {scenarioMode && <><button className="pp-button secondary" type="button" onClick={() => setScenario(null)}><FiX /> Cancel scenario</button><button className="pp-button" type="button" disabled={busy} onClick={() => void applyScenario()}><FiSave /> Apply scenario</button></>}
-        <button className="pp-button" disabled={busy || scenarioMode || !plan?.examDate} onClick={() => void previewGeneration()}><FiRefreshCw /> {generationState === "PREVIEWING" ? "Analyzing…" : "Preview calendar"}</button>
+        {calendarOnly ? <>
+          <Link className="pp-button secondary" href="/study-plan">Back to study plan</Link>
+          {preview && generationState === "READY" ? <button className="pp-button" type="button" disabled={busy} onClick={() => void generate()}><FiCheck /> Accept and build</button> : <button className="pp-button" disabled={busy || !plan?.examDate} onClick={() => void previewGeneration()}><FiRefreshCw /> {generationState === "PREVIEWING" ? "Analyzing…" : "Rebuild calendar"}</button>}
+        </> : <>
+          {plan && !scenarioMode && <button className="pp-button secondary" type="button" onClick={() => setScenario(clonePlan(plan))}><FiTarget /> What-if mode</button>}
+          {scenarioMode && <><button className="pp-button secondary" type="button" onClick={() => setScenario(null)}><FiX /> Cancel scenario</button><button className="pp-button" type="button" disabled={busy} onClick={() => void applyScenario()}><FiSave /> Apply scenario</button></>}
+          <Link className="pp-button" href="/study-plan/calendar"><FiCalendar /> Show calendar</Link>
+        </>}
       </div>
     </header>
 
     {error && <p className="form-error" role="alert">{error}</p>}
     {message && <p className="form-success" role="status">{message}</p>}
 
-    <GenerationStepper state={generationState} />
-
-    {preview && <Panel title="Before / after calendar preview" className="generation-preview">
-      <div className="preview-summary">
-        <div><small>Planned sessions replaced</small><b>{preview.replacing_planned}</b><span>Only unlocked future planned sessions</span></div>
-        <div><small>New sessions generated</small><b>{preview.generated_count}</b><span>Version {preview.schedule_version}</span></div>
-        <div><small>Locked sessions preserved</small><b>{preview.preserved_locked}</b><span>Protected from regeneration</span></div>
-        <div><small>Calendar window</small><b>{new Date(`${preview.from}T00:00:00`).toLocaleDateString()}</b><span>through {new Date(`${preview.to}T00:00:00`).toLocaleDateString()}</span></div>
-      </div>
-      <div className="preview-types">{Object.entries(preview.totals).map(([label, value]) => <span key={label}><b>{value}</b> {label.replaceAll("_", " ")}</span>)}</div>
-      <details><summary>Inspect first generated sessions <FiChevronRight /></summary><div className="preview-sample">{preview.sample.map((item, index) => <article key={`${item.scheduledDate}-${item.itemType}-${index}`}><time>{new Date(`${item.scheduledDate}T00:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</time><div><b>{item.metadata.title || item.itemType.replaceAll("_", " ")}</b><small>{item.durationMinutes} min{item.targetCount ? ` · ${item.targetCount} items` : ""}</small></div><p>{rationaleFor(item)}</p></article>)}</div></details>
-      <footer><button className="pp-button secondary" type="button" onClick={() => { setPreview(null); setGenerationState("IDLE"); }}>Cancel</button><button className="pp-button secondary" type="button" disabled={busy} onClick={() => void previewGeneration()}><FiRefreshCw /> Recalculate</button><button className="pp-button" type="button" disabled={busy} onClick={() => void generate()}><FiCheck /> Accept and build</button></footer>
-    </Panel>}
+    {calendarOnly && <GenerationStepper state={generationState} />}
 
     {scenarioMode && projection && <section className={`what-if-banner ${projection.overCapacity ? "warning" : ""}`}><div><b>What-if preview</b><p>Nothing is saved until you apply the scenario.</p></div><span>{projection.studyDays} study days</span><span>{projection.questionCapacity.toLocaleString()} question capacity</span><span>{projection.flashcardCapacity.toLocaleString()} flashcard capacity</span><span>{Math.round(projection.weeklyMinutes / 6) / 10} planned hrs/week</span>{projection.overCapacity && <strong>Above your weekly-hours target</strong>}</section>}
 
     {user?.role !== "STUDENT" ? <Panel title="Student account required"><p>Study plans belong to student accounts.</p></Panel> : loading ? <PageSkeleton variant="calendar" label="Loading study plan" /> : !activePlan ? <Panel title="Study plan unavailable"><p>The plan could not be initialized.</p></Panel> : <>
-      <section className="plan-metrics">
-        <Metric icon={<FiCalendar />} label={activePlan.targetExam || "Target exam"} value={activePlan.examDate ? `${Math.max(0, Math.ceil((new Date(activePlan.examDate).getTime() - today) / 86400000))} days` : "Not scheduled"} detail={activePlan.examDate || "Choose a future date"} />
+      {!calendarOnly && <section className="plan-metrics plan-metrics-compact">
         <Metric icon={<FiTarget />} label="Daily target" value={`${activePlan.dailyQuestionTarget} Qs`} detail={`${activePlan.dailyQuestionTarget * 7} maximum per week`} />
         <Metric icon={<FiClock />} label="Planning target" value={`${activePlan.weeklyHoursTarget} hrs`} detail="stored weekly capacity" />
         <Metric icon={<FiBookOpen />} label="Review target" value={`${activePlan.dailyFlashcardTarget}`} detail="flashcards per study day" />
-        <Metric icon={<FiCheck />} label="Schedule completion" value={`${completion}%`} detail={`${completedCount} of ${calendar.length} sessions`} />
-        <Metric icon={<FiLock />} label="Protected sessions" value={String(lockedCount)} detail={overdue ? `${overdue} overdue sessions` : "Nothing overdue"} />
-      </section>
+      </section>}
 
-      <div className="plan-dashboard">
-        <section><Panel title="Generated calendar" action={<small>{plan?.generatedAt ? `Version ${plan.scheduleVersion} · ${new Date(plan.generatedAt).toLocaleString()}` : "Not generated yet"}</small>}>
+      <div className={`plan-dashboard ${calendarOnly ? "calendar-only" : "settings-only"}`}>
+        {calendarOnly && <section><Panel title="Generated calendar" action={<small>{plan?.generatedAt ? `Version ${plan.scheduleVersion} · ${new Date(plan.generatedAt).toLocaleString()}` : "Not generated yet"}</small>}>
           {days.length ? <div className="study-calendar phase3-calendar">{days.map(([date, items]) => <article className={`${draggedId ? "drop-ready" : ""} ${selectedDay === date ? "selected-day" : ""}`} key={date} onDragOver={(event) => { if (draggedId) event.preventDefault(); }} onDrop={() => dropOn(date)}>
             <header><button type="button" onClick={() => setSelectedDay(date)}><b>{new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</b><small>{items.reduce((sum, item) => sum + item.durationMinutes, 0)} min · {items.length} sessions</small></button></header>
             {items.map((item) => <div className={`study-plan-session advanced-session ${item.status === "COMPLETED" ? "completed" : ""} ${movingIds.has(item.id) ? "moving" : ""} ${item.metadata.locked ? "locked" : ""}`} draggable={item.status !== "COMPLETED" && item.itemType !== "REST" && !item.metadata.locked} onDragStart={() => setDraggedId(item.id)} onDragEnd={() => setDraggedId(null)} key={item.id}>
@@ -416,9 +402,9 @@ export function AdvancedStudyPlanPage() {
               <details className="session-rationale"><summary>Why this session?</summary><p>{rationaleFor(item)}</p></details>
             </div>)}
           </article>)}</div> : <p>No schedule exists yet. Save an exam date, then preview your calendar.</p>}
-        </Panel></section>
+        </Panel></section>}
 
-        <aside>
+        {!calendarOnly && <aside>
           <Panel title="Readiness projection">{readiness ? <><div className="readiness-score"><b>{readiness.score}</b><span>/100</span><small>{readiness.band.replaceAll("_", " ")}</small></div>{Object.entries(readiness.components).map(([label, value]) => <div className="readiness-component" key={label}><span>{label}</span><b>{Math.round(value)}%</b><Progress value={value} /></div>)}</> : <p>Readiness is calculated after activity exists.</p>}</Panel>
 
           <Panel title={scenarioMode ? "Scenario settings" : "Plan settings"}><form className="plan-target-form" onSubmit={save}>
@@ -436,8 +422,8 @@ export function AdvancedStudyPlanPage() {
         </aside>
       </div>
 
-      {selectedDay && <button className="day-drawer-backdrop" type="button" aria-label="Close selected day" onClick={() => setSelectedDay(null)} />}
-      {selectedDay && <aside className="day-detail-drawer" role="dialog" aria-modal="true" aria-label={`Sessions for ${selectedDay}`}><header><div><small>SELECTED DAY</small><h2>{new Date(`${selectedDay}T00:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</h2></div><button type="button" onClick={() => setSelectedDay(null)}><FiX /></button></header><div>{selectedItems.map((item) => <article key={item.id}><span>{item.itemType.replaceAll("_", " ")}</span><h3>{titleFor(item)}</h3><p>{rationaleFor(item)}</p><small>{item.durationMinutes} minutes{item.targetCount ? ` · ${item.targetCount} items` : ""}{item.metadata.locked ? " · Locked" : ""}</small></article>)}</div></aside>}
+      {calendarOnly && selectedDay && <button className="day-drawer-backdrop" type="button" aria-label="Close selected day" onClick={() => setSelectedDay(null)} />}
+      {calendarOnly && selectedDay && <aside className="day-detail-drawer" role="dialog" aria-modal="true" aria-label={`Sessions for ${selectedDay}`}><header><div><small>SELECTED DAY</small><h2>{new Date(`${selectedDay}T00:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</h2></div><button type="button" onClick={() => setSelectedDay(null)}><FiX /></button></header><div>{selectedItems.map((item) => <article key={item.id}><span>{item.itemType.replaceAll("_", " ")}</span><h3>{titleFor(item)}</h3><p>{rationaleFor(item)}</p><small>{item.durationMinutes} minutes{item.targetCount ? ` · ${item.targetCount} items` : ""}{item.metadata.locked ? " · Locked" : ""}</small></article>)}</div></aside>}
     </>}
   </main></ProductShell>;
 }
