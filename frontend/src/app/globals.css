@@ -1595,9 +1595,11 @@ html[data-theme="light"] .reference-register{
   --auth-input:#f6f8fc;
   --auth-line:#dce3ef;
 }
-html[data-theme="light"] .reference-login .heart-story-image img,
-html[data-theme="light"] .reference-register .lungs-story-image img{
+html[data-theme="light"] .reference-login .heart-story-image img{
   filter:saturate(.72) contrast(.94) brightness(1.13);
+}
+html[data-theme="light"] .reference-register .lungs-story-image img{
+  filter:invert(1) hue-rotate(180deg) saturate(.9) contrast(1.08) brightness(1.02);
 }
 
 /* Use a dedicated detailed heart artwork in light mode; preserve the dark artwork unchanged. */
@@ -1615,24 +1617,6 @@ html[data-theme="dark"] .reference-login .heart-story-dark{
   display:block;
 }
 html[data-theme="dark"] .reference-login .heart-story-light{
-  display:none;
-}
-
-/* Use a dedicated detailed lungs artwork in light mode; preserve the dark artwork unchanged. */
-.reference-register .lungs-story-light{
-  display:none;
-}
-html[data-theme="light"] .reference-register .lungs-story-dark{
-  display:none;
-}
-html[data-theme="light"] .reference-register .lungs-story-light{
-  display:block;
-  filter:none !important;
-}
-html[data-theme="dark"] .reference-register .lungs-story-dark{
-  display:block;
-}
-html[data-theme="dark"] .reference-register .lungs-story-light{
   display:none;
 }
 html[data-theme="light"] .reference-login .auth-proof-strip{
