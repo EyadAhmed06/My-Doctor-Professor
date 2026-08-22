@@ -76,16 +76,6 @@ type Preview = {
 
 type GenerationState = "IDLE" | "PREVIEWING" | "READY" | "BUILDING" | "COMPLETE";
 
-const weekdays = [
-  { value: 0, label: "Sunday" },
-  { value: 1, label: "Monday" },
-  { value: 2, label: "Tuesday" },
-  { value: 3, label: "Wednesday" },
-  { value: 4, label: "Thursday" },
-  { value: 5, label: "Friday" },
-  { value: 6, label: "Saturday" },
-];
-
 function titleFor(item: Pick<Item, "itemType" | "metadata" | "lecture">) {
   return item.lecture?.title || item.metadata.title || item.itemType.replaceAll("_", " ");
 }
@@ -333,12 +323,6 @@ export function AdvancedStudyPlanPage({ calendarOnly = false }: { calendarOnly?:
     if (activePlan) updateActive({ ...activePlan, preferences: { ...activePlan.preferences, [key]: value } });
   }
 
-  function setRestDay(day: number) {
-    if (!activePlan) return;
-    updateActive({ ...activePlan, preferences: { ...activePlan.preferences, rest_day: day, available_days: weekdays.map((item) => item.value).filter((value) => value !== day) } });
-  }
-
-  const restDay = Number(activePlan?.preferences.rest_day ?? 0);
   const projection = useMemo(() => {
     if (!activePlan) return null;
     const until = activePlan.examDate ? Math.max(0, Math.ceil((new Date(activePlan.examDate).getTime() - today) / 86400000)) : 0;
