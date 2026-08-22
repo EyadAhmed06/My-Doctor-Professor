@@ -98,7 +98,7 @@ export function LandingPage() {
       </div>
       <figure className="hero-duo" aria-label={t("The Doctor and The Professor", "الطبيب والأستاذ")}>
         <img className="hero-duo-dark" src="/media/hero-doctor-professor.webp" alt={t("The Doctor representing clinical precision and The Professor representing academic wisdom", "الطبيب ممثلًا للدقة السريرية والأستاذ ممثلًا للحكمة الأكاديمية")} />
-        <img className="hero-duo-light" src="/media/hero-doctor-professor-light.webp?v=20260822-detail" alt={t("The Doctor representing clinical precision and The Professor representing academic wisdom", "الطبيب ممثلًا للدقة السريرية والأستاذ ممثلًا للحكمة الأكاديمية")} />
+        <img className="hero-duo-light" src="/media/hero-doctor-professor-light.webp?v=20260822-restored" alt={t("The Doctor representing clinical precision and The Professor representing academic wisdom", "الطبيب ممثلًا للدقة السريرية والأستاذ ممثلًا للحكمة الأكاديمية")} />
       </figure>
     </section>
 
