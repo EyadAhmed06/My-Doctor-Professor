@@ -1,8 +1,7 @@
-/* Navbar logo refinement requested for LIGHT MODE ONLY.
-   The source emblem stays unchanged so dark mode keeps its existing artwork. */
-html[data-theme="light"] .public-nav .brand-emblem,
-html[data-theme="light"] .pp-topbar .brand-emblem {
-  /* Recolor the transparent emblem artwork to the exact reference violet #6850e4. */
+/* Unified brand treatment requested for LIGHT MODE ONLY.
+   Source artwork and every dark-mode presentation remain unchanged. */
+html[data-theme="light"] .brand-emblem {
+  /* Exact reference violet: #6850e4. */
   filter:
     brightness(0)
     saturate(100%)
@@ -11,5 +10,10 @@ html[data-theme="light"] .pp-topbar .brand-emblem {
     saturate(869.789%)
     hue-rotate(222.94deg)
     brightness(88.897%)
-    contrast(105.218%);
+    contrast(105.218%) !important;
+}
+
+html[data-theme="light"] .brand-lockup .brand-words strong,
+html[data-theme="light"] .public-eyebrow {
+  color: #050505 !important;
 }
