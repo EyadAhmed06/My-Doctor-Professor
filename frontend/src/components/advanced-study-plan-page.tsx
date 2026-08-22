@@ -419,7 +419,7 @@ export function AdvancedStudyPlanPage({ calendarOnly = false }: { calendarOnly?:
             <small>Locked sessions survive regeneration. Existing completed sessions are never replaced.</small>
             {!scenarioMode && <button className="pp-button" disabled={busy}><FiSave /> Save settings</button>}
           </form></Panel>
-        </aside>
+        </aside>}
       </div>
 
       {calendarOnly && selectedDay && <button className="day-drawer-backdrop" type="button" aria-label="Close selected day" onClick={() => setSelectedDay(null)} />}
