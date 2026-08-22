@@ -1609,7 +1609,7 @@ html[data-theme="light"] .reference-login .heart-story-dark{
 }
 html[data-theme="light"] .reference-login .heart-story-light{
   display:block;
-  filter:none;
+  filter:none !important;
 }
 html[data-theme="dark"] .reference-login .heart-story-dark{
   display:block;
