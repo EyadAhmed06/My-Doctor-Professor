@@ -220,22 +220,14 @@ html[data-theme="light"] .circulation-feature figure::after {
   }
 }
 
-
-/* Original watermark-free brain pair: theme switching only, with no inherited recoloring. */
-.organ-image-grid .home-brain-light{
-  display:none !important;
-}
-html[data-theme="dark"] .organ-image-grid .home-brain-dark{
+/* Deterministic theme source for the original watermark-free brain artwork. */
+html[data-theme="dark"] .organ-image-grid figure:nth-child(1) img.home-brain-art{
+  content:url('/media/home-brain-original-dark.webp?v=20260822-dark') !important;
   display:block !important;
   filter:none !important;
 }
-html[data-theme="dark"] .organ-image-grid .home-brain-light{
-  display:none !important;
-}
-html[data-theme="light"] .organ-image-grid .home-brain-dark{
-  display:none !important;
-}
-html[data-theme="light"] .organ-image-grid .home-brain-light{
+html[data-theme="light"] .organ-image-grid figure:nth-child(1) img.home-brain-art{
+  content:url('/media/home-brain-original-light.webp?v=20260822-light-2') !important;
   display:block !important;
   width:100% !important;
   height:auto !important;
@@ -243,6 +235,7 @@ html[data-theme="light"] .organ-image-grid .home-brain-light{
   object-fit:cover !important;
   object-position:center !important;
   opacity:1 !important;
+  visibility:visible !important;
   mix-blend-mode:normal !important;
   filter:none !important;
   -webkit-mask-image:none !important;
