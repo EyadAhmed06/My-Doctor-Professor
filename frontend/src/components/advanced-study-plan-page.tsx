@@ -89,16 +89,11 @@ function rationaleFor(item: Pick<Item, "itemType" | "metadata">) {
   return "Protected recovery time prevents the schedule from becoming unsustainably dense.";
 }
 
-function clonePlan(plan: Plan) {
-  return structuredClone(plan);
-}
-
 export function AdvancedStudyPlanPage({ calendarOnly = false }: { calendarOnly?: boolean }) {
   const { user, request } = useAuth();
   const { notify, celebrate } = useUx();
   const [today] = useState(() => Date.now());
   const [plan, setPlan] = useState<Plan | null>(null);
-  const [scenario, setScenario] = useState<Plan | null>(null);
   const [calendar, setCalendar] = useState<Item[]>([]);
   const [readiness, setReadiness] = useState<Readiness | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -110,9 +105,6 @@ export function AdvancedStudyPlanPage({ calendarOnly = false }: { calendarOnly?:
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-
-  const scenarioMode = !!scenario;
-  const activePlan = scenario || plan;
 
   const load = useCallback(async () => {
     if (user?.role !== "STUDENT") {
@@ -154,7 +146,7 @@ export function AdvancedStudyPlanPage({ calendarOnly = false }: { calendarOnly?:
 
   async function save(event: FormEvent) {
     event.preventDefault();
-    if (!plan || scenarioMode) return;
+    if (!plan) return;
     setBusy(true);
     setError(null);
     setMessage(null);
@@ -166,24 +158,6 @@ export function AdvancedStudyPlanPage({ calendarOnly = false }: { calendarOnly?:
       setMessage("Plan settings saved. Preview the next calendar before replacing future sessions.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to save plan.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function applyScenario() {
-    if (!scenario) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const saved = await request<Plan>("/study-plan", { method: "PUT", body: payload(scenario) });
-      setPlan(saved);
-      setScenario(null);
-      setPreview(null);
-      setGenerationState("IDLE");
-      notify({ title: "What-if scenario applied", description: "Preview the regenerated calendar before accepting it.", tone: "success" });
-    } catch (cause) {
-      notify({ title: "Could not apply scenario", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
     } finally {
       setBusy(false);
     }
@@ -312,34 +286,15 @@ export function AdvancedStudyPlanPage({ calendarOnly = false }: { calendarOnly?:
     return map;
   }, {}), [calendar]);
   const days = Object.entries(grouped).slice(0, 21);
-  const moveDates = Object.keys(grouped).filter((date) => new Date(`${date}T23:59:59`).getTime() >= today && (activePlan?.examDate ? date < activePlan.examDate : true));
+  const moveDates = Object.keys(grouped).filter((date) => new Date(`${date}T23:59:59`).getTime() >= today && (plan?.examDate ? date < plan.examDate : true));
 
   function updateActive(next: Plan) {
-    if (scenarioMode) setScenario(next);
-    else setPlan(next);
+    setPlan(next);
   }
 
   function setNumericPreference(key: "questions_minutes" | "flashcards_minutes", value: number) {
-    if (activePlan) updateActive({ ...activePlan, preferences: { ...activePlan.preferences, [key]: value } });
+    if (plan) updateActive({ ...plan, preferences: { ...plan.preferences, [key]: value } });
   }
-
-  const projection = useMemo(() => {
-    if (!activePlan) return null;
-    const until = activePlan.examDate ? Math.max(0, Math.ceil((new Date(activePlan.examDate).getTime() - today) / 86400000)) : 0;
-    const available = activePlan.preferences.available_days?.length ?? 6;
-    const studyDays = Math.max(0, Math.floor(until * available / 7));
-    const questionsMinutes = Number(activePlan.preferences.questions_minutes ?? Math.max(30, Math.ceil(activePlan.dailyQuestionTarget * 1.5)));
-    const flashcardsMinutes = Number(activePlan.preferences.flashcards_minutes ?? Math.max(15, Math.ceil(activePlan.dailyFlashcardTarget * 0.5)));
-    const weeklyMinutes = available * (questionsMinutes + flashcardsMinutes + 60);
-    return {
-      until,
-      studyDays,
-      questionCapacity: studyDays * activePlan.dailyQuestionTarget,
-      flashcardCapacity: studyDays * activePlan.dailyFlashcardTarget,
-      weeklyMinutes,
-      overCapacity: weeklyMinutes > activePlan.weeklyHoursTarget * 60,
-    };
-  }, [activePlan, today]);
 
   const selectedItems = selectedDay ? grouped[selectedDay] || [] : [];
 
@@ -351,8 +306,6 @@ export function AdvancedStudyPlanPage({ calendarOnly = false }: { calendarOnly?:
           <Link className="pp-button secondary" href="/study-plan">Back to study plan</Link>
           {preview && generationState === "READY" ? <button className="pp-button" type="button" disabled={busy} onClick={() => void generate()}><FiCheck /> Accept and build</button> : <button className="pp-button" disabled={busy || !plan?.examDate} onClick={() => void previewGeneration()}><FiRefreshCw /> {generationState === "PREVIEWING" ? "Analyzing…" : "Rebuild calendar"}</button>}
         </> : <>
-          {plan && !scenarioMode && <button className="pp-button secondary" type="button" onClick={() => setScenario(clonePlan(plan))}><FiTarget /> What-if mode</button>}
-          {scenarioMode && <><button className="pp-button secondary" type="button" onClick={() => setScenario(null)}><FiX /> Cancel scenario</button><button className="pp-button" type="button" disabled={busy} onClick={() => void applyScenario()}><FiSave /> Apply scenario</button></>}
           <Link className="pp-button" href="/study-plan/calendar"><FiCalendar /> Show calendar</Link>
         </>}
       </div>
@@ -363,13 +316,12 @@ export function AdvancedStudyPlanPage({ calendarOnly = false }: { calendarOnly?:
 
     {calendarOnly && <GenerationStepper state={generationState} />}
 
-    {scenarioMode && projection && <section className={`what-if-banner ${projection.overCapacity ? "warning" : ""}`}><div><b>What-if preview</b><p>Nothing is saved until you apply the scenario.</p></div><span>{projection.studyDays} study days</span><span>{projection.questionCapacity.toLocaleString()} question capacity</span><span>{projection.flashcardCapacity.toLocaleString()} flashcard capacity</span><span>{Math.round(projection.weeklyMinutes / 6) / 10} planned hrs/week</span>{projection.overCapacity && <strong>Above your weekly-hours target</strong>}</section>}
 
-    {user?.role !== "STUDENT" ? <Panel title="Student account required"><p>Study plans belong to student accounts.</p></Panel> : loading ? <PageSkeleton variant="calendar" label="Loading study plan" /> : !activePlan ? <Panel title="Study plan unavailable"><p>The plan could not be initialized.</p></Panel> : <>
+    {user?.role !== "STUDENT" ? <Panel title="Student account required"><p>Study plans belong to student accounts.</p></Panel> : loading ? <PageSkeleton variant="calendar" label="Loading study plan" /> : !plan ? <Panel title="Study plan unavailable"><p>The plan could not be initialized.</p></Panel> : <>
       {!calendarOnly && <section className="plan-metrics plan-metrics-compact">
-        <Metric icon={<FiTarget />} label="Daily target" value={`${activePlan.dailyQuestionTarget} Qs`} detail={`${activePlan.dailyQuestionTarget * 7} maximum per week`} />
-        <Metric icon={<FiClock />} label="Planning target" value={`${activePlan.weeklyHoursTarget} hrs`} detail="stored weekly capacity" />
-        <Metric icon={<FiBookOpen />} label="Review target" value={`${activePlan.dailyFlashcardTarget}`} detail="flashcards per study day" />
+        <Metric icon={<FiTarget />} label="Daily target" value={`${plan.dailyQuestionTarget} Qs`} detail={`${plan.dailyQuestionTarget * 7} maximum per week`} />
+        <Metric icon={<FiClock />} label="Planning target" value={`${plan.weeklyHoursTarget} hrs`} detail="stored weekly capacity" />
+        <Metric icon={<FiBookOpen />} label="Review target" value={`${plan.dailyFlashcardTarget}`} detail="flashcards per study day" />
       </section>}
 
       <div className={`plan-dashboard ${calendarOnly ? "calendar-only" : "settings-only"}`}>
@@ -391,15 +343,15 @@ export function AdvancedStudyPlanPage({ calendarOnly = false }: { calendarOnly?:
         {!calendarOnly && <aside>
           <Panel title="Readiness projection">{readiness ? <><div className="readiness-score"><b>{readiness.score}</b><span>/100</span><small>{readiness.band.replaceAll("_", " ")}</small></div>{Object.entries(readiness.components).map(([label, value]) => <div className="readiness-component" key={label}><span>{label}</span><b>{Math.round(value)}%</b><Progress value={value} /></div>)}</> : <p>Readiness is calculated after activity exists.</p>}</Panel>
 
-          <Panel title={scenarioMode ? "Scenario settings" : "Plan settings"}><form className="plan-target-form" onSubmit={save}>
-            <label>Exam date<input type="date" value={activePlan.examDate || ""} onChange={(event) => updateActive({ ...activePlan, examDate: event.target.value })} /></label>
-            <label>Daily questions<input type="number" min="1" max="500" value={activePlan.dailyQuestionTarget} onChange={(event) => updateActive({ ...activePlan, dailyQuestionTarget: Number(event.target.value) })} /></label>
-            <label>Question session minutes<input type="number" min="5" max="1440" value={Number(activePlan.preferences.questions_minutes ?? Math.max(30, Math.ceil(activePlan.dailyQuestionTarget * 1.5)))} onChange={(event) => setNumericPreference("questions_minutes", Number(event.target.value))} /></label>
-            <label>Daily flashcards<input type="number" min="1" max="1000" value={activePlan.dailyFlashcardTarget} onChange={(event) => updateActive({ ...activePlan, dailyFlashcardTarget: Number(event.target.value) })} /></label>
-            <label>Flashcard session minutes<input type="number" min="5" max="1440" value={Number(activePlan.preferences.flashcards_minutes ?? Math.max(15, Math.ceil(activePlan.dailyFlashcardTarget * 0.5)))} onChange={(event) => setNumericPreference("flashcards_minutes", Number(event.target.value))} /></label>
-            <label>Weekly hours<input type="number" min="1" max="168" value={activePlan.weeklyHoursTarget} onChange={(event) => updateActive({ ...activePlan, weeklyHoursTarget: Number(event.target.value) })} /></label>
+          <Panel title="Plan settings"><form className="plan-target-form" onSubmit={save}>
+            <label>Exam date<input type="date" value={plan.examDate || ""} onChange={(event) => updateActive({ ...plan, examDate: event.target.value })} /></label>
+            <label>Daily questions<input type="number" min="1" max="500" value={plan.dailyQuestionTarget} onChange={(event) => updateActive({ ...plan, dailyQuestionTarget: Number(event.target.value) })} /></label>
+            <label>Question session minutes<input type="number" min="5" max="1440" value={Number(plan.preferences.questions_minutes ?? Math.max(30, Math.ceil(plan.dailyQuestionTarget * 1.5)))} onChange={(event) => setNumericPreference("questions_minutes", Number(event.target.value))} /></label>
+            <label>Daily flashcards<input type="number" min="1" max="1000" value={plan.dailyFlashcardTarget} onChange={(event) => updateActive({ ...plan, dailyFlashcardTarget: Number(event.target.value) })} /></label>
+            <label>Flashcard session minutes<input type="number" min="5" max="1440" value={Number(plan.preferences.flashcards_minutes ?? Math.max(15, Math.ceil(plan.dailyFlashcardTarget * 0.5)))} onChange={(event) => setNumericPreference("flashcards_minutes", Number(event.target.value))} /></label>
+            <label>Weekly hours<input type="number" min="1" max="168" value={plan.weeklyHoursTarget} onChange={(event) => updateActive({ ...plan, weeklyHoursTarget: Number(event.target.value) })} /></label>
             <small>Locked sessions survive regeneration. Existing completed sessions are never replaced.</small>
-            {!scenarioMode && <button className="pp-button" disabled={busy}><FiSave /> Save settings</button>}
+            <button className="pp-button" disabled={busy}><FiSave /> Save settings</button>
           </form></Panel>
         </aside>}
       </div>
