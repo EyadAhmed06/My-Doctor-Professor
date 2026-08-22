@@ -62,7 +62,8 @@ export function LoginPage(){
     <section className="story-side auth-motion-story">
       <Brand/>
       <figure className="auth-organ-visual heart-story-image">
-        <img src="/media/login-heart-reference.png" alt="Luminous anatomical heart with an electrocardiogram trace" />
+        <img className="heart-story-dark" src="/media/login-heart-reference.png" alt="Luminous anatomical heart with an electrocardiogram trace" />
+        <img className="heart-story-light" src="/media/login-heart-light.webp?v=20260822" alt="Detailed anatomical heart with an electrocardiogram trace in light mode" />
       </figure>
     </section>
     <section className="form-side auth-motion-form">
