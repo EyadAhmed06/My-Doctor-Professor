@@ -30,7 +30,7 @@ html[data-theme="light"] .circulation-feature figure img {
 }
 
 /* Doctor + Professor hero.
- * Light mode uses the dedicated light artwork; dark mode keeps the original.
+ * Light mode uses the dedicated high-detail light artwork; dark mode keeps the original.
  */
 .hero-duo-light {
   display: none;
