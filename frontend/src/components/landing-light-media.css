@@ -227,7 +227,7 @@ html[data-theme="dark"] .organ-image-grid figure:nth-child(1) img.home-brain-art
   filter:none !important;
 }
 html[data-theme="light"] .organ-image-grid figure:nth-child(1) img.home-brain-art{
-  content:url('/media/home-brain-original-light.webp?v=20260822-light-2') !important;
+  content:url('/media/home-brain-original-light.webp?v=20260822-light-3') !important;
   display:block !important;
   width:100% !important;
   height:auto !important;
@@ -237,7 +237,7 @@ html[data-theme="light"] .organ-image-grid figure:nth-child(1) img.home-brain-ar
   opacity:1 !important;
   visibility:visible !important;
   mix-blend-mode:normal !important;
-  filter:saturate(1.28) contrast(1.18) brightness(.88) !important;
+  filter:none !important;
   -webkit-mask-image:none !important;
   mask-image:none !important;
 }
