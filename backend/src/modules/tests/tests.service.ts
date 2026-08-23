@@ -69,19 +69,13 @@ export class TestsService implements OnModuleInit {
       ADD COLUMN IF NOT EXISTS confidence_level varchar(12)
     `);
     await this.dataSource.query(`
-      DO $
-      BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM pg_constraint
-          WHERE conname = 'chk_student_answer_confidence'
-            AND conrelid = 'student_answers'::regclass
-        ) THEN
-          ALTER TABLE student_answers
-          ADD CONSTRAINT chk_student_answer_confidence
-          CHECK (confidence_level IS NULL OR confidence_level IN ('LOW', 'MEDIUM', 'HIGH'));
-        END IF;
-      END
-      $;
+      ALTER TABLE student_answers
+      DROP CONSTRAINT IF EXISTS chk_student_answer_confidence
+    `);
+    await this.dataSource.query(`
+      ALTER TABLE student_answers
+      ADD CONSTRAINT chk_student_answer_confidence
+      CHECK (confidence_level IS NULL OR confidence_level IN ('LOW', 'MEDIUM', 'HIGH'))
     `);
   }
 
