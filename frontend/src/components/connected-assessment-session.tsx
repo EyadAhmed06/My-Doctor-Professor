@@ -34,7 +34,8 @@ type Attempt = {
   startedAt?: string | null;
   test?: { title: string; durationMinutes?: number | null; testType?: string };
 };
-type Answer = { questionId: string; selectedOptionId: string | null; isCorrect?: boolean | null };
+type ConfidenceLevel = "LOW" | "MEDIUM" | "HIGH";
+type Answer = { questionId: string; selectedOptionId: string | null; confidenceLevel?: ConfidenceLevel | null; isCorrect?: boolean | null };
 type WorkspaceState = {
   attempt: Attempt;
   answers: Answer[];
@@ -111,6 +112,8 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   const [items, setItems] = useState<Assignment[]>([]);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [pendingAnswers, setPendingAnswers] = useState<Record<string, string>>({});
+  const [confidence, setConfidence] = useState<Record<string, ConfidenceLevel>>({});
   const [flags, setFlags] = useState<string[]>([]);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState<Record<string, TutorFeedback>>({});
@@ -156,6 +159,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
         if (!active) return;
         setAttempt(state.attempt); setItems(questions);
         setAnswers(Object.fromEntries(state.answers.filter((item) => item.selectedOptionId).map((item) => [item.questionId, item.selectedOptionId!])));
+        setConfidence(Object.fromEntries(state.answers.filter((item) => item.confidenceLevel).map((item) => [item.questionId, item.confidenceLevel!])));
         setFlags(state.flagged_question_ids); setNotes(Object.fromEntries(state.notes.map((item) => [item.question_id, item.note])));
       })
       .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "Unable to load this attempt."); })
@@ -210,34 +214,39 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   }
   function clearQuestionHighlights(questionId: string) { setHighlights((value) => { const next = { ...value }; delete next[questionId]; return next; }); }
 
-  async function choose(optionId: string) {
-    if (!current || expired || Boolean(tutor && feedback[current.question.id])) return;
+  async function choose(optionId: string, confidenceLevel: ConfidenceLevel) {
+    if (!current || expired || Boolean(tutor && feedback[current.question.id] && answers[current.question.id] !== optionId)) return;
     const questionId = current.question.id;
     if (answerRequests.current.has(questionId)) return;
     const previous = answers[questionId];
+    const previousConfidence = confidence[questionId];
     answerRequests.current.add(questionId);
-    setAnswers((value) => ({ ...value, [questionId]: optionId })); setSavingQuestionId(questionId); setError(null);
+    setAnswers((value) => ({ ...value, [questionId]: optionId }));
+    setConfidence((value) => ({ ...value, [questionId]: confidenceLevel }));
+    setSavingQuestionId(questionId); setError(null);
     try {
-      const result = await request<Answer & TutorFeedback>(`/tests/attempts/${attemptId}/answers/${questionId}`, { method: "PUT", body: { selected_option_id: optionId } });
+      const result = await request<Answer & TutorFeedback>(`/tests/attempts/${attemptId}/answers/${questionId}`, { method: "PUT", body: { selected_option_id: optionId, confidence_level: confidenceLevel } });
       setAnswers((value) => ({ ...value, [questionId]: result.selectedOptionId || optionId }));
+      setConfidence((value) => ({ ...value, [questionId]: result.confidenceLevel || confidenceLevel }));
+      setPendingAnswers((value) => { const next = { ...value }; delete next[questionId]; return next; });
       if (tutor) setFeedback((value) => ({ ...value, [questionId]: { isCorrect: result.isCorrect ?? null, explanation: result.explanation } }));
-      celebrate({ id: "assessment-first-answer", title: "First answer recorded", description: "An assessment answer was saved to your learning history.", points: 20 });
+      celebrate({ id: "assessment-first-answer", title: "First answer recorded", description: "Your answer and confidence were saved.", points: 20 });
     } catch (cause) {
-      let committed = false;
-      try {
-        const state = await request<WorkspaceState>(`/tests/attempts/${attemptId}/workspace-state`);
-        const saved = state.answers.find((item) => item.questionId === questionId)?.selectedOptionId;
-        if (saved) { setAnswers((value) => ({ ...value, [questionId]: saved })); committed = true; }
-      } catch { /* preserve original failure */ }
-      if (!committed) {
-        setAnswers((value) => { const next = { ...value }; if (previous) next[questionId] = previous; else delete next[questionId]; return next; });
-        const message = cause instanceof Error ? cause.message : "Unable to save this answer.";
-        setError(message);
-        notify({ title: "Answer was not saved", description: cause instanceof ApiError ? `${message} (${cause.status})` : message, tone: "error", duration: 7000 });
-      }
+      setAnswers((value) => { const next = { ...value }; if (previous) next[questionId] = previous; else delete next[questionId]; return next; });
+      setConfidence((value) => { const next = { ...value }; if (previousConfidence) next[questionId] = previousConfidence; else delete next[questionId]; return next; });
+      const message = cause instanceof Error ? cause.message : "Unable to save this answer.";
+      setError(message);
+      notify({ title: "Answer was not saved", description: cause instanceof ApiError ? `${message} (${cause.status})` : message, tone: "error", duration: 7000 });
     } finally { answerRequests.current.delete(questionId); setSavingQuestionId(null); }
   }
 
+  function selectOption(optionId: string) {
+    if (!current || expired || Boolean(tutor && feedback[current.question.id])) return;
+    const questionId = current.question.id;
+    setPendingAnswers((value) => ({ ...value, [questionId]: optionId }));
+    const existingConfidence = confidence[questionId];
+    if (existingConfidence) void choose(optionId, existingConfidence);
+  }
   async function toggleFlag() {
     if (!current || expired) return;
     const active = flags.includes(current.question.id);
@@ -274,6 +283,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   function clearQuestionStrikes(questionId: string) { setStruck((value) => { const next = { ...value }; delete next[questionId]; return next; }); }
 
   const finalize = useCallback(async (auto = false) => {
+    if (!auto && Object.keys(pendingAnswers).length) { notify({ title: "Confidence required", description: "Choose a confidence level for every selected answer before submitting.", tone: "error" }); return; }
     if (!auto && !window.confirm(`Submit this assessment with ${totalAnswered} of ${items.length} questions answered?`)) return;
     setSubmitting(true); setError(null);
     try {
@@ -286,7 +296,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
       }
       setError(cause instanceof Error ? cause.message : "Unable to submit the assessment.");
     } finally { setSubmitting(false); }
-  }, [attemptId, celebrate, items.length, request, totalAnswered]);
+  }, [attemptId, celebrate, items.length, notify, pendingAnswers, request, totalAnswered]);
 
   function endBlock() {
     if (tutor || blockIndex === blockCount - 1) { void finalize(Boolean(expired)); return; }
