@@ -62,37 +62,54 @@ export class TestsService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     // The migration is canonical, but local databases can have a stale or
-    // partially-applied migration history. Keep the entity contract valid
-    // before TypeORM selects StudentAnswer rows.
-    await this.dataSource.query(`
-      ALTER TABLE student_answers
-      ADD COLUMN IF NOT EXISTS confidence_level varchar(12)
-    `);
-    try {
-      await this.dataSource.query(`
+    // partially-applied migration history. Every statement here is idempotent
+    // so restarting Nest never crashes on an already-created constraint/index.
+    await this.dataSource.transaction(async manager => {
+      await manager.query(`SELECT pg_advisory_xact_lock(hashtext('mdp_tests_runtime_schema'))`);
+      await manager.query(`
         ALTER TABLE student_answers
-        ADD CONSTRAINT chk_student_answer_confidence
-        CHECK (confidence_level IS NULL OR confidence_level IN ('LOW', 'MEDIUM', 'HIGH'))
+        ADD COLUMN IF NOT EXISTS confidence_level varchar(12)
       `);
-    } catch (cause) {
-      const code = (cause as { driverError?: { code?: string } }).driverError?.code;
-      if (code !== '42710') throw cause;
-    }
-    await this.dataSource.query(`
-      ALTER TABLE question_flags
-      ADD COLUMN IF NOT EXISTS flag_type varchar(10) NOT NULL DEFAULT 'NORMAL'
-    `);
-    await this.dataSource.query(`ALTER TABLE question_flags DROP CONSTRAINT IF EXISTS uq_flag`);
-    for (const statement of [
-      `ALTER TABLE question_flags ADD CONSTRAINT chk_question_flag_type CHECK (flag_type IN ('NORMAL', 'HARD'))`,
-      `ALTER TABLE question_flags ADD CONSTRAINT uq_flag_type UNIQUE (attempt_id, question_id, flag_type)`,
-    ]) {
-      try { await this.dataSource.query(statement); }
-      catch (cause) {
-        const code = (cause as { driverError?: { code?: string } }).driverError?.code;
-        if (code !== '42710') throw cause;
-      }
-    }
+      await manager.query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'chk_student_answer_confidence'
+              AND conrelid = 'student_answers'::regclass
+          ) THEN
+            ALTER TABLE student_answers
+            ADD CONSTRAINT chk_student_answer_confidence
+            CHECK (confidence_level IS NULL OR confidence_level IN ('LOW', 'MEDIUM', 'HIGH'));
+          END IF;
+        END $$;
+      `);
+      await manager.query(`
+        ALTER TABLE question_flags
+        ADD COLUMN IF NOT EXISTS flag_type varchar(10) NOT NULL DEFAULT 'NORMAL'
+      `);
+      await manager.query(`ALTER TABLE question_flags DROP CONSTRAINT IF EXISTS uq_flag`);
+      await manager.query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'chk_question_flag_type'
+              AND conrelid = 'question_flags'::regclass
+          ) THEN
+            ALTER TABLE question_flags
+            ADD CONSTRAINT chk_question_flag_type
+            CHECK (flag_type IN ('NORMAL', 'HARD'));
+          END IF;
+        END $$;
+      `);
+      // A unique constraint is backed by an index with this name. CREATE INDEX
+      // handles both a previously-created constraint index and a standalone one.
+      await manager.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_flag_type
+        ON question_flags (attempt_id, question_id, flag_type)
+      `);
+    });
   }
 
   async create(dto: CreateTestDto, actor: AuthenticatedUser) {
