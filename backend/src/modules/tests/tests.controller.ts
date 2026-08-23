@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
+import { QuestionFlagType } from '../../common/entities/question-flag.entity';
 import { AssessmentAuthoringService } from './assessment-authoring.service';
 import { AddTestQuestionDto, CreateTestDto, GeneratePracticeTestDto, GradeEssayDto, PracticeCatalogQueryDto, QuestionNoteDto, ReorderTestQuestionsDto, SaveAnswerDto, StartTestAttemptDto, TestQueryDto, UpdateTestDto } from './dtos/tests.dto';
 import { McqPracticeService } from './mcq-practice.service';
@@ -70,6 +71,10 @@ export class TestsController {
  flag(@Param('attemptId',uuid) attemptId:string,@Param('questionId',uuid) questionId:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.flag(attemptId,questionId,actor);}
  @Delete('attempts/:attemptId/flags/:questionId') @Roles(UserRole.STUDENT) @HttpCode(HttpStatus.NO_CONTENT)
  async unflag(@Param('attemptId',uuid) attemptId:string,@Param('questionId',uuid) questionId:string,@CurrentUser() actor:AuthenticatedUser){await this.tests.unflag(attemptId,questionId,actor);}
+ @Post('attempts/:attemptId/hard-flags/:questionId') @Roles(UserRole.STUDENT)
+ hardFlag(@Param('attemptId',uuid) attemptId:string,@Param('questionId',uuid) questionId:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.flag(attemptId,questionId,actor,QuestionFlagType.HARD);}
+ @Delete('attempts/:attemptId/hard-flags/:questionId') @Roles(UserRole.STUDENT) @HttpCode(HttpStatus.NO_CONTENT)
+ async removeHardFlag(@Param('attemptId',uuid) attemptId:string,@Param('questionId',uuid) questionId:string,@CurrentUser() actor:AuthenticatedUser){await this.tests.unflag(attemptId,questionId,actor,QuestionFlagType.HARD);}
 
  @Post('attempts/:attemptId/notes/:questionId') @Roles(UserRole.STUDENT)
  addNote(@Param('attemptId',uuid) attemptId:string,@Param('questionId',uuid) questionId:string,@Body() dto:QuestionNoteDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.setNote(attemptId,questionId,dto,actor);}
