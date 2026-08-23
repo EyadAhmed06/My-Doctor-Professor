@@ -75,6 +75,7 @@ function normalizeRanges(ranges: HighlightRange[], textLength: number) {
   for (const range of ordered) {
     const previous = merged[merged.length - 1];
     if (previous && previous.color === range.color && range.start <= previous.end) previous.end = Math.max(previous.end, range.end);
+    else if (previous && range.start < previous.end) { if (range.end > previous.end) merged.push({ ...range, start: previous.end }); }
     else merged.push({ ...range });
   }
   return merged;
