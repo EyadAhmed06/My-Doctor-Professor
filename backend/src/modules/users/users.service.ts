@@ -211,7 +211,11 @@ export class UsersService {
     id:string,userId:string,presentedTokenDigest:string,
     refreshTokenDigest:string,expiresAt:Date,
   ) {
-    const outcome=await this.dataSource.transaction<'rotated'|'invalid'|'reuse'>(async manager=>{
+    const raceGraceMs=Math.min(
+      30_000,
+      Math.max(1_000,Number(process.env.AUTH_REFRESH_RACE_GRACE_MS??10_000)),
+    );
+    const outcome=await this.dataSource.transaction<'rotated'|'invalid'|'race'|'reuse'>(async manager=>{
       const rotation=await manager.createQueryBuilder()
         .update(AuthSession)
         .set({
@@ -227,15 +231,25 @@ export class UsersService {
         .execute();
       if(rotation.affected===1)return 'rotated';
 
-      const revocation=await manager.createQueryBuilder()
-        .update(AuthSession)
-        .set({revokedAt:new Date()})
-        .where('id = :id',{id})
-        .andWhere('user_id = :userId',{userId})
-        .andWhere('revoked_at IS NULL')
-        .execute();
-      return revocation.affected===1?'reuse':'invalid';
+      // A second browser request can arrive with the just-rotated cookie while the
+      // first response is still being applied. Treat that short window as a retry,
+      // not token theft, so a harmless refresh race never revokes the whole session.
+      const session=await manager.findOne(AuthSession,{
+        where:{id,userId},
+        lock:{mode:'pessimistic_write'},
+      });
+      if(!session||session.revokedAt||session.expiresAt<=new Date())return 'invalid';
+      if(session.lastUsedAt&&Date.now()-session.lastUsedAt.getTime()<=raceGraceMs) {
+        return 'race';
+      }
+
+      session.revokedAt=new Date();
+      await manager.save(AuthSession,session);
+      return 'reuse';
     });
+    if(outcome==='race') {
+      throw new ConflictException('Refresh already completed by another request; retry');
+    }
     if(outcome!=='rotated') {
       throw new UnauthorizedException(
         outcome==='reuse'
