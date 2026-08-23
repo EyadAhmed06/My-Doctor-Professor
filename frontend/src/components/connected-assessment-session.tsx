@@ -104,7 +104,7 @@ function HighlightableText({ text, ranges, enabled, eraserEnabled = false, onHig
   let cursor = 0;
   normalized.forEach((range, index) => {
     if (range.start > cursor) content.push(text.slice(cursor, range.start));
-    content.push(<mark className={`exam-text-highlight highlight-${range.color || "yellow"} ${eraserEnabled ? "is-erasable" : ""}`} onClick={() => { if (eraserEnabled) onErase?.(range.start, range.end); }} key={`${range.start}-${range.end}-${index}`}>{text.slice(range.start, range.end)}</mark>);
+    content.push(<mark className={`exam-text-highlight highlight-${range.color || "yellow"} ${eraserEnabled ? "is-erasable" : ""}`} onClick={(event) => { if (eraserEnabled) { event.preventDefault(); event.stopPropagation(); onErase?.(range.start, range.end); } }} key={`${range.start}-${range.end}-${index}`}>{text.slice(range.start, range.end)}</mark>);
     cursor = range.end;
   });
   if (cursor < text.length) content.push(text.slice(cursor));
