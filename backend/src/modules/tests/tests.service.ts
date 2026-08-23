@@ -68,15 +68,16 @@ export class TestsService implements OnModuleInit {
       ALTER TABLE student_answers
       ADD COLUMN IF NOT EXISTS confidence_level varchar(12)
     `);
-    await this.dataSource.query(`
-      ALTER TABLE student_answers
-      DROP CONSTRAINT IF EXISTS chk_student_answer_confidence
-    `);
-    await this.dataSource.query(`
-      ALTER TABLE student_answers
-      ADD CONSTRAINT chk_student_answer_confidence
-      CHECK (confidence_level IS NULL OR confidence_level IN ('LOW', 'MEDIUM', 'HIGH'))
-    `);
+    try {
+      await this.dataSource.query(`
+        ALTER TABLE student_answers
+        ADD CONSTRAINT chk_student_answer_confidence
+        CHECK (confidence_level IS NULL OR confidence_level IN ('LOW', 'MEDIUM', 'HIGH'))
+      `);
+    } catch (cause) {
+      const code = (cause as { driverError?: { code?: string } }).driverError?.code;
+      if (code !== '42710') throw cause;
+    }
   }
 
   async create(dto: CreateTestDto, actor: AuthenticatedUser) {
