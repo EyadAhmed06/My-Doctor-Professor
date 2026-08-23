@@ -13,7 +13,7 @@ import { Course } from '../../common/entities/course.entity';
 import { Lecture } from '../../common/entities/lecture.entity';
 import { McqOption } from '../../common/entities/mcq-option.entity';
 import { NotificationType } from '../../common/entities/notification.entity';
-import { QuestionFlag } from '../../common/entities/question-flag.entity';
+import { QuestionFlag, QuestionFlagType } from '../../common/entities/question-flag.entity';
 import { QuestionNote } from '../../common/entities/question-note.entity';
 import { Question, QuestionType } from '../../common/entities/question.entity';
 import { StudentAnswer } from '../../common/entities/student-answer.entity';
@@ -77,6 +77,21 @@ export class TestsService implements OnModuleInit {
     } catch (cause) {
       const code = (cause as { driverError?: { code?: string } }).driverError?.code;
       if (code !== '42710') throw cause;
+    }
+    await this.dataSource.query(`
+      ALTER TABLE question_flags
+      ADD COLUMN IF NOT EXISTS flag_type varchar(10) NOT NULL DEFAULT 'NORMAL'
+    `);
+    await this.dataSource.query(`ALTER TABLE question_flags DROP CONSTRAINT IF EXISTS uq_flag`);
+    for (const statement of [
+      `ALTER TABLE question_flags ADD CONSTRAINT chk_question_flag_type CHECK (flag_type IN ('NORMAL', 'HARD'))`,
+      `ALTER TABLE question_flags ADD CONSTRAINT uq_flag_type UNIQUE (attempt_id, question_id, flag_type)`,
+    ]) {
+      try { await this.dataSource.query(statement); }
+      catch (cause) {
+        const code = (cause as { driverError?: { code?: string } }).driverError?.code;
+        if (code !== '42710') throw cause;
+      }
     }
   }
 
@@ -425,6 +440,22 @@ export class TestsService implements OnModuleInit {
 
   async submit(id: string, actor: AuthenticatedUser) {
     const attempt = await this.requireStudentOpenAttempt(id, actor);
+    const [assignments, attemptAnswers] = await Promise.all([
+      this.testQuestions.find({ where: { testId: attempt.testId }, relations: { question: true } }),
+      this.answers.find({ where: { attemptId: id } }),
+    ]);
+    const byQuestion = new Map(attemptAnswers.map((answer) => [answer.questionId, answer]));
+    const incomplete = assignments.filter((assignment) => {
+      const answer = byQuestion.get(assignment.questionId);
+      if (!answer) return true;
+      if (assignment.question.questionType === QuestionType.MCQ) {
+        return !answer.selectedOptionId || !answer.confidenceLevel;
+      }
+      return !answer.essayAnswer?.trim();
+    });
+    if (incomplete.length) {
+      throw new BadRequestException(`Answer every question and choose a confidence level for every MCQ before submitting. ${incomplete.length} question(s) remain incomplete.`);
+    }
     await this.finalizeAttempt(attempt, false);
     return this.attemptView(attempt);
   }
@@ -442,7 +473,8 @@ export class TestsService implements OnModuleInit {
       attempt: this.attemptView(attempt),
       answers: actor.role === UserRole.STUDENT && attempt.status === TestAttemptStatus.IN_PROGRESS
         ? answers.map((answer) => this.hideGrade(answer)) : answers,
-      flagged_question_ids: flags.map((flag) => flag.questionId),
+      flagged_question_ids: flags.filter((flag) => flag.flagType === QuestionFlagType.NORMAL).map((flag) => flag.questionId),
+      hard_question_ids: flags.filter((flag) => flag.flagType === QuestionFlagType.HARD).map((flag) => flag.questionId),
       notes: notes.map((note) => ({ question_id: note.questionId, note: note.note })),
     };
   }
@@ -481,16 +513,16 @@ export class TestsService implements OnModuleInit {
     };
   }
 
-  async flag(attemptId: string, questionId: string, actor: AuthenticatedUser) {
+  async flag(attemptId: string, questionId: string, actor: AuthenticatedUser, flagType = QuestionFlagType.NORMAL) {
     const attempt = await this.requireStudentOpenAttempt(attemptId, actor);
     await this.requireAssignedQuestion(attempt.testId, questionId);
-    const existing = await this.flags.findOne({ where: { attemptId, questionId } });
-    return existing ?? this.flags.save(this.flags.create({ attemptId, questionId }));
+    const existing = await this.flags.findOne({ where: { attemptId, questionId, flagType } });
+    return existing ?? this.flags.save(this.flags.create({ attemptId, questionId, flagType }));
   }
 
-  async unflag(attemptId: string, questionId: string, actor: AuthenticatedUser): Promise<void> {
+  async unflag(attemptId: string, questionId: string, actor: AuthenticatedUser, flagType = QuestionFlagType.NORMAL): Promise<void> {
     await this.requireStudentOpenAttempt(attemptId, actor);
-    const flag = await this.flags.findOne({ where: { attemptId, questionId } });
+    const flag = await this.flags.findOne({ where: { attemptId, questionId, flagType } });
     if (!flag) throw new NotFoundException('Question flag not found');
     await this.flags.remove(flag);
   }
