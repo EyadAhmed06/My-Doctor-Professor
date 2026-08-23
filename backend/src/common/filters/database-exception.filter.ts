@@ -42,7 +42,9 @@ export class DatabaseExceptionFilter implements ExceptionFilter {
       );
       response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An unexpected database error occurred',
+        message: process.env.NODE_ENV === 'production'
+          ? 'An unexpected database error occurred'
+          : driver?.message || 'An unexpected database error occurred',
       });
       return;
     }
