@@ -363,8 +363,8 @@ export class TestsService {
     let selectedOption: McqOption | null = null;
     let essayAnswer: string | null = null;
     if (question.questionType === QuestionType.MCQ) {
-      if (!dto.selected_option_id || dto.essay_answer !== undefined) {
-        throw new BadRequestException('MCQ answers require selected_option_id only');
+      if (!dto.selected_option_id || dto.essay_answer !== undefined || !dto.confidence_level) {
+        throw new BadRequestException('MCQ answers require selected_option_id and confidence_level');
       }
       selectedOption = await this.options.findOne({ where: { id: dto.selected_option_id, questionId } });
       if (!selectedOption) throw new BadRequestException('Selected option does not belong to this question');
@@ -386,6 +386,7 @@ export class TestsService {
     answer ??= this.answers.create({ attemptId, questionId });
     answer.selectedOptionId = selectedOption?.id ?? null;
     answer.essayAnswer = essayAnswer;
+    answer.confidenceLevel = question.questionType === QuestionType.MCQ ? dto.confidence_level! : null;
     answer.answeredAt = new Date();
     answer.feedback = null; answer.gradedBy = null; answer.gradedAt = null;
     if (question.questionType === QuestionType.MCQ && attempt.testMode === TestMode.TUTOR) {
