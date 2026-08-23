@@ -1,7 +1,7 @@
 "use client";
 
-import { apiRequest } from "@/lib/api";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { ApiError, apiRequest } from "@/lib/api";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 export type UserRole = "STUDENT" | "INSTRUCTOR" | "SYSTEM_ADMIN";
 export type AuthUser = {
@@ -49,6 +49,53 @@ const ACCESS_KEY = "mdp_access_token";
 const LEGACY_REFRESH_KEY = "mdp_refresh_token";
 const LOGOUT_KEY = "mdp_logged_out_at";
 const LOGOUT_REFRESH_SUPPRESSION_MS = 30_000;
+const REFRESH_EARLY_MS = 60_000;
+const REFRESH_RACE_RETRIES = 3;
+let sharedRefreshPromise: Promise<string | null> | null = null;
+
+type LockManagerLike = {
+  request<T>(name: string, callback: () => Promise<T>): Promise<T>;
+};
+
+function wait(milliseconds: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+function accessTokenExpiresAt(token: string): number | null {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = JSON.parse(atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "="))) as { exp?: number };
+    return typeof decoded.exp === "number" ? decoded.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+async function refreshThroughBrowserLock(): Promise<AuthResponse> {
+  const run = async () => {
+    for (let attempt = 0; attempt < REFRESH_RACE_RETRIES; attempt += 1) {
+      try {
+        return await apiRequest<AuthResponse>("/auth/refresh", {
+          method: "POST",
+          body: {},
+        });
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.status !== 409 || attempt === REFRESH_RACE_RETRIES - 1) {
+          throw error;
+        }
+        await wait(120 * (attempt + 1));
+      }
+    }
+    throw new Error("Refresh retry limit reached");
+  };
+
+  const locks = typeof navigator === "undefined"
+    ? undefined
+    : (navigator as Navigator & { locks?: LockManagerLike }).locks;
+  return locks ? locks.request("mdp-auth-refresh", run) : run();
+}
 
 function clearClientAuth() {
   for (const storage of [localStorage, sessionStorage]) {
@@ -83,7 +130,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const refreshPromise = useRef<Promise<string | null> | null>(null);
 
   const persistAccess = useCallback((auth: AuthResponse) => {
     localStorage.removeItem(ACCESS_KEY);
@@ -96,26 +142,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async (): Promise<string | null> => {
     if (recentlyLoggedOut()) return null;
-    if (refreshPromise.current) return refreshPromise.current;
-    refreshPromise.current = (async () => {
+    if (sharedRefreshPromise) return sharedRefreshPromise;
+    sharedRefreshPromise = (async () => {
       try {
-        const auth = await apiRequest<AuthResponse>("/auth/refresh", {
-          method: "POST",
-          body: {},
-        });
+        const auth = await refreshThroughBrowserLock();
         persistAccess(auth);
         return auth.access_token;
-      } catch {
-        clearClientAuth();
-        setAccessToken(null);
-        setUser(null);
+      } catch (error) {
+        // Only a definitive auth rejection means the user is signed out. Network,
+        // server, and short refresh-race failures must not eject an active student.
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+          clearClientAuth();
+          setAccessToken(null);
+          setUser(null);
+        }
         return null;
       }
     })();
     try {
-      return await refreshPromise.current;
+      return await sharedRefreshPromise;
     } finally {
-      refreshPromise.current = null;
+      sharedRefreshPromise = null;
     }
   }, [persistAccess]);
 
@@ -179,6 +226,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     })();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!accessToken || !user) return;
+
+    const expiresAt = accessTokenExpiresAt(accessToken);
+    if (!expiresAt) return;
+    const refreshIfCloseToExpiry = () => {
+      if (expiresAt - Date.now() <= REFRESH_EARLY_MS) void refresh();
+    };
+    const timer = window.setTimeout(
+      () => void refresh(),
+      Math.max(1_000, expiresAt - Date.now() - REFRESH_EARLY_MS),
+    );
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") refreshIfCloseToExpiry();
+    };
+    window.addEventListener("focus", refreshIfCloseToExpiry);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("focus", refreshIfCloseToExpiry);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [accessToken, user, refresh]);
 
   const login = useCallback(async (input: LoginInput) => {
     const auth = await apiRequest<AuthResponse>("/auth/login", {
