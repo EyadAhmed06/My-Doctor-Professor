@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -41,7 +42,7 @@ import {
 } from './dtos/tests.dto';
 
 @Injectable()
-export class TestsService {
+export class TestsService implements OnModuleInit {
   constructor(
     @InjectRepository(Test) private readonly tests: Repository<Test>,
     @InjectRepository(TestQuestion) private readonly testQuestions: Repository<TestQuestion>,
@@ -58,6 +59,31 @@ export class TestsService {
     private readonly dataSource: DataSource,
     private readonly notifications: NotificationsService,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    // The migration is canonical, but local databases can have a stale or
+    // partially-applied migration history. Keep the entity contract valid
+    // before TypeORM selects StudentAnswer rows.
+    await this.dataSource.query(`
+      ALTER TABLE student_answers
+      ADD COLUMN IF NOT EXISTS confidence_level varchar(12)
+    `);
+    await this.dataSource.query(`
+      DO $
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'chk_student_answer_confidence'
+            AND conrelid = 'student_answers'::regclass
+        ) THEN
+          ALTER TABLE student_answers
+          ADD CONSTRAINT chk_student_answer_confidence
+          CHECK (confidence_level IS NULL OR confidence_level IN ('LOW', 'MEDIUM', 'HIGH'));
+        END IF;
+      END
+      $;
+    `);
+  }
 
   async create(dto: CreateTestDto, actor: AuthenticatedUser) {
     const scope = await this.resolveScope(dto.test_type, dto.course_id, dto.week_id, dto.lecture_id);
