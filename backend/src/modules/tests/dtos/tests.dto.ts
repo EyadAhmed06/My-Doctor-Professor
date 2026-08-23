@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsDateString, IsEnum, IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 import { QuestionDifficulty } from '../../../common/entities/question.entity';
 import { TestMode } from '../../../common/entities/test-attempt.entity';
 import { TestType } from '../../../common/entities/test.entity';
@@ -66,6 +66,7 @@ export class GeneratePracticeTestDto {
 export class SaveAnswerDto {
  @IsOptional() @IsString() @Matches(POSTGRES_UUID_TEXT,{message:'selected_option_id must use UUID text format'}) selected_option_id?:string;
  @IsOptional() @IsString() @MaxLength(50000) essay_answer?:string;
+ @IsOptional() @IsString() @IsIn(['LOW','MEDIUM','HIGH']) confidence_level?:'LOW'|'MEDIUM'|'HIGH';
 }
 export class QuestionNoteDto { @IsString() @IsNotEmpty() @MaxLength(5000) note:string; }
 export class GradeEssayDto {
