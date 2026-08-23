@@ -40,6 +40,7 @@ type WorkspaceState = {
   attempt: Attempt;
   answers: Answer[];
   flagged_question_ids: string[];
+  hard_question_ids: string[];
   notes: Array<{ question_id: string; note: string }>;
 };
 type TutorFeedback = { isCorrect: boolean | null; explanation?: string | null };
@@ -54,7 +55,8 @@ type LowerTab = "scratchpad" | "patient" | "note";
 type HighlightColor = "yellow" | "green" | "blue" | "pink";
 type HighlightRange = { start: number; end: number; color?: HighlightColor };
 type DrawingPoint = { x: number; y: number };
-type DrawingStroke = { points: DrawingPoint[] };
+type PenColor = "red" | "blue" | "green" | "black";
+type DrawingStroke = { points: DrawingPoint[]; color?: PenColor };
 type DrawingState = Record<string, DrawingStroke[]>;
 type QuestionHighlights = { stem: HighlightRange[]; options: Record<string, HighlightRange[]> };
 type HighlightState = Record<string, QuestionHighlights>;
@@ -81,7 +83,7 @@ function normalizeRanges(ranges: HighlightRange[], textLength: number) {
   return merged;
 }
 
-function HighlightableText({ text, ranges, enabled, onHighlight, className }: { text: string; ranges: HighlightRange[]; enabled: boolean; onHighlight: (start: number, end: number) => void; className?: string }) {
+function HighlightableText({ text, ranges, enabled, eraserEnabled = false, onHighlight, onErase, className }: { text: string; ranges: HighlightRange[]; enabled: boolean; eraserEnabled?: boolean; onHighlight: (start: number, end: number) => void; onErase?: (start: number, end: number) => void; className?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const normalized = useMemo(() => normalizeRanges(ranges, text.length), [ranges, text.length]);
   function captureSelection() {
@@ -102,11 +104,11 @@ function HighlightableText({ text, ranges, enabled, onHighlight, className }: { 
   let cursor = 0;
   normalized.forEach((range, index) => {
     if (range.start > cursor) content.push(text.slice(cursor, range.start));
-    content.push(<mark className={`exam-text-highlight highlight-${range.color || "yellow"}`} key={`${range.start}-${range.end}-${index}`}>{text.slice(range.start, range.end)}</mark>);
+    content.push(<mark className={`exam-text-highlight highlight-${range.color || "yellow"} ${eraserEnabled ? "is-erasable" : ""}`} onClick={() => { if (eraserEnabled) onErase?.(range.start, range.end); }} key={`${range.start}-${range.end}-${index}`}>{text.slice(range.start, range.end)}</mark>);
     cursor = range.end;
   });
   if (cursor < text.length) content.push(text.slice(cursor));
-  return <span ref={ref} className={`${className || ""} exam-highlightable ${enabled ? "is-highlight-mode" : ""}`.trim()} onMouseUp={captureSelection} title={enabled ? "Select text to highlight it" : undefined}>{content.length ? content : text}</span>;
+  return <span ref={ref} className={`${className || ""} exam-highlightable ${enabled ? "is-highlight-mode" : ""} ${eraserEnabled ? "is-eraser-mode" : ""}`.trim()} onMouseUp={captureSelection} title={enabled ? "Select text to highlight it" : undefined}>{content.length ? content : text}</span>;
 }
 
 export function ConnectedAssessmentSession({ attemptId, testId, source = "assessments" }: { attemptId: string; testId: string; source?: string }) {
@@ -120,6 +122,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   const [pendingAnswers, setPendingAnswers] = useState<Record<string, string>>({});
   const [confidence, setConfidence] = useState<Record<string, ConfidenceLevel>>({});
   const [flags, setFlags] = useState<string[]>([]);
+  const [hardFlags, setHardFlags] = useState<string[]>([]);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState<Record<string, TutorFeedback>>({});
   const [struck, setStruck] = useState<Record<string, string[]>>({});
@@ -128,6 +131,8 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   const [highlightMode, setHighlightMode] = useState(false);
   const [highlightColor, setHighlightColor] = useState<HighlightColor>("yellow");
   const [penMode, setPenMode] = useState(false);
+  const [penColor, setPenColor] = useState<PenColor>("red");
+  const [eraserMode, setEraserMode] = useState<"highlight" | "pen" | null>(null);
   const [drawings, setDrawings] = useState<DrawingState>({});
   const [scratchpad, setScratchpad] = useState("");
   const [lowerTab, setLowerTab] = useState<LowerTab>("scratchpad");
@@ -172,7 +177,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
         setAttempt(state.attempt); setItems(questions);
         setAnswers(Object.fromEntries(state.answers.filter((item) => item.selectedOptionId).map((item) => [item.questionId, item.selectedOptionId!])));
         setConfidence(Object.fromEntries(state.answers.filter((item) => item.confidenceLevel).map((item) => [item.questionId, item.confidenceLevel!])));
-        setFlags(state.flagged_question_ids); setNotes(Object.fromEntries(state.notes.map((item) => [item.question_id, item.note])));
+        setFlags(state.flagged_question_ids); setHardFlags(state.hard_question_ids || []); setNotes(Object.fromEntries(state.notes.map((item) => [item.question_id, item.note])));
       })
       .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "Unable to load this attempt."); })
       .finally(() => { if (active) setLoading(false); });
@@ -196,7 +201,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
     } catch { /* best effort */ }
   }, [attemptId, drawings, highlights, localToolsLoaded, scratchpad, struck]);
 
-  useEffect(() => { setMoreOpen(false); setHighlightMode(false); setStrikeMode(false); setPenMode(false); setSavedNoteId(null); }, [index]);
+  useEffect(() => { setMoreOpen(false); setHighlightMode(false); setStrikeMode(false); setPenMode(false); setEraserMode(null); setSavedNoteId(null); }, [index]);
 
   const current = items[index];
   const questionVisual = current ? getQuestionVisual(current.question.questionText) : null;
@@ -226,23 +231,39 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
     });
   }
   function clearQuestionHighlights(questionId: string) { setHighlights((value) => { const next = { ...value }; delete next[questionId]; return next; }); }
+  function eraseHighlight(questionId: string, target: "stem" | string, start: number, end: number) {
+    setHighlights((value) => {
+      const existing = value[questionId]; if (!existing) return value;
+      if (target === "stem") return { ...value, [questionId]: { ...existing, stem: existing.stem.filter((range) => range.end <= start || range.start >= end) } };
+      return { ...value, [questionId]: { ...existing, options: { ...existing.options, [target]: (existing.options[target] || []).filter((range) => range.end <= start || range.start >= end) } } };
+    });
+  }
   function drawingPoint(event: ReactPointerEvent<HTMLDivElement>): DrawingPoint | null {
     const box = drawingSurfaceRef.current?.getBoundingClientRect();
     if (!box || !box.width || !box.height) return null;
     return { x: ((event.clientX - box.left) / box.width) * 1000, y: ((event.clientY - box.top) / box.height) * 1000 };
   }
   function startDrawing(event: ReactPointerEvent<HTMLDivElement>) {
-    if (!penMode || !current || expired) return;
+    if (!current || expired) return;
+    if (eraserMode === "pen") { eraseDrawingAt(event); return; }
+    if (!penMode) return;
     const point = drawingPoint(event); if (!point) return;
     event.currentTarget.setPointerCapture(event.pointerId);
-    setDrawings((value) => { const strokes = [...(value[current.question.id] || []), { points: [point] }]; activeStroke.current = strokes.length - 1; return { ...value, [current.question.id]: strokes }; });
+    setDrawings((value) => { const strokes = [...(value[current.question.id] || []), { points: [point], color: penColor }]; activeStroke.current = strokes.length - 1; return { ...value, [current.question.id]: strokes }; });
   }
   function continueDrawing(event: React.PointerEvent<HTMLDivElement>) {
-    if (!penMode || !current || activeStroke.current === null) return;
+    if (!current) return;
+    if (eraserMode === "pen") { eraseDrawingAt(event); return; }
+    if (!penMode || activeStroke.current === null) return;
     const point = drawingPoint(event); if (!point) return;
     setDrawings((value) => { const strokes = [...(value[current.question.id] || [])]; const stroke = strokes[activeStroke.current!]; if (!stroke) return value; strokes[activeStroke.current!] = { points: [...stroke.points, point] }; return { ...value, [current.question.id]: strokes }; });
   }
   function stopDrawing() { activeStroke.current = null; }
+  function eraseDrawingAt(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!current) return; const point = drawingPoint(event); if (!point) return;
+    const radius = 34;
+    setDrawings((value) => ({ ...value, [current.question.id]: (value[current.question.id] || []).filter((stroke) => !stroke.points.some((candidate) => Math.hypot(candidate.x - point.x, candidate.y - point.y) <= radius)) }));
+  }
   function clearQuestionDrawings(questionId: string) { setDrawings((value) => { const next = { ...value }; delete next[questionId]; return next; }); }
 
   async function choose(optionId: string, confidenceLevel: ConfidenceLevel) {
@@ -286,6 +307,14 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
       setFlags((value) => (active ? value.filter((id) => id !== current.question.id) : [...value, current.question.id]));
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to update the flag."); }
   }
+  async function toggleHardFlag() {
+    if (!current || expired) return;
+    const active = hardFlags.includes(current.question.id);
+    try {
+      await request(`/tests/attempts/${attemptId}/hard-flags/${current.question.id}`, { method: active ? "DELETE" : "POST" });
+      setHardFlags((value) => (active ? value.filter((id) => id !== current.question.id) : [...value, current.question.id]));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to update the hard-question flag."); }
+  }
 
   async function saveNote() {
     if (!current || expired || savingNoteId === current.question.id) return;
@@ -314,8 +343,8 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   function clearQuestionStrikes(questionId: string) { setStruck((value) => { const next = { ...value }; delete next[questionId]; return next; }); }
 
   const finalize = useCallback(async (auto = false) => {
-    const missingConfidence = items.some((item) => Boolean((pendingAnswers[item.question.id] || answers[item.question.id]) && !confidence[item.question.id]));
-    if (!auto && missingConfidence) { notify({ title: "Confidence required", description: "Choose a confidence level for every selected answer before submitting.", tone: "error" }); return; }
+    const missingConfidence = items.some((item) => !(pendingAnswers[item.question.id] || answers[item.question.id]) || !confidence[item.question.id]);
+    if (!auto && missingConfidence) { notify({ title: "Confidence required", description: "Answer every question and choose a confidence level for each one before submitting.", tone: "error" }); return; }
     if (!auto && !window.confirm(`Submit this assessment with ${totalAnswered} of ${items.length} questions answered?`)) return;
     setSubmitting(true); setError(null);
     try {
