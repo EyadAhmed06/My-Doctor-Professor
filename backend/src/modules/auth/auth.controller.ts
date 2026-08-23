@@ -34,7 +34,6 @@ const REFRESH_MODE_COOKIE = 'mdp_refresh_mode';
 @Controller('auth')
 export class AuthController {
   private readonly refreshLifetimeSeconds: number;
-  private readonly production: boolean;
 
   constructor(
     private readonly authService: AuthService,
@@ -43,7 +42,6 @@ export class AuthController {
     private readonly config: ConfigService,
   ) {
     this.refreshLifetimeSeconds = this.readPositiveInteger('JWT_REFRESH_TTL_SECONDS', 604800);
-    this.production = this.config.get<string>('NODE_ENV') === 'production';
   }
 
   @Post('login')
@@ -54,7 +52,7 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponseDto> {
     const auth = await this.authService.login(dto, request.ip ?? request.socket.remoteAddress ?? 'unknown');
-    this.writeRefreshCookies(response, auth.refresh_token, dto.remember !== false);
+    this.writeRefreshCookies(request, response, auth.refresh_token, dto.remember !== false);
     return this.forTransport(auth, request);
   }
 
@@ -71,7 +69,7 @@ export class AuthController {
       request.ip ?? request.socket.remoteAddress ?? 'unknown',
     );
     if ('refresh_token' in result) {
-      this.writeRefreshCookies(response, result.refresh_token, dto.remember !== false);
+      this.writeRefreshCookies(request, response, result.refresh_token, dto.remember !== false);
       return this.forTransport(result, request);
     }
     return result;
@@ -89,7 +87,7 @@ export class AuthController {
       dto,
       request.ip ?? request.socket.remoteAddress ?? 'unknown',
     );
-    this.writeRefreshCookies(response, auth.refresh_token, true);
+    this.writeRefreshCookies(request, response, auth.refresh_token, true);
     return this.forTransport(auth, request);
   }
 
@@ -154,7 +152,7 @@ export class AuthController {
     if (!refreshToken) throw new UnauthorizedException('Refresh session is required');
     const persistent = this.readCookie(request, REFRESH_MODE_COOKIE) === 'persistent';
     const auth = await this.authService.refreshAccessToken(refreshToken);
-    this.writeRefreshCookies(response, auth.refresh_token, persistent);
+    this.writeRefreshCookies(request, response, auth.refresh_token, persistent);
     return this.forTransport(auth, request);
   }
 
@@ -183,16 +181,20 @@ export class AuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(
     @CurrentUser() user: AuthenticatedUser,
+    @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
     await this.authService.revokeSession(user.sessionId);
-    this.clearRefreshCookies(response);
+    this.clearRefreshCookies(request, response);
   }
 
   @Post('logout/browser')
   @HttpCode(HttpStatus.NO_CONTENT)
-  clearBrowserLogoutCookies(@Res({ passthrough: true }) response: Response): void {
-    this.clearRefreshCookies(response);
+  clearBrowserLogoutCookies(
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ): void {
+    this.clearRefreshCookies(request, response);
   }
 
   private forTransport(auth: AuthResponseDto, request: Request): AuthResponseDto {
@@ -213,27 +215,36 @@ export class AuthController {
     }
   }
 
-  private writeRefreshCookies(response: Response, refreshToken: string, persistent: boolean) {
-    const base: CookieOptions = {
-      httpOnly: true,
-      secure: this.production,
-      sameSite: 'lax',
-      path: '/api/v1/auth',
-    };
+  private writeRefreshCookies(
+    request: Request,
+    response: Response,
+    refreshToken: string,
+    persistent: boolean,
+  ) {
+    const base = this.refreshCookieOptions(request);
     const maxAge = persistent ? this.refreshLifetimeSeconds * 1000 : undefined;
     response.cookie(REFRESH_COOKIE, refreshToken, { ...base, ...(maxAge ? { maxAge } : {}) });
     response.cookie(REFRESH_MODE_COOKIE, persistent ? 'persistent' : 'session', { ...base, ...(maxAge ? { maxAge } : {}) });
   }
 
-  private clearRefreshCookies(response: Response) {
-    const options: CookieOptions = {
+  private clearRefreshCookies(request: Request, response: Response) {
+    const options = this.refreshCookieOptions(request);
+    response.clearCookie(REFRESH_COOKIE, options);
+    response.clearCookie(REFRESH_MODE_COOKIE, options);
+  }
+
+  private refreshCookieOptions(request: Request): CookieOptions {
+    const forwardedProtocol = request.headers['x-forwarded-proto'];
+    const protocol = Array.isArray(forwardedProtocol)
+      ? forwardedProtocol[0]
+      : forwardedProtocol?.split(',')[0]?.trim();
+    const secure = request.secure || protocol === 'https';
+    return {
       httpOnly: true,
-      secure: this.production,
+      secure,
       sameSite: 'lax',
       path: '/api/v1/auth',
     };
-    response.clearCookie(REFRESH_COOKIE, options);
-    response.clearCookie(REFRESH_MODE_COOKIE, options);
   }
 
   private readCookie(request: Request, name: string): string | null {
