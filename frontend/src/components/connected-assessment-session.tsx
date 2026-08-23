@@ -51,7 +51,11 @@ type ReviewAssignment = Omit<Assignment, "question"> & {
 };
 type Review = { attempt: Attempt; questions: ReviewAssignment[] };
 type LowerTab = "scratchpad" | "patient" | "note";
-type HighlightRange = { start: number; end: number };
+type HighlightColor = "yellow" | "green" | "blue" | "pink";
+type HighlightRange = { start: number; end: number; color?: HighlightColor };
+type DrawingPoint = { x: number; y: number };
+type DrawingStroke = { points: DrawingPoint[] };
+type DrawingState = Record<string, DrawingStroke[]>;
 type QuestionHighlights = { stem: HighlightRange[]; options: Record<string, HighlightRange[]> };
 type HighlightState = Record<string, QuestionHighlights>;
 
@@ -64,13 +68,13 @@ function formatPace(seconds: number) {
 
 function normalizeRanges(ranges: HighlightRange[], textLength: number) {
   const ordered = ranges
-    .map((range) => ({ start: Math.max(0, Math.min(textLength, range.start)), end: Math.max(0, Math.min(textLength, range.end)) }))
+    .map((range) => ({ start: Math.max(0, Math.min(textLength, range.start)), end: Math.max(0, Math.min(textLength, range.end)), color: range.color || "yellow" as HighlightColor }))
     .filter((range) => range.end > range.start)
     .sort((left, right) => left.start - right.start || left.end - right.end);
   const merged: HighlightRange[] = [];
   for (const range of ordered) {
     const previous = merged[merged.length - 1];
-    if (previous && range.start <= previous.end) previous.end = Math.max(previous.end, range.end);
+    if (previous && previous.color === range.color && range.start <= previous.end) previous.end = Math.max(previous.end, range.end);
     else merged.push({ ...range });
   }
   return merged;
@@ -97,7 +101,7 @@ function HighlightableText({ text, ranges, enabled, onHighlight, className }: { 
   let cursor = 0;
   normalized.forEach((range, index) => {
     if (range.start > cursor) content.push(text.slice(cursor, range.start));
-    content.push(<mark className="exam-text-highlight" key={`${range.start}-${range.end}-${index}`}>{text.slice(range.start, range.end)}</mark>);
+    content.push(<mark className={`exam-text-highlight highlight-${range.color || "yellow"}`} key={`${range.start}-${range.end}-${index}`}>{text.slice(range.start, range.end)}</mark>);
     cursor = range.end;
   });
   if (cursor < text.length) content.push(text.slice(cursor));
@@ -121,6 +125,9 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   const [highlights, setHighlights] = useState<HighlightState>({});
   const [strikeMode, setStrikeMode] = useState(false);
   const [highlightMode, setHighlightMode] = useState(false);
+  const [highlightColor, setHighlightColor] = useState<HighlightColor>("yellow");
+  const [penMode, setPenMode] = useState(false);
+  const [drawings, setDrawings] = useState<DrawingState>({});
   const [scratchpad, setScratchpad] = useState("");
   const [lowerTab, setLowerTab] = useState<LowerTab>("scratchpad");
   const [review, setReview] = useState<Review | null>(null);
@@ -138,16 +145,20 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   const [now, setNow] = useState<number | null>(null);
   const autoSubmitStarted = useRef(false);
   const answerRequests = useRef(new Set<string>());
+  const drawingSurfaceRef = useRef<HTMLDivElement>(null);
+  const activeStroke = useRef<number | null>(null);
 
   useEffect(() => {
     try {
       setScratchpad(sessionStorage.getItem(`mdp:scratchpad:${attemptId}`) || "");
       const savedHighlights = JSON.parse(sessionStorage.getItem(`mdp:highlights:${attemptId}`) || "{}") as HighlightState;
       const savedStrikes = JSON.parse(sessionStorage.getItem(`mdp:strikes:${attemptId}`) || "{}") as Record<string, string[]>;
+      const savedDrawings = JSON.parse(sessionStorage.getItem(`mdp:drawings:${attemptId}`) || "{}") as DrawingState;
       setHighlights(savedHighlights && typeof savedHighlights === "object" ? savedHighlights : {});
       setStruck(savedStrikes && typeof savedStrikes === "object" ? savedStrikes : {});
+      setDrawings(savedDrawings && typeof savedDrawings === "object" ? savedDrawings : {});
     } catch {
-      setScratchpad(""); setHighlights({}); setStruck({});
+      setScratchpad(""); setHighlights({}); setStruck({}); setDrawings({});
     } finally { setLocalToolsLoaded(true); }
   }, [attemptId]);
 
@@ -180,10 +191,11 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
       sessionStorage.setItem(`mdp:scratchpad:${attemptId}`, scratchpad);
       sessionStorage.setItem(`mdp:highlights:${attemptId}`, JSON.stringify(highlights));
       sessionStorage.setItem(`mdp:strikes:${attemptId}`, JSON.stringify(struck));
+      sessionStorage.setItem(`mdp:drawings:${attemptId}`, JSON.stringify(drawings));
     } catch { /* best effort */ }
-  }, [attemptId, highlights, localToolsLoaded, scratchpad, struck]);
+  }, [attemptId, drawings, highlights, localToolsLoaded, scratchpad, struck]);
 
-  useEffect(() => { setMoreOpen(false); setHighlightMode(false); setStrikeMode(false); setSavedNoteId(null); }, [index]);
+  useEffect(() => { setMoreOpen(false); setHighlightMode(false); setStrikeMode(false); setPenMode(false); setSavedNoteId(null); }, [index]);
 
   const current = items[index];
   const questionVisual = current ? getQuestionVisual(current.question.questionText) : null;
@@ -207,12 +219,30 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   function addHighlight(questionId: string, target: "stem" | string, start: number, end: number) {
     setHighlights((value) => {
       const existing = value[questionId] || { stem: [], options: {} };
-      if (target === "stem") return { ...value, [questionId]: { ...existing, stem: normalizeRanges([...existing.stem, { start, end }], current?.question.questionText.length || end) } };
+      if (target === "stem") return { ...value, [questionId]: { ...existing, stem: normalizeRanges([...existing.stem, { start, end, color: highlightColor }], current?.question.questionText.length || end) } };
       const optionText = current?.question.options.find((option) => option.id === target)?.optionText || "";
-      return { ...value, [questionId]: { ...existing, options: { ...existing.options, [target]: normalizeRanges([...(existing.options[target] || []), { start, end }], optionText.length || end) } } };
+      return { ...value, [questionId]: { ...existing, options: { ...existing.options, [target]: normalizeRanges([...(existing.options[target] || []), { start, end, color: highlightColor }], optionText.length || end) } } };
     });
   }
   function clearQuestionHighlights(questionId: string) { setHighlights((value) => { const next = { ...value }; delete next[questionId]; return next; }); }
+  function drawingPoint(event: React.PointerEvent<HTMLDivElement>): DrawingPoint | null {
+    const box = drawingSurfaceRef.current?.getBoundingClientRect();
+    if (!box || !box.width || !box.height) return null;
+    return { x: ((event.clientX - box.left) / box.width) * 1000, y: ((event.clientY - box.top) / box.height) * 1000 };
+  }
+  function startDrawing(event: React.PointerEvent<HTMLDivElement>) {
+    if (!penMode || !current || expired) return;
+    const point = drawingPoint(event); if (!point) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDrawings((value) => { const strokes = [...(value[current.question.id] || []), { points: [point] }]; activeStroke.current = strokes.length - 1; return { ...value, [current.question.id]: strokes }; });
+  }
+  function continueDrawing(event: React.PointerEvent<HTMLDivElement>) {
+    if (!penMode || !current || activeStroke.current === null) return;
+    const point = drawingPoint(event); if (!point) return;
+    setDrawings((value) => { const strokes = [...(value[current.question.id] || [])]; const stroke = strokes[activeStroke.current!]; if (!stroke) return value; strokes[activeStroke.current!] = { points: [...stroke.points, point] }; return { ...value, [current.question.id]: strokes }; });
+  }
+  function stopDrawing() { activeStroke.current = null; }
+  function clearQuestionDrawings(questionId: string) { setDrawings((value) => { const next = { ...value }; delete next[questionId]; return next; }); }
 
   async function choose(optionId: string, confidenceLevel: ConfidenceLevel) {
     if (!current || expired || Boolean(tutor && feedback[current.question.id] && answers[current.question.id] !== optionId)) return;
@@ -283,7 +313,8 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   function clearQuestionStrikes(questionId: string) { setStruck((value) => { const next = { ...value }; delete next[questionId]; return next; }); }
 
   const finalize = useCallback(async (auto = false) => {
-    if (!auto && Object.keys(pendingAnswers).length) { notify({ title: "Confidence required", description: "Choose a confidence level for every selected answer before submitting.", tone: "error" }); return; }
+    const missingConfidence = items.some((item) => Boolean((pendingAnswers[item.question.id] || answers[item.question.id]) && !confidence[item.question.id]));
+    if (!auto && missingConfidence) { notify({ title: "Confidence required", description: "Choose a confidence level for every selected answer before submitting.", tone: "error" }); return; }
     if (!auto && !window.confirm(`Submit this assessment with ${totalAnswered} of ${items.length} questions answered?`)) return;
     setSubmitting(true); setError(null);
     try {
@@ -296,7 +327,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
       }
       setError(cause instanceof Error ? cause.message : "Unable to submit the assessment.");
     } finally { setSubmitting(false); }
-  }, [attemptId, celebrate, items.length, notify, pendingAnswers, request, totalAnswered]);
+  }, [answers, attemptId, celebrate, confidence, items, notify, pendingAnswers, request, totalAnswered]);
 
   function endBlock() {
     if (tutor || blockIndex === blockCount - 1) { void finalize(Boolean(expired)); return; }
@@ -319,7 +350,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
     </Panel> : current ? <>
       <section className="exam-command-strip" aria-label="Exam status"><button className="exam-exit" type="button" onClick={() => router.push(exitPath)}><FiArrowLeft /> Exit {tutor ? "practice" : "exam"}</button><div><small>Exam</small><b>{attempt?.test?.title || (tutor ? "40 Question Practice" : "Mock Exam")}</b></div><div><small>Mode</small><b>{tutor ? "Tutor" : "Timed"}</b></div><div><small>Scope</small><b>{source === "rounds" ? "Selected lectures" : attempt?.test?.testType || "Configured exam"}</b></div><div><small>Block</small><b>Block {blockIndex + 1} of {blockCount}</b></div><div className="exam-time-cell"><small>Time remaining</small><b><FiClock /> {hideTime ? "••:••:••" : clock}</b></div><div><small>Progress</small><b>Question {questionInBlock} of {blockItems.length}</b><Progress value={progress} /></div></section>
       <div className="exam-workspace-grid">
-        <aside className="exam-navigator-card"><header><FiFileText /><b>Question Navigator</b></header><div className="exam-mini-legend"><span className="answered">Answered</span><span className="unanswered">Unanswered</span><span className="current">Current</span><span className="flagged">Flagged</span></div><div className="exam-number-grid">{blockItems.map((item, i) => { const globalIndex = blockStart + i; const isCurrent = globalIndex === index; const isAnswered = Boolean(answers[item.question.id]); const isFlagged = flags.includes(item.question.id); return <button type="button" className={`${isAnswered ? "answered" : "unanswered"} ${isCurrent ? "current" : ""} ${isFlagged ? "flagged" : ""}`} onClick={() => setIndex(globalIndex)} key={item.question.id} aria-label={`Question ${i + 1}${isAnswered ? ", answered" : ", unanswered"}${isFlagged ? ", flagged" : ""}`}>{i + 1}{isFlagged && <FiFlag />}</button>; })}</div><footer><b>Block progress</b><Progress value={progress} /><span><small>{blockAnswered}/{blockItems.length} answered</small><strong>{progress}%</strong></span></footer></aside>
+        <aside className="exam-navigator-card"><header><FiFileText /><b>Question Navigator</b></header><div className="exam-mini-legend"><span className="answered">Answered</span><span className="unanswered">Unanswered</span><span className="current">Current</span><span className="flagged">Hard</span></div><div className="exam-number-grid">{blockItems.map((item, i) => { const globalIndex = blockStart + i; const isCurrent = globalIndex === index; const isAnswered = Boolean(answers[item.question.id]); const isFlagged = flags.includes(item.question.id); return <button type="button" className={`${isAnswered ? "answered" : "unanswered"} ${isCurrent ? "current" : ""} ${isFlagged ? "flagged" : ""}`} onClick={() => setIndex(globalIndex)} key={item.question.id} aria-label={`Question ${i + 1}${isAnswered ? ", answered" : ", unanswered"}${isFlagged ? ", marked hard" : ""}`}>{i + 1}{isFlagged && <FiFlag />}</button>; })}</div><footer><b>Block progress</b><Progress value={progress} /><span><small>{blockAnswered}/{blockItems.length} answered</small><strong>{progress}%</strong></span></footer></aside>
         <section className="exam-main-column"><article className="exam-question-card">
           <div className="exam-question-toolbar"><div><span>{tutor ? "Tutor" : "Timed"}</span><span>MCQ</span></div><div><button type="button" className={flags.includes(current.question.id) ? "active" : ""} disabled={expired} onClick={() => void toggleFlag()}><FiFlag /> Flag</button><button type="button" className={highlightMode ? "active" : ""} aria-pressed={highlightMode} disabled={expired} onClick={() => { setHighlightMode((value) => !value); setStrikeMode(false); }}><FiEdit3 /> Highlighter</button><button type="button" className={strikeMode ? "active" : ""} aria-pressed={strikeMode} disabled={expired} onClick={() => { setStrikeMode((value) => !value); setHighlightMode(false); }}>S̶ Strike out</button><button type="button" onClick={() => setLabOpen(true)}>⚗ Lab values</button><button type="button" onClick={() => setLowerTab("note")}>▣ Notes</button><div className="exam-more-actions"><button type="button" aria-label="More question actions" aria-expanded={moreOpen} onClick={() => setMoreOpen((value) => !value)}><FiMoreVertical /></button>{moreOpen && <div className="exam-more-menu" role="menu"><button type="button" role="menuitem" disabled={!questionHighlights(current.question.id).stem.length && !Object.values(questionHighlights(current.question.id).options).some((ranges) => ranges.length)} onClick={() => { clearQuestionHighlights(current.question.id); setMoreOpen(false); }}>Clear highlights</button><button type="button" role="menuitem" disabled={!(struck[current.question.id] || []).length} onClick={() => { clearQuestionStrikes(current.question.id); setMoreOpen(false); }}>Clear strike-outs</button></div>}</div></div></div>
           {highlightMode && <p className="exam-tool-hint" role="status"><FiEdit3 /> Highlighter active — select any words in the question or answer choices. Highlights stay in this assessment session.</p>}{strikeMode && <p className="exam-tool-hint" role="status">S̶ Strike-out active — click an answer choice to cross it out without answering.</p>}
@@ -330,7 +361,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
         </article>
         <div className="exam-lower-grid"><section className="exam-scratchpad-card"><nav><button type="button" className={lowerTab === "scratchpad" ? "active" : ""} onClick={() => setLowerTab("scratchpad")}>Scratchpad</button><button type="button" className={lowerTab === "patient" ? "active" : ""} onClick={() => setLowerTab("patient")}>Patient summary</button><button type="button" className={lowerTab === "note" ? "active" : ""} onClick={() => setLowerTab("note")}>Question note</button></nav>{lowerTab === "scratchpad" ? <div><small>Local scratchpad — kept only in this browser session for this attempt.</small><textarea value={scratchpad} onChange={(event) => setScratchpad(event.target.value)} placeholder="Use this space for notes or quick calculations…" /><button type="button" onClick={() => setScratchpad("")}>Clear</button></div> : lowerTab === "patient" ? <div className="exam-empty-context"><p>No structured patient summary is attached to this question.</p></div> : <div><small>Private question note — saved to your account and tied to this assessment attempt + question.</small><textarea disabled={expired} value={notes[current.question.id] || ""} onChange={(event) => { setSavedNoteId(null); setNotes((value) => ({ ...value, [current.question.id]: event.target.value })); }} placeholder="Save a private note for this question…" /><button type="button" disabled={expired || savingNoteId === current.question.id} onClick={() => void saveNote()}><FiSave /> {savingNoteId === current.question.id ? "Saving…" : savedNoteId === current.question.id ? "Saved" : "Save note"}</button></div>}</section><section className="exam-lab-preview" id="exam-lab-preview"><header><span>⚗</span><b>Lab values (preview)</b><button type="button" onClick={() => setLabOpen(true)}>View all</button></header><div className="exam-empty-context"><p>No structured lab values are attached to this question.</p></div></section></div>
         </section>
-        <aside className="exam-overview-card"><header><b>Exam Overview</b></header><section className="overview-time"><small>Time remaining</small><strong>{hideTime ? "••:••:••" : clock}</strong><button type="button" onClick={() => setHideTime((value) => !value)}><FiEyeOff /> {hideTime ? "Show" : "Hide"}</button></section><dl><div className="answered"><dt>Answered</dt><dd>{blockAnswered} / {blockItems.length} <small>{progress}%</small></dd></div><div className="flagged"><dt>Flagged</dt><dd>{blockItems.filter((item) => flags.includes(item.question.id)).length}</dd></div><div className="unanswered"><dt>Unanswered</dt><dd>{unanswered}</dd></div></dl><section className="overview-pace"><span><small>Your pace</small><b>{pace}</b></span><Progress value={Math.min(100, Math.max(0, progress))} /></section><section className="overview-legend"><b>Question status legend</b><span className="answered">Answered</span><span className="unanswered">Unanswered</span><span className="current">Current question</span><span className="flagged">Flagged</span></section><section className="overview-lock"><FiFileText /><p>{tutor ? "Tutor explanations appear after the server confirms each saved answer." : "Explanations are hidden during the exam. You will see detailed explanations after submission."}</p></section></aside>
+        <aside className="exam-overview-card"><header><b>Exam Overview</b></header><section className="overview-time"><small>Time remaining</small><strong>{hideTime ? "••:••:••" : clock}</strong><button type="button" onClick={() => setHideTime((value) => !value)}><FiEyeOff /> {hideTime ? "Show" : "Hide"}</button></section><dl><div className="answered"><dt>Answered</dt><dd>{blockAnswered} / {blockItems.length} <small>{progress}%</small></dd></div><div className="flagged"><dt>Hard questions</dt><dd>{blockItems.filter((item) => flags.includes(item.question.id)).length}</dd></div><div className="unanswered"><dt>Unanswered</dt><dd>{unanswered}</dd></div></dl><section className="overview-pace"><span><small>Your pace</small><b>{pace}</b></span><Progress value={Math.min(100, Math.max(0, progress))} /></section><section className="overview-legend"><b>Question status legend</b><span className="answered">Answered</span><span className="unanswered">Unanswered</span><span className="current">Current question</span><span className="flagged">Hard question</span></section><section className="overview-lock"><FiFileText /><p>{tutor ? "Tutor explanations appear after the server confirms each saved answer." : "Explanations are hidden during the exam. You will see detailed explanations after submission."}</p></section></aside>
       </div>
       <footer className="exam-session-footer"><button type="button" disabled={index === 0} onClick={() => setIndex((value) => value - 1)}><FiArrowLeft /> Previous</button><b>Question {questionInBlock} of {blockItems.length}</b><div><button type="button" className="end" disabled={submitting} onClick={endBlock}>{expired ? (submitting ? "Submitting…" : "Retry submission") : tutor ? "End practice" : blockIndex === blockCount - 1 ? "Submit exam" : "End block"}</button><button type="button" className="next" disabled={questionInBlock === blockItems.length} onClick={() => setIndex((value) => value + 1)}>Next question <FiArrowRight /></button></div></footer>
     </> : <Panel title="No questions"><p>This assessment contains no accessible questions.</p></Panel>}
