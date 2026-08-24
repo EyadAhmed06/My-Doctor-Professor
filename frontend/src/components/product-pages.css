@@ -696,3 +696,45 @@ html[data-theme=light] .question-visual--nephrology img{
   .question-visual-modal{padding:12px}
   .question-visual-modal>button{top:12px;right:12px}
 }
+
+
+/* Paid bundle checkout preview: visual-only until provider flows are specified. */
+.bundle-payment-preview {
+  display: grid;
+  gap: 14px;
+}
+.bundle-payment-preview > p {
+  margin: 0;
+  color: var(--p-muted);
+}
+.bundle-payment-methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.bundle-payment-methods .bundle-plan-option {
+  width: 100%;
+  min-height: 78px;
+  align-items: center;
+  text-align: left;
+  cursor: default;
+  border: 1px solid var(--p-line);
+  background: color-mix(in srgb, var(--p-panel) 92%, var(--p-violet));
+}
+.bundle-payment-methods .bundle-plan-option span {
+  display: grid;
+  gap: 5px;
+}
+.bundle-payment-methods .bundle-plan-option em {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--p-violet) 14%, transparent);
+  color: var(--p-violet);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+@media (max-width: 640px) {
+  .bundle-payment-methods { grid-template-columns: 1fr; }
+}
