@@ -1,5 +1,6 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RateLimit } from '../auth/decorators/rate-limit.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -13,6 +14,7 @@ import { McqPracticeService } from './mcq-practice.service';
 export class McqPracticeController {
   constructor(private readonly practice: McqPracticeService) {}
 
+  @RateLimit({ key: 'practice-generate', maximum: 30, windowSeconds: 3600 })
   @Post('generate')
   @Roles(UserRole.STUDENT)
   generate(@Body() dto: GeneratePracticeTestDto, @CurrentUser() actor: AuthenticatedUser) {
