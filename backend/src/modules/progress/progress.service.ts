@@ -275,7 +275,8 @@ export class ProgressService {
         ), sessions AS (
           SELECT completed_at::date AS date,COUNT(*)::int AS plan_sessions
           FROM study_plan_items
-          WHERE student_id=$1 AND status='COMPLETED' AND completed_at>=CURRENT_DATE-6
+          WHERE student_id=$1 AND status='COMPLETED'
+            AND item_type<>'LECTURE' AND completed_at>=CURRENT_DATE-6
           GROUP BY completed_at::date
         )
         SELECT days.date,COALESCE(questions.questions,0)::int AS questions,
