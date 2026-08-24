@@ -31,6 +31,9 @@ function inspect(path) {
     ['shell/process execution', /(?:node:)?child_process|\bexecFile?Sync?\s*\(|\bspawnSync?\s*\(/g],
     ['non-cryptographic randomness', /\bMath\.random\s*\(/g],
   ];
+  if (relative(root, path).startsWith(`src/`)) {
+    rules.push(['shell/process execution', /(?:node:)?child_process|\\bexecFile?Sync?\\s*\\(|\\bspawnSync?\\s*\\(/g]);
+  }
   for (const [name, pattern] of rules) {
     for (const match of file.text.matchAll(pattern)) report(file, name, match);
   }
