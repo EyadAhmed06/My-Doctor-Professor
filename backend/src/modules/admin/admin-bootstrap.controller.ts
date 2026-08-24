@@ -1,6 +1,7 @@
 import { Body, Controller, Headers, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { Public } from '../auth/decorators/public.decorator';
+import { RateLimit } from '../auth/decorators/rate-limit.decorator';
 import { BootstrapAccountsDto } from './dtos/admin.dto';
 
 @Public()
