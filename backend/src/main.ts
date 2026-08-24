@@ -2,12 +2,15 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DatabaseExceptionFilter } from './common/filters/database-exception.filter';
+import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 import { isAllowedOrigin, parseAllowedOrigins } from './config/cors-policy';
+import { assertSecureRuntimeConfiguration } from './config/runtime-security';
 
 async function bootstrap() {
+  assertSecureRuntimeConfiguration();
   const app = await NestFactory.create(AppModule);
-
-
+  const requestContext = new RequestContextMiddleware();
+  app.use(requestContext.use.bind(requestContext));
 
   app.use((_request, response, next) => {
     response.setHeader('X-Content-Type-Options', 'nosniff');
@@ -40,22 +43,18 @@ async function bootstrap() {
     },
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    allowedHeaders: 'Content-Type,Authorization',
+    allowedHeaders: 'Content-Type,Authorization,X-Request-Id',
+    exposedHeaders: 'X-Request-Id',
     maxAge: 600,
   });
 
   app.useGlobalFilters(new DatabaseExceptionFilter());
-
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-    }),
-  );
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+    transformOptions: { enableImplicitConversion: true },
+  }));
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);
