@@ -130,18 +130,52 @@ export class StudyPlanItemActionsService {
     const today = this.isoDate(new Date());
     const examDate = new Date(`${plan.examDate}T00:00:00Z`);
     const lastDate = new Date(Math.min(examDate.getTime() - 86_400_000, Date.now() + 179 * 86_400_000));
-    if (lastDate < new Date(`${today}T00:00:00Z`)) throw new BadRequestException('Exam date must leave at least one study day');
+    if (lastDate < new Date(`${today}T00:00:00Z`)) {
+      throw new BadRequestException('Exam date must leave at least one study day');
+    }
 
-    const preferences = plan.preferences as PlanPreferences;
-    const availableDays = preferences.available_days?.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6) ?? [1, 2, 3, 4, 5, 6];
-    const restDay = preferences.rest_day ?? 0;
-    const lectures = await this.dataSource.query<{ id: string; title: string }[]>(`
-      SELECT DISTINCT lecture.id,lecture.title FROM bundle_enrollments enrollment
-      JOIN bundles bundle ON bundle.id=enrollment.bundle_id AND bundle.status='PUBLISHED'
-      LEFT JOIN bundle_courses bc ON bc.bundle_id=bundle.id LEFT JOIN bundle_weeks bw ON bw.bundle_id=bundle.id
-      JOIN weeks week ON week.course_id=bc.course_id OR week.id=bw.week_id
+    const preferences = (plan.preferences || {}) as PlanPreferences;
+    const restDay = Number.isInteger(preferences.rest_day) && Number(preferences.rest_day) >= 0
+      && Number(preferences.rest_day) <= 6 ? Number(preferences.rest_day) : 0;
+    const configuredDays = Array.isArray(preferences.available_days)
+      ? [...new Set(preferences.available_days.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))]
+      : [1, 2, 3, 4, 5, 6];
+    const availableDays = configuredDays.filter((day) => day !== restDay);
+    if (!availableDays.length) {
+      throw new BadRequestException('Choose at least one available study day distinct from the rest day');
+    }
+
+    const questionMinutes = preferences.questions_minutes ?? Math.max(30, Math.ceil(plan.dailyQuestionTarget * 1.5));
+    const flashcardMinutes = preferences.flashcards_minutes ?? Math.max(15, Math.ceil(plan.dailyFlashcardTarget * 0.5));
+    const dailyCapacity = Math.floor(plan.weeklyHoursTarget * 60 / availableDays.length);
+    if (questionMinutes + flashcardMinutes > dailyCapacity) {
+      throw new BadRequestException(
+        `Daily question and flashcard sessions need ${questionMinutes + flashcardMinutes} minutes, `
+        + `but the saved weekly capacity allows ${dailyCapacity} minutes per study day. Increase weekly hours or reduce session durations.`,
+      );
+    }
+
+    const lectures = await this.dataSource.query<Array<{
+      id: string; title: string; duration_minutes: number;
+    }>>(`
+      SELECT DISTINCT lecture.id,lecture.title,
+        COALESCE(lecture.estimated_duration_minutes,60)::int AS duration_minutes
+      FROM bundle_enrollments enrollment
+      JOIN bundles bundle ON bundle.id=enrollment.bundle_id
+      JOIN bundle_weeks bundle_week ON bundle_week.bundle_id=bundle.id
+      JOIN weeks week ON week.id=bundle_week.week_id
       JOIN lectures lecture ON lecture.week_id=week.id AND lecture.is_published=TRUE
-      WHERE enrollment.student_id=$1 AND enrollment.status='ACTIVE' AND (enrollment.expires_at IS NULL OR enrollment.expires_at>CURRENT_TIMESTAMP)
+      LEFT JOIN student_lecture_progress progress
+        ON progress.lecture_id=lecture.id AND progress.student_id=$1
+      WHERE enrollment.student_id=$1
+        AND enrollment.status='ACTIVE'
+        AND enrollment.starts_at<=CURRENT_TIMESTAMP
+        AND (enrollment.expires_at IS NULL OR enrollment.expires_at>CURRENT_TIMESTAMP)
+        AND bundle.status='PUBLISHED'
+        AND (bundle.is_free=TRUE OR enrollment.payment_status='PAID')
+        AND (bundle.available_from IS NULL OR bundle.available_from<=CURRENT_TIMESTAMP)
+        AND (bundle.available_until IS NULL OR bundle.available_until>CURRENT_TIMESTAMP)
+        AND COALESCE(progress.is_completed,FALSE)=FALSE
       ORDER BY lecture.title
     `, [studentId]);
 
@@ -152,6 +186,10 @@ export class StudyPlanItemActionsService {
       .andWhere("COALESCE((item.metadata->>'locked')::boolean,FALSE)=TRUE")
       .getMany();
     const lockedKeys = new Set(locked.map((item) => `${item.scheduledDate}:${item.itemType}`));
+    const lockedMinutes = new Map<string, number>();
+    for (const item of locked) {
+      lockedMinutes.set(item.scheduledDate, (lockedMinutes.get(item.scheduledDate) || 0) + item.durationMinutes);
+    }
 
     const generated: Partial<StudyPlanItem>[] = [];
     let cursor = new Date(`${today}T00:00:00Z`);
@@ -163,14 +201,44 @@ export class StudyPlanItemActionsService {
     while (cursor <= lastDate) {
       const day = cursor.getUTCDay();
       const scheduledDate = this.isoDate(cursor);
-      if (day === restDay || !availableDays.includes(day)) {
-        add({ studentId, scheduledDate, itemType: StudyPlanItemType.REST, status: StudyPlanItemStatus.PLANNED, durationMinutes: 15, targetCount: null, lectureId: null, metadata: { reason: 'Protected recovery day' } });
-      } else {
-        add({ studentId, scheduledDate, itemType: StudyPlanItemType.QUESTIONS, status: StudyPlanItemStatus.PLANNED, durationMinutes: preferences.questions_minutes ?? Math.max(30, Math.ceil(plan.dailyQuestionTarget * 1.5)), targetCount: plan.dailyQuestionTarget, lectureId: null, metadata: { source: 'bundle_question_bank', rationale: 'Daily question target from your saved plan settings' } });
-        add({ studentId, scheduledDate, itemType: StudyPlanItemType.FLASHCARDS, status: StudyPlanItemStatus.PLANNED, durationMinutes: preferences.flashcards_minutes ?? Math.max(15, Math.ceil(plan.dailyFlashcardTarget * 0.5)), targetCount: plan.dailyFlashcardTarget, lectureId: null, metadata: { source: 'spaced_repetition', rationale: 'Daily retention target from your saved plan settings' } });
-        if (lectures.length) {
-          const lecture = lectures[lectureIndex++ % lectures.length];
-          add({ studentId, scheduledDate, itemType: StudyPlanItemType.LECTURE, status: StudyPlanItemStatus.PLANNED, durationMinutes: 60, targetCount: null, lectureId: lecture.id, metadata: { title: lecture.title, rationale: 'Next published lecture from an active bundle' } });
+      if (day === restDay) {
+        add({
+          studentId, scheduledDate, itemType: StudyPlanItemType.REST,
+          status: StudyPlanItemStatus.PLANNED, durationMinutes: 15,
+          targetCount: null, lectureId: null, metadata: { reason: 'Protected recovery day' },
+        });
+      } else if (availableDays.includes(day)) {
+        const lockedForDay = lockedMinutes.get(scheduledDate) || 0;
+        if (lockedForDay > dailyCapacity) {
+          throw new BadRequestException(
+            `Locked sessions on ${scheduledDate} exceed the daily capacity. Unlock or resize them before rebuilding.`,
+          );
+        }
+        add({
+          studentId, scheduledDate, itemType: StudyPlanItemType.QUESTIONS,
+          status: StudyPlanItemStatus.PLANNED, durationMinutes: questionMinutes,
+          targetCount: plan.dailyQuestionTarget, lectureId: null,
+          metadata: { source: 'bundle_question_bank', rationale: 'Daily question target from your saved plan settings' },
+        });
+        add({
+          studentId, scheduledDate, itemType: StudyPlanItemType.FLASHCARDS,
+          status: StudyPlanItemStatus.PLANNED, durationMinutes: flashcardMinutes,
+          targetCount: plan.dailyFlashcardTarget, lectureId: null,
+          metadata: { source: 'spaced_repetition', rationale: 'Daily retention target from your saved plan settings' },
+        });
+
+        const used = lockedForDay
+          + (lockedKeys.has(`${scheduledDate}:${StudyPlanItemType.QUESTIONS}`) ? 0 : questionMinutes)
+          + (lockedKeys.has(`${scheduledDate}:${StudyPlanItemType.FLASHCARDS}`) ? 0 : flashcardMinutes);
+        const lecture = lectures[lectureIndex];
+        if (lecture && used + lecture.duration_minutes <= dailyCapacity) {
+          add({
+            studentId, scheduledDate, itemType: StudyPlanItemType.LECTURE,
+            status: StudyPlanItemStatus.PLANNED, durationMinutes: lecture.duration_minutes,
+            targetCount: null, lectureId: lecture.id,
+            metadata: { title: lecture.title, rationale: 'Next incomplete published lecture from an active bundle' },
+          });
+          lectureIndex += 1;
         }
       }
       cursor = new Date(cursor.getTime() + 86_400_000);
