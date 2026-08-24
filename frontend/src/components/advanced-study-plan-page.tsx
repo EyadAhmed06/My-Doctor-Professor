@@ -31,8 +31,6 @@ type PlanPreferences = {
 
 type Plan = {
   studentId: string;
-  targetExam: string | null;
-  examDate: string | null;
   dailyQuestionTarget: number;
   weeklyHoursTarget: number;
   dailyFlashcardTarget: number;
@@ -135,7 +133,6 @@ export function AdvancedStudyPlanPage({ calendarOnly = false }: { calendarOnly?:
 
   function payload(value: Plan) {
     return {
-      exam_date: value.examDate || undefined,
       daily_question_target: value.dailyQuestionTarget,
       weekly_hours_target: value.weeklyHoursTarget,
       daily_flashcard_target: value.dailyFlashcardTarget,
@@ -285,7 +282,7 @@ export function AdvancedStudyPlanPage({ calendarOnly = false }: { calendarOnly?:
     return map;
   }, {}), [calendar]);
   const days = Object.entries(grouped).slice(0, 21);
-  const moveDates = Object.keys(grouped).filter((date) => new Date(`${date}T23:59:59`).getTime() >= today && (plan?.examDate ? date < plan.examDate : true));
+  const moveDates = Object.keys(grouped).filter((date) => new Date(`${date}T23:59:59`).getTime() >= today);
 
   function updateActive(next: Plan) {
     setPlan(next);
@@ -299,11 +296,11 @@ export function AdvancedStudyPlanPage({ calendarOnly = false }: { calendarOnly?:
 
   return <ProductShell><main className="pp-page study-plan-restored advanced-study-plan-page">
     <header className="workspace-heading">
-      <div><span className="page-eyebrow">ADAPTIVE LEARNING SCHEDULE</span><h1>{calendarOnly ? "Study Calendar" : "Study Plan"}</h1><p>{calendarOnly ? "Review, complete, protect, resize, and reschedule your generated sessions." : "Set your learning targets and weekly study capacity."}</p></div>
+      <div><span className="page-eyebrow">ADAPTIVE LEARNING SCHEDULE</span><h1>{calendarOnly ? "Study Calendar" : "Study Plan"}</h1><p>{calendarOnly ? "Review, complete, protect, resize, and reschedule your generated sessions." : "Set your learning targets and weekly capacity for a rolling 30-day plan."}</p></div>
       <div className="plan-header-actions">
         {calendarOnly ? <>
           <Link className="pp-button secondary" href="/study-plan">Back to study plan</Link>
-          {preview && generationState === "READY" ? <button className="pp-button" type="button" disabled={busy} onClick={() => void generate()}><FiCheck /> Accept and build</button> : <button className="pp-button" disabled={busy || !plan?.examDate} onClick={() => void previewGeneration()}><FiRefreshCw /> {generationState === "PREVIEWING" ? "Analyzing…" : "Rebuild calendar"}</button>}
+          {preview && generationState === "READY" ? <button className="pp-button" type="button" disabled={busy} onClick={() => void generate()}><FiCheck /> Accept and build</button> : <button className="pp-button" disabled={busy} onClick={() => void previewGeneration()}><FiRefreshCw /> {generationState === "PREVIEWING" ? "Analyzing…" : "Rebuild calendar"}</button>}
         </> : <>
           <Link className="pp-button" href="/study-plan/calendar"><FiCalendar /> Show calendar</Link>
         </>}
@@ -336,14 +333,13 @@ export function AdvancedStudyPlanPage({ calendarOnly = false }: { calendarOnly?:
               </div>}
               <details className="session-rationale"><summary>Why this session?</summary><p>{rationaleFor(item)}</p></details>
             </div>)}
-          </article>)}</div> : <p>No schedule exists yet. Save an exam date, then preview your calendar.</p>}
+          </article>)}</div> : <p>No monthly schedule exists yet. Save your targets, then build the next 30 days.</p>}
         </Panel></section>}
 
         {!calendarOnly && <aside>
           <Panel title="Readiness projection">{readiness ? <><div className="readiness-score"><b>{readiness.score}</b><span>/100</span><small>{readiness.band.replaceAll("_", " ")}</small></div>{Object.entries(readiness.components).map(([label, value]) => <div className="readiness-component" key={label}><span>{label}</span><b>{Math.round(value)}%</b><Progress value={value} /></div>)}</> : <p>Readiness is calculated after activity exists.</p>}</Panel>
 
           <Panel title="Plan settings"><form className="plan-target-form" onSubmit={save}>
-            <label>Exam date<input type="date" value={plan.examDate || ""} onChange={(event) => updateActive({ ...plan, examDate: event.target.value })} /></label>
             <label>Daily questions<input type="number" min="1" max="500" value={plan.dailyQuestionTarget} onChange={(event) => updateActive({ ...plan, dailyQuestionTarget: Number(event.target.value) })} /></label>
             <label>Question session minutes<input type="number" min="5" max="1440" value={Number(plan.preferences.questions_minutes ?? Math.max(30, Math.ceil(plan.dailyQuestionTarget * 1.5)))} onChange={(event) => setNumericPreference("questions_minutes", Number(event.target.value))} /></label>
             <label>Daily flashcards<input type="number" min="1" max="1000" value={plan.dailyFlashcardTarget} onChange={(event) => updateActive({ ...plan, dailyFlashcardTarget: Number(event.target.value) })} /></label>
@@ -365,7 +361,7 @@ function GenerationStepper({ state }: { state: GenerationState }) {
   const order: GenerationState[] = ["PREVIEWING", "READY", "BUILDING", "COMPLETE"];
   const current = state === "IDLE" ? -1 : order.indexOf(state);
   const steps = [
-    { label: "Validate", detail: "Exam and capacity" },
+    { label: "Validate", detail: "Monthly capacity" },
     { label: "Prioritize", detail: "Questions, reviews, lectures" },
     { label: "Balance", detail: "Rest days and weekly load" },
     { label: "Build", detail: "Persist accepted calendar" },
