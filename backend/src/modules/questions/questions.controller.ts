@@ -17,6 +17,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { UploadedResourceFile } from '../academic/resource-storage.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RateLimit } from '../auth/decorators/rate-limit.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -86,6 +87,7 @@ export class QuestionsController {
     return this.questions.createTag(dto);
   }
 
+  @RateLimit({ key: 'question-import-inspect', maximum: 10, windowSeconds: 3600 })
   @Post('imports/inspect')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   @UseInterceptors(FileInterceptor('file', {
@@ -112,6 +114,7 @@ export class QuestionsController {
     };
   }
 
+  @RateLimit({ key: 'question-import-publish', maximum: 20, windowSeconds: 3600 })
   @Post('imports/publish')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   publishImport(
