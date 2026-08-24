@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { DataSource, In, Repository } from 'typeorm';
 import { BundleCourse } from '../../common/entities/bundle-course.entity';
+import { NotificationType } from '../../common/entities/notification.entity';
 import {
   BundleEnrollment,
   BundleEnrollmentSource,
@@ -25,6 +26,7 @@ import { Course } from '../../common/entities/course.entity';
 import { Test } from '../../common/entities/test.entity';
 import { Week } from '../../common/entities/week.entity';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { NotificationsService } from '../notifications/notifications.service';
 import { User, UserRole, UserStatus } from '../users/entities/user.entity';
 import {
   ConfirmBundlePaymentDto,
@@ -53,6 +55,7 @@ export class BundlesService {
     @InjectRepository(Test) private readonly tests: Repository<Test>,
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly dataSource: DataSource,
+    private readonly notifications: NotificationsService,
   ) {}
 
   catalog(academicYear?: number) {
@@ -417,6 +420,7 @@ export class BundlesService {
   async changeStatus(id: string, actor: AuthenticatedUser, status: BundleStatus) {
     await this.assertManager(id, actor);
     const bundle = await this.requireBundle(id);
+    const previousStatus=bundle.status;
     if (status === BundleStatus.PUBLISHED) {
       const count = await this.bundleCourses.count({ where: { bundleId: id } });
       if (count === 0) throw new ConflictException('A bundle needs at least one course before publishing');
@@ -425,7 +429,16 @@ export class BundlesService {
       }
     }
     bundle.status = status;
-    return this.bundles.save(bundle);
+    const saved=await this.bundles.save(bundle);
+    if(previousStatus!==BundleStatus.PUBLISHED&&saved.status===BundleStatus.PUBLISHED) {
+      await this.notifications.notifyBundleStudents(saved.id,{
+        title:'Bundle published',
+        message:`${saved.title} is now available. Open it to view the latest curriculum.`,
+        target_url:`/bundles?bundle=${saved.slug}&tab=overview`,
+        notification_type:NotificationType.COURSE,
+      },actor);
+    }
+    return saved;
   }
 
   async addCourse(id: string, actor: AuthenticatedUser, courseId: string) {
@@ -450,16 +463,28 @@ export class BundlesService {
 
   async addWeek(id: string, actor: AuthenticatedUser, weekId: string) {
     await this.assertManager(id, actor);
-    const week = await this.weeks.findOne({ where: { id: weekId } });
+    const [week,bundle]=await Promise.all([
+      this.weeks.findOne({ where: { id: weekId } }),
+      this.requireBundle(id),
+    ]);
     if (!week) throw new NotFoundException('Week not found');
     await this.assertCourseAttachable(week.courseId, actor);
     if (!await this.bundleCourses.exists({ where: { bundleId: id, courseId: week.courseId } })) {
       throw new BadRequestException('Add the parent course to the bundle first');
     }
-    return this.saveLink(
+    const link=await this.saveLink(
       () => this.bundleWeeks.save(this.bundleWeeks.create({ bundleId: id, weekId })),
       'Week already belongs to this bundle',
     );
+    if(bundle.status===BundleStatus.PUBLISHED) {
+      await this.notifications.notifyBundleStudents(id,{
+        title:'New week added',
+        message:`${week.title||`Week ${week.weekNumber}`} was added to ${bundle.title}.`,
+        target_url:`/bundles?bundle=${bundle.slug}&tab=curriculum`,
+        notification_type:NotificationType.COURSE,
+      },actor);
+    }
+    return link;
   }
 
   async removeWeek(id: string, actor: AuthenticatedUser, weekId: string) {
