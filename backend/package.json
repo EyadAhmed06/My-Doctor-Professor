@@ -35,7 +35,8 @@
     "seed:demo": "ts-node scripts/seed-demo.ts",
     "backup:create": "node scripts/backup-db.mjs",
     "backup:verify": "node scripts/verify-backup.mjs",
-    "backup:restore": "node scripts/restore-backup.mjs"
+    "backup:restore": "node scripts/restore-backup.mjs",
+    "audit:security": "node scripts/security-static-audit.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -51,7 +52,7 @@
     "dotenv": "^17.4.2",
     "nodemailer": "^9.0.3",
     "passport": "^0.7.0",
-   "passport-jwt": "^4.0.1",
+    "passport-jwt": "^4.0.1",
     "pg": "^8.22.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
