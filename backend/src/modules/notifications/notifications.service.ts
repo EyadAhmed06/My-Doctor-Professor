@@ -59,8 +59,10 @@ export class NotificationsService {
         SELECT DISTINCT enrollment.student_id
         FROM bundle_enrollments enrollment
         JOIN bundles bundle ON bundle.id=enrollment.bundle_id
-        JOIN bundle_instructors assignment ON assignment.bundle_id=bundle.id
-        WHERE assignment.instructor_id=$1
+        LEFT JOIN bundle_instructors assignment ON assignment.bundle_id=bundle.id
+        LEFT JOIN bundle_courses bundle_course ON bundle_course.bundle_id=bundle.id
+        LEFT JOIN course_instructors course_assignment ON course_assignment.course_id=bundle_course.course_id
+        WHERE (assignment.instructor_id=$1 OR course_assignment.instructor_id=$1)
           AND enrollment.student_id=ANY($2::uuid[])
           AND enrollment.status='ACTIVE'
           AND (enrollment.expires_at IS NULL OR enrollment.expires_at>CURRENT_TIMESTAMP)
