@@ -109,6 +109,35 @@ export class TestsService implements OnModuleInit {
         CREATE UNIQUE INDEX IF NOT EXISTS uq_flag_type
         ON question_flags (attempt_id, question_id, flag_type)
       `);
+      // Remove the obsolete database-only rule left by older installations.
+      // Current practice sizes are validated in generatePractice below.
+      await manager.query(`
+        DO $
+        DECLARE legacy_trigger record;
+        BEGIN
+          FOR legacy_trigger IN
+            SELECT trigger_namespace.nspname AS schema_name,
+                   trigger_table.relname AS table_name,
+                   trigger_definition.tgname AS trigger_name
+            FROM pg_trigger trigger_definition
+            JOIN pg_proc trigger_function
+              ON trigger_function.oid = trigger_definition.tgfoid
+            JOIN pg_class trigger_table
+              ON trigger_table.oid = trigger_definition.tgrelid
+            JOIN pg_namespace trigger_namespace
+              ON trigger_namespace.oid = trigger_table.relnamespace
+            WHERE NOT trigger_definition.tgisinternal
+              AND trigger_function.prosrc ILIKE '%Lecture practice must contain exactly 40 MCQs%'
+          LOOP
+            EXECUTE format(
+              'DROP TRIGGER IF EXISTS %I ON %I.%I',
+              legacy_trigger.trigger_name,
+              legacy_trigger.schema_name,
+              legacy_trigger.table_name
+            );
+          END LOOP;
+        END $;
+      `);
     });
   }
 
@@ -208,8 +237,13 @@ export class TestsService implements OnModuleInit {
     if (!(await this.students.exists({ where: { userId: actor.userId } }))) {
       throw new ForbiddenException('Student profile is required to generate a practice test');
     }
-    if (dto.test_mode === TestMode.TIMED && !dto.duration_minutes) {
-      throw new BadRequestException('Timed practice requires duration_minutes');
+    if (![40, 200].includes(dto.question_count)) {
+      throw new BadRequestException('Practice exams must contain either 40 or 200 MCQs');
+    }
+    if (dto.test_mode === TestMode.TIMED && dto.duration_minutes !== dto.question_count) {
+      throw new BadRequestException(
+        `A timed ${dto.question_count}-MCQ exam must last exactly ${dto.question_count} minutes`,
+      );
     }
     await this.requireBundleLectureAccess(
       dto.bundle_id, actor.userId, dto.lecture_ids, true,
