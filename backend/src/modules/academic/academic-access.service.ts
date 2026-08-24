@@ -23,9 +23,13 @@ export class AcademicAccessService {
            JOIN courses course ON course.id = bundle_course.course_id
            WHERE enrollment.student_id = $2
              AND bundle_course.course_id = $1
-             AND enrollment.status <> 'REVOKED'
-             AND bundle.status IN ('PUBLISHED','ARCHIVED')
+             AND enrollment.status = 'ACTIVE'
+             AND enrollment.starts_at <= CURRENT_TIMESTAMP
+             AND (enrollment.expires_at IS NULL OR enrollment.expires_at > CURRENT_TIMESTAMP)
+             AND bundle.status = 'PUBLISHED'
+             AND (bundle.is_free = TRUE OR enrollment.payment_status = 'PAID')
              AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+             AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
              AND course.is_active = TRUE`,
           [courseId, actor.userId],
         );
@@ -51,9 +55,13 @@ export class AcademicAccessService {
            JOIN bundles bundle ON bundle.id = enrollment.bundle_id
            WHERE week.id = $1
              AND enrollment.student_id = $2
-             AND enrollment.status <> 'REVOKED'
-             AND bundle.status IN ('PUBLISHED','ARCHIVED')
+             AND enrollment.status = 'ACTIVE'
+             AND enrollment.starts_at <= CURRENT_TIMESTAMP
+             AND (enrollment.expires_at IS NULL OR enrollment.expires_at > CURRENT_TIMESTAMP)
+             AND bundle.status = 'PUBLISHED'
+             AND (bundle.is_free = TRUE OR enrollment.payment_status = 'PAID')
              AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+             AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
              AND course.is_active = TRUE`,
           [weekId, actor.userId],
         );
@@ -81,9 +89,13 @@ export class AcademicAccessService {
            JOIN bundles bundle ON bundle.id = enrollment.bundle_id
            WHERE lecture.id = $1
              AND enrollment.student_id = $2
-             AND enrollment.status <> 'REVOKED'
-             AND bundle.status IN ('PUBLISHED','ARCHIVED')
+             AND enrollment.status = 'ACTIVE'
+             AND enrollment.starts_at <= CURRENT_TIMESTAMP
+             AND (enrollment.expires_at IS NULL OR enrollment.expires_at > CURRENT_TIMESTAMP)
+             AND bundle.status = 'PUBLISHED'
+             AND (bundle.is_free = TRUE OR enrollment.payment_status = 'PAID')
              AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+             AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
              AND course.is_active = TRUE
              AND lecture.is_published = TRUE`,
           [lectureId, actor.userId],
