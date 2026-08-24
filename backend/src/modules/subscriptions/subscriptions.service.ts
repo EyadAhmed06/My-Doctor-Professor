@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { Bundle, BundleStatus } from '../../common/entities/bundle.entity';
@@ -113,13 +113,17 @@ export class SubscriptionsService {
     return { accessible: result.accessible };
   }
 
-  /** Direct purchase: always grants immediate, permanent access regardless of plan. Idempotent — purchasing
-   * a bundle the user already has access to (any reason) is a no-op, since access is already forever. */
-  async purchaseBundle(userId: string, bundleId: string): Promise<UserBundleUnlock> {
+  /**
+   * This legacy route must never manufacture a PURCHASE unlock from an authenticated
+   * browser request. Paid access is granted only by a signature-verified provider
+   * callback (or an explicit administrative grant in the bundle domain).
+   */
+  async purchaseBundle(userId: string, bundleId: string): Promise<never> {
     await this.requireBundle(bundleId);
-    const existing = await this.unlocks.findOne({ where: { userId, bundleId } });
-    if (existing) return existing;
-    return this.unlocks.save(this.unlocks.create({ userId, bundleId, unlockReason: UnlockReason.PURCHASE }));
+    void userId;
+    throw new ConflictException(
+      'Direct bundle purchase is disabled; start a provider checkout and wait for verified payment confirmation',
+    );
   }
 
   private async resolveAccess(userId: string, bundleId: string): Promise<AccessResolution> {
