@@ -10,6 +10,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
+import { RequestRateLimitGuard } from './modules/auth/guards/request-rate-limit.guard';
 import { FlashcardsModule } from './modules/flashcards/flashcards.module';
 import { HealthModule } from './modules/health/health.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
@@ -50,6 +51,7 @@ import { EssayCasesModule } from './modules/essay-cases/essay-cases.module';
   providers: [
     AppService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RequestRateLimitGuard },
   ],
 })
 export class AppModule {}
