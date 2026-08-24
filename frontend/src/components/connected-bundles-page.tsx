@@ -572,10 +572,32 @@ function PlanPickerModal({
           <p>Choose how you&apos;d like to access this bundle.</p>
 
           {!bundle.isFree && bundle.priceAmount && (
-            <article className="bundle-plan-option">
-              <div><b>Full bundle</b><small>Every course, week, and past exam in this bundle.</small></div>
-              <button className="pp-button" type="button" disabled={busy} onClick={onChooseFull}>{money(bundle.priceAmount)}</button>
-            </article>
+            <>
+              <article className="bundle-plan-option">
+                <div><b>Full bundle</b><small>Every course, week, assessment, flashcard, and resource in this bundle.</small></div>
+                <strong>{money(bundle.priceAmount)}</strong>
+              </article>
+              <fieldset className="bundle-plan-fieldset bundle-payment-preview">
+                <legend>Choose a payment method</legend>
+                <p>Payment selection preview only. No account or card information is requested yet.</p>
+                <div className="bundle-payment-methods">
+                  {[
+                    { name: "Fawry Pay", detail: "Pay through a Fawry reference" },
+                    { name: "InstaPay", detail: "Transfer through InstaPay" },
+                    { name: "Mastercard", detail: "Card payment" },
+                    { name: "Telda", detail: "Pay with Telda" },
+                  ].map((method) => (
+                    <button className="bundle-plan-option" type="button" aria-disabled="true" title="Checkout flow will be connected later" key={method.name}>
+                      <span><b>{method.name}</b><small>{method.detail}</small></span>
+                      <em>Preview</em>
+                    </button>
+                  ))}
+                </div>
+                <button className="pp-button" type="button" disabled>
+                  Subscribe for {money(bundle.priceAmount)}
+                </button>
+              </fieldset>
+            </>
           )}
 
           {bundle.firstPlanEnabled && (
