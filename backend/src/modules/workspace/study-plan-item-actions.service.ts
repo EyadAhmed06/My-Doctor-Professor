@@ -120,7 +120,22 @@ export class StudyPlanItemActionsService {
       item.completedAt = item.status === StudyPlanItemStatus.COMPLETED ? new Date() : null;
     }
 
-    return this.planItems.save(item);
+    const saved = await this.planItems.save(item);
+    if (dto.status === StudyPlanItemStatus.COMPLETED
+      && item.itemType === StudyPlanItemType.LECTURE && item.lectureId) {
+      await this.dataSource.query(`
+        INSERT INTO student_lecture_progress(
+          student_id,lecture_id,is_completed,completion_percentage,time_spent_minutes,
+          last_accessed_at,completed_at
+        ) VALUES($1,$2,TRUE,100,$3,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+        ON CONFLICT(student_id,lecture_id) DO UPDATE SET
+          is_completed=TRUE,completion_percentage=100,
+          time_spent_minutes=GREATEST(student_lecture_progress.time_spent_minutes,EXCLUDED.time_spent_minutes),
+          last_accessed_at=CURRENT_TIMESTAMP,
+          completed_at=COALESCE(student_lecture_progress.completed_at,CURRENT_TIMESTAMP)
+      `,[studentId,item.lectureId,item.durationMinutes]);
+    }
+    return saved;
   }
 
   private async buildSchedule(studentId: string): Promise<ScheduleBuild> {
@@ -186,6 +201,8 @@ export class StudyPlanItemActionsService {
       .andWhere("COALESCE((item.metadata->>'locked')::boolean,FALSE)=TRUE")
       .getMany();
     const lockedKeys = new Set(locked.map((item) => `${item.scheduledDate}:${item.itemType}`));
+    const lockedLectureIds = new Set(locked.map((item) => item.lectureId).filter(Boolean));
+    const pendingLectures = lectures.filter((lecture) => !lockedLectureIds.has(lecture.id));
     const lockedMinutes = new Map<string, number>();
     for (const item of locked) {
       lockedMinutes.set(item.scheduledDate, (lockedMinutes.get(item.scheduledDate) || 0) + item.durationMinutes);
@@ -230,7 +247,7 @@ export class StudyPlanItemActionsService {
         const used = lockedForDay
           + (lockedKeys.has(`${scheduledDate}:${StudyPlanItemType.QUESTIONS}`) ? 0 : questionMinutes)
           + (lockedKeys.has(`${scheduledDate}:${StudyPlanItemType.FLASHCARDS}`) ? 0 : flashcardMinutes);
-        const lecture = lectures[lectureIndex];
+        const lecture = pendingLectures[lectureIndex];
         if (lecture && used + lecture.duration_minutes <= dailyCapacity) {
           add({
             studentId, scheduledDate, itemType: StudyPlanItemType.LECTURE,
