@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { Course } from '../../common/entities/course.entity';
 import { Lecture } from '../../common/entities/lecture.entity';
 import { Question } from '../../common/entities/question.entity';
@@ -41,9 +41,11 @@ export class ProgressService {
 
   async listCourseProgress(studentId:string) {
     await this.requireStudent(studentId);
+    const courseIds=await this.accessibleCourseIds(studentId);
+    if(!courseIds.length) return [];
     await this.synchronizeStudent(studentId);
     return this.courseProgress.find({
-      where:{studentId},
+      where:{studentId,courseId:In(courseIds)},
       relations:{course:{semester:true}},
       order:{course:{semester:{semesterNumber:'ASC'},displayOrder:'ASC'}},
     });
@@ -162,11 +164,12 @@ export class ProgressService {
   async studentDashboard(studentId:string) {
     await this.requireStudent(studentId);
     await this.synchronizeStudent(studentId);
-    const [courses,attempts,questionSummary,flashcards]=await Promise.all([
-      this.courseProgress.find({
-        where:{studentId},relations:{course:true},
+    const courseIds=await this.accessibleCourseIds(studentId);
+    const [courses,attempts,questionSummary,flashcards,momentumRows]=await Promise.all([
+      courseIds.length?this.courseProgress.find({
+        where:{studentId,courseId:In(courseIds)},relations:{course:true},
         order:{lastAccessedAt:'DESC'},take:6,
-      }),
+      }):Promise.resolve([]),
       this.dataSource.query(`
         SELECT attempt.id,attempt.status,attempt.score,attempt.submitted_at,
           test.id AS test_id,test.title,test.total_marks,test.passing_marks
@@ -175,20 +178,71 @@ export class ProgressService {
         ORDER BY COALESCE(attempt.submitted_at,attempt.created_at) DESC LIMIT 6
       `,[studentId]),
       this.dataSource.query(`
-        SELECT COALESCE(SUM(attempts),0)::int AS attempts,
-          COALESCE(SUM(correct_attempts),0)::int AS correct_attempts,
-          COALESCE(ROUND(100.0*SUM(correct_attempts)/NULLIF(SUM(attempts),0),2),0) AS accuracy,
-          COUNT(*) FILTER (WHERE bookmarked=TRUE)::int AS bookmarked
-        FROM student_question_progress WHERE student_id=$1
+        SELECT COUNT(*) FILTER(WHERE answer.is_correct IS NOT NULL)::int AS attempts,
+          COUNT(*) FILTER(WHERE answer.is_correct=TRUE)::int AS correct_attempts,
+          COALESCE(ROUND(100.0*COUNT(*) FILTER(WHERE answer.is_correct=TRUE)
+            /NULLIF(COUNT(*) FILTER(WHERE answer.is_correct IS NOT NULL),0),2),0)::float AS accuracy,
+          (SELECT COUNT(*)::int FROM student_question_progress
+            WHERE student_id=$1 AND bookmarked=TRUE) AS bookmarked
+        FROM student_answers answer
+        JOIN test_attempts attempt ON attempt.id=answer.attempt_id
+        WHERE attempt.student_id=$1 AND attempt.status IN ('SUBMITTED','EXPIRED')
       `,[studentId]),
       this.dataSource.query(`
-        SELECT COUNT(*)::int AS reviewed,
-          COUNT(*) FILTER (WHERE is_mastered=TRUE)::int AS mastered,
-          COUNT(*) FILTER (WHERE next_review_at IS NULL OR next_review_at<=CURRENT_TIMESTAMP)::int AS due
+        SELECT COUNT(*) FILTER(WHERE times_reviewed>0)::int AS reviewed,
+          COUNT(*) FILTER(WHERE is_mastered=TRUE)::int AS mastered,
+          COUNT(*) FILTER(WHERE times_reviewed>0
+            AND (next_review_at IS NULL OR next_review_at<=CURRENT_TIMESTAMP))::int AS due
         FROM student_flashcard_progress WHERE student_id=$1
       `,[studentId]),
+      this.dataSource.query(`
+        WITH activity_days AS (
+          SELECT DISTINCT activity_date FROM (
+            SELECT submitted_at::date AS activity_date FROM test_attempts
+              WHERE student_id=$1 AND submitted_at IS NOT NULL
+            UNION SELECT last_reviewed_at::date FROM student_flashcard_progress
+              WHERE student_id=$1 AND last_reviewed_at IS NOT NULL
+            UNION SELECT last_accessed_at::date FROM student_lecture_progress
+              WHERE student_id=$1 AND last_accessed_at IS NOT NULL
+            UNION SELECT completed_at::date FROM study_plan_items
+              WHERE student_id=$1 AND status='COMPLETED' AND completed_at IS NOT NULL
+          ) source WHERE activity_date IS NOT NULL
+        ), ordered AS (
+          SELECT activity_date,activity_date-(ROW_NUMBER() OVER(ORDER BY activity_date))::int AS group_key
+          FROM activity_days
+        ), latest_group AS (
+          SELECT group_key,MAX(activity_date) AS last_date FROM ordered GROUP BY group_key
+          ORDER BY last_date DESC LIMIT 1
+        ), current_streak AS (
+          SELECT CASE WHEN latest_group.last_date<CURRENT_DATE-1 THEN 0 ELSE COUNT(ordered.*) END::int AS days
+          FROM latest_group JOIN ordered USING(group_key) GROUP BY latest_group.last_date
+        ), totals AS (
+          SELECT
+            COALESCE((SELECT SUM(time_spent_minutes) FROM student_lecture_progress WHERE student_id=$1),0)
+            +COALESCE((SELECT SUM(duration_minutes) FROM study_plan_items
+              WHERE student_id=$1 AND status='COMPLETED' AND item_type<>'LECTURE'),0) AS study_minutes,
+            COALESCE((SELECT COUNT(*) FROM study_plan_items WHERE student_id=$1 AND status='COMPLETED'),0)::int AS completed_sessions,
+            COALESCE((SELECT COUNT(*) FROM student_answers answer JOIN test_attempts attempt ON attempt.id=answer.attempt_id
+              WHERE attempt.student_id=$1 AND attempt.status IN ('SUBMITTED','EXPIRED') AND answer.is_correct=TRUE),0)::int AS correct_answers,
+            COALESCE((SELECT COUNT(*) FROM student_flashcard_progress WHERE student_id=$1 AND is_mastered=TRUE),0)::int AS mastered_cards,
+            COALESCE((SELECT COUNT(*) FROM student_lecture_progress WHERE student_id=$1 AND is_completed=TRUE),0)::int AS completed_lectures
+        )
+        SELECT totals.*,COALESCE(current_streak.days,0)::int AS study_streak
+        FROM totals LEFT JOIN current_streak ON TRUE
+      `,[studentId]),
     ]);
-    return {courses,recent_attempts:attempts,questions:questionSummary[0],flashcards:flashcards[0]};
+    const momentum=momentumRows[0]??{};
+    const xp=Number(momentum.correct_answers||0)+Number(momentum.mastered_cards||0)
+      +10*Number(momentum.completed_lectures||0);
+    return {
+      courses,recent_attempts:attempts,questions:questionSummary[0],flashcards:flashcards[0],
+      clinical_momentum:{
+        study_streak:Number(momentum.study_streak||0),
+        study_minutes:Number(momentum.study_minutes||0),
+        completed_sessions:Number(momentum.completed_sessions||0),
+        xp,level:Math.floor(xp/100)+1,level_progress:xp%100,
+      },
+    };
   }
 
   async instructorDashboard(actor:AuthenticatedUser,query:DashboardQueryDto) {
@@ -251,7 +305,12 @@ export class ProgressService {
         SELECT COALESCE(SUM(progress.attempts),0)::int AS questions_answered,
           COALESCE(ROUND(100.0*SUM(progress.correct_attempts)/NULLIF(SUM(progress.attempts),0),2),0)::float AS accuracy,
           COUNT(*) FILTER(WHERE progress.bookmarked)::int AS bookmarked,
-          COALESCE((SELECT ROUND(AVG(confidence_level),2)::float FROM student_topic_progress WHERE student_id=$1),0) AS calibrated_confidence,
+          COALESCE((SELECT ROUND(100-AVG(ABS(
+            CASE answer.confidence_level WHEN 'LOW' THEN 35 WHEN 'MEDIUM' THEN 65 WHEN 'HIGH' THEN 85 END
+            -CASE WHEN answer.is_correct THEN 100 ELSE 0 END)),2)::float
+          FROM student_answers answer JOIN test_attempts attempt ON attempt.id=answer.attempt_id
+          WHERE attempt.student_id=$1 AND attempt.status IN ('SUBMITTED','EXPIRED')
+            AND answer.confidence_level IS NOT NULL AND answer.is_correct IS NOT NULL),0) AS calibrated_confidence,
           COALESCE((SELECT COUNT(*) FILTER(WHERE is_mastered)::int FROM student_flashcard_progress WHERE student_id=$1),0) AS flashcards_mastered,
           COALESCE((SELECT COUNT(*) FILTER(WHERE next_review_at IS NULL OR next_review_at<=CURRENT_TIMESTAMP)::int FROM student_flashcard_progress WHERE student_id=$1),0) AS flashcards_due
         FROM student_question_progress progress WHERE progress.student_id=$1`,[studentId]),
@@ -357,8 +416,28 @@ export class ProgressService {
 
   private async synchronizeStudent(studentId:string) {
     await this.synchronizeQuestionAndTopicProgress(studentId);
-    const courses=await this.courses.find({where:{isActive:true},select:{id:true}});
-    for(const course of courses) await this.synchronizeCourse(studentId,course.id,this.dataSource.manager);
+    const courseIds=await this.accessibleCourseIds(studentId);
+    for(const courseId of courseIds) await this.synchronizeCourse(studentId,courseId,this.dataSource.manager);
+  }
+
+  private async accessibleCourseIds(studentId:string):Promise<string[]> {
+    const rows=await this.dataSource.query(`
+      SELECT DISTINCT bundle_course.course_id
+      FROM bundle_enrollments enrollment
+      JOIN bundles bundle ON bundle.id=enrollment.bundle_id
+      JOIN bundle_courses bundle_course ON bundle_course.bundle_id=bundle.id
+      JOIN courses course ON course.id=bundle_course.course_id
+      WHERE enrollment.student_id=$1
+        AND enrollment.status='ACTIVE'
+        AND enrollment.starts_at<=CURRENT_TIMESTAMP
+        AND (enrollment.expires_at IS NULL OR enrollment.expires_at>CURRENT_TIMESTAMP)
+        AND bundle.status='PUBLISHED'
+        AND (bundle.is_free=TRUE OR enrollment.payment_status='PAID')
+        AND (bundle.available_from IS NULL OR bundle.available_from<=CURRENT_TIMESTAMP)
+        AND (bundle.available_until IS NULL OR bundle.available_until>CURRENT_TIMESTAMP)
+        AND course.is_active=TRUE
+    `,[studentId]) as Array<{course_id:string}>;
+    return rows.map((row)=>row.course_id);
   }
 
   private async synchronizeQuestionAndTopicProgress(studentId:string) {
