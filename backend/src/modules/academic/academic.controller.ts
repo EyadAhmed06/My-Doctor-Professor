@@ -17,6 +17,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RateLimit } from '../auth/decorators/rate-limit.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -312,6 +313,7 @@ export class AcademicController {
     return this.academic.createResource(lectureId, dto, user);
   }
 
+  @RateLimit({ key: 'resource-upload', maximum: 20, windowSeconds: 3600 })
   @Post('lectures/:lectureId/resources/upload')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   @UseInterceptors(FileInterceptor('file', {
