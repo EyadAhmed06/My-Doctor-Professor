@@ -382,7 +382,15 @@ export function ConnectedNoteEditorPage() {
   async function openAttachment(attachment: Attachment) {
     if (!activeNoteId || openingAttachmentId) return;
     if (!attachment.fileUrl.startsWith("managed:")) {
-      window.open(attachment.fileUrl, "_blank", "noopener,noreferrer");
+      try {
+        const external = new URL(attachment.fileUrl);
+        if (!["https:", "http:"].includes(external.protocol)) {
+          throw new Error("Only HTTP and HTTPS attachment links can be opened");
+        }
+        window.open(external.href, "_blank", "noopener,noreferrer");
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "Invalid attachment link");
+      }
       return;
     }
     setOpeningAttachmentId(attachment.id);
