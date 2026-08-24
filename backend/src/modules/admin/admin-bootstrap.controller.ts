@@ -1,7 +1,9 @@
 import { Body, Controller, Headers, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { AdminService } from './admin.service';
+import { Public } from '../auth/decorators/public.decorator';
 import { BootstrapAccountsDto } from './dtos/admin.dto';
 
+@Public()
 @Controller('admin/bootstrap')
 export class AdminBootstrapController {
   constructor(private readonly admin:AdminService) {}
