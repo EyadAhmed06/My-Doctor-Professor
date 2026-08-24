@@ -1,6 +1,7 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
 import { PlanPurchasesService } from './plan-purchases.service';
 import { Public } from '../auth/decorators/public.decorator';
+import { RateLimit } from '../auth/decorators/rate-limit.decorator';
 
 /**
  * Public endpoint — Paymob calls this server-to-server with no user session, so it intentionally
@@ -15,6 +16,7 @@ import { Public } from '../auth/decorators/public.decorator';
 export class PaymobWebhookController {
   constructor(private readonly purchases: PlanPurchasesService) {}
 
+  @RateLimit({ key: 'paymob-webhook', maximum: 300, windowSeconds: 900, scope: 'ip' })
   @Post()
   @HttpCode(HttpStatus.OK)
   async receive(
