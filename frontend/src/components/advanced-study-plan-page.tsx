@@ -135,7 +135,6 @@ export function AdvancedStudyPlanPage({ calendarOnly = false }: { calendarOnly?:
 
   function payload(value: Plan) {
     return {
-      target_exam: value.targetExam,
       exam_date: value.examDate || undefined,
       daily_question_target: value.dailyQuestionTarget,
       weekly_hours_target: value.weeklyHoursTarget,
