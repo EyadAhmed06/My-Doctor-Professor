@@ -257,6 +257,14 @@ export class NotificationsService {
               AND bundle.status='PUBLISHED'
               AND (bundle.is_free=TRUE OR enrollment.payment_status='PAID')
               AND (bundle.available_until IS NULL OR bundle.available_until>CURRENT_TIMESTAMP)
+              AND (
+                deck.lecture_id IS NULL OR EXISTS (
+                  SELECT 1 FROM lectures lecture
+                  JOIN bundle_weeks bundle_week ON bundle_week.week_id=lecture.week_id
+                    AND bundle_week.bundle_id=bundle.id
+                  WHERE lecture.id=deck.lecture_id AND lecture.is_published=TRUE
+                )
+              )
           )
       `,[userId]),
     ]);
