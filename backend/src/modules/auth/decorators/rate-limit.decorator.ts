@@ -8,6 +8,7 @@ export interface RateLimitPolicy {
 }
 
 export const RATE_LIMIT_KEY = 'rateLimitPolicy';
+export const SKIP_RATE_LIMIT_KEY = 'skipRateLimit';
 
 export const RateLimit = (policy: RateLimitPolicy) => {
   if (!policy.key || !Number.isSafeInteger(policy.maximum) || policy.maximum <= 0
@@ -16,3 +17,5 @@ export const RateLimit = (policy: RateLimitPolicy) => {
   }
   return SetMetadata(RATE_LIMIT_KEY, policy);
 };
+
+export const SkipRateLimit = () => SetMetadata(SKIP_RATE_LIMIT_KEY, true);
