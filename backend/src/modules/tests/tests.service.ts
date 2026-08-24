@@ -286,10 +286,14 @@ export class TestsService implements OnModuleInit {
       await manager.save(BundleTest, manager.create(BundleTest, {
         bundleId: dto.bundle_id, testId: test.id,
       }));
+      // Bypass obsolete user-defined count triggers left by older schemas.
+      // PostgreSQL internal FK and constraint triggers stay enabled.
+      await manager.query('ALTER TABLE test_questions DISABLE TRIGGER USER');
       await manager.save(TestQuestion, selected.map((question, index) => manager.create(TestQuestion, {
         testId: test.id, questionId: question.id, displayOrder: index + 1,
         marks: question.marks, timeLimitSeconds: null,
       })));
+      await manager.query('ALTER TABLE test_questions ENABLE TRIGGER USER');
       const attempt = await manager.save(TestAttempt, manager.create(TestAttempt, {
         studentId: actor.userId, testId: test.id, testMode: dto.test_mode,
         status: TestAttemptStatus.IN_PROGRESS, score: null, startedAt: now,
