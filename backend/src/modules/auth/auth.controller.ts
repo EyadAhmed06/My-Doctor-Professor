@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Header,
   HttpCode,
@@ -14,6 +15,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { CookieOptions, Request, Response } from 'express';
 import { UsersService } from '../users/users.service';
+import { isAllowedOrigin, parseAllowedOrigins } from '../../config/cors-policy';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthResponseDto, UserProfileDto } from './dtos/auth-response.dto';
@@ -34,6 +36,7 @@ const REFRESH_MODE_COOKIE = 'mdp_refresh_mode';
 @Controller('auth')
 export class AuthController {
   private readonly refreshLifetimeSeconds: number;
+  private readonly allowedOrigins: ReadonlySet<string>;
 
   constructor(
     private readonly authService: AuthService,
@@ -42,6 +45,11 @@ export class AuthController {
     private readonly config: ConfigService,
   ) {
     this.refreshLifetimeSeconds = this.readPositiveInteger('JWT_REFRESH_TTL_SECONDS', 604800);
+    this.allowedOrigins = parseAllowedOrigins(
+      this.config.get('FRONTEND_URL'),
+      this.config.get('CORS_ORIGINS'),
+      this.config.get('NODE_ENV'),
+    );
   }
 
   @Post('login')
@@ -155,7 +163,9 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponseDto> {
-    const refreshToken = dto.refresh_token || this.readCookie(request, REFRESH_COOKIE);
+    const cookieToken = this.readCookie(request, REFRESH_COOKIE);
+    if (!dto.refresh_token && cookieToken) this.assertTrustedCookieOrigin(request);
+    const refreshToken = dto.refresh_token || cookieToken;
     if (!refreshToken) throw new UnauthorizedException('Refresh session is required');
     const persistent = this.readCookie(request, REFRESH_MODE_COOKIE) === 'persistent';
     const auth = await this.authService.refreshAccessToken(refreshToken);
@@ -201,7 +211,15 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): void {
+    if (this.readCookie(request, REFRESH_COOKIE)) this.assertTrustedCookieOrigin(request);
     this.clearRefreshCookies(request, response);
+  }
+
+  private assertTrustedCookieOrigin(request: Request): void {
+    const origin = request.headers.origin;
+    if (!origin || !isAllowedOrigin(origin, this.allowedOrigins)) {
+      throw new ForbiddenException('Untrusted browser origin');
+    }
   }
 
   private forTransport(auth: AuthResponseDto, request: Request): AuthResponseDto {
