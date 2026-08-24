@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 import { AppThemeProvider } from "@/components/app-theme";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/components/brand";
@@ -48,29 +49,9 @@ export const metadata: Metadata = {
   description: BRAND_TAGLINE,
 };
 
-const preferenceBootstrap = `(() => {
-  try {
-    const preference = localStorage.getItem("mdp-theme") || "system";
-    const systemDark = matchMedia("(prefers-color-scheme: dark)").matches;
-    const theme = preference === "system" ? (systemDark ? "dark" : "light") : preference;
-    document.documentElement.dataset.theme = theme === "dark" ? "dark" : "light";
-    document.documentElement.dataset.themePreference = preference;
-    const locale = localStorage.getItem("mdp-locale") === "ar" ? "ar" : "en";
-    document.documentElement.lang = locale;
-    document.documentElement.dir = locale === "ar" ? "rtl" : "ltr";
-    document.documentElement.dataset.locale = locale;
-  } catch {
-    document.documentElement.dataset.theme = "dark";
-    document.documentElement.dataset.themePreference = "system";
-    document.documentElement.lang = "en";
-    document.documentElement.dir = "ltr";
-    document.documentElement.dataset.locale = "en";
-  }
-})();`;
-
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en" suppressHydrationWarning>
-    <head><script dangerouslySetInnerHTML={{ __html: preferenceBootstrap }} /></head>
+    <head><Script src="/preference-bootstrap.js" strategy="beforeInteractive" /></head>
     <body><LocaleProvider><AppThemeProvider><PublicThemeAccess /><AuthProvider><UxProvider><GlobalKeyboardShortcuts /><BundleQuizAvailabilityGuard />{children}</UxProvider></AuthProvider></AppThemeProvider></LocaleProvider></body>
   </html>;
 }
