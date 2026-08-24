@@ -510,11 +510,11 @@ function PlanPickerModal({
         <div className="role-form">
           <p>Choose how you&apos;d like to access this bundle.</p>
 
-          {!bundle.isFree && bundle.priceAmount && (
+          {!bundle.isFree && (
             <>
               <article className="bundle-plan-option">
                 <div><b>Full bundle</b><small>Every course, week, assessment, flashcard, and resource in this bundle.</small></div>
-                <strong>{money(bundle.priceAmount)}</strong>
+                <strong>{money(bundle.priceAmount) || "Price not set"}</strong>
               </article>
               <fieldset className="bundle-plan-fieldset bundle-payment-preview">
                 <legend>Choose a payment method</legend>
@@ -533,7 +533,7 @@ function PlanPickerModal({
                   ))}
                 </div>
                 <button className="pp-button" type="button" disabled>
-                  Subscribe for {money(bundle.priceAmount)}
+                  Subscribe for {money(bundle.priceAmount) || "price pending"}
                 </button>
               </fieldset>
             </>
