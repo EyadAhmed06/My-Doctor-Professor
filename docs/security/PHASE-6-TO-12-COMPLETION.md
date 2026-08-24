@@ -1,45 +1,51 @@
-# Security phases 6–12 completion
+# Security phases 6–12 implementation status
 
-## Phase 6 — frontend and browser
+> This document is an implementation ledger, not a security certification or production sign-off.
+
+## Source review performed
+
+- Reviewed 131 frontend JavaScript/TypeScript files for dangerous HTML/JavaScript sinks, unsafe new-tab navigation, message handlers, and persisted authentication tokens.
+- Reviewed 195 backend TypeScript files for public routes, upload handlers, raw SQL usage, process execution, filesystem writes, JWT handling, and security-sensitive randomness.
+- Confirmed MCQ and essay PDF imports enforce size, extension, declared MIME type, PDF magic bytes, encryption rejection, and page limits.
+- Confirmed no shell/process execution finding in the reviewed backend source.
+- Corrected one stored external-URL navigation sink in notebook attachments.
+- Changed browser access tokens to memory-only storage; refresh credentials remain rotating HttpOnly cookies.
+- Replaced practice-question shuffling based on `Math.random` with Node cryptographic randomness.
+- Added a dedicated per-IP limit to the intentionally public admin bootstrap endpoint.
+
+## Implemented controls
+
+### Browser and frontend
 
 - Application-owned inline JavaScript moved to a same-origin static asset.
 - CSP resource origins narrowed; arbitrary HTTPS image/media loading removed.
 - Framework identification header disabled and CORP added.
-- Static CI audit rejects dangerous HTML/JavaScript sinks and unsafe new-tab links.
-- Access tokens remain session-scoped; refresh credentials remain HttpOnly-cookie based.
+- Static audit rejects dangerous sinks and unsafe new-tab links.
+- Access tokens are not persisted in localStorage or sessionStorage.
 
-## Phase 7 — files and supply chain
+### Files and supply chain
 
-- Managed uploads use randomized server-side keys, restrictive file permissions, path confinement, size limits, magic-byte detection, declared/detected MIME agreement, and an allowlist.
-- Upload endpoints have durable per-user rate limits.
-- CI uses reproducible installs, production dependency auditing, dependency review, and CodeQL.
-- Dependabot remains enabled.
+- Managed uploads use randomized server-side keys, restrictive permissions, path confinement, size limits, magic-byte detection, MIME agreement, and allowlists.
+- Upload endpoints use per-user rate limits.
+- CI definitions include reproducible installs, dependency auditing/review, static audit, and CodeQL.
 
-## Phase 8 — database and infrastructure
+### Runtime, database, and business logic
 
 - TypeORM schema synchronization is disabled.
-- PostgreSQL TLS verification is mandatory in production.
-- Production refuses default database credentials, HTTP frontend origins, weak/shared JWT secrets, enabled bootstrap, or missing outbox encryption.
-- Backup restore verification remains a release gate.
+- Production startup rejects weak/shared JWT secrets, insecure frontend origins, default database credentials, disabled TLS verification, enabled bootstrap, or missing outbox encryption.
+- Legacy browser-callable direct paid unlock is disabled; paid entitlement transitions remain server-owned.
+- Correlation IDs and structured request completion events exclude bodies, credentials, and tokens.
 
-## Phase 9 — business logic and payments
+## Verification state
 
-- The legacy browser-callable direct purchase route can no longer create a permanent paid unlock.
-- Paid state changes remain restricted to signature-verified webhook processing with a row lock and idempotent state transition.
-- Prices and entitlement decisions are server-owned.
-- Free enrollment and administrative grants remain separate domain actions.
+| Check | State |
+|---|---|
+| Source review described above | Performed |
+| Security controls committed | Implemented |
+| TypeScript/build/test execution on these exact commits | Awaiting successful CI evidence |
+| Dependency and CodeQL results | Awaiting successful GitHub Actions evidence |
+| Authenticated browser regression testing | Not executed here |
+| IDOR/role/CSRF/upload/webhook/concurrency adversarial testing | Required |
+| Infrastructure, secret-store, TLS, restore and penetration testing | External validation required |
 
-## Phase 10 — detection and response
-
-- Every HTTP response receives a correlation identifier.
-- Structured completion events include method, route, status, and duration without bodies, credentials, or tokens.
-- 4xx and 5xx events are separated by severity.
-- Incident procedures must correlate API events, audit log rows, provider references, and database transactions.
-
-## Phase 11 — verification
-
-Automated checks cover builds, lint, backend tests, runtime fail-closed cases, browser sink checks, dependency audit/review, and CodeQL. Manual adversarial tests remain required for IDOR, role confusion, CSRF/origin bypass, malicious upload polyglots, webhook replay, concurrency, expiry boundaries, refresh rotation, and backup restoration.
-
-## Phase 12 — final gate
-
-See [FINAL-SECURITY-GATE.md](./FINAL-SECURITY-GATE.md). No workflow result may be reported as passing unless GitHub actually ran the jobs. Production penetration testing and infrastructure review remain outside the proof supplied by source changes.
+See [FINAL-SECURITY-GATE.md](./FINAL-SECURITY-GATE.md). No phase is a production security sign-off until every required automated and manual gate has current evidence.
