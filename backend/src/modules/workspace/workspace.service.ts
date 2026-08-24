@@ -104,7 +104,7 @@ export class WorkspaceService {
  }
  async updatePlan(studentId:string,dto:UpdateStudyPlanDto){
   const plan=await this.getPlan(studentId);
-  if(dto.target_exam!==undefined)plan.targetExam=dto.target_exam.trim()||null;
+  if(dto.target_exam!==undefined)plan.targetExam=typeof dto.target_exam==='string'?dto.target_exam.trim()||null:null;
   if(dto.exam_date!==undefined){
    const today=this.isoDate(new Date());
    if(dto.exam_date<=today)throw new BadRequestException('Exam date must be after today');
