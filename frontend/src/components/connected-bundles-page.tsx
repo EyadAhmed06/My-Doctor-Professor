@@ -262,24 +262,6 @@ export function ConnectedBundlesPage() {
     }
   }
 
-  async function enrollFullFromPicker(bundle: Bundle) {
-    setPlanPickerBusy(true);
-    try {
-      await request(`/bundles/${bundle.id}/enroll`, { method: "POST" });
-      notify({
-        title: "Requested",
-        description: `Full access to "${bundle.title}" is pending payment confirmation.`,
-        tone: "success",
-      });
-      setPlanPickerBundle(null);
-      await load();
-    } catch (cause) {
-      notify({ title: "Unable to request access", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
-    } finally {
-      setPlanPickerBusy(false);
-    }
-  }
-
   async function enrollPlan(bundle: Bundle, plan: PlanKey, tier: PlanTier) {
     setPlanPickerBusy(true);
     try {
