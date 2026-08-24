@@ -2,7 +2,7 @@ import { CanActivate, ExecutionContext, HttpException, Injectable } from '@nestj
 import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
 import { AuthRateLimitService } from '../auth-rate-limit.service';
-import { RATE_LIMIT_KEY, RateLimitPolicy } from '../decorators/rate-limit.decorator';
+import { RATE_LIMIT_KEY, RateLimitPolicy, SKIP_RATE_LIMIT_KEY } from '../decorators/rate-limit.decorator';
 
 interface RequestUser { userId?: string }
 
@@ -16,10 +16,11 @@ export class RequestRateLimitGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request & { user?: RequestUser }>();
     const response = context.switchToHttp().getResponse<Response>();
-    const configured = this.reflector.getAllAndOverride<RateLimitPolicy>(RATE_LIMIT_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const targets = [context.getHandler(), context.getClass()];
+    const skip = this.reflector.getAllAndOverride<boolean>(SKIP_RATE_LIMIT_KEY, targets);
+    if (skip) return true;
+    const configured = this.reflector.getAllAndOverride<RateLimitPolicy>(RATE_LIMIT_KEY, targets);
+ 
     const authenticated = Boolean(request.user?.userId);
     const policy = configured ?? {
       key: 'global',
