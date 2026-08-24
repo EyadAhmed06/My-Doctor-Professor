@@ -127,9 +127,7 @@ export class TestsService implements OnModuleInit {
             JOIN pg_namespace trigger_namespace
               ON trigger_namespace.oid = trigger_table.relnamespace
             WHERE NOT trigger_definition.tgisinternal
-              AND trigger_function.prosrc ILIKE '%lecture%'
-              AND trigger_function.prosrc ILIKE '%practice%'
-              AND trigger_function.prosrc ILIKE '%40%'
+              AND trigger_table.relname = 'test_questions'
           LOOP
             EXECUTE format(
               'DROP TRIGGER IF EXISTS %I ON %I.%I',
