@@ -36,3 +36,5 @@ html[data-theme=light] .exam-session-page{background:#f7f8fb}html[data-theme=lig
 @media(max-width:700px){.exam-eraser-tools{align-items:stretch;flex-direction:column}.exam-pen-palette{width:max-content}}
 
 .exam-lower-grid--notes-only{grid-template-columns:1fr}.exam-scratchpad-card nav>span{height:42px;display:flex;align-items:center;color:var(--p-text);font-size:10px;font-weight:700;border-bottom:2px solid var(--p-violet)}
+
+.exam-block-pager{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin:-3px 0 14px}.exam-block-pager button{min-width:0;padding:6px 2px;border:1px solid var(--p-line);border-radius:6px;background:var(--p-panel2);color:var(--p-muted);font-size:8px;font-weight:800;cursor:pointer}.exam-block-pager button:hover{border-color:var(--p-teal);color:var(--p-text)}.exam-block-pager button.active{background:var(--p-teal2);border-color:var(--p-teal2);color:#fff;box-shadow:0 3px 10px color-mix(in srgb,var(--p-teal2) 25%,transparent)}
