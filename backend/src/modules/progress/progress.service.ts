@@ -165,7 +165,7 @@ export class ProgressService {
     await this.requireStudent(studentId);
     await this.synchronizeStudent(studentId);
     const courseIds=await this.accessibleCourseIds(studentId);
-    const [courses,attempts,questionSummary,flashcards,momentumRows,weeklyActivity,topicMastery]=await Promise.all([
+    const [courses,attempts,questionSummary,essayCases,flashcards,momentumRows,weeklyActivity,topicMastery]=await Promise.all([
       courseIds.length?this.courseProgress.find({
         where:{studentId,courseId:In(courseIds)},relations:{course:true},
         order:{lastAccessedAt:'DESC'},take:6,
@@ -191,6 +191,16 @@ export class ProgressService {
           AND (answer.selected_option_id IS NOT NULL
             OR NULLIF(BTRIM(answer.essay_answer),'') IS NOT NULL)
       `,[studentId]),
+      this.dataSource.query(`
+        SELECT COUNT(DISTINCT attempt.case_id)::int AS solved
+        FROM essay_case_attempts attempt
+        JOIN essay_cases essay_case ON essay_case.id=attempt.case_id
+        JOIN weeks week ON week.id=essay_case.week_id
+        WHERE attempt.student_id=$1
+          AND attempt.status IN ('SUBMITTED','REVEALED')
+          AND essay_case.is_published=TRUE
+          AND week.course_id=ANY($2::uuid[])
+      `,[studentId,courseIds]),
       this.dataSource.query(`
         SELECT COUNT(*) FILTER(WHERE times_reviewed>0)::int AS reviewed,
           COUNT(*) FILTER(WHERE is_mastered=TRUE)::int AS mastered,
@@ -245,6 +255,13 @@ export class ProgressService {
             AND (answer.selected_option_id IS NOT NULL
               OR NULLIF(BTRIM(answer.essay_answer),'') IS NOT NULL)
           GROUP BY answer.answered_at::date
+        ), essays AS (
+          SELECT submitted_at::date AS date,COUNT(DISTINCT case_id)::int AS essay_cases
+          FROM essay_case_attempts
+          WHERE student_id=$1
+            AND status IN ('SUBMITTED','REVEALED')
+            AND submitted_at>=CURRENT_DATE-6
+          GROUP BY submitted_at::date
         ), cards AS (
           SELECT last_reviewed_at::date AS date,COUNT(*)::int AS flashcards
           FROM student_flashcard_progress
@@ -262,13 +279,15 @@ export class ProgressService {
           GROUP BY completed_at::date
         )
         SELECT days.date,COALESCE(questions.questions,0)::int AS questions,
+          COALESCE(essays.essay_cases,0)::int AS essay_cases,
           COALESCE(cards.flashcards,0)::int AS flashcards,
           COALESCE(lectures.lectures,0)::int AS lectures,
           COALESCE(sessions.plan_sessions,0)::int AS plan_sessions,
-          (COALESCE(questions.questions,0)+COALESCE(cards.flashcards,0)
-            +COALESCE(lectures.lectures,0)+COALESCE(sessions.plan_sessions,0))::int AS total
-        FROM days LEFT JOIN questions USING(date) LEFT JOIN cards USING(date)
-        LEFT JOIN lectures USING(date) LEFT JOIN sessions USING(date)
+          (COALESCE(questions.questions,0)+COALESCE(essays.essay_cases,0)
+            +COALESCE(cards.flashcards,0)+COALESCE(lectures.lectures,0)
+            +COALESCE(sessions.plan_sessions,0))::int AS total
+        FROM days LEFT JOIN questions USING(date) LEFT JOIN essays USING(date)
+        LEFT JOIN cards USING(date) LEFT JOIN lectures USING(date) LEFT JOIN sessions USING(date)
         ORDER BY days.date
       `,[studentId]),
       this.dataSource.query(`
@@ -291,7 +310,8 @@ export class ProgressService {
     const xp=Number(momentum.correct_answers||0)+Number(momentum.mastered_cards||0)
       +10*Number(momentum.completed_lectures||0);
     return {
-      courses,recent_attempts:attempts,questions:questionSummary[0],flashcards:flashcards[0],
+      courses,recent_attempts:attempts,questions:questionSummary[0],
+      essay_cases:{ solved:Number(essayCases[0]?.solved||0) },flashcards:flashcards[0],
       weekly_activity:weeklyActivity,topic_mastery:topicMastery,
       clinical_momentum:{
         study_streak:Number(momentum.study_streak||0),
@@ -388,6 +408,26 @@ export class ProgressService {
           COALESCE((SELECT COUNT(*)::int FROM student_answers answer JOIN test_attempts attempt ON attempt.id=answer.attempt_id
             WHERE attempt.student_id=$1 AND attempt.status IN ('SUBMITTED','EXPIRED')
               AND answer.confidence_level IS NOT NULL AND answer.is_correct IS NOT NULL),0) AS confidence_samples,
+          COALESCE((SELECT COUNT(DISTINCT essay_attempt.case_id)::int
+            FROM essay_case_attempts essay_attempt
+            JOIN essay_cases essay_case ON essay_case.id=essay_attempt.case_id
+            JOIN weeks essay_week ON essay_week.id=essay_case.week_id
+            WHERE essay_attempt.student_id=$1
+              AND essay_attempt.status IN ('SUBMITTED','REVEALED')
+              AND essay_case.is_published=TRUE
+              AND EXISTS (
+                SELECT 1 FROM bundle_courses bundle_course
+                JOIN bundles bundle ON bundle.id=bundle_course.bundle_id
+                JOIN bundle_enrollments enrollment ON enrollment.bundle_id=bundle.id
+                WHERE bundle_course.course_id=essay_week.course_id
+                  AND enrollment.student_id=$1 AND enrollment.status='ACTIVE'
+                  AND enrollment.starts_at<=CURRENT_TIMESTAMP
+                  AND (enrollment.expires_at IS NULL OR enrollment.expires_at>CURRENT_TIMESTAMP)
+                  AND bundle.status='PUBLISHED'
+                  AND (bundle.is_free=TRUE OR enrollment.payment_status='PAID')
+                  AND (bundle.available_from IS NULL OR bundle.available_from<=CURRENT_TIMESTAMP)
+                  AND (bundle.available_until IS NULL OR bundle.available_until>CURRENT_TIMESTAMP)
+              )),0) AS essay_cases_solved,
           COALESCE((SELECT COUNT(*) FILTER(WHERE is_mastered)::int FROM student_flashcard_progress WHERE student_id=$1),0) AS flashcards_mastered,
           COALESCE((SELECT COUNT(*) FILTER(WHERE next_review_at IS NULL OR next_review_at<=CURRENT_TIMESTAMP)::int FROM student_flashcard_progress WHERE student_id=$1),0) AS flashcards_due
         FROM student_question_progress progress WHERE progress.student_id=$1`,params),
