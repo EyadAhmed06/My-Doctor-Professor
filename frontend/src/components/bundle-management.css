@@ -79,3 +79,47 @@
 .bundle-list button{
   grid-template-columns:38px minmax(0,1fr) auto;
 }
+
+
+.bundle-list button b>.bundle-status-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:112px;
+  margin-top:8px;
+  padding:7px 12px;
+  font-size:11px;
+  letter-spacing:.08em;
+}
+.question-count-selector{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:9px;
+  margin-bottom:16px;
+  padding:12px;
+  border:1px solid var(--p-line);
+  border-radius:10px;
+  background:var(--p-panel2);
+}
+.question-count-selector button{
+  min-width:112px;
+  padding:10px 14px;
+  border:1px solid var(--p-line);
+  border-radius:8px;
+  background:var(--p-panel);
+  color:var(--p-text);
+  font-weight:800;
+  cursor:pointer;
+}
+.question-count-selector button.active{
+  border-color:var(--p-teal);
+  background:color-mix(in srgb,var(--p-teal) 18%,var(--p-panel));
+  color:var(--p-teal);
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--p-teal) 45%,transparent);
+}
+.question-count-selector small{
+  margin-left:auto;
+  color:var(--p-muted);
+  font-weight:700;
+}
