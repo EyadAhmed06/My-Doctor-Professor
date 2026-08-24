@@ -10,6 +10,7 @@ export class AdminBootstrapController {
   constructor(private readonly admin:AdminService) {}
 
   @Post('accounts')
+  @RateLimit({ key: 'admin-bootstrap', maximum: 5, windowSeconds: 3600, scope: 'ip' })
   @HttpCode(HttpStatus.CREATED)
   bootstrapAccounts(
     @Headers('x-bootstrap-token') token:string|undefined,
