@@ -1,6 +1,7 @@
 "use client";
 
 import Script from "next/script";
+import { apiRequest } from "@/lib/api";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale } from "./locale-provider";
 
@@ -40,10 +41,13 @@ export function GoogleSignInButton({
   onCredential: (credential: string) => void | Promise<void>;
   disabled?: boolean;
 }) {
-  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim();
+  const publicClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim() || null;
   const { locale } = useLocale();
   const containerRef = useRef<HTMLDivElement>(null);
+  const [clientId, setClientId] = useState<string | null>(publicClientId);
+  const [configResolved, setConfigResolved] = useState(Boolean(publicClientId));
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const render = useCallback(() => {
     if (!clientId || disabled || !containerRef.current || !window.google) return;
@@ -69,19 +73,41 @@ export function GoogleSignInButton({
   }, [clientId, disabled, onCredential]);
 
   useEffect(() => {
+    if (publicClientId) return;
+    let active = true;
+    void apiRequest<{ enabled: boolean; client_id: string | null }>("/auth/google/config")
+      .then((configuration) => {
+        if (!active) return;
+        setClientId(configuration.enabled ? configuration.client_id : null);
+        setError(configuration.enabled ? null : "Google authentication is not configured.");
+      })
+      .catch(() => {
+        if (active) setError("Unable to load Google authentication.");
+      })
+      .finally(() => {
+        if (active) setConfigResolved(true);
+      });
+    return () => { active = false; };
+  }, [publicClientId]);
+
+  useEffect(() => {
     if (window.google) render();
     const handleResize = () => render();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [render]);
 
+  if (!configResolved) {
+    return <button className="google-button" disabled aria-busy="true"><b>G</b> {locale === "ar" ? "جارٍ تحميل Google…" : "Loading Google…"}</button>;
+  }
+
   if (!clientId) {
-    return <button className="google-button" disabled title="Set NEXT_PUBLIC_GOOGLE_CLIENT_ID to enable Google sign-in"><b>G</b> {locale === "ar" ? "المتابعة باستخدام Google" : "Continue with Google"}</button>;
+    return <button className="google-button" disabled title={error || "Google authentication is unavailable"}><b>G</b> {locale === "ar" ? "Google غير متاح" : "Google unavailable"}</button>;
   }
 
   return <div className={`google-signin-shell ${disabled ? "disabled" : ""}`} aria-busy={!ready && !disabled}>
-    <Script src={`https://accounts.google.com/gsi/client?hl=${locale}`} strategy="afterInteractive" onLoad={render} />
+    <Script src={`https://accounts.google.com/gsi/client?hl=${locale}`} strategy="afterInteractive" onLoad={() => { setError(null); render(); }} onError={() => setError("Google sign-in could not be loaded. Check your connection and allowed domains.")} />
     <div ref={containerRef} className="google-signin-render" />
-    {!ready && !disabled && <span className="google-signin-loading">{locale === "ar" ? "جارٍ تحميل تسجيل الدخول عبر Google…" : "Loading Google sign-in…"}</span>}
+    {error ? <span className="google-signin-loading" role="alert">{error}</span> : !ready && !disabled && <span className="google-signin-loading">{locale === "ar" ? "جارٍ تحميل تسجيل الدخول عبر Google…" : "Loading Google sign-in…"}</span>}
   </div>;
 }
