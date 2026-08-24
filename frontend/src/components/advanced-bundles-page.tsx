@@ -80,7 +80,9 @@ function validTab(value: string | null): Tab {
 }
 
 function bundleBadge(bundle: Bundle, visited: Set<string>) {
-  if (bundle.payment_required || bundle.access_status === "PENDING_PAYMENT") return { label: "Payment required", className: "read-only" };
+  if (bundle.accessible === false) return { label: "Locked", className: "read-only" };
+  if (bundle.accessible === true) return { label: "Subscribed", className: "progress" };
+  if (bundle.payment_required || bundle.access_status === "PENDING_PAYMENT") return { label: "Locked", className: "read-only" };
   if (bundle.read_only) return { label: "Read-only", className: "read-only" };
   if (bundle.access_status === "PARTIAL") return { label: "Partial access", className: "progress" };
   if (bundle.status === "ARCHIVED") return { label: "Archived", className: "archived" };
@@ -109,7 +111,6 @@ export function AdvancedBundlesPage() {
   const requestedSemester = Number.isInteger(semesterValue) && semesterValue >= 1 && semesterValue <= 12 ? semesterValue : null;
   const [tab, setTab] = useState<Tab>(requestedTab);
   const [bundles, setBundles] = useState<Bundle[]>([]);
-  const [catalog, setCatalog] = useState<Bundle[]>([]);
   const [selectedBundle, setSelectedBundle] = useState<Bundle | null>(null);
   const [selected, setSelected] = useState<Content | null>(null);
   const [openWeeks, setOpenWeeks] = useState<Set<string>>(new Set());
@@ -120,7 +121,6 @@ export function AdvancedBundlesPage() {
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [createAccess, setCreateAccess] = useState<"FREE" | "PAID">("FREE");
-  const [catalogOpenId, setCatalogOpenId] = useState<string | null>(null);
   const [joining, setJoining] = useState<Set<string>>(new Set());
 
   const matchesStage = useCallback((bundle: Bundle) => {
@@ -161,10 +161,21 @@ export function AdvancedBundlesPage() {
     try {
       const owned = await request<Bundle[]>(manager ? "/bundles/managed" : "/bundles/mine");
       const scopedOwned = owned.filter(matchesStage);
-      setBundles(scopedOwned);
-      if (!manager) {
+      if (manager) {
+        setBundles(scopedOwned);
+      } else {
         const publicItems = await request<Bundle[]>("/catalog/bundles");
-        setCatalog(publicItems.filter(matchesStage).filter((item) => !owned.some((ownedItem) => ownedItem.id === item.id)));
+        const ownedIds = new Set(scopedOwned.map((item) => item.id));
+        const lockedCatalog = publicItems
+          .filter(matchesStage)
+          .filter((item) => !ownedIds.has(item.id))
+          .map((item) => ({
+            ...item,
+            accessible: false,
+            payment_required: !item.isFree,
+            access_status: "LOCKED",
+          }));
+        setBundles([...scopedOwned, ...lockedCatalog]);
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to load bundles.");
@@ -349,7 +360,10 @@ export function AdvancedBundlesPage() {
     {loading ? <PageSkeleton variant="workspace" label="Loading bundles" /> : !bundles.length ? <EmptyState title={manager ? "No managed bundles" : requestedStage ? "No enrolled bundles for this academic stage" : "No enrolled bundles"} description={manager ? "Create a draft bundle to begin composing curriculum." : requestedStage ? "Join a published bundle for this stage from the catalog below, or return to your dashboard." : "Join a published bundle from the catalog below."} /> : <div className="bundle-workspace">
       <aside className="bundle-list" aria-label={manager ? "Managed bundles" : "Your bundles"}><h2>{manager ? "Managed bundles" : "My bundles"}</h2>{bundles.map((bundle) => {
         const badge = bundleBadge(bundle, visited);
-        return <button className={selectedBundle?.id === bundle.id ? "active" : ""} key={bundle.id} onClick={() => open(bundle)}><span><FiLayers /></span><b>{bundle.title}<small>Year {bundle.academicYear} · {bundle.isFree ? "FREE" : `${bundle.priceCurrency} ${Number(bundle.priceAmount || 0).toFixed(2)}`}</small></b><em className={`bundle-status-badge ${badge.className}`}>{badge.label}</em></button>;
+        const accessLabel = !manager
+          ? (bundle.accessible === false ? "LOCKED" : "SUBSCRIBED")
+          : (bundle.isFree ? "FREE" : `${bundle.priceCurrency} ${Number(bundle.priceAmount || 0).toFixed(2)}`);
+        return <button className={selectedBundle?.id === bundle.id ? "active" : ""} key={bundle.id} onClick={() => open(bundle)}><span>{!manager && bundle.accessible === false ? <FiLock /> : <FiLayers />}</span><b>{bundle.title}<small>Year {bundle.academicYear} · {accessLabel}</small></b><em className={`bundle-status-badge ${badge.className}`}>{badge.label}</em></button>;
       })}</aside>
 
       <section className={`bundle-content ${bundleLoading ? "is-loading" : ""}`} aria-busy={bundleLoading}>
@@ -368,56 +382,6 @@ export function AdvancedBundlesPage() {
       </section>
     </div>}
 
-    {!manager && catalog.length > 0 && <section className="bundle-catalog">
-      <div className="pp-title">
-        <div>
-          <h2>Available to you</h2>
-          <p>Join free bundles immediately or subscribe to unlock paid bundles.</p>
-        </div>
-      </div>
-      <div>
-        {catalog.map((bundle) => {
-          const paid = !bundle.isFree;
-          const expanded = catalogOpenId === bundle.id;
-          const formattedPrice = `${bundle.priceCurrency} ${Number(bundle.priceAmount || 0).toFixed(2)}`;
-          return <Panel key={bundle.id} title={bundle.title} className={paid ? "bundle-catalog-locked" : ""}>
-            <small>{paid ? <><FiLock /> PAID · {formattedPrice}</> : "FREE"}</small>
-            <p>{bundle.description || "Published learning bundle"}</p>
-            {!paid ? <button
-              className="pp-button"
-              disabled={joining.has(bundle.id)}
-              onClick={() => void enroll(bundle)}
-            >
-              {joining.has(bundle.id) ? "Joining…" : "Join free bundle"}
-            </button> : <>
-              <button
-                className="pp-button secondary"
-                type="button"
-                aria-expanded={expanded}
-                onClick={() => setCatalogOpenId(expanded ? null : bundle.id)}
-              >
-                <FiLock /> {expanded ? "Close" : "View subscription"}
-              </button>
-              {expanded && <div className="bundle-read-only-reason">
-                <FiLock />
-                <div>
-                  <b>This bundle is locked until you subscribe in it</b>
-                  <p>Subscribe to unlock its curriculum, question bank, assessments, flashcards, and resources.</p>
-                  <button
-                    className="pp-button"
-                    type="button"
-                    disabled={joining.has(bundle.id)}
-                    onClick={() => void enroll(bundle)}
-                  >
-                    {joining.has(bundle.id) ? "Subscribing…" : `Subscribe for ${formattedPrice}`}
-                  </button>
-                </div>
-              </div>}
-            </>}
-          </Panel>;
-        })}
-      </div>
-    </section>}
   </main></ProductShell>;
 }
 
@@ -559,7 +523,7 @@ function PaymentLockedBundle({ bundle, busy, onSubscribe }: {
   busy: boolean;
   onSubscribe: () => void;
 }) {
-  const price = `${bundle.priceCurrency} ${Number(bundle.priceAmount || 0).toFixed(2)}`;
+  const price = bundle.isFree ? "free" : `${bundle.priceCurrency} ${Number(bundle.priceAmount || 0).toFixed(2)}`;
   return <Panel title="Bundle locked">
     <div className="bundle-read-only-reason">
       <FiLock />
