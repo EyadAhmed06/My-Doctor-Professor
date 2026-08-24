@@ -11,7 +11,7 @@ import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { Student } from '../users/entities/student.entity';
 import { GeneratePracticeTestDto } from './dtos/tests.dto';
 
-const LECTURE_PRACTICE_SIZE = 40;
+const ALLOWED_PRACTICE_SIZES = [40, 200] as const;
 
 type AccessibleLectureRow = { lecture_id: string; read_only: boolean };
 
@@ -25,11 +25,16 @@ export class McqPracticeService {
   ) {}
 
   async generate(dto: GeneratePracticeTestDto, actor: AuthenticatedUser) {
-    if (dto.question_count !== LECTURE_PRACTICE_SIZE) {
-      throw new BadRequestException(`Lecture practice must contain exactly ${LECTURE_PRACTICE_SIZE} MCQs`);
+    if (!ALLOWED_PRACTICE_SIZES.includes(dto.question_count as 40 | 200)) {
+      throw new BadRequestException('Lecture practice must contain either 40 or 200 MCQs');
     }
     if (![TestMode.TUTOR, TestMode.TIMED].includes(dto.test_mode)) {
       throw new BadRequestException('Lecture practice is available in Tutor or Timed mode');
+    }
+    if (dto.test_mode === TestMode.TIMED && dto.duration_minutes !== dto.question_count) {
+      throw new BadRequestException(
+        `A timed ${dto.question_count}-MCQ exam must last exactly ${dto.question_count} minutes`,
+      );
     }
     if (!(await this.students.exists({ where: { userId: actor.userId } }))) {
       throw new ForbiddenException('Student profile is required to generate a practice test');
@@ -84,27 +89,27 @@ export class McqPracticeService {
     if (dto.difficulty) builder.andWhere('question.difficulty = :difficulty', { difficulty: dto.difficulty });
 
     const eligible = await builder.getMany();
-    if (eligible.length < LECTURE_PRACTICE_SIZE) {
-      throw new BadRequestException(`Only ${eligible.length} eligible MCQs are available for this selection; ${LECTURE_PRACTICE_SIZE} are required`);
+    if (eligible.length < dto.question_count) {
+      throw new BadRequestException(`Only ${eligible.length} eligible MCQs are available for this selection; ${dto.question_count} are required`);
     }
     for (let index = eligible.length - 1; index > 0; index -= 1) {
       const target = Math.floor(Math.random() * (index + 1));
       [eligible[index], eligible[target]] = [eligible[target], eligible[index]];
     }
-    const selected = eligible.slice(0, LECTURE_PRACTICE_SIZE);
+    const selected = eligible.slice(0, dto.question_count);
     const courseId = lectures[0].week.courseId;
 
     return this.dataSource.transaction(async (manager) => {
       const now = new Date();
       const total = selected.reduce((sum, question) => sum + Number(question.marks), 0);
       const test = await manager.save(Test, manager.create(Test, {
-        title: `40-MCQ ${dto.test_mode === TestMode.TIMED ? 'Timed' : 'Tutor'} practice · ${now.toISOString().slice(0, 10)}`,
+        title: `${dto.question_count}-MCQ ${dto.test_mode === TestMode.TIMED ? 'Timed' : 'Tutor'} practice · ${now.toISOString().slice(0, 10)}`,
         description: `Generated from ${lectures.length} selected lecture${lectures.length === 1 ? '' : 's'}`,
         testType: TestType.CUSTOM,
         courseId,
         weekId: null,
         lectureId: null,
-        durationMinutes: dto.test_mode === TestMode.TIMED ? (dto.duration_minutes ?? 40) : null,
+        durationMinutes: dto.test_mode === TestMode.TIMED ? dto.duration_minutes! : null,
         totalMarks: total.toFixed(2),
         passingMarks: null,
         isPublished: true,
