@@ -184,9 +184,13 @@ export class AcademicService {
           JOIN bundle_enrollments enrollment ON enrollment.bundle_id = bundle.id
           WHERE bundle_course.course_id = course.id
             AND enrollment.student_id = :actorId
-            AND enrollment.status <> 'REVOKED'
-            AND bundle.status IN ('PUBLISHED','ARCHIVED')
+            AND enrollment.status = 'ACTIVE'
+            AND enrollment.starts_at <= CURRENT_TIMESTAMP
+            AND (enrollment.expires_at IS NULL OR enrollment.expires_at > CURRENT_TIMESTAMP)
+            AND bundle.status = 'PUBLISHED'
+            AND (bundle.is_free = TRUE OR enrollment.payment_status = 'PAID')
             AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+            AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
         )`, { actorId: actor.userId });
     } else if (actor.role === UserRole.INSTRUCTOR) {
       builder.andWhere(`EXISTS (
