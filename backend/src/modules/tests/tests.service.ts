@@ -152,9 +152,13 @@ export class TestsService implements OnModuleInit {
             INNER JOIN bundles bundle ON bundle.id = bundle_test.bundle_id
             WHERE bundle_test.test_id = test.id
               AND enrollment.student_id = :actorId
-              AND enrollment.status <> 'REVOKED'
-              AND bundle.status IN ('PUBLISHED', 'ARCHIVED')
+              AND enrollment.status = 'ACTIVE'
+              AND (enrollment.starts_at IS NULL OR enrollment.starts_at <= :now)
+              AND (enrollment.expires_at IS NULL OR enrollment.expires_at > :now)
+              AND enrollment.payment_status IN ('NOT_REQUIRED', 'PAID')
+              AND bundle.status = 'PUBLISHED'
               AND (bundle.available_from IS NULL OR bundle.available_from <= :now)
+              AND (bundle.available_until IS NULL OR bundle.available_until > :now)
           )`, { actorId: actor.userId });
     } else if (actor.role === UserRole.INSTRUCTOR) {
       builder.andWhere('test.created_by = :actorId', { actorId: actor.userId });
@@ -194,6 +198,7 @@ export class TestsService implements OnModuleInit {
       .addSelect('COUNT(question.id)::integer', 'question_count')
       .where('question.is_active = TRUE')
       .andWhere('question.is_question_bank = TRUE')
+      .andWhere('question.question_type = :mcqType', { mcqType: QuestionType.MCQ })
       .andWhere('topic.lecture_id IN (:...lectureIds)', {
         lectureIds: weeks.flatMap((week) => week.lectures.map((lecture) => lecture.id)).length
           ? weeks.flatMap((week) => week.lectures.map((lecture) => lecture.id)) : ['00000000-0000-0000-0000-000000000000'],
@@ -232,7 +237,8 @@ export class TestsService implements OnModuleInit {
       .leftJoinAndSelect('question.options', 'options')
       .leftJoinAndSelect('question.essayConfiguration', 'essayConfiguration')
       .where('topic.lecture_id IN (:...lectureIds)', { lectureIds: dto.lecture_ids })
-      .andWhere('question.is_active = TRUE').andWhere('question.is_question_bank = TRUE');
+      .andWhere('question.is_active = TRUE').andWhere('question.is_question_bank = TRUE')
+      .andWhere('question.question_type = :mcqType', { mcqType: QuestionType.MCQ });
     if (dto.difficulty) builder.andWhere('question.difficulty = :difficulty', { difficulty: dto.difficulty });
     const eligible = await builder.getMany();
     if (eligible.length < dto.question_count) {
@@ -634,20 +640,19 @@ export class TestsService implements OnModuleInit {
     requireWritable: boolean,
   ): Promise<void> {
     const rows = await this.dataSource.query<Array<{ read_only: boolean }>>(`
-      SELECT (
-        bundle.status = 'ARCHIVED'
-        OR enrollment.status = 'EXPIRED'
-        OR (enrollment.expires_at IS NOT NULL AND enrollment.expires_at <= CURRENT_TIMESTAMP)
-        OR (bundle.available_until IS NOT NULL AND bundle.available_until <= CURRENT_TIMESTAMP)
-      ) AS read_only
+      SELECT FALSE AS read_only
       FROM bundle_tests bundle_test
       INNER JOIN bundles bundle ON bundle.id = bundle_test.bundle_id
       INNER JOIN bundle_enrollments enrollment
         ON enrollment.bundle_id = bundle.id AND enrollment.student_id = $2
       WHERE bundle_test.test_id = $1
-        AND enrollment.status <> 'REVOKED'
-        AND bundle.status IN ('PUBLISHED', 'ARCHIVED')
-        AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+        AND enrollment.status = 'ACTIVE'
+              AND (enrollment.starts_at IS NULL OR enrollment.starts_at <= CURRENT_TIMESTAMP)
+              AND (enrollment.expires_at IS NULL OR enrollment.expires_at > CURRENT_TIMESTAMP)
+              AND enrollment.payment_status IN ('NOT_REQUIRED', 'PAID')
+              AND bundle.status = 'PUBLISHED'
+              AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+              AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
       LIMIT 1
     `, [test.id, studentId]);
     if (!rows.length) throw new ForbiddenException('This test is not available in your bundles');
@@ -664,12 +669,7 @@ export class TestsService implements OnModuleInit {
     courseId?: string,
   ): Promise<string[]> {
     const rows = await this.dataSource.query<Array<{ lecture_id:string; read_only:boolean }>>(`
-      SELECT lecture.id AS lecture_id, (
-        bundle.status = 'ARCHIVED'
-        OR enrollment.status = 'EXPIRED'
-        OR (enrollment.expires_at IS NOT NULL AND enrollment.expires_at <= CURRENT_TIMESTAMP)
-        OR (bundle.available_until IS NOT NULL AND bundle.available_until <= CURRENT_TIMESTAMP)
-      ) AS read_only
+      SELECT DISTINCT lecture.id AS lecture_id, FALSE AS read_only
       FROM bundles bundle
       INNER JOIN bundle_enrollments enrollment
         ON enrollment.bundle_id = bundle.id AND enrollment.student_id = $2
@@ -679,9 +679,13 @@ export class TestsService implements OnModuleInit {
         ON week.id = bundle_week.week_id AND week.course_id = bundle_course.course_id
       INNER JOIN lectures lecture ON lecture.week_id = week.id
       WHERE bundle.id = $1
-        AND enrollment.status <> 'REVOKED'
-        AND bundle.status IN ('PUBLISHED', 'ARCHIVED')
-        AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+        AND enrollment.status = 'ACTIVE'
+              AND (enrollment.starts_at IS NULL OR enrollment.starts_at <= CURRENT_TIMESTAMP)
+              AND (enrollment.expires_at IS NULL OR enrollment.expires_at > CURRENT_TIMESTAMP)
+              AND enrollment.payment_status IN ('NOT_REQUIRED', 'PAID')
+              AND bundle.status = 'PUBLISHED'
+              AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+              AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
         AND ($3::uuid IS NULL OR bundle_course.course_id = $3::uuid)
         AND lecture.is_published = TRUE
     `, [bundleId, studentId, courseId ?? null]);
