@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { PlanPaymentMethod, PlanPurchase, PlanPurchaseStatus } from '../../common/entities/plan-purchase.entity';
 import { SubscriptionPlan, SubscriptionPlanKey } from '../../common/entities/subscription-plan.entity';
 import { User } from '../users/entities/user.entity';
@@ -24,6 +24,7 @@ export class PlanPurchasesService {
     private readonly promoCodes: PromoCodesService,
     private readonly paymob: PaymobService,
     private readonly config: ConfigService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async checkout(userId: string, planId: string, dto: CheckoutDto) {
@@ -116,28 +117,37 @@ export class PlanPurchasesService {
     const purchaseId = this.extractPurchaseId(transaction);
     if (!purchaseId) return;
 
-    const purchase = await this.purchases.findOne({ where: { id: purchaseId }, relations: { plan: true } });
-    if (!purchase || purchase.status !== PlanPurchaseStatus.PENDING) return;
-
     const success = transaction.success === true;
     const pending = transaction.pending === true;
-    if (pending && !success) return; // Fawry reference issued; still awaiting kiosk payment.
+    if (pending && !success) return;
 
-    if (success) {
-      const now = new Date();
-      purchase.status = PlanPurchaseStatus.PAID;
-      purchase.startsAt = now;
-      purchase.endsAt = addDays(now, purchase.plan.durationDays ?? 30);
-      const transactionId = transaction.id;
-      if (typeof transactionId === 'string' || typeof transactionId === 'number') {
-        purchase.providerReference = String(transactionId);
+    const promoCodeId = await this.dataSource.transaction<string | null>(async (manager) => {
+      const repository = manager.getRepository(PlanPurchase);
+      const purchase = await repository.findOne({
+        where: { id: purchaseId },
+        relations: { plan: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!purchase || purchase.status !== PlanPurchaseStatus.PENDING) return null;
+
+      if (success) {
+        const now = new Date();
+        purchase.status = PlanPurchaseStatus.PAID;
+        purchase.startsAt = now;
+        purchase.endsAt = addDays(now, purchase.plan.durationDays ?? 30);
+        const transactionId = transaction.id;
+        if (typeof transactionId === 'string' || typeof transactionId === 'number') {
+          purchase.providerReference = String(transactionId);
+        }
+      } else {
+        purchase.status = PlanPurchaseStatus.FAILED;
       }
-      await this.purchases.save(purchase);
-      if (purchase.promoCodeId) await this.promoCodes.incrementUsage(purchase.promoCodeId);
-    } else {
-      purchase.status = PlanPurchaseStatus.FAILED;
-      await this.purchases.save(purchase);
-    }
+      await repository.save(purchase);
+      return success ? purchase.promoCodeId : null;
+    });
+
+    // Only the transaction that changed PENDING -> PAID reaches this increment.
+    if (promoCodeId) await this.promoCodes.incrementUsage(promoCodeId);
   }
 
   private extractPurchaseId(transaction: Record<string, unknown>): string | null {
