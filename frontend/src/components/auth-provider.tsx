@@ -45,7 +45,6 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-const ACCESS_KEY = "mdp_access_token";
 const LEGACY_REFRESH_KEY = "mdp_refresh_token";
 const LOGOUT_KEY = "mdp_logged_out_at";
 const LOGOUT_REFRESH_SUPPRESSION_MS = 30_000;
@@ -98,8 +97,10 @@ async function refreshThroughBrowserLock(): Promise<AuthResponse> {
 }
 
 function clearClientAuth() {
+  // Access tokens are memory-only. These removals migrate older deployments that
+  // persisted bearer credentials in browser storage.
   for (const storage of [localStorage, sessionStorage]) {
-    storage.removeItem(ACCESS_KEY);
+    storage.removeItem("mdp_access_token");
     storage.removeItem(LEGACY_REFRESH_KEY);
   }
 }
@@ -132,8 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const persistAccess = useCallback((auth: AuthResponse) => {
-    localStorage.removeItem(ACCESS_KEY);
-    sessionStorage.setItem(ACCESS_KEY, auth.access_token);
+    clearClientAuth();
     clearLegacyRefreshStorage();
     clearLoggedOutMarker();
     setAccessToken(auth.access_token);
@@ -198,18 +198,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
         return;
       }
-      const token = sessionStorage.getItem(ACCESS_KEY) || localStorage.getItem(ACCESS_KEY);
-      let usableToken = token;
-      if (!usableToken) usableToken = await refresh();
+      // Restore through the rotating HttpOnly refresh cookie. Never read or write
+      // bearer tokens from Web Storage.
+      let usableToken = await refresh();
       if (usableToken) {
         try {
           const profile = await apiRequest<AuthUser>("/auth/me", { accessToken: usableToken });
           setUser(profile);
           setAccessToken(usableToken);
-          if (localStorage.getItem(ACCESS_KEY)) {
-            localStorage.removeItem(ACCESS_KEY);
-            sessionStorage.setItem(ACCESS_KEY, usableToken);
-          }
         } catch {
           usableToken = await refresh();
           if (usableToken) {
