@@ -46,6 +46,8 @@ type StudentDashboard = {
   questions: { attempts: number; correct_attempts: number; accuracy: string; bookmarked: number };
   flashcards: { reviewed: number; mastered: number; due: number };
   clinical_momentum: { study_streak: number; study_minutes: number; completed_sessions: number; xp: number; level: number; level_progress: number };
+  weekly_activity: Array<{ date: string; questions: number; flashcards: number; lectures: number; plan_sessions: number; total: number }>;
+  topic_mastery: Array<{ id: string; course_name: string; mastery: number; questions_attempted: number }>;
 };
 
 type InstructorDashboard = {
@@ -72,19 +74,6 @@ type AdminDashboard = {
 
 type NotebookPage = { data: Array<{ id: string; title: string; content: string }> };
 
-type StudyPlanItem = {
-  id: string;
-  scheduledDate: string;
-  itemType: "QUESTIONS" | "FLASHCARDS" | "LECTURE" | "REVIEW" | "REST";
-  status: "PLANNED" | "COMPLETED" | "SKIPPED";
-  targetCount: number | null;
-  durationMinutes: number;
-  metadata: { title?: string };
-  lecture?: { title: string } | null;
-};
-
-type StudyPlanCalendar = { from: string; to: string; data: StudyPlanItem[] };
-
 const number = (value: string | number | null | undefined) => Number(value || 0);
 const clamp = (value: number) => Math.max(0, Math.min(100, value));
 
@@ -106,7 +95,6 @@ export function ConnectedDashboardPage() {
   const { translate } = useLocale();
   const [data, setData] = useState<StudentDashboard | InstructorDashboard | AdminDashboard | null>(null);
   const [pearl, setPearl] = useState<NotebookPage["data"][number] | null>(null);
-  const [planItems, setPlanItems] = useState<StudyPlanItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -121,12 +109,8 @@ export function ConnectedDashboardPage() {
       const dashboard = await request<StudentDashboard | InstructorDashboard | AdminDashboard>(endpoint);
       setData(dashboard);
       if (user.role === "STUDENT") {
-        const [notes, calendar] = await Promise.all([
-          request<NotebookPage>("/notebook/notes?note_type=PEARL&limit=1").catch(() => ({ data: [] })),
-          request<StudyPlanCalendar>("/study-plan/calendar").catch(() => ({ from: "", to: "", data: [] })),
-        ]);
+        const notes = await request<NotebookPage>("/notebook/notes?note_type=PEARL&limit=1").catch(() => ({ data: [] }));
         setPearl(notes.data[0] || null);
-        setPlanItems(calendar.data);
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : translate("Unable to load your dashboard."));
@@ -146,7 +130,6 @@ export function ConnectedDashboardPage() {
     return <StudentDashboardScreen
       data={data as StudentDashboard | null}
       pearl={pearl}
-      planItems={planItems}
       loading={loading}
       refreshing={refreshing}
       error={error}
@@ -160,7 +143,6 @@ export function ConnectedDashboardPage() {
 function StudentDashboardScreen({
   data,
   pearl,
-  planItems,
   loading,
   refreshing,
   error,
@@ -168,7 +150,6 @@ function StudentDashboardScreen({
 }: {
   data: StudentDashboard | null;
   pearl: NotebookPage["data"][number] | null;
-  planItems: StudyPlanItem[];
   loading: boolean;
   refreshing: boolean;
   error: string | null;
@@ -189,14 +170,18 @@ function StudentDashboardScreen({
   const level = Math.max(1, number(data?.clinical_momentum.level));
   const levelProgress = number(data?.clinical_momentum.level_progress);
 
-  const activity = useMemo(() => Array.from({ length: 7 }, (_, index) => {
-    const date = addDays(new Date(), index - 6);
-    const key = localDateKey(date);
-    return {
-      label: date.toLocaleDateString(locale === "ar" ? "ar-EG" : undefined, { weekday: "short" }),
-      value: planItems.filter((item) => item.scheduledDate === key && item.status === "COMPLETED").reduce((sum, item) => sum + Math.max(1, item.targetCount || 1), 0),
-    };
-  }), [locale, planItems]);
+  const activity = useMemo(() => {
+    const byDate = new Map((data?.weekly_activity || []).map((item) => [String(item.date).slice(0, 10), item]));
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = addDays(new Date(), index - 6);
+      const item = byDate.get(localDateKey(date));
+      return {
+        label: date.toLocaleDateString(locale === "ar" ? "ar-EG" : undefined, { weekday: "short" }),
+        value: number(item?.total),
+        detail: item,
+      };
+    });
+  }, [data?.weekly_activity, locale]);
   const maxActivity = Math.max(1, ...activity.map((item) => item.value));
   const continueCourse = data?.courses.find((item) => number(item.completionPercentage) < 100) || data?.courses[0];
 
@@ -221,7 +206,7 @@ function StudentDashboardScreen({
       <Card title={translate("Clinical Momentum")} subtitle={translate("Your progress at a glance")} className="momentum-card">
         <div className="metrics">
           <div className="metric primary"><span className="metric-icon"><FiClipboard /></span><div><small>{translate("Questions answered")}</small><b>{number(data?.questions.attempts)}</b><span>{translate("All time")}</span><em>{translate(`${accuracy}% accuracy`)}</em></div><FiBarChart2 /></div>
-          <div className="metric"><span className="metric-icon flame"><FiActivity /></span><div><small>{translate("Study streak")}</small><b>{streak} <sup>{locale === "ar" ? "يوم" : "days"}</sup></b><span>{translate(streak ? "Built from completed plan sessions" : "Complete today’s session to begin")}</span><div className="streak">{[0, 1, 2, 3, 4, 5, 6].map((day) => <i className={day < Math.min(streak, 7) ? "" : "off"} key={day} />)}</div></div></div>
+          <div className="metric"><span className="metric-icon flame"><FiActivity /></span><div><small>{translate("Study streak")}</small><b>{streak} <sup>{locale === "ar" ? "يوم" : "days"}</sup></b><span>{translate(streak ? "Built from questions, flashcards, lectures, and completed sessions" : "Complete learning activity today to begin")}</span><div className="streak">{[0, 1, 2, 3, 4, 5, 6].map((day) => <i className={day < Math.min(streak, 7) ? "" : "off"} key={day} />)}</div></div></div>
           <div className="metric"><span className="metric-icon"><FiClock /></span><div><small>{translate("Study hours")}</small><b>{Math.round(studyMinutes / 6) / 10} <sup>{locale === "ar" ? "س" : "hrs"}</sup></b><span>{translate("Recorded lecture time and completed non-lecture plan sessions")}</span></div></div>
         </div>
       </Card>
@@ -229,13 +214,13 @@ function StudentDashboardScreen({
       {loading && !data ? <PageSkeleton variant="workspace" label={translate("Loading your dashboard")} /> : <div className="main-grid">
         <div className="column-main">
           <Card title={translate("Weekly Activity")} action={<Link href="/analytics">{translate("Open analytics")} →</Link>} className="activity-card">
-            <div className="chart-legend"><span><i />{translate("Completed plan items")}</span></div><div className="bar-chart">{activity.map((item) => <div key={item.label}><span title={locale === "ar" ? `${item.value} عنصر مكتمل` : `${item.value} completed items`} style={{ height: `${Math.max(2, Math.round(item.value / maxActivity * 92))}px` }} /><small>{item.label}</small></div>)}</div>
+            <div className="chart-legend"><span><i />{translate("Learning interactions")}</span></div><div className="bar-chart">{activity.map((item) => <div key={item.label}><span title={translate(`${item.value} learning interactions`)} style={{ height: `${Math.max(2, Math.round(item.value / maxActivity * 92))}px` }} /><small>{item.label}</small></div>)}</div>
           </Card>
         </div>
 
         <aside className="column-side">
           <Card title={translate("Your Progress")} action={<span>{translate(`${overallProgress}% complete`)}</span>} className="progress-card"><div className="progress-content"><div className="level-badge large">{level}</div><div><strong>{translate(`Level ${level}`)} <small>{translate("Clinical Learner")}</small></strong><span>{translate(`${levelProgress} / 100 XP`)}</span><div className="xp-bar"><i style={{ width: `${levelProgress}%` }} /></div><small>{translate(`${completedLectures} lectures completed`)}</small></div></div></Card>
-          <Card title={translate("Topic Mastery")} action={<Link href="/bundles?tab=curriculum">{translate("View all courses")} →</Link>} className="mastery-card"><div className="mastery-list">{data?.courses.length ? data.courses.slice(0, 6).map((item) => <button type="button" onClick={() => navigate("/bundles?tab=curriculum")} key={item.id}><span><FiActivity /><span data-academic-content>{item.course.courseName}</span></span><b>{clamp(number(item.completionPercentage))}%</b><div><i style={{ width: `${clamp(number(item.completionPercentage))}%` }} /></div></button>) : <p>{translate("No course progress yet.")}</p>}</div></Card>
+          <Card title={translate("Topic Mastery")} action={<Link href="/analytics">{translate("View analytics")} →</Link>} className="mastery-card"><div className="mastery-list">{data?.topic_mastery.length ? data.topic_mastery.slice(0, 6).map((item) => <button type="button" onClick={() => navigate("/analytics")} key={item.id}><span><FiActivity /><span data-academic-content>{item.course_name}</span></span><b>{clamp(number(item.mastery))}%</b><div><i style={{ width: `${clamp(number(item.mastery))}%` }} /></div><small>{translate(`${item.questions_attempted} graded answers`)}</small></button>) : <p>{translate("Answer graded questions to build topic mastery.")}</p>}</div></Card>
           <Card title={translate("Professor's Pearls")} action={<Link href="/notebook">{translate("More pearls")} →</Link>} className="pearl-card"><blockquote data-academic-content>{pearl?.content || translate("Save a PEARL note in your notebook and it will appear here.")}</blockquote>{pearl && <cite data-academic-content>— {pearl.title}</cite>}</Card>
         </aside>
       </div>}
