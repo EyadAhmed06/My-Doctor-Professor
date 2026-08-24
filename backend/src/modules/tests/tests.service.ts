@@ -112,7 +112,7 @@ export class TestsService implements OnModuleInit {
       // Remove the obsolete database-only rule left by older installations.
       // Current practice sizes are validated in generatePractice below.
       await manager.query(`
-        DO $
+        DO $legacy$
         DECLARE legacy_trigger record;
         BEGIN
           FOR legacy_trigger IN
@@ -136,7 +136,7 @@ export class TestsService implements OnModuleInit {
               legacy_trigger.table_name
             );
           END LOOP;
-        END $;
+        END $legacy$;
       `);
     });
   }
