@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FiActivity, FiArrowRight, FiBookmark, FiCheckCircle, FiClock, FiLayers } from "react-icons/fi";
+import { FiActivity, FiArrowRight, FiBookOpen, FiBookmark, FiCheckCircle, FiClock, FiLayers } from "react-icons/fi";
 import { useAuth } from "./auth-provider";
 import { ErrorState, PageSkeleton } from "./async-state";
 import { Panel, ProductShell, Progress } from "./product-shell";
 import "./product-pages.css";
 
 type Analytics = {
-  summary: { questions_answered: number; accuracy: number; bookmarked: number; calibrated_confidence: number; confidence_samples: number; flashcards_mastered: number; flashcards_due: number };
+  summary: { questions_answered: number; accuracy: number; bookmarked: number; calibrated_confidence: number; confidence_samples: number; essay_cases_solved: number; flashcards_mastered: number; flashcards_due: number };
   accuracy_over_time: { date: string; answered: number; accuracy: number }[];
   topic_mastery: { id: string; name: string; course: string; mastery: number; evidence_strength: number | null; questions_attempted: number }[];
   study_activity: { date: string; completed: number; skipped: number; planned: number }[];
@@ -104,6 +104,7 @@ export function ConnectedAnalyticsPage() {
       <section className="analytics-metrics">
         <Metric href="/bundles?tab=questions" icon={<FiActivity />} label="Validated answers · overall" value={data.summary.questions_answered} explanation="Submitted or expired answers with a known correctness result across your account." />
         <Metric href="/bundles?tab=questions" icon={<FiCheckCircle />} label="Accuracy · overall" value={data.summary.accuracy} suffix="%" explanation="Correct validated attempts divided by all validated answered questions." />
+        <Metric href="/essay-cases" icon={<FiBookOpen />} label="Essay cases solved · overall" value={data.summary.essay_cases_solved} explanation="Distinct published cases successfully submitted by this student. Revisiting or revealing a case does not increase the count." />
         <Metric href="/notebook" icon={<FiBookmark />} label="Saved questions · current" value={data.summary.bookmarked} explanation="Questions currently bookmarked for later review." />
         <Metric href="/bundles?tab=questions" icon={<FiCheckCircle />} label="Confidence calibration · overall" value={data.summary.calibrated_confidence} suffix="%" explanation={data.summary.confidence_samples ? `How closely your chosen confidence levels match outcomes across ${data.summary.confidence_samples} graded answers.` : "Choose confidence levels while answering to establish a calibration baseline."} />
         <Metric href="/flashcards" icon={<FiLayers />} label="Flashcards mastered · current" value={data.summary.flashcards_mastered} explanation="Reviewed cards currently classified as mastered by the spaced-repetition scheduler." />
