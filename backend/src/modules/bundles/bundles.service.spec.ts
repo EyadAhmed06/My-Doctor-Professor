@@ -15,6 +15,7 @@ import { Bundle, BundleAccessMode, BundleStatus } from '../../common/entities/bu
 import { Course } from '../../common/entities/course.entity';
 import { Test } from '../../common/entities/test.entity';
 import { Week } from '../../common/entities/week.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 import { User, UserRole } from '../users/entities/user.entity';
 import { BundlesService } from './bundles.service';
 
@@ -77,6 +78,7 @@ describe('BundlesService payment entitlement', () => {
       repo<Test>(),
       repo<User>(),
       {} as DataSource,
+      {} as NotificationsService,
     );
     return { service, enrollments, getSaved: () => saved };
   }
