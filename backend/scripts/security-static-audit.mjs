@@ -25,7 +25,7 @@ function report(file, rule, match) {
 
 function inspect(path) {
   const file = { path, text: readFileSync(path, 'utf8') };
-  const repoPath = relative(root, path).replaceAll('\\\\', '/');
+  const repoPath = relative(root, path).replace(/\\\\/g, '/');
   const rules = [
     ['dynamic SQL interpolation', /(?:\.query|\.execute)\s*\(\s*`[^`]*\$\{/g],
     ['runtime code evaluation', /\b(?:eval\s*\(|new\s+Function\s*\()/g],
