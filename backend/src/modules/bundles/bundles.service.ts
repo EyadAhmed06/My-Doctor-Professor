@@ -59,6 +59,7 @@ export class BundlesService {
     const builder = this.bundles.createQueryBuilder('bundle')
       .where('bundle.status = :status', { status: BundleStatus.PUBLISHED })
       .andWhere('bundle.access_mode = :mode', { mode: BundleAccessMode.PUBLIC })
+      .andWhere('(bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)')
       .orderBy('bundle.academic_year', 'ASC')
       .addOrderBy('bundle.title', 'ASC');
     if (academicYear) builder.andWhere('bundle.academic_year = :academicYear', { academicYear });
@@ -717,12 +718,15 @@ export class BundlesService {
     if (bundle.status !== BundleStatus.PUBLISHED || bundle.accessMode !== BundleAccessMode.PUBLIC) {
       throw new ForbiddenException('This bundle is not open for public enrollment');
     }
+    if (bundle.availableUntil && bundle.availableUntil <= new Date()) {
+      throw new ForbiddenException('This bundle has expired');
+    }
     return this.upsertEnrollment(
       bundle,
       studentId,
       BundleEnrollmentSource.PUBLIC,
       null,
-      bundle.availableUntil,
+      null,
       false,
     );
   }
