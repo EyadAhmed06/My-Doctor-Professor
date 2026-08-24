@@ -9,9 +9,9 @@ import { Panel, ProductShell, Progress } from "./product-shell";
 import "./product-pages.css";
 
 type Analytics = {
-  summary: { questions_answered: number; accuracy: number; bookmarked: number; calibrated_confidence: number; flashcards_mastered: number; flashcards_due: number };
+  summary: { questions_answered: number; accuracy: number; bookmarked: number; calibrated_confidence: number; confidence_samples: number; flashcards_mastered: number; flashcards_due: number };
   accuracy_over_time: { date: string; answered: number; accuracy: number }[];
-  topic_mastery: { id: string; name: string; course: string; mastery: number; confidence: number | null; questions_attempted: number }[];
+  topic_mastery: { id: string; name: string; course: string; mastery: number; evidence_strength: number | null; questions_attempted: number }[];
   study_activity: { date: string; completed: number; skipped: number; planned: number }[];
   readiness: { score: number; band: string; components: { accuracy: number; curriculum: number; flashcards: number; consistency: number } };
 };
@@ -105,6 +105,7 @@ export function ConnectedAnalyticsPage() {
         <Metric href="/bundles?tab=questions" icon={<FiActivity />} label="Validated answers · overall" value={data.summary.questions_answered} explanation="Submitted or expired answers with a known correctness result across your account." />
         <Metric href="/bundles?tab=questions" icon={<FiCheckCircle />} label="Accuracy · overall" value={data.summary.accuracy} suffix="%" explanation="Correct validated attempts divided by all validated answered questions." />
         <Metric href="/notebook" icon={<FiBookmark />} label="Saved questions · current" value={data.summary.bookmarked} explanation="Questions currently bookmarked for later review." />
+        <Metric href="/bundles?tab=questions" icon={<FiCheckCircle />} label="Confidence calibration · overall" value={data.summary.calibrated_confidence} suffix="%" explanation={data.summary.confidence_samples ? `How closely your chosen confidence levels match outcomes across ${data.summary.confidence_samples} graded answers.` : "Choose confidence levels while answering to establish a calibration baseline."} />
         <Metric href="/flashcards" icon={<FiLayers />} label="Flashcards mastered · current" value={data.summary.flashcards_mastered} explanation="Reviewed cards currently classified as mastered by the spaced-repetition scheduler." />
         <Metric href="/flashcards" icon={<FiClock />} label="Flashcards due · current" value={data.summary.flashcards_due} explanation="Reviewed cards whose scheduled next-review time has arrived." />
       </section>
@@ -114,7 +115,7 @@ export function ConnectedAnalyticsPage() {
       <div className="analytics-grid">
         <Panel title="Current exam readiness"><div className="readiness-score"><b><AnimatedNumber value={data.readiness.score} /></b><span>/100</span><small>{data.readiness.band.replaceAll("_", " ")}</small></div>{Object.entries(data.readiness.components).map(([label, value]) => <div className="readiness-component" key={label}><span>{label}</span><b><AnimatedNumber value={value} />%</b><Progress value={value} /></div>)}<p>Readiness = 40% overall validated accuracy + 25% current curriculum completion + 20% current flashcard mastery + 15% completed-vs-skipped schedule consistency. It is intentionally not changed by the date selector.</p></Panel>
 
-        <Panel title="Topic mastery" className="analytics-topics"><p>Mastery = 70% observed accuracy + 30% active-question coverage. “Evidence” shows sample strength (20 × √attempts, capped at 100%), not subjective confidence.</p>{data.topic_mastery.length ? data.topic_mastery.map((topic) => <Link href="/bundles?tab=questions" key={topic.id}><span><b>{topic.name}</b><small>{topic.course} · {topic.questions_attempted} validated attempts{topic.confidence === null ? "" : ` · ${Math.round(topic.confidence)}% evidence`}</small></span><strong><AnimatedNumber value={topic.mastery} />%</strong><Progress value={topic.mastery} /></Link>) : <p>Practice questions to build your topic map.</p>}</Panel>
+        <Panel title="Topic mastery" className="analytics-topics"><p>Mastery = 70% observed accuracy + 30% active-question coverage. “Evidence” shows sample strength (20 × √attempts, capped at 100%), not subjective confidence.</p>{data.topic_mastery.length ? data.topic_mastery.map((topic) => <Link href="/bundles?tab=questions" key={topic.id}><span><b>{topic.name}</b><small>{topic.course} · {topic.questions_attempted} validated attempts{topic.evidence_strength === null ? "" : ` · ${Math.round(topic.evidence_strength)}% evidence`}</small></span><strong><AnimatedNumber value={topic.mastery} />%</strong><Progress value={topic.mastery} /></Link>) : <p>Practice questions to build your topic map.</p>}</Panel>
 
         <Panel title="Study consistency"><div className="activity-bars">{filteredActivity.length ? filteredActivity.map((day) => {
           const percentage = Math.max(5, 100 * day.completed / Math.max(1, day.planned));
