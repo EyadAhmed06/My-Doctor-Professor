@@ -165,7 +165,7 @@ export class ProgressService {
     await this.requireStudent(studentId);
     await this.synchronizeStudent(studentId);
     const courseIds=await this.accessibleCourseIds(studentId);
-    const [courses,attempts,questionSummary,flashcards,momentumRows]=await Promise.all([
+    const [courses,attempts,questionSummary,flashcards,momentumRows,weeklyActivity,topicMastery]=await Promise.all([
       courseIds.length?this.courseProgress.find({
         where:{studentId,courseId:In(courseIds)},relations:{course:true},
         order:{lastAccessedAt:'DESC'},take:6,
@@ -178,7 +178,8 @@ export class ProgressService {
         ORDER BY COALESCE(attempt.submitted_at,attempt.created_at) DESC LIMIT 6
       `,[studentId]),
       this.dataSource.query(`
-        SELECT COUNT(*) FILTER(WHERE answer.is_correct IS NOT NULL)::int AS attempts,
+        SELECT COUNT(*) FILTER(WHERE answer.selected_option_id IS NOT NULL
+            OR NULLIF(BTRIM(answer.essay_answer),'') IS NOT NULL)::int AS attempts,
           COUNT(*) FILTER(WHERE answer.is_correct=TRUE)::int AS correct_attempts,
           COALESCE(ROUND(100.0*COUNT(*) FILTER(WHERE answer.is_correct=TRUE)
             /NULLIF(COUNT(*) FILTER(WHERE answer.is_correct IS NOT NULL),0),2),0)::float AS accuracy,
@@ -186,7 +187,9 @@ export class ProgressService {
             WHERE student_id=$1 AND bookmarked=TRUE) AS bookmarked
         FROM student_answers answer
         JOIN test_attempts attempt ON attempt.id=answer.attempt_id
-        WHERE attempt.student_id=$1 AND attempt.status IN ('SUBMITTED','EXPIRED')
+        WHERE attempt.student_id=$1
+          AND (answer.selected_option_id IS NOT NULL
+            OR NULLIF(BTRIM(answer.essay_answer),'') IS NOT NULL)
       `,[studentId]),
       this.dataSource.query(`
         SELECT COUNT(*) FILTER(WHERE times_reviewed>0)::int AS reviewed,
@@ -230,12 +233,66 @@ export class ProgressService {
         SELECT totals.*,COALESCE(current_streak.days,0)::int AS study_streak
         FROM totals LEFT JOIN current_streak ON TRUE
       `,[studentId]),
+      this.dataSource.query(`
+        WITH days AS (
+          SELECT generate_series(CURRENT_DATE-6,CURRENT_DATE,'1 day')::date AS date
+        ), questions AS (
+          SELECT answer.answered_at::date AS date,COUNT(*)::int AS questions
+          FROM student_answers answer
+          JOIN test_attempts attempt ON attempt.id=answer.attempt_id
+          WHERE attempt.student_id=$1
+            AND answer.answered_at>=CURRENT_DATE-6
+            AND (answer.selected_option_id IS NOT NULL
+              OR NULLIF(BTRIM(answer.essay_answer),'') IS NOT NULL)
+          GROUP BY answer.answered_at::date
+        ), cards AS (
+          SELECT last_reviewed_at::date AS date,COUNT(*)::int AS flashcards
+          FROM student_flashcard_progress
+          WHERE student_id=$1 AND last_reviewed_at>=CURRENT_DATE-6
+          GROUP BY last_reviewed_at::date
+        ), lectures AS (
+          SELECT last_accessed_at::date AS date,COUNT(*)::int AS lectures
+          FROM student_lecture_progress
+          WHERE student_id=$1 AND last_accessed_at>=CURRENT_DATE-6
+          GROUP BY last_accessed_at::date
+        ), sessions AS (
+          SELECT completed_at::date AS date,COUNT(*)::int AS plan_sessions
+          FROM study_plan_items
+          WHERE student_id=$1 AND status='COMPLETED' AND completed_at>=CURRENT_DATE-6
+          GROUP BY completed_at::date
+        )
+        SELECT days.date,COALESCE(questions.questions,0)::int AS questions,
+          COALESCE(cards.flashcards,0)::int AS flashcards,
+          COALESCE(lectures.lectures,0)::int AS lectures,
+          COALESCE(sessions.plan_sessions,0)::int AS plan_sessions,
+          (COALESCE(questions.questions,0)+COALESCE(cards.flashcards,0)
+            +COALESCE(lectures.lectures,0)+COALESCE(sessions.plan_sessions,0))::int AS total
+        FROM days LEFT JOIN questions USING(date) LEFT JOIN cards USING(date)
+        LEFT JOIN lectures USING(date) LEFT JOIN sessions USING(date)
+        ORDER BY days.date
+      `,[studentId]),
+      this.dataSource.query(`
+        SELECT course.id,course.course_name,
+          ROUND(SUM(progress.mastery_percentage::numeric*progress.questions_attempted)
+            /NULLIF(SUM(progress.questions_attempted),0),2)::float AS mastery,
+          SUM(progress.questions_attempted)::int AS questions_attempted
+        FROM student_topic_progress progress
+        JOIN topics topic ON topic.id=progress.topic_id
+        JOIN lectures lecture ON lecture.id=topic.lecture_id
+        JOIN weeks week ON week.id=lecture.week_id
+        JOIN courses course ON course.id=week.course_id
+        WHERE progress.student_id=$1 AND progress.questions_attempted>0
+          AND course.id=ANY($2::uuid[])
+        GROUP BY course.id,course.course_name
+        ORDER BY questions_attempted DESC,course.course_name
+      `,[studentId,courseIds]),
     ]);
     const momentum=momentumRows[0]??{};
     const xp=Number(momentum.correct_answers||0)+Number(momentum.mastered_cards||0)
       +10*Number(momentum.completed_lectures||0);
     return {
       courses,recent_attempts:attempts,questions:questionSummary[0],flashcards:flashcards[0],
+      weekly_activity:weeklyActivity,topic_mastery:topicMastery,
       clinical_momentum:{
         study_streak:Number(momentum.study_streak||0),
         study_minutes:Number(momentum.study_minutes||0),
@@ -302,8 +359,19 @@ export class ProgressService {
     const answerFilter=dateClauses.length?`AND ${dateClauses.join(' AND ')}`:'';
     const [summary,accuracyTrend,topics,activity]=await Promise.all([
       this.dataSource.query(`
-        SELECT COALESCE(SUM(progress.attempts),0)::int AS questions_answered,
-          COALESCE(ROUND(100.0*SUM(progress.correct_attempts)/NULLIF(SUM(progress.attempts),0),2),0)::float AS accuracy,
+        SELECT COALESCE((SELECT COUNT(*)::int
+            FROM student_answers saved
+            JOIN test_attempts saved_attempt ON saved_attempt.id=saved.attempt_id
+            WHERE saved_attempt.student_id=$1
+              AND (saved.selected_option_id IS NOT NULL
+                OR NULLIF(BTRIM(saved.essay_answer),'') IS NOT NULL)),0) AS questions_answered,
+          COALESCE((SELECT ROUND(100.0*COUNT(*) FILTER(WHERE saved.is_correct=TRUE)
+              /NULLIF(COUNT(*) FILTER(WHERE saved.is_correct IS NOT NULL),0),2)::float
+            FROM student_answers saved
+            JOIN test_attempts saved_attempt ON saved_attempt.id=saved.attempt_id
+            WHERE saved_attempt.student_id=$1
+              AND (saved.selected_option_id IS NOT NULL
+                OR NULLIF(BTRIM(saved.essay_answer),'') IS NOT NULL)),0) AS accuracy,
           COUNT(*) FILTER(WHERE progress.bookmarked)::int AS bookmarked,
           COALESCE((SELECT ROUND(100-AVG(ABS(
             CASE answer.confidence_level WHEN 'LOW' THEN 35 WHEN 'MEDIUM' THEN 65 WHEN 'HIGH' THEN 85 END
@@ -471,7 +539,9 @@ export class ProgressService {
             FILTER(WHERE answer.is_correct IS NOT NULL))[1],
           FALSE,MAX(answer.answered_at),CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
         FROM student_answers answer JOIN test_attempts attempt ON attempt.id=answer.attempt_id
-        WHERE attempt.student_id=$1 AND attempt.status IN ('SUBMITTED','EXPIRED')
+        WHERE attempt.student_id=$1
+          AND (answer.selected_option_id IS NOT NULL
+            OR NULLIF(BTRIM(answer.essay_answer),'') IS NOT NULL)
           AND answer.is_correct IS NOT NULL
         GROUP BY answer.question_id
         ON CONFLICT(student_id,question_id) DO UPDATE SET
@@ -481,13 +551,27 @@ export class ProgressService {
           last_attempted_at=EXCLUDED.last_attempted_at,updated_at=CURRENT_TIMESTAMP
       `,[studentId]);
       await manager.query(`
+        UPDATE student_question_progress progress SET
+          attempts=0,correct_attempts=0,incorrect_attempts=0,
+          last_answer_correct=NULL,last_attempted_at=NULL,updated_at=CURRENT_TIMESTAMP
+        WHERE progress.student_id=$1 AND progress.attempts>0
+          AND NOT EXISTS (
+            SELECT 1 FROM student_answers answer
+            JOIN test_attempts attempt ON attempt.id=answer.attempt_id
+            WHERE attempt.student_id=$1 AND answer.question_id=progress.question_id
+              AND answer.is_correct IS NOT NULL
+              AND (answer.selected_option_id IS NOT NULL
+                OR NULLIF(BTRIM(answer.essay_answer),'') IS NOT NULL)
+          )
+      `,[studentId]);
+      await manager.query(`
         INSERT INTO student_topic_progress(
           id,student_id,topic_id,questions_attempted,questions_correct,questions_incorrect,
           confidence_level,average_score,mastery_percentage,last_practiced_at,created_at,updated_at
         )
         SELECT gen_random_uuid(),$1,aggregated.topic_id,
           aggregated.attempts,aggregated.correct,aggregated.incorrect,
-          LEAST(100,ROUND((SQRT(aggregated.attempts)*20)::numeric,2)),
+          ROUND(100.0*aggregated.questions_seen/NULLIF(totals.total_questions,0),2),
           ROUND(100.0*aggregated.correct/NULLIF(aggregated.attempts,0),2),
           ROUND(
             0.7*(100.0*aggregated.correct/NULLIF(aggregated.attempts,0))
@@ -515,6 +599,16 @@ export class ProgressService {
           confidence_level=EXCLUDED.confidence_level,average_score=EXCLUDED.average_score,
           mastery_percentage=EXCLUDED.mastery_percentage,
           last_practiced_at=EXCLUDED.last_practiced_at,updated_at=CURRENT_TIMESTAMP
+      `,[studentId]);
+      await manager.query(`
+        DELETE FROM student_topic_progress progress
+        WHERE progress.student_id=$1 AND NOT EXISTS (
+          SELECT 1 FROM student_question_progress question_progress
+          JOIN questions question ON question.id=question_progress.question_id
+          WHERE question_progress.student_id=$1
+            AND question.topic_id=progress.topic_id
+            AND question_progress.attempts>0
+        )
       `,[studentId]);
     });
   }
