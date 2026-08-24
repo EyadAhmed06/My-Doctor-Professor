@@ -410,24 +410,11 @@ async function main() {
         ],
       );
 
-    const attemptId = "a0000000-0000-4000-8000-000000000001";
-    await manager.query(
-      `INSERT INTO test_attempts(id,student_id,test_id,test_mode,status,score,started_at,submitted_at,last_activity_at,auto_submitted) VALUES($1,$2,$3,'TUTOR','SUBMITTED',6,CURRENT_TIMESTAMP-INTERVAL '8 days',CURRENT_TIMESTAMP-INTERVAL '7 days',CURRENT_TIMESTAMP-INTERVAL '7 days',FALSE) ON CONFLICT(id) DO UPDATE SET score=6,status='SUBMITTED'`,
-      [attemptId, studentId, ids.tests[0]],
-    );
-    for (let i = 0; i < ids.questions.length; i++)
-      await manager.query(
-        `INSERT INTO student_answers(id,attempt_id,question_id,selected_option_id,awarded_marks,is_correct,answered_at) VALUES($1,$2,$3,$4,$5,$6,CURRENT_TIMESTAMP-($7||' days')::interval) ON CONFLICT(attempt_id,question_id) DO UPDATE SET selected_option_id=EXCLUDED.selected_option_id,is_correct=EXCLUDED.is_correct,answered_at=EXCLUDED.answered_at`,
-        [
-          `a1000000-0000-4000-8000-${(i + 1).toString().padStart(12, "0")}`,
-          attemptId,
-          ids.questions[i],
-          optionIds[i],
-          i < 6 ? 1 : 0,
-          i < 6,
-          7 - Math.floor(i / 2),
-        ],
-      );
+    // Demo content must not impersonate student activity. Remove the legacy
+    // seeded attempt so analytics only reflects answers actually saved by the student.
+    const legacyDemoAttemptId = "a0000000-0000-4000-8000-000000000001";
+    await manager.query("DELETE FROM student_answers WHERE attempt_id=$1", [legacyDemoAttemptId]);
+    await manager.query("DELETE FROM test_attempts WHERE id=$1", [legacyDemoAttemptId]);
 
     const collectionId = "b0000000-0000-4000-8000-000000000001";
     const tagIds = [
