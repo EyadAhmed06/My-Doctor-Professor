@@ -194,25 +194,35 @@ export class StudyPlanItemActionsService {
       ORDER BY lecture.title
     `, [studentId]);
 
-    const locked = await this.planItems.createQueryBuilder('item')
+    const preserved = await this.planItems.createQueryBuilder('item')
       .where('item.student_id=:studentId', { studentId })
       .andWhere('item.scheduled_date>=:today', { today })
-      .andWhere('item.status=:status', { status: StudyPlanItemStatus.PLANNED })
-      .andWhere("COALESCE((item.metadata->>'locked')::boolean,FALSE)=TRUE")
+      .andWhere(`(
+        item.status=:completed
+        OR (
+          item.status=:planned
+          AND COALESCE((item.metadata->>'locked')::boolean,FALSE)=TRUE
+        )
+      )`, {
+        completed: StudyPlanItemStatus.COMPLETED,
+        planned: StudyPlanItemStatus.PLANNED,
+      })
       .getMany();
-    const lockedKeys = new Set(locked.map((item) => `${item.scheduledDate}:${item.itemType}`));
-    const lockedLectureIds = new Set(locked.map((item) => item.lectureId).filter(Boolean));
-    const pendingLectures = lectures.filter((lecture) => !lockedLectureIds.has(lecture.id));
-    const lockedMinutes = new Map<string, number>();
-    for (const item of locked) {
-      lockedMinutes.set(item.scheduledDate, (lockedMinutes.get(item.scheduledDate) || 0) + item.durationMinutes);
+    const locked = preserved.filter((item) =>
+      item.status === StudyPlanItemStatus.PLANNED && Boolean(item.metadata?.locked));
+    const preservedKeys = new Set(preserved.map((item) => `${item.scheduledDate}:${item.itemType}`));
+    const preservedLectureIds = new Set(preserved.map((item) => item.lectureId).filter(Boolean));
+    const pendingLectures = lectures.filter((lecture) => !preservedLectureIds.has(lecture.id));
+    const preservedMinutes = new Map<string, number>();
+    for (const item of preserved) {
+      preservedMinutes.set(item.scheduledDate, (preservedMinutes.get(item.scheduledDate) || 0) + item.durationMinutes);
     }
 
     const generated: Partial<StudyPlanItem>[] = [];
     let cursor = new Date(`${today}T00:00:00Z`);
     let lectureIndex = 0;
     const add = (item: Partial<StudyPlanItem>) => {
-      if (!lockedKeys.has(`${item.scheduledDate}:${item.itemType}`)) generated.push(item);
+      if (!preservedKeys.has(`${item.scheduledDate}:${item.itemType}`)) generated.push(item);
     };
 
     while (cursor <= lastDate) {
@@ -225,10 +235,10 @@ export class StudyPlanItemActionsService {
           targetCount: null, lectureId: null, metadata: { reason: 'Protected recovery day' },
         });
       } else if (availableDays.includes(day)) {
-        const lockedForDay = lockedMinutes.get(scheduledDate) || 0;
-        if (lockedForDay > dailyCapacity) {
+        const preservedForDay = preservedMinutes.get(scheduledDate) || 0;
+        if (preservedForDay > dailyCapacity) {
           throw new BadRequestException(
-            `Locked sessions on ${scheduledDate} exceed the daily capacity. Unlock or resize them before rebuilding.`,
+            `Preserved sessions on ${scheduledDate} exceed the daily capacity. Unlock, resize, or move planned sessions before rebuilding.`,
           );
         }
         add({
@@ -244,9 +254,9 @@ export class StudyPlanItemActionsService {
           metadata: { source: 'spaced_repetition', rationale: 'Daily retention target from your saved plan settings' },
         });
 
-        const used = lockedForDay
-          + (lockedKeys.has(`${scheduledDate}:${StudyPlanItemType.QUESTIONS}`) ? 0 : questionMinutes)
-          + (lockedKeys.has(`${scheduledDate}:${StudyPlanItemType.FLASHCARDS}`) ? 0 : flashcardMinutes);
+        const used = preservedForDay
+          + (preservedKeys.has(`${scheduledDate}:${StudyPlanItemType.QUESTIONS}`) ? 0 : questionMinutes)
+          + (preservedKeys.has(`${scheduledDate}:${StudyPlanItemType.FLASHCARDS}`) ? 0 : flashcardMinutes);
         const lecture = pendingLectures[lectureIndex];
         if (lecture && used + lecture.duration_minutes <= dailyCapacity) {
           add({
