@@ -50,3 +50,32 @@
   .question-course fieldset>div{padding-left:0}
   .question-quiz-launch>span{width:100%;justify-content:flex-start}
 }
+
+
+/* Student bundle access states */
+.bundle-list .bundle-status-badge{
+  min-width:78px;
+  padding:5px 8px;
+  border:1px solid var(--p-line);
+  border-radius:999px;
+  font-size:10px;
+  font-style:normal;
+  font-weight:800;
+  line-height:1;
+  letter-spacing:.04em;
+  text-align:center;
+  white-space:nowrap;
+}
+.bundle-list .bundle-status-badge.progress{
+  border-color:color-mix(in srgb,var(--p-teal) 55%,var(--p-line));
+  background:color-mix(in srgb,var(--p-teal) 16%,var(--p-panel));
+  color:var(--p-teal);
+}
+.bundle-list .bundle-status-badge.read-only{
+  border-color:color-mix(in srgb,var(--p-orange) 55%,var(--p-line));
+  background:color-mix(in srgb,var(--p-orange) 13%,var(--p-panel));
+  color:var(--p-orange);
+}
+.bundle-list button{
+  grid-template-columns:38px minmax(0,1fr) auto;
+}
