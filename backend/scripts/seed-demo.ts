@@ -434,14 +434,13 @@ async function main() {
         );
     }
 
-    const examDate = new Date(Date.now() + 46 * 86400000).toISOString().slice(0, 10);
     await manager.query(
       `INSERT INTO student_study_plans(student_id,target_exam,exam_date,daily_question_target,weekly_hours_target,daily_flashcard_target,preferences,generated_at,schedule_version)
-       VALUES($1,NULL,$2,20,10,20,'{"available_days":[1,2,3,4,5,6],"rest_day":0}'::jsonb,NULL,0)
-       ON CONFLICT(student_id) DO UPDATE SET target_exam=NULL,exam_date=EXCLUDED.exam_date,
+       VALUES($1,NULL,NULL,20,10,20,'{"available_days":[1,2,3,4,5,6],"rest_day":0,"planning_horizon_days":30}'::jsonb,NULL,0)
+       ON CONFLICT(student_id) DO UPDATE SET target_exam=NULL,exam_date=NULL,
         daily_question_target=20,weekly_hours_target=10,daily_flashcard_target=20,
         preferences=EXCLUDED.preferences,generated_at=NULL,schedule_version=0`,
-      [studentId, examDate],
+      [studentId],
     );
 
     console.log({
