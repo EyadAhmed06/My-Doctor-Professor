@@ -101,8 +101,8 @@ export class StudyPlanItemActionsService {
       if (item.status === StudyPlanItemStatus.COMPLETED) throw new ConflictException('Completed study sessions cannot be rescheduled');
       const today = this.isoDate(new Date());
       if (dto.scheduled_date < today) throw new BadRequestException('Study sessions cannot be moved into the past');
-      const plan = await this.requirePlan(studentId);
-      if (plan.examDate && dto.scheduled_date >= plan.examDate) throw new BadRequestException('Study sessions must be scheduled before the exam date');
+      const horizonEnd = this.isoDate(new Date(Date.now() + 29 * 86_400_000));
+      if (dto.scheduled_date > horizonEnd) throw new BadRequestException('Study sessions must stay inside the current 30-day plan');
       item.scheduledDate = dto.scheduled_date;
     }
 
@@ -140,14 +140,13 @@ export class StudyPlanItemActionsService {
 
   private async buildSchedule(studentId: string): Promise<ScheduleBuild> {
     const plan = await this.requirePlan(studentId);
-    if (!plan.examDate) throw new BadRequestException('Set an exam date before generating a schedule');
-
-    const today = this.isoDate(new Date());
-    const examDate = new Date(`${plan.examDate}T00:00:00Z`);
-    const lastDate = new Date(Math.min(examDate.getTime() - 86_400_000, Date.now() + 179 * 86_400_000));
-    if (lastDate < new Date(`${today}T00:00:00Z`)) {
-      throw new BadRequestException('Exam date must leave at least one study day');
-    }
+    const todayDate = new Date();
+    const today = this.isoDate(todayDate);
+    const lastDate = new Date(Date.UTC(
+      todayDate.getUTCFullYear(),
+      todayDate.getUTCMonth(),
+      todayDate.getUTCDate() + 29,
+    ));
 
     const preferences = (plan.preferences || {}) as PlanPreferences;
     const restDay = Number.isInteger(preferences.rest_day) && Number(preferences.rest_day) >= 0
