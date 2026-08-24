@@ -28,6 +28,10 @@ export class AuthRateLimitService {
     );
   }
 
+  async enforceBudget(rawKey: string, maximum: number, windowSeconds: number): Promise<void> {
+    return this.consume(rawKey, maximum, windowSeconds);
+  }
+
   private async consume(rawKey: string, maximum: number, windowSeconds: number): Promise<void> {
     const key = createHash('sha256').update(rawKey).digest('hex');
     const rows = await this.dataSource.query(
