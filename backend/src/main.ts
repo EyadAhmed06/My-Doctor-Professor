@@ -2,6 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DatabaseExceptionFilter } from './common/filters/database-exception.filter';
+import { isAllowedOrigin, parseAllowedOrigins } from './config/cors-policy';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -27,11 +28,20 @@ async function bootstrap() {
     app.getHttpAdapter().getInstance().set('trust proxy', trustProxyHops);
   }
 
+  const allowedOrigins = parseAllowedOrigins(
+    process.env.FRONTEND_URL,
+    process.env.CORS_ORIGINS,
+    process.env.NODE_ENV,
+  );
   app.enableCors({
-    origin: true,
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin, allowedOrigins)) return callback(null, true);
+      return callback(new Error('Origin is not allowed by CORS'), false);
+    },
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     allowedHeaders: 'Content-Type,Authorization',
+    maxAge: 600,
   });
 
   app.useGlobalFilters(new DatabaseExceptionFilter());
