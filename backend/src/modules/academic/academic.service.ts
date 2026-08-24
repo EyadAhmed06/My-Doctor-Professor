@@ -227,7 +227,7 @@ export class AcademicService {
     };
   }
 
-  async getCourse(id: string, role: UserRole): Promise<Course> {
+  async getCourse(id: string, role: UserRole, studentId?: string): Promise<Course> {
     const course = await this.courses.findOne({
       where: { id },
       relations: {
@@ -248,6 +248,8 @@ export class AcademicService {
       throw new NotFoundException('Course not found');
     }
     if (role === UserRole.STUDENT) {
+      const visibleWeekIds=new Set(await this.accessibleWeekIds(studentId||'',id));
+      course.weeks=course.weeks.filter((week)=>visibleWeekIds.has(week.id));
       for (const week of course.weeks) {
         week.lectures = week.lectures.filter((lecture) => lecture.isPublished);
       }
@@ -315,8 +317,8 @@ export class AcademicService {
     return week;
   }
 
-  async listWeeks(courseId: string, role: UserRole): Promise<Week[]> {
-    await this.getCourse(courseId, role);
+  async listWeeks(courseId: string, role: UserRole, studentId?: string): Promise<Week[]> {
+    await this.getCourse(courseId, role, studentId);
     const weeks = await this.weeks.find({
       where: { courseId },
       relations: { lectures: true },
@@ -326,9 +328,10 @@ export class AcademicService {
       },
     });
     if (role === UserRole.STUDENT) {
-      for (const week of weeks) {
-        week.lectures = week.lectures.filter((lecture) => lecture.isPublished);
-      }
+      const visibleWeekIds=new Set(await this.accessibleWeekIds(studentId||'',courseId));
+      const visible=weeks.filter((week)=>visibleWeekIds.has(week.id));
+      for (const week of visible) week.lectures=week.lectures.filter((lecture)=>lecture.isPublished);
+      return visible;
     }
     return weeks;
   }
@@ -704,6 +707,26 @@ export class AcademicService {
     });
     if (!assignment) throw new NotFoundException('Course instructor assignment not found');
     await this.courseInstructors.remove(assignment);
+  }
+
+  private async accessibleWeekIds(studentId:string,courseId:string):Promise<string[]> {
+    if(!studentId) return [];
+    const rows=await this.dataSource.query(`
+      SELECT DISTINCT week.id
+      FROM weeks week
+      JOIN bundle_weeks bundle_week ON bundle_week.week_id=week.id
+      JOIN bundles bundle ON bundle.id=bundle_week.bundle_id
+      JOIN bundle_enrollments enrollment ON enrollment.bundle_id=bundle.id
+      WHERE week.course_id=$1 AND enrollment.student_id=$2
+        AND enrollment.status='ACTIVE'
+        AND enrollment.starts_at<=CURRENT_TIMESTAMP
+        AND (enrollment.expires_at IS NULL OR enrollment.expires_at>CURRENT_TIMESTAMP)
+        AND bundle.status='PUBLISHED'
+        AND (bundle.is_free=TRUE OR enrollment.payment_status='PAID')
+        AND (bundle.available_from IS NULL OR bundle.available_from<=CURRENT_TIMESTAMP)
+        AND (bundle.available_until IS NULL OR bundle.available_until>CURRENT_TIMESTAMP)
+    `,[courseId,studentId]) as Array<{id:string}>;
+    return rows.map((row)=>row.id);
   }
 
   private async assertCourseManager(courseId: string, actor: AuthenticatedUser): Promise<void> {
