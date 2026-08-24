@@ -18,6 +18,7 @@ import { UsersService } from '../users/users.service';
 import { isAllowedOrigin, parseAllowedOrigins } from '../../config/cors-policy';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { Public } from './decorators/public.decorator';
 import { AuthResponseDto, UserProfileDto } from './dtos/auth-response.dto';
 import { ConfirmEmailVerificationDto, RequestEmailVerificationDto } from './dtos/email-verification.dto';
 import { CompleteGoogleSignupDto, GoogleCredentialDto, GoogleOnboardingResponseDto } from './dtos/google-auth.dto';
@@ -52,6 +53,7 @@ export class AuthController {
     );
   }
 
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(
@@ -64,6 +66,7 @@ export class AuthController {
     return this.forTransport(auth, request);
   }
 
+  @Public()
   @Get('google/config')
   @Header('Cache-Control', 'public, max-age=300')
   googleConfiguration(): { enabled: boolean; client_id: string | null } {
@@ -71,6 +74,7 @@ export class AuthController {
     return { enabled: Boolean(clientId), client_id: clientId };
   }
 
+  @Public()
   @Post('google')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
@@ -90,6 +94,7 @@ export class AuthController {
     return result;
   }
 
+  @Public()
   @Post('google/signup')
   @HttpCode(HttpStatus.CREATED)
   @Header('Cache-Control', 'no-store')
@@ -106,12 +111,14 @@ export class AuthController {
     return this.forTransport(auth, request);
   }
 
+  @Public()
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
   signup(@Body() dto: SignupDto): Promise<MessageResponse> {
     return this.authService.signup(dto);
   }
 
+  @Public()
   @Post('email-verification/request')
   @HttpCode(HttpStatus.ACCEPTED)
   requestEmailVerification(
@@ -121,6 +128,7 @@ export class AuthController {
     return this.authService.requestEmailVerification(dto.email, request.ip ?? request.socket.remoteAddress ?? 'unknown');
   }
 
+  @Public()
   @Post('email-verification/confirm')
   @Header('Cache-Control', 'no-store')
   @Header('Referrer-Policy', 'no-referrer')
@@ -131,6 +139,7 @@ export class AuthController {
     return this.authService.confirmEmailVerification(dto.token, request.ip ?? request.socket.remoteAddress ?? 'unknown');
   }
 
+  @Public()
   @Post('password/forgot')
   @HttpCode(HttpStatus.ACCEPTED)
   forgotPassword(
@@ -140,6 +149,7 @@ export class AuthController {
     return this.authService.requestPasswordReset(dto.email, request.ip ?? request.socket.remoteAddress ?? 'unknown');
   }
 
+  @Public()
   @Post('password/reset')
   @Header('Cache-Control', 'no-store')
   @Header('Referrer-Policy', 'no-referrer')
@@ -155,6 +165,7 @@ export class AuthController {
     );
   }
 
+  @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
@@ -205,6 +216,7 @@ export class AuthController {
     this.clearRefreshCookies(request, response);
   }
 
+  @Public()
   @Post('logout/browser')
   @HttpCode(HttpStatus.NO_CONTENT)
   clearBrowserLogoutCookies(
