@@ -8,7 +8,6 @@ import {
   FiCheckCircle,
   FiChevronDown,
   FiClock,
-  FiCreditCard,
   FiFileText,
   FiLayers,
   FiLock,
