@@ -474,11 +474,6 @@ export function ConnectedBundlesPage() {
                   <button className="pp-button" onClick={() => void enroll(bundle)}>
                     Join free bundle
                   </button>
-                  {(bundle.firstPlanEnabled || bundle.finalPlanEnabled) && (
-                    <button className="pp-button secondary" type="button" onClick={() => setPlanPickerBundle(bundle)}>
-                      View subscription plans
-                    </button>
-                  )}
                 </Panel>
               ))}
             </div>
