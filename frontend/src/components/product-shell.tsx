@@ -161,7 +161,18 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
     if (!loading && !user) router.replace(`/login?next=${encodeURIComponent(path)}`);
   }, [loading, path, router, user]);
 
-  useEffect(() => { void loadUnread(); }, [loadUnread]);
+  useEffect(() => {
+    void loadUnread();
+    const interval=window.setInterval(() => void loadUnread(),60_000);
+    const refreshWhenVisible=() => { if(document.visibilityState==='visible') void loadUnread(); };
+    document.addEventListener('visibilitychange',refreshWhenVisible);
+    window.addEventListener('focus',loadUnread);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange',refreshWhenVisible);
+      window.removeEventListener('focus',loadUnread);
+    };
+  }, [loadUnread]);
 
   useEffect(() => {
     const refresh = () => {
