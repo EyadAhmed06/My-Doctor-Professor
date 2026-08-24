@@ -363,7 +363,7 @@ export function AdvancedBundlesPage() {
         const accessLabel = !manager
           ? (bundle.accessible === false ? "LOCKED" : "SUBSCRIBED")
           : (bundle.isFree ? "FREE" : `${bundle.priceCurrency} ${Number(bundle.priceAmount || 0).toFixed(2)}`);
-        return <button className={selectedBundle?.id === bundle.id ? "active" : ""} key={bundle.id} onClick={() => open(bundle)}><span>{!manager && bundle.accessible === false ? <FiLock /> : <FiLayers />}</span><b>{bundle.title}<small>Year {bundle.academicYear} · {accessLabel}</small></b><em className={`bundle-status-badge ${badge.className}`}>{badge.label}</em></button>;
+        return <button className={selectedBundle?.id === bundle.id ? "active" : ""} key={bundle.id} onClick={() => open(bundle)}><span>{!manager && bundle.accessible === false ? <FiLock /> : <FiLayers />}</span><b>{bundle.title}<small>Year {bundle.academicYear}</small>{!manager && <em className={`bundle-status-badge ${badge.className}`}>{accessLabel}</em>}</b>{manager && <em className={`bundle-status-badge ${badge.className}`}>{badge.label}</em>}</button>;
       })}</aside>
 
       <section className={`bundle-content ${bundleLoading ? "is-loading" : ""}`} aria-busy={bundleLoading}>
