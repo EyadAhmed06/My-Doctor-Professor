@@ -1,5 +1,6 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
 import { PlanPurchasesService } from './plan-purchases.service';
+import { Public } from '../auth/decorators/public.decorator';
 
 /**
  * Public endpoint — Paymob calls this server-to-server with no user session, so it intentionally
@@ -9,6 +10,7 @@ import { PlanPurchasesService } from './plan-purchases.service';
  * Paymob's transaction callback body is `{ type: "TRANSACTION", obj: { ...transaction fields } }`
  * with the signature attached as a `?hmac=` query parameter on the notification_url itself.
  */
+@Public()
 @Controller('webhooks/paymob')
 export class PaymobWebhookController {
   constructor(private readonly purchases: PlanPurchasesService) {}
