@@ -34,3 +34,5 @@ html[data-theme=light] .exam-session-page{background:#f7f8fb}html[data-theme=lig
 .exam-highlightable.is-eraser-mode .exam-text-highlight.is-erasable{cursor:not-allowed;outline:1px dashed color-mix(in srgb,#dc3545 70%,transparent)}.exam-highlightable.is-eraser-mode .exam-text-highlight.is-erasable:hover{filter:saturate(.55);opacity:.68}
 .exam-annotation-surface.is-pen-eraser{cursor:cell;touch-action:none;user-select:none}.exam-annotation-surface.is-pen-eraser>h1,.exam-annotation-surface.is-pen-eraser>.exam-answer-list,.exam-annotation-surface.is-pen-eraser>.exam-confidence{pointer-events:none}
 @media(max-width:700px){.exam-eraser-tools{align-items:stretch;flex-direction:column}.exam-pen-palette{width:max-content}}
+
+.exam-lower-grid--notes-only{grid-template-columns:1fr}.exam-scratchpad-card nav>span{height:42px;display:flex;align-items:center;color:var(--p-text);font-size:10px;font-weight:700;border-bottom:2px solid var(--p-violet)}
