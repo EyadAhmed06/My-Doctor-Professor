@@ -109,35 +109,7 @@ export class TestsService implements OnModuleInit {
         CREATE UNIQUE INDEX IF NOT EXISTS uq_flag_type
         ON question_flags (attempt_id, question_id, flag_type)
       `);
-      // Remove the obsolete database-only rule left by older installations.
-      // Current practice sizes are validated in generatePractice below.
-      await manager.query(`
-        DO $legacy$
-        DECLARE legacy_trigger record;
-        BEGIN
-          FOR legacy_trigger IN
-            SELECT trigger_namespace.nspname AS schema_name,
-                   trigger_table.relname AS table_name,
-                   trigger_definition.tgname AS trigger_name
-            FROM pg_trigger trigger_definition
-            JOIN pg_proc trigger_function
-              ON trigger_function.oid = trigger_definition.tgfoid
-            JOIN pg_class trigger_table
-              ON trigger_table.oid = trigger_definition.tgrelid
-            JOIN pg_namespace trigger_namespace
-              ON trigger_namespace.oid = trigger_table.relnamespace
-            WHERE NOT trigger_definition.tgisinternal
-              AND trigger_table.relname = 'test_questions'
-          LOOP
-            EXECUTE format(
-              'DROP TRIGGER IF EXISTS %I ON %I.%I',
-              legacy_trigger.trigger_name,
-              legacy_trigger.schema_name,
-              legacy_trigger.table_name
-            );
-          END LOOP;
-        END $legacy$;
-      `);
+
     });
   }
 
@@ -286,14 +258,10 @@ export class TestsService implements OnModuleInit {
       await manager.save(BundleTest, manager.create(BundleTest, {
         bundleId: dto.bundle_id, testId: test.id,
       }));
-      // Bypass obsolete user-defined count triggers left by older schemas.
-      // PostgreSQL internal FK and constraint triggers stay enabled.
-      await manager.query('ALTER TABLE test_questions DISABLE TRIGGER USER');
       await manager.save(TestQuestion, selected.map((question, index) => manager.create(TestQuestion, {
         testId: test.id, questionId: question.id, displayOrder: index + 1,
         marks: question.marks, timeLimitSeconds: null,
       })));
-      await manager.query('ALTER TABLE test_questions ENABLE TRIGGER USER');
       const attempt = await manager.save(TestAttempt, manager.create(TestAttempt, {
         studentId: actor.userId, testId: test.id, testMode: dto.test_mode,
         status: TestAttemptStatus.IN_PROGRESS, score: null, startedAt: now,
