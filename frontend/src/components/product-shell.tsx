@@ -8,7 +8,6 @@ import {
   FiBell,
   FiCheck,
   FiChevronDown,
-  FiCreditCard,
   FiHelpCircle,
   FiLogOut,
   FiMenu,
@@ -333,7 +332,7 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
         }} />
         <div className="header-popover-anchor profile-menu-anchor" ref={profileRef}>
           <button ref={profileButtonRef} className="profile-menu-trigger" type="button" aria-expanded={profileOpen} aria-haspopup="menu" onClick={() => { setProfileOpen(value => !value); setNotificationsOpen(false); setHelpOpen(false); setAchievementsOpen(false); setProgressOpen(false); }}><span className="avatar-fallback">{initials}</span><span><b>{displayName}</b><small>{roleLabel}</small></span><FiChevronDown /></button>
-          {profileOpen && <div className="header-popover profile-menu" role="menu"><div className="profile-menu-summary"><span className="avatar-fallback">{initials}</span><div><b>{displayName}</b><small>{user.email}</small></div></div><button type="button" role="menuitem" onClick={() => navigate("/settings")}><FiSettings /> {translate("Settings")}</button>{user.role === "STUDENT" && <button type="button" role="menuitem" onClick={() => navigate("/subscription")}><FiCreditCard /> {translate("Subscription")}</button>}<div className="profile-theme-row"><span>{translate("Theme")}</span><ThemeToggle compact /></div><button className="danger" data-phase5-confirmed="true" type="button" role="menuitem" onClick={() => void confirmLogout()}><FiLogOut /> {translate("Log out")}</button></div>}
+          {profileOpen && <div className="header-popover profile-menu" role="menu"><div className="profile-menu-summary"><span className="avatar-fallback">{initials}</span><div><b>{displayName}</b><small>{user.email}</small></div></div><button type="button" role="menuitem" onClick={() => navigate("/settings")}><FiSettings /> {translate("Settings")}</button><div className="profile-theme-row"><span>{translate("Theme")}</span><ThemeToggle compact /></div><button className="danger" data-phase5-confirmed="true" type="button" role="menuitem" onClick={() => void confirmLogout()}><FiLogOut /> {translate("Log out")}</button></div>}
         </div>
       </div>
     </header>
