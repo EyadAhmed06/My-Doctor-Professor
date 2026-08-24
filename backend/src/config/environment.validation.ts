@@ -101,6 +101,20 @@ export function validateEnvironment(input: Record<string, unknown>): Record<stri
     environment.GOOGLE_CLIENT_ID = clientId;
   }
 
+  if (environment.CORS_ORIGINS) {
+    const origins = String(environment.CORS_ORIGINS).split(',').map((value) => value.trim()).filter(Boolean);
+    for (const origin of origins) {
+      const url = new URL(origin);
+      if (!['http:', 'https:'].includes(url.protocol) || url.origin !== origin.replace(/\/$/, '')) {
+        throw new Error('CORS_ORIGINS must contain comma-separated HTTP(S) origins without paths');
+      }
+      if (nodeEnvironment === 'production' && url.protocol !== 'https:') {
+        throw new Error('CORS_ORIGINS must use HTTPS in production');
+      }
+    }
+    environment.CORS_ORIGINS = origins.join(',');
+  }
+
   if (environment.FRONTEND_URL) {
     const url = new URL(String(environment.FRONTEND_URL));
     if (!['http:', 'https:'].includes(url.protocol)) {
