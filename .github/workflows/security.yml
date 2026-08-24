@@ -41,8 +41,7 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
-      - name: Browser sink audit
-        if: matrix.workspace == 'frontend'
+      - name: Static security audit
         run: npm run audit:security
       - name: Lint
         run: npm run lint
