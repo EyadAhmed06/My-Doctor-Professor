@@ -208,15 +208,7 @@ export function ConnectedBundlesPage() {
 
   function open(bundle: Bundle) {
     if (bundle.payment_required) {
-      if (bundle.firstPlanEnabled || bundle.finalPlanEnabled) {
-        setPlanPickerBundle(bundle);
-        return;
-      }
-      notify({
-        title: "Payment required",
-        description: `Complete payment for "${bundle.title}" to unlock this bundle.`,
-        tone: "warning",
-      });
+      setPlanPickerBundle(bundle);
       return;
     }
     let remembered: Tab = "overview";
