@@ -334,7 +334,21 @@ export class ProgressService {
         FROM study_plan_items WHERE student_id=$1 AND scheduled_date<=CURRENT_DATE
         GROUP BY scheduled_date ORDER BY scheduled_date`,[studentId]),
     ]);
-    const courseReadiness=await this.dataSource.query(`SELECT COALESCE(ROUND(AVG(completion_percentage),2),0)::float AS curriculum FROM student_course_progress WHERE student_id=$1`,[studentId]);
+    const courseReadiness=await this.dataSource.query(`
+      SELECT COALESCE(ROUND(AVG(progress.completion_percentage),2),0)::float AS curriculum
+      FROM student_course_progress progress
+      WHERE progress.student_id=$1 AND EXISTS (
+        SELECT 1 FROM bundle_courses bundle_course
+        JOIN bundles bundle ON bundle.id=bundle_course.bundle_id
+        JOIN bundle_enrollments enrollment ON enrollment.bundle_id=bundle.id
+        WHERE bundle_course.course_id=progress.course_id AND enrollment.student_id=$1
+          AND enrollment.status='ACTIVE'
+          AND (enrollment.expires_at IS NULL OR enrollment.expires_at>CURRENT_TIMESTAMP)
+          AND bundle.status='PUBLISHED'
+          AND (bundle.is_free=TRUE OR enrollment.payment_status='PAID')
+          AND (bundle.available_until IS NULL OR bundle.available_until>CURRENT_TIMESTAMP)
+      )
+    `,[studentId]);
     const consistency=activity.length?Math.round(100*activity.reduce((sum:number,row:{completed:number})=>sum+Number(row.completed),0)/Math.max(1,activity.reduce((sum:number,row:{completed:number;skipped:number})=>sum+Number(row.completed)+Number(row.skipped),0))):0;
     const base=summary[0] as {accuracy:number;flashcards_mastered:number;questions_answered:number};
     const flashcardRows=await this.dataSource.query(`SELECT COUNT(*)::int AS reviewed FROM student_flashcard_progress WHERE student_id=$1`,[studentId]);
@@ -513,6 +527,18 @@ export class ProgressService {
         LEFT JOIN student_lecture_progress progress
           ON progress.lecture_id=lecture.id AND progress.student_id=$1
         WHERE week.course_id=$2 AND lecture.is_published=TRUE
+          AND EXISTS (
+            SELECT 1 FROM bundle_weeks bundle_week
+            JOIN bundles bundle ON bundle.id=bundle_week.bundle_id
+            JOIN bundle_enrollments enrollment ON enrollment.bundle_id=bundle.id
+            WHERE bundle_week.week_id=week.id AND enrollment.student_id=$1
+              AND enrollment.status='ACTIVE'
+              AND enrollment.starts_at<=CURRENT_TIMESTAMP
+              AND (enrollment.expires_at IS NULL OR enrollment.expires_at>CURRENT_TIMESTAMP)
+              AND bundle.status='PUBLISHED'
+              AND (bundle.is_free=TRUE OR enrollment.payment_status='PAID')
+              AND (bundle.available_until IS NULL OR bundle.available_until>CURRENT_TIMESTAMP)
+          )
       ),score_stats AS (
         SELECT ROUND(AVG(100.0*attempt.score/NULLIF(test.total_marks,0)),2) AS average_score
         FROM test_attempts attempt JOIN tests test ON test.id=attempt.test_id
