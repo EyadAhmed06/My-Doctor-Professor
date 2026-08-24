@@ -54,8 +54,23 @@ export class NotificationsService {
     }
     if(actor.role===UserRole.INSTRUCTOR) {
       const invalid=recipients.filter((user)=>user.role!==UserRole.STUDENT);
-      if(invalid.length) {
-        throw new ForbiddenException('Instructors can send notifications only to students');
+      if(invalid.length) throw new ForbiddenException('Instructors can send notifications only to students');
+      const allowedRows=await this.dataSource.query(`
+        SELECT DISTINCT enrollment.student_id
+        FROM bundle_enrollments enrollment
+        JOIN bundles bundle ON bundle.id=enrollment.bundle_id
+        JOIN bundle_instructors assignment ON assignment.bundle_id=bundle.id
+        WHERE assignment.instructor_id=$1
+          AND enrollment.student_id=ANY($2::uuid[])
+          AND enrollment.status='ACTIVE'
+          AND (enrollment.expires_at IS NULL OR enrollment.expires_at>CURRENT_TIMESTAMP)
+          AND bundle.status='PUBLISHED'
+          AND (bundle.is_free=TRUE OR enrollment.payment_status='PAID')
+      `,[actor.userId,dto.user_ids]) as Array<{student_id:string}>;
+      const allowed=new Set(allowedRows.map((row)=>row.student_id));
+      const unrelated=dto.user_ids.filter((id)=>!allowed.has(id));
+      if(unrelated.length) {
+        throw new ForbiddenException('Instructors can notify only active students in their published bundles');
       }
     }
     return this.dataSource.transaction(async(manager)=>{
