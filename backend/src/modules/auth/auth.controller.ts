@@ -56,6 +56,13 @@ export class AuthController {
     return this.forTransport(auth, request);
   }
 
+  @Get('google/config')
+  @Header('Cache-Control', 'public, max-age=300')
+  googleConfiguration(): { enabled: boolean; client_id: string | null } {
+    const clientId = this.config.get<string>('GOOGLE_CLIENT_ID')?.trim() || null;
+    return { enabled: Boolean(clientId), client_id: clientId };
+  }
+
   @Post('google')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
