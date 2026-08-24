@@ -99,17 +99,16 @@ export class WorkspaceService {
 
  async getPlan(studentId:string){
   let plan=await this.plans.findOne({where:{studentId}});if(plan)return plan;
-  await this.plans.createQueryBuilder().insert().values({studentId,targetExam:null,examDate:null,dailyQuestionTarget:20,weeklyHoursTarget:10,dailyFlashcardTarget:20,preferences:{available_days:[1,2,3,4,5,6],rest_day:0},generatedAt:null,scheduleVersion:0}).orIgnore().execute();
+  await this.plans.createQueryBuilder().insert().values({studentId,targetExam:null,examDate:null,dailyQuestionTarget:20,weeklyHoursTarget:10,dailyFlashcardTarget:20,preferences:{available_days:[1,2,3,4,5,6],rest_day:0,planning_horizon_days:30},generatedAt:null,scheduleVersion:0}).orIgnore().execute();
   plan=await this.plans.findOne({where:{studentId}});if(!plan)throw new NotFoundException('Student study plan could not be initialized');return plan;
  }
  async updatePlan(studentId:string,dto:UpdateStudyPlanDto){
   const plan=await this.getPlan(studentId);
   if(dto.target_exam!==undefined)plan.targetExam=typeof dto.target_exam==='string'?dto.target_exam.trim()||null:null;
-  if(dto.exam_date!==undefined){
-   const today=this.isoDate(new Date());
-   if(dto.exam_date<=today)throw new BadRequestException('Exam date must be after today');
-   plan.examDate=dto.exam_date;
-  }
+  // Legacy exam fields remain nullable in storage for backwards compatibility,
+  // but monthly planning never reads them.
+  plan.targetExam=null;
+  plan.examDate=null;
   if(dto.daily_question_target!==undefined)plan.dailyQuestionTarget=dto.daily_question_target;
   if(dto.weekly_hours_target!==undefined)plan.weeklyHoursTarget=dto.weekly_hours_target;
   if(dto.daily_flashcard_target!==undefined)plan.dailyFlashcardTarget=dto.daily_flashcard_target;
@@ -213,7 +212,7 @@ export class WorkspaceService {
    if(!Number.isInteger(parsed)||parsed<5||parsed>1440)throw new BadRequestException(`${key} must be an integer from 5 to 1440`);
    return parsed;
   };
-  return{...value,available_days:availableDays,rest_day:restDay,
+  return{...value,available_days:availableDays,rest_day:restDay,planning_horizon_days:30,
    ...(numberPreference('questions_minutes')===undefined?{}:{questions_minutes:numberPreference('questions_minutes')}),
    ...(numberPreference('flashcards_minutes')===undefined?{}:{flashcards_minutes:numberPreference('flashcards_minutes')})};
  }
