@@ -110,7 +110,7 @@ export class AcademicController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     await this.access.assertCourseReadable(id, user);
-    return this.academic.getCourse(id, user.role);
+    return this.academic.getCourse(id, user.role, user.userId);
   }
 
   @Get('courses/:courseId/instructors')
@@ -174,7 +174,7 @@ export class AcademicController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     await this.access.assertCourseReadable(courseId, user);
-    return this.academic.listWeeks(courseId, user.role);
+    return this.academic.listWeeks(courseId, user.role, user.userId);
   }
 
   @Get('weeks/:weekId')
