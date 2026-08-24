@@ -392,11 +392,13 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [startingMode, setStartingMode] = useState<"TUTOR" | "TIMED" | null>(null);
-  const required = 40;
+  const [questionTarget, setQuestionTarget] = useState<40 | 200>(40);
+  const required = questionTarget;
 
   useEffect(() => {
     setSelectedCourseId("");
     setSelectedIds([]);
+    setQuestionTarget(40);
   }, [content.bundle.id]);
 
   const selectedCourse = courses.find((course) => course.id === selectedCourseId);
@@ -440,7 +442,7 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
           lecture_ids: selectedIds,
           question_count: required,
           test_mode: mode,
-          ...(mode === "TIMED" ? { duration_minutes: 40 } : {}),
+          ...(mode === "TIMED" ? { duration_minutes: required } : {}),
         },
       });
       const attemptId = generated?.attempt?.id;
@@ -468,7 +470,12 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
   if (!courses.length) return <EmptyState title="No curriculum available" description="This bundle has no accessible courses or lectures." />;
 
   return <section className="bundle-question-builder">
-    <Panel title="Build a 40-MCQ quiz">
+    <Panel title={`Build a ${required}-MCQ quiz`}>
+      <div className="question-count-selector" role="group" aria-label="Exam question count">
+        <button type="button" className={required === 40 ? "active" : ""} onClick={() => setQuestionTarget(40)}>40 MCQs</button>
+        <button type="button" className={required === 200 ? "active" : ""} onClick={() => setQuestionTarget(200)}>200 MCQs</button>
+        <small>{required === 200 ? "Full exam · 200 minutes in Timed mode" : "Standard quiz · 40 minutes in Timed mode"}</small>
+      </div>
       <div className="question-builder-intro">
         <div><FiFileText /><span><b>Select lectures from the curriculum</b><small>Forty unique MCQs are randomly sampled from the selected lectures.</small></span></div>
         <strong className={ready ? "ready" : ""}>{pool} / {required} eligible MCQs</strong>
@@ -506,12 +513,12 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
       </div>
       <div className={`question-quiz-launch ${ready ? "ready" : ""}`}>
         <div>
-          <b>{ready ? "Your random 40-question quiz is ready" : `Select lectures containing ${Math.max(0, required - pool)} more MCQs`}</b>
+          <b>{ready ? `Your random ${required}-question exam is ready` : `Select lectures containing ${Math.max(0, required - pool)} more MCQs`}</b>
           <small>{selectedIds.length} lecture{selectedIds.length === 1 ? "" : "s"} selected. Questions will not be duplicated.</small>
         </div>
         <span>
           <button className="pp-button secondary" type="button" disabled={!ready || Boolean(startingMode)} onClick={() => void start("TUTOR")}><FiPlayCircle />{startingMode === "TUTOR" ? "Building…" : "Start Tutor"}</button>
-          <button className="pp-button" type="button" disabled={!ready || Boolean(startingMode)} onClick={() => void start("TIMED")}><FiClock />{startingMode === "TIMED" ? "Building…" : "Start Timed · 40 min"}</button>
+          <button className="pp-button" type="button" disabled={!ready || Boolean(startingMode)} onClick={() => void start("TIMED")}><FiClock />{startingMode === "TIMED" ? "Building…" : `Start Timed · ${required} min`}</button>
         </span>
       </div>
     </Panel>
