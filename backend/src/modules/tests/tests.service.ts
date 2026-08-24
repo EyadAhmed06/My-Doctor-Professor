@@ -1,3 +1,4 @@
+import { randomInt } from 'crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -245,7 +246,7 @@ export class TestsService implements OnModuleInit {
       throw new BadRequestException(`Only ${eligible.length} eligible questions are available for this selection`);
     }
     for (let index = eligible.length - 1; index > 0; index -= 1) {
-      const target = Math.floor(Math.random() * (index + 1));
+      const target = randomInt(index + 1);
       [eligible[index], eligible[target]] = [eligible[target], eligible[index]];
     }
     const selected = eligible.slice(0, dto.question_count);
