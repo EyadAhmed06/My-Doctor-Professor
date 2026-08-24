@@ -48,20 +48,6 @@ type Bundle = {
   access_status?: string;
   paymentStatus?: string;
 };
-export type PlanKey = "FIRST" | "FINAL";
-export type PlanTier = "MCQ" | "MCQ_ESSAY";
-export type SubscriptionBundle = {
-  isFree: boolean;
-  priceAmount?: string | null;
-  priceCurrency?: string;
-  firstPlanEnabled?: boolean;
-  firstPlanPriceMcq?: string | null;
-  firstPlanPriceMcqEssay?: string | null;
-  finalPlanEnabled?: boolean;
-  finalPlanPriceMcq?: string | null;
-  finalPlanPriceMcqEssay?: string | null;
-};
-
 type Lecture = {
   id: string;
   title: string;
@@ -135,6 +121,7 @@ export function AdvancedBundlesPage() {
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [createAccess, setCreateAccess] = useState<"FREE" | "PAID">("FREE");
+  const [catalogOpenId, setCatalogOpenId] = useState<string | null>(null);
   const [joining, setJoining] = useState<Set<string>>(new Set());
 
   const matchesStage = useCallback((bundle: Bundle) => {
@@ -292,28 +279,6 @@ export function AdvancedBundlesPage() {
     }
   }
 
-  async function enrollPlan(bundle: Bundle, plan: PlanKey, tier: PlanTier) {
-    if (joining.has(bundle.id)) return;
-    setJoining((current) => new Set(current).add(bundle.id));
-    try {
-      await request(`/bundles/${bundle.id}/plans/${plan}/enroll`, { method: "POST", body: { tier } });
-      notify({
-        title: "Requested — payment required",
-        description: `${plan === "FIRST" ? "First 5 Weeks" : "Final 5 Weeks"} access to "${bundle.title}" stays locked until payment is verified.`,
-        tone: "info",
-      });
-      await load();
-      setUrl(bundle.id, "overview");
-    } catch (cause) {
-      notify({ title: "Unable to request access", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
-    } finally {
-      setJoining((current) => {
-        const next = new Set(current);
-        next.delete(bundle.id);
-        return next;
-      });
-    }
-  }
 
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -383,13 +348,13 @@ export function AdvancedBundlesPage() {
     {manager && <Panel title="Create bundle" className="bundle-create"><form onSubmit={create}><label>Title<input name="title" minLength={3} required /></label><label>Slug<input name="slug" minLength={3} required /></label><label>Semester<select name="year" defaultValue="1">{[1, 2, 3, 4, 5, 6].map((semester) => <option key={semester} value={semester}>Semester {semester}</option>)}</select></label><label>Description<input name="description" /></label><label>Access<select aria-label="Bundle access type" value={createAccess} onChange={(event) => setCreateAccess(event.target.value as "FREE" | "PAID")}><option value="FREE">FREE</option><option value="PAID">PAID</option></select></label>{createAccess === "PAID" && <><label>Price<input aria-label="Price" name="price" type="number" min="0.01" step="0.01" required /></label><label>Currency<input aria-label="Currency" name="currency" defaultValue="EGP" minLength={3} maxLength={3} required /></label></>}<label>Bundle expiry<input aria-label="Bundle expiry" name="expiry" type="datetime-local" /></label><button className="pp-button" disabled={creating}><FiPlus /> {creating ? "Creating…" : "Create draft"}</button></form></Panel>}
 
     {loading ? <PageSkeleton variant="workspace" label="Loading bundles" /> : !bundles.length ? <EmptyState title={manager ? "No managed bundles" : requestedStage ? "No enrolled bundles for this academic stage" : "No enrolled bundles"} description={manager ? "Create a draft bundle to begin composing curriculum." : requestedStage ? "Join a published bundle for this stage from the catalog below, or return to your dashboard." : "Join a published bundle from the catalog below."} /> : <div className="bundle-workspace">
-      <aside className="bundle-list" aria-label={manager ? "Managed bundles" : "Your bundles"}><h2>{manager ? "Managed bundles" : "Available to you"}</h2>{bundles.map((bundle) => {
+      <aside className="bundle-list" aria-label={manager ? "Managed bundles" : "Your bundles"}><h2>{manager ? "Managed bundles" : "My bundles"}</h2>{bundles.map((bundle) => {
         const badge = bundleBadge(bundle, visited);
         return <button className={selectedBundle?.id === bundle.id ? "active" : ""} key={bundle.id} onClick={() => open(bundle)}><span><FiLayers /></span><b>{bundle.title}<small>Year {bundle.academicYear} · {bundle.isFree ? "FREE" : `${bundle.priceCurrency} ${Number(bundle.priceAmount || 0).toFixed(2)}`}</small></b><em className={`bundle-status-badge ${badge.className}`}>{badge.label}</em></button>;
       })}</aside>
 
       <section className={`bundle-content ${bundleLoading ? "is-loading" : ""}`} aria-busy={bundleLoading}>
-        {!manager && selectedBundle?.accessible === false ? <PaymentLockedBundle bundle={selectedBundle} busy={joining.has(selectedBundle.id)} onChooseFull={() => void enroll(selectedBundle)} onChoosePlan={(plan, tier) => void enrollPlan(selectedBundle, plan, tier)} /> : selected ? <>
+        {!manager && selectedBundle?.accessible === false ? <PaymentLockedBundle bundle={selectedBundle} busy={joining.has(selectedBundle.id)} onSubscribe={() => void enroll(selectedBundle)} /> : selected ? <>
           <div className="bundle-hero"><div><small>ACADEMIC YEAR {selected.bundle.academicYear} · {selected.bundle.isFree ? "FREE" : `${selected.bundle.priceCurrency} ${Number(selected.bundle.priceAmount || 0).toFixed(2)}`}</small><h1>{selected.bundle.title}</h1><p>{selected.bundle.description || "No description has been added yet."}</p></div><span className={selected.bundle.read_only ? "expired" : "active"}>{selected.bundle.read_only ? <><FiLock /> Read-only</> : <><FiCheckCircle /> Active access</>}</span></div>
           {manager && <BundleManagementPanel bundleId={selected.bundle.id} onChanged={async () => { await load(); await refreshSelectedContent(selected.bundle.id); }} />}
           {selected.bundle.read_only && <section className="bundle-read-only-reason"><FiLock /><div><b>Browsing remains available</b><p>This enrollment is read-only. You can inspect curriculum and resources, but actions that submit or modify learning work are disabled by the server.</p></div></section>}
@@ -404,7 +369,56 @@ export function AdvancedBundlesPage() {
       </section>
     </div>}
 
-    {!manager && catalog.length > 0 && <section className="bundle-catalog"><div className="pp-title"><div><h2>Bundle catalog</h2><p>Free bundles unlock immediately. Paid bundles can be enrolled in, but content stays inaccessible until payment is verified.</p></div></div><div>{catalog.map((bundle) => <Panel key={bundle.id} title={bundle.title}><small>YEAR {bundle.academicYear} · {bundle.isFree ? "FREE" : `${bundle.priceCurrency} ${Number(bundle.priceAmount || 0).toFixed(2)}`}</small><p>{bundle.description || "Published learning bundle"}</p><button className="pp-button" disabled={joining.has(bundle.id)} onClick={() => void enroll(bundle)}>{joining.has(bundle.id) ? "Joining…" : bundle.isFree ? "Join free bundle" : "Enroll — payment required"}</button>{(bundle.firstPlanEnabled || bundle.finalPlanEnabled) && <PlanOptions bundle={bundle} busy={joining.has(bundle.id)} onChoosePlan={(plan, tier) => void enrollPlan(bundle, plan, tier)} />}</Panel>)}</div></section>}
+    {!manager && catalog.length > 0 && <section className="bundle-catalog">
+      <div className="pp-title">
+        <div>
+          <h2>Available to you</h2>
+          <p>Join free bundles immediately or subscribe to unlock paid bundles.</p>
+        </div>
+      </div>
+      <div>
+        {catalog.map((bundle) => {
+          const paid = !bundle.isFree;
+          const expanded = catalogOpenId === bundle.id;
+          const formattedPrice = `${bundle.priceCurrency} ${Number(bundle.priceAmount || 0).toFixed(2)}`;
+          return <Panel key={bundle.id} title={bundle.title} className={paid ? "bundle-catalog-locked" : ""}>
+            <small>{paid ? <><FiLock /> PAID · {formattedPrice}</> : "FREE"}</small>
+            <p>{bundle.description || "Published learning bundle"}</p>
+            {!paid ? <button
+              className="pp-button"
+              disabled={joining.has(bundle.id)}
+              onClick={() => void enroll(bundle)}
+            >
+              {joining.has(bundle.id) ? "Joining…" : "Join free bundle"}
+            </button> : <>
+              <button
+                className="pp-button secondary"
+                type="button"
+                aria-expanded={expanded}
+                onClick={() => setCatalogOpenId(expanded ? null : bundle.id)}
+              >
+                <FiLock /> {expanded ? "Close" : "View subscription"}
+              </button>
+              {expanded && <div className="bundle-read-only-reason">
+                <FiLock />
+                <div>
+                  <b>This bundle is locked until you subscribe in it</b>
+                  <p>Subscribe to unlock its curriculum, question bank, assessments, flashcards, and resources.</p>
+                  <button
+                    className="pp-button"
+                    type="button"
+                    disabled={joining.has(bundle.id)}
+                    onClick={() => void enroll(bundle)}
+                  >
+                    {joining.has(bundle.id) ? "Subscribing…" : `Subscribe for ${formattedPrice}`}
+                  </button>
+                </div>
+              </div>}
+            </>}
+          </Panel>;
+        })}
+      </div>
+    </section>}
   </main></ProductShell>;
 }
 
@@ -541,44 +555,23 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
   </section>;
 }
 
-export function PlanOptions({ bundle, busy, onChooseFull, onChoosePlan }: {
-  bundle: SubscriptionBundle;
-  busy: boolean;
-  onChooseFull?: () => void;
-  onChoosePlan: (plan: PlanKey, tier: PlanTier) => void;
-}) {
-  const currency = bundle.priceCurrency || "EGP";
-  const money = (value?: string | null) => (value ? `${currency} ${Number(value).toFixed(2)}` : null);
-  return <div className="bundle-plan-options">
-    {onChooseFull && !bundle.isFree && bundle.priceAmount && (
-      <article className="bundle-plan-option"><div><b>Full bundle</b><small>Every course, week, and past exam in this bundle.</small></div><button className="pp-button" type="button" disabled={busy} onClick={onChooseFull}>{money(bundle.priceAmount)}</button></article>
-    )}
-    {bundle.firstPlanEnabled && <fieldset className="bundle-plan-fieldset">
-      <legend>First 5 Weeks</legend>
-      {bundle.firstPlanPriceMcq && <article className="bundle-plan-option"><div><b>MCQ only</b><small>Question bank MCQs, flashcards, resources and past exams for the assigned weeks.</small></div><button className="pp-button secondary" type="button" disabled={busy} onClick={() => onChoosePlan("FIRST", "MCQ")}>{money(bundle.firstPlanPriceMcq)}</button></article>}
-      {bundle.firstPlanPriceMcqEssay && <article className="bundle-plan-option"><div><b>MCQ + Essay</b><small>Everything in MCQ only, plus essay-type questions for the assigned weeks.</small></div><button className="pp-button secondary" type="button" disabled={busy} onClick={() => onChoosePlan("FIRST", "MCQ_ESSAY")}>{money(bundle.firstPlanPriceMcqEssay)}</button></article>}
-    </fieldset>}
-    {bundle.finalPlanEnabled && <fieldset className="bundle-plan-fieldset">
-      <legend>Final 5 Weeks</legend>
-      {bundle.finalPlanPriceMcq && <article className="bundle-plan-option"><div><b>MCQ only</b><small>Question bank MCQs, flashcards, resources and past exams for the assigned weeks.</small></div><button className="pp-button secondary" type="button" disabled={busy} onClick={() => onChoosePlan("FINAL", "MCQ")}>{money(bundle.finalPlanPriceMcq)}</button></article>}
-      {bundle.finalPlanPriceMcqEssay && <article className="bundle-plan-option"><div><b>MCQ + Essay</b><small>Everything in MCQ only, plus essay-type questions for the assigned weeks.</small></div><button className="pp-button secondary" type="button" disabled={busy} onClick={() => onChoosePlan("FINAL", "MCQ_ESSAY")}>{money(bundle.finalPlanPriceMcqEssay)}</button></article>}
-    </fieldset>}
-  </div>;
-}
-
-function PaymentLockedBundle({ bundle, busy, onChooseFull, onChoosePlan }: {
+function PaymentLockedBundle({ bundle, busy, onSubscribe }: {
   bundle: Bundle;
   busy: boolean;
-  onChooseFull: () => void;
-  onChoosePlan: (plan: PlanKey, tier: PlanTier) => void;
+  onSubscribe: () => void;
 }) {
-  const offersPlans = bundle.firstPlanEnabled || bundle.finalPlanEnabled;
-  return <Panel title="Payment required">
-    <div className="bundle-read-only-reason"><FiCreditCard /><div><b>{bundle.title} is assigned to you, but content is locked</b><p>This is a paid bundle{bundle.priceAmount ? ` (${bundle.priceCurrency} ${Number(bundle.priceAmount).toFixed(2)})` : ""}. Enrollment alone does not grant access. After payment is verified, your entitlement becomes active and the curriculum, questions, flashcards, resources, and assessments become accessible.</p><small>Current state: {bundle.access_status?.replaceAll("_", " ") || "PENDING PAYMENT"}</small></div></div>
-    {offersPlans && <>
-      <p className="bundle-section-copy">Choose how you&apos;d like to access this bundle:</p>
-      <PlanOptions bundle={bundle} busy={busy} onChooseFull={onChooseFull} onChoosePlan={onChoosePlan} />
-    </>}
+  const price = `${bundle.priceCurrency} ${Number(bundle.priceAmount || 0).toFixed(2)}`;
+  return <Panel title="Bundle locked">
+    <div className="bundle-read-only-reason">
+      <FiLock />
+      <div>
+        <b>This bundle is locked until you subscribe in it</b>
+        <p>Subscribe to unlock its curriculum, question bank, assessments, flashcards, and resources.</p>
+        <button className="pp-button" type="button" disabled={busy} onClick={onSubscribe}>
+          {busy ? "Subscribing…" : `Subscribe for ${price}`}
+        </button>
+      </div>
+    </div>
   </Panel>;
 }
 
