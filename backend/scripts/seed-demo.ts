@@ -359,62 +359,16 @@ async function main() {
         ],
       );
 
-    await manager.query(
-      `INSERT INTO student_course_progress(student_id,course_id,completion_percentage,lectures_completed,total_lectures,average_score,last_accessed_at) VALUES($1,$2,58.33,3,6,76.00,CURRENT_TIMESTAMP) ON CONFLICT(student_id,course_id) DO UPDATE SET completion_percentage=58.33,lectures_completed=3,total_lectures=6,average_score=76.00,last_accessed_at=CURRENT_TIMESTAMP`,
-      [studentId, ids.course],
-    );
-    for (let i = 0; i < ids.lectures.length; i++)
-      await manager.query(
-        `INSERT INTO student_lecture_progress(student_id,lecture_id,is_completed,completion_percentage,time_spent_minutes,last_accessed_at,completed_at) VALUES($1,$2,$3,$4,$5,CURRENT_TIMESTAMP,$6) ON CONFLICT(student_id,lecture_id) DO UPDATE SET is_completed=EXCLUDED.is_completed,completion_percentage=EXCLUDED.completion_percentage,time_spent_minutes=EXCLUDED.time_spent_minutes,last_accessed_at=EXCLUDED.last_accessed_at,completed_at=EXCLUDED.completed_at`,
-        [
-          studentId,
-          ids.lectures[i],
-          i < 3,
-          i < 3 ? 100 : i === 3 ? 45 : 0,
-          i < 3 ? 65 : 25,
-          i < 3 ? new Date() : null,
-        ],
-      );
-    for (let i = 0; i < ids.questions.length; i++)
-      await manager.query(
-        `INSERT INTO student_question_progress(student_id,question_id,attempts,correct_attempts,incorrect_attempts,last_answer_correct,bookmarked,last_attempted_at) VALUES($1,$2,$3,$4,$5,$6,$7,CURRENT_TIMESTAMP-($8||' days')::interval) ON CONFLICT(student_id,question_id) DO UPDATE SET attempts=EXCLUDED.attempts,correct_attempts=EXCLUDED.correct_attempts,incorrect_attempts=EXCLUDED.incorrect_attempts,bookmarked=EXCLUDED.bookmarked,last_attempted_at=EXCLUDED.last_attempted_at`,
-        [
-          studentId,
-          ids.questions[i],
-          4 + i,
-          3 + Math.floor(i / 2),
-          1 + Math.ceil(i / 2),
-          i % 3 !== 0,
-          i < 3,
-          i,
-        ],
-      );
-    for (let i = 0; i < ids.topics.length; i++)
-      await manager.query(
-        `INSERT INTO student_topic_progress(student_id,topic_id,questions_attempted,questions_correct,questions_incorrect,confidence_level,average_score,mastery_percentage,last_practiced_at) VALUES($1,$2,8,6,2,$3,$4,$4,CURRENT_TIMESTAMP-($5||' days')::interval) ON CONFLICT(student_id,topic_id) DO UPDATE SET confidence_level=EXCLUDED.confidence_level,average_score=EXCLUDED.average_score,mastery_percentage=EXCLUDED.mastery_percentage,last_practiced_at=EXCLUDED.last_practiced_at`,
-        [studentId, ids.topics[i], 62 + i * 4, 58 + i * 5, i],
-      );
-    for (let i = 0; i < Math.min(questionData.length, 8); i++)
-      await manager.query(
-        `INSERT INTO student_flashcard_progress(student_id,flashcard_id,times_reviewed,times_correct,times_incorrect,review_streak,last_reviewed_at,next_review_at,is_mastered,mastered_at,ease_factor,interval_days) VALUES($1,$2,$3,$4,1,$4,CURRENT_TIMESTAMP-INTERVAL '2 days',$5,$6,$7,2.50,3) ON CONFLICT(student_id,flashcard_id) DO UPDATE SET times_reviewed=EXCLUDED.times_reviewed,times_correct=EXCLUDED.times_correct,times_incorrect=EXCLUDED.times_incorrect,review_streak=EXCLUDED.review_streak,last_reviewed_at=EXCLUDED.last_reviewed_at,next_review_at=EXCLUDED.next_review_at,is_mastered=EXCLUDED.is_mastered,mastered_at=EXCLUDED.mastered_at,ease_factor=EXCLUDED.ease_factor,interval_days=EXCLUDED.interval_days`,
-        [
-          studentId,
-          `91000000-0000-4000-8000-${(i + 1).toString().padStart(12, "0")}`,
-          4 + i,
-          3 + i,
-          i < 4
-            ? new Date(Date.now() - 86400000)
-            : new Date(Date.now() + 86400000 * (i - 3)),
-          i >= 5,
-          i >= 5 ? new Date() : null,
-        ],
-      );
-
-    // Demo content must not impersonate student activity. Remove the legacy
-    // seeded attempt so analytics only reflects answers actually saved by the student.
-    const legacyDemoAttemptId = "a0000000-0000-4000-8000-000000000001";
-    await manager.query("DELETE FROM student_answers WHERE attempt_id=$1", [legacyDemoAttemptId]);
-    await manager.query("DELETE FROM test_attempts WHERE id=$1", [legacyDemoAttemptId]);
+    // Seed curriculum/content, but never fabricate learning history. The demo
+    // account is reset so dashboards start from genuine student interactions.
+    await manager.query("DELETE FROM student_answers WHERE attempt_id IN (SELECT id FROM test_attempts WHERE student_id=$1)", [studentId]);
+    await manager.query("DELETE FROM test_attempts WHERE student_id=$1", [studentId]);
+    await manager.query("DELETE FROM student_question_progress WHERE student_id=$1", [studentId]);
+    await manager.query("DELETE FROM student_topic_progress WHERE student_id=$1", [studentId]);
+    await manager.query("DELETE FROM student_flashcard_progress WHERE student_id=$1", [studentId]);
+    await manager.query("DELETE FROM student_lecture_progress WHERE student_id=$1", [studentId]);
+    await manager.query("DELETE FROM student_course_progress WHERE student_id=$1", [studentId]);
+    await manager.query("DELETE FROM study_plan_items WHERE student_id=$1", [studentId]);
 
     const collectionId = "b0000000-0000-4000-8000-000000000001";
     const tagIds = [
@@ -480,43 +434,15 @@ async function main() {
         );
     }
 
-    const examDate = new Date(Date.now() + 46 * 86400000)
-      .toISOString()
-      .slice(0, 10);
+    const examDate = new Date(Date.now() + 46 * 86400000).toISOString().slice(0, 10);
     await manager.query(
-      `INSERT INTO student_study_plans(student_id,target_exam,exam_date,daily_question_target,weekly_hours_target,daily_flashcard_target,preferences,generated_at,schedule_version) VALUES($1,'Cardiovascular Final',$2,30,12,20,'{"available_days":[1,2,3,4,5,6],"rest_day":0}'::jsonb,CURRENT_TIMESTAMP,1) ON CONFLICT(student_id) DO UPDATE SET target_exam=EXCLUDED.target_exam,exam_date=EXCLUDED.exam_date,daily_question_target=30,weekly_hours_target=12,daily_flashcard_target=20`,
+      `INSERT INTO student_study_plans(student_id,target_exam,exam_date,daily_question_target,weekly_hours_target,daily_flashcard_target,preferences,generated_at,schedule_version)
+       VALUES($1,NULL,$2,20,10,20,'{"available_days":[1,2,3,4,5,6],"rest_day":0}'::jsonb,NULL,0)
+       ON CONFLICT(student_id) DO UPDATE SET target_exam=NULL,exam_date=EXCLUDED.exam_date,
+        daily_question_target=20,weekly_hours_target=10,daily_flashcard_target=20,
+        preferences=EXCLUDED.preferences,generated_at=NULL,schedule_version=0`,
       [studentId, examDate],
     );
-    for (let day = -4; day <= 10; day++) {
-      const date = new Date(Date.now() + day * 86400000)
-        .toISOString()
-        .slice(0, 10);
-      const status = day < 0 ? "COMPLETED" : "PLANNED";
-      await manager.query(
-        `INSERT INTO study_plan_items(id,student_id,scheduled_date,item_type,status,lecture_id,target_count,duration_minutes,metadata,completed_at) VALUES($1,$2,$3,'QUESTIONS',$4,NULL,30,45,'{"title":"Daily question practice"}'::jsonb,$5) ON CONFLICT(id) DO UPDATE SET scheduled_date=EXCLUDED.scheduled_date,status=EXCLUDED.status,completed_at=EXCLUDED.completed_at`,
-        [
-          `c0000000-0000-4000-${(day + 10).toString().padStart(4, "0")}-000000000001`,
-          studentId,
-          date,
-          status,
-          day < 0 ? new Date() : null,
-        ],
-      );
-      await manager.query(
-        `INSERT INTO study_plan_items(id,student_id,scheduled_date,item_type,status,lecture_id,target_count,duration_minutes,metadata,completed_at) VALUES($1,$2,$3,'LECTURE',$4,$5,NULL,60,$6::jsonb,$7) ON CONFLICT(id) DO UPDATE SET scheduled_date=EXCLUDED.scheduled_date,status=EXCLUDED.status,completed_at=EXCLUDED.completed_at`,
-        [
-          `c0000000-0000-4000-${(day + 10).toString().padStart(4, "0")}-000000000002`,
-          studentId,
-          date,
-          status,
-          ids.lectures[(day + 10) % ids.lectures.length],
-          JSON.stringify({
-            title: lectureData[(day + 10) % lectureData.length][1],
-          }),
-          day < 0 ? new Date() : null,
-        ],
-      );
-    }
 
     console.log({
       admin: "admin@mydoctorprofessor.com",
