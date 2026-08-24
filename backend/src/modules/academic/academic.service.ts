@@ -23,7 +23,9 @@ import {
 import { Semester } from '../../common/entities/semester.entity';
 import { Topic } from '../../common/entities/topic.entity';
 import { Week } from '../../common/entities/week.entity';
+import { NotificationType } from '../../common/entities/notification.entity';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { NotificationsService } from '../notifications/notifications.service';
 import { Instructor } from '../users/entities/instructor.entity';
 import { UserRole } from '../users/entities/user.entity';
 import {
@@ -74,6 +76,7 @@ export class AcademicService {
     private readonly config: ConfigService,
     private readonly dataSource: DataSource,
     private readonly resourceStorage: ResourceStorageService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async createSemester(dto: CreateSemesterDto): Promise<Semester> {
@@ -281,7 +284,7 @@ export class AcademicService {
   async createWeek(courseId: string, dto: CreateWeekDto, actor: AuthenticatedUser): Promise<Week> {
     await this.assertCourseManager(courseId, actor);
     await this.requireCourse(courseId);
-    return this.saveUnique(
+    const week=await this.saveUnique(
       () => this.weeks.save(this.weeks.create({
         courseId,
         weekNumber: dto.week_number,
@@ -291,6 +294,21 @@ export class AcademicService {
       })),
       'Week number already exists in this course',
     );
+    await this.dataSource.query(`
+      INSERT INTO bundle_weeks(bundle_id,week_id)
+      SELECT bundle_course.bundle_id,$1
+      FROM bundle_courses bundle_course
+      JOIN bundles bundle ON bundle.id=bundle_course.bundle_id
+      WHERE bundle_course.course_id=$2 AND bundle.status='PUBLISHED'
+      ON CONFLICT(bundle_id,week_id) DO NOTHING
+    `,[week.id,courseId]);
+    await this.notifications.notifyWeekStudents(week.id,{
+      title:'New week available',
+      message:`${week.title||`Week ${week.weekNumber}`} was added to your subscribed curriculum.`,
+      target_url:'/bundles?tab=curriculum',
+      notification_type:NotificationType.COURSE,
+    },actor);
+    return week;
   }
 
   async listWeeks(courseId: string, role: UserRole): Promise<Week[]> {
@@ -341,11 +359,16 @@ export class AcademicService {
     await this.assertWeekManager(id, actor);
     const week = await this.requireWeek(id);
     if (dto.title !== undefined) week.title = dto.title.trim() || null;
-    if (dto.description !== undefined) {
-      week.description = dto.description.trim() || null;
-    }
+    if (dto.description !== undefined) week.description = dto.description.trim() || null;
     if (dto.display_order !== undefined) week.displayOrder = dto.display_order;
-    return this.weeks.save(week);
+    const saved=await this.weeks.save(week);
+    await this.notifications.notifyWeekStudents(saved.id,{
+      title:'Curriculum week updated',
+      message:`${saved.title||`Week ${saved.weekNumber}`} has new curriculum information.`,
+      target_url:'/bundles?tab=curriculum',
+      notification_type:NotificationType.COURSE,
+    },actor);
+    return saved;
   }
 
   async deleteWeek(id: string, actor: AuthenticatedUser): Promise<void> {
@@ -422,13 +445,10 @@ export class AcademicService {
   async updateLecture(id: string, dto: UpdateLectureDto, actor: AuthenticatedUser): Promise<Lecture> {
     await this.assertLectureManager(id, actor);
     const lecture = await this.requireLecture(id);
+    const wasPublished=lecture.isPublished;
     if (dto.title !== undefined) lecture.title = dto.title.trim();
-    if (dto.description !== undefined) {
-      lecture.description = dto.description.trim() || null;
-    }
-    if (dto.estimated_duration_minutes !== undefined) {
-      lecture.estimatedDurationMinutes = dto.estimated_duration_minutes;
-    }
+    if (dto.description !== undefined) lecture.description = dto.description.trim() || null;
+    if (dto.estimated_duration_minutes !== undefined) lecture.estimatedDurationMinutes = dto.estimated_duration_minutes;
     if (dto.display_order !== undefined) lecture.displayOrder = dto.display_order;
     if (dto.is_published !== undefined) {
       if (dto.is_published) {
@@ -437,14 +457,28 @@ export class AcademicService {
           this.resources.count({ where: { lectureId: id } }),
         ]);
         if (topicCount === 0 && resourceCount === 0) {
-          throw new ConflictException(
-            'Lecture requires at least one topic or resource before publishing',
-          );
+          throw new ConflictException('Lecture requires at least one topic or resource before publishing');
         }
       }
       lecture.isPublished = dto.is_published;
     }
-    return this.lectures.save(lecture);
+    const saved=await this.lectures.save(lecture);
+    if(!wasPublished&&saved.isPublished) {
+      await this.notifications.notifyWeekStudents(saved.weekId,{
+        title:'New lecture published',
+        message:`${saved.title} is now available in your subscribed bundle.`,
+        target_url:'/bundles?tab=curriculum',
+        notification_type:NotificationType.LECTURE,
+      },actor);
+    } else if(wasPublished&&saved.isPublished&&Object.keys(dto).some((key)=>key!=='is_published')) {
+      await this.notifications.notifyWeekStudents(saved.weekId,{
+        title:'Lecture updated',
+        message:`${saved.title} has been updated by your instructor.`,
+        target_url:'/bundles?tab=curriculum',
+        notification_type:NotificationType.LECTURE,
+      },actor);
+    }
+    return saved;
   }
 
   async deleteLecture(id: string, actor: AuthenticatedUser): Promise<void> {
