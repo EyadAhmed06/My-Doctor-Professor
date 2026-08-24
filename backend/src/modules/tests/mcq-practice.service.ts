@@ -13,7 +13,7 @@ import { GeneratePracticeTestDto } from './dtos/tests.dto';
 
 const ALLOWED_PRACTICE_SIZES = [40, 200] as const;
 
-type AccessibleLectureRow = { lecture_id: string; read_only: boolean };
+type AccessibleLectureRow = { lecture_id: string };
 
 @Injectable()
 export class McqPracticeService {
@@ -41,12 +41,7 @@ export class McqPracticeService {
     }
 
     const accessRows = await this.dataSource.query<AccessibleLectureRow[]>(`
-      SELECT lecture.id AS lecture_id, (
-        bundle.status = 'ARCHIVED'
-        OR enrollment.status = 'EXPIRED'
-        OR (enrollment.expires_at IS NOT NULL AND enrollment.expires_at <= CURRENT_TIMESTAMP)
-        OR (bundle.available_until IS NOT NULL AND bundle.available_until <= CURRENT_TIMESTAMP)
-      ) AS read_only
+      SELECT DISTINCT lecture.id AS lecture_id
       FROM bundles bundle
       INNER JOIN bundle_enrollments enrollment
         ON enrollment.bundle_id = bundle.id AND enrollment.student_id = $2
@@ -56,15 +51,19 @@ export class McqPracticeService {
         ON week.id = bundle_week.week_id AND week.course_id = bundle_course.course_id
       INNER JOIN lectures lecture ON lecture.week_id = week.id
       WHERE bundle.id = $1
-        AND enrollment.status <> 'REVOKED'
+        AND enrollment.status = 'ACTIVE'
+        AND enrollment.starts_at <= CURRENT_TIMESTAMP
+        AND (enrollment.expires_at IS NULL OR enrollment.expires_at > CURRENT_TIMESTAMP)
         AND enrollment.payment_status IN ('NOT_REQUIRED', 'PAID')
-        AND bundle.status IN ('PUBLISHED', 'ARCHIVED')
+        AND bundle.status = 'PUBLISHED'
         AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
+        AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
         AND lecture.is_published = TRUE
     `, [dto.bundle_id, actor.userId]);
 
-    if (!accessRows.length) throw new ForbiddenException('This bundle does not grant access to the selected content');
-    if (accessRows[0].read_only) throw new ForbiddenException('This bundle is read-only');
+    if (!accessRows.length) {
+      throw new ForbiddenException('This bundle does not grant active access to the selected content');
+    }
     const accessibleIds = new Set(accessRows.map((row) => row.lecture_id));
     if (dto.lecture_ids.some((lectureId) => !accessibleIds.has(lectureId))) {
       throw new ForbiddenException('One or more lectures are outside this bundle');
