@@ -311,6 +311,9 @@ export class ProgressService {
           FROM student_answers answer JOIN test_attempts attempt ON attempt.id=answer.attempt_id
           WHERE attempt.student_id=$1 AND attempt.status IN ('SUBMITTED','EXPIRED')
             AND answer.confidence_level IS NOT NULL AND answer.is_correct IS NOT NULL),0) AS calibrated_confidence,
+          COALESCE((SELECT COUNT(*)::int FROM student_answers answer JOIN test_attempts attempt ON attempt.id=answer.attempt_id
+            WHERE attempt.student_id=$1 AND attempt.status IN ('SUBMITTED','EXPIRED')
+              AND answer.confidence_level IS NOT NULL AND answer.is_correct IS NOT NULL),0) AS confidence_samples,
           COALESCE((SELECT COUNT(*) FILTER(WHERE is_mastered)::int FROM student_flashcard_progress WHERE student_id=$1),0) AS flashcards_mastered,
           COALESCE((SELECT COUNT(*) FILTER(WHERE next_review_at IS NULL OR next_review_at<=CURRENT_TIMESTAMP)::int FROM student_flashcard_progress WHERE student_id=$1),0) AS flashcards_due
         FROM student_question_progress progress WHERE progress.student_id=$1`,[studentId]),
@@ -323,7 +326,7 @@ export class ProgressService {
       this.dataSource.query(`
         SELECT topic.id,topic.topic_name AS name,lecture.title AS lecture,week.title AS week,course.course_name AS course,
           progress.questions_attempted,progress.questions_correct,progress.mastery_percentage::float AS mastery,
-          progress.confidence_level::float AS confidence,progress.last_practiced_at
+          progress.confidence_level::float AS evidence_strength,progress.last_practiced_at
         FROM student_topic_progress progress JOIN topics topic ON topic.id=progress.topic_id
         JOIN lectures lecture ON lecture.id=topic.lecture_id JOIN weeks week ON week.id=lecture.week_id
         JOIN courses course ON course.id=week.course_id WHERE progress.student_id=$1
