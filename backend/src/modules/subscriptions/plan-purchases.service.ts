@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { PlanPaymentMethod, PlanPurchase, PlanPurchaseStatus } from '../../common/entities/plan-purchase.entity';
+import { PromoCode } from '../../common/entities/promo-code.entity';
 import { SubscriptionPlan, SubscriptionPlanKey } from '../../common/entities/subscription-plan.entity';
 import { User } from '../users/entities/user.entity';
 import { CheckoutDto } from './dtos/subscription.dto';
@@ -121,14 +122,14 @@ export class PlanPurchasesService {
     const pending = transaction.pending === true;
     if (pending && !success) return;
 
-    const promoCodeId = await this.dataSource.transaction<string | null>(async (manager) => {
+    await this.dataSource.transaction(async (manager) => {
       const repository = manager.getRepository(PlanPurchase);
       const purchase = await repository.findOne({
         where: { id: purchaseId },
         relations: { plan: true },
         lock: { mode: 'pessimistic_write' },
       });
-      if (!purchase || purchase.status !== PlanPurchaseStatus.PENDING) return null;
+      if (!purchase || purchase.status !== PlanPurchaseStatus.PENDING) return;
 
       if (success) {
         const now = new Date();
@@ -143,11 +144,10 @@ export class PlanPurchasesService {
         purchase.status = PlanPurchaseStatus.FAILED;
       }
       await repository.save(purchase);
-      return success ? purchase.promoCodeId : null;
+      if (success && purchase.promoCodeId) {
+        await manager.increment(PromoCode, { id: purchase.promoCodeId }, 'usedCount', 1);
+      }
     });
-
-    // Only the transaction that changed PENDING -> PAID reaches this increment.
-    if (promoCodeId) await this.promoCodes.incrementUsage(promoCodeId);
   }
 
   private extractPurchaseId(transaction: Record<string, unknown>): string | null {
