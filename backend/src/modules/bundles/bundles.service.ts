@@ -115,78 +115,53 @@ export class BundlesService {
   }
 
   async mine(studentId: string) {
-    const [enrollmentRows, planRows] = await Promise.all([
-      this.enrollments.find({ where: { studentId }, relations: { bundle: true }, order: { createdAt: 'DESC' } }),
-      this.planGrants.find({ where: { studentId }, relations: { bundle: true }, order: { createdAt: 'DESC' } }),
-    ]);
-    const visibleEnrollments = enrollmentRows.filter((row) => row.status !== BundleEnrollmentStatus.REVOKED || row.paymentStatus === BundlePaymentStatus.PENDING);
-    const enrolledBundleIds = new Set(visibleEnrollments.map((row) => row.bundleId));
-    const planOnlyBundles = new Map<string, Bundle>();
-    for (const row of planRows) {
-      if (enrolledBundleIds.has(row.bundleId)) continue;
-      if (row.status === BundleEnrollmentStatus.REVOKED && row.paymentStatus !== BundlePaymentStatus.PENDING) continue;
-      planOnlyBundles.set(row.bundleId, row.bundle);
-    }
-    const fromEnrollments = visibleEnrollments.map((row) => this.enrollmentView(row));
-    const fromPlansOnly = await Promise.all([...planOnlyBundles.values()].map(async (bundle) => {
-      const planAccess = await this.resolvePlanAccess(bundle.id, studentId);
-      return {
-        ...bundle,
-        accessible: Boolean(planAccess),
-        read_only: false,
-        payment_required: !planAccess,
-        access_status: planAccess ? 'PARTIAL' : 'PENDING_PAYMENT',
-        partial_access: Boolean(planAccess),
-        visible_week_ids: planAccess ? [...planAccess.visibleWeekIds] : [],
-        essay_week_ids: planAccess ? [...planAccess.essayWeekIds] : [],
-      };
-    }));
-    return [...fromEnrollments, ...fromPlansOnly];
+    const enrollmentRows = await this.enrollments.find({
+      where: { studentId },
+      relations: { bundle: true },
+      order: { createdAt: 'DESC' },
+    });
+    return enrollmentRows
+      .filter((row) => row.status !== BundleEnrollmentStatus.REVOKED
+        || row.paymentStatus === BundlePaymentStatus.PENDING)
+      .map((row) => this.enrollmentView(row));
   }
 
   async getAccessible(id: string, actor: AuthenticatedUser) {
     const bundle = await this.requireBundle(id);
     if (actor.role !== UserRole.STUDENT) {
       await this.assertManager(id, actor);
-      return { ...bundle, read_only: false, accessible: true, payment_required: false, partial_access: false, visible_week_ids: null as string[] | null, essay_week_ids: null as string[] | null };
+      return {
+        ...bundle,
+        read_only: false,
+        accessible: true,
+        payment_required: false,
+        partial_access: false,
+        visible_week_ids: null as string[] | null,
+        essay_week_ids: null as string[] | null,
+      };
     }
-    if (bundle.status === BundleStatus.DRAFT) throw new ForbiddenException('This bundle is not published');
-    if (bundle.status === BundleStatus.ARCHIVED || (bundle.availableUntil && bundle.availableUntil <= new Date())) {
+    if (bundle.status === BundleStatus.DRAFT) {
+      throw new ForbiddenException('This bundle is not published');
+    }
+    if (bundle.status === BundleStatus.ARCHIVED
+      || (bundle.availableUntil && bundle.availableUntil <= new Date())) {
       throw new ForbiddenException('This bundle has expired');
     }
 
-    const enrollment = await this.enrollments.findOne({ where: { bundleId: id, studentId: actor.userId } });
-    const fullGranted = Boolean(enrollment)
-      && enrollment!.status !== BundleEnrollmentStatus.REVOKED
-      && (bundle.isFree || enrollment!.paymentStatus === BundlePaymentStatus.PAID);
-
-    if (!fullGranted) {
-      const planAccess = await this.resolvePlanAccess(id, actor.userId);
-      if (planAccess) {
-        if (bundle.availableFrom && bundle.availableFrom > new Date()) {
-          throw new ForbiddenException('Bundle access has not started yet');
-        }
-        return {
-          ...bundle,
-          accessible: true,
-          read_only: false,
-          payment_required: false,
-          access_status: 'PARTIAL',
-          partial_access: true,
-          visible_week_ids: [...planAccess.visibleWeekIds],
-          essay_week_ids: [...planAccess.essayWeekIds],
-        };
-      }
-    }
-
-    const confirmedEnrollment = await this.requireEnrollment(id, actor.userId);
-    if (!bundle.isFree && confirmedEnrollment.paymentStatus !== BundlePaymentStatus.PAID) {
-      throw new ForbiddenException('Payment is required before this bundle becomes accessible');
+    const enrollment = await this.requireEnrollment(id, actor.userId);
+    if (!bundle.isFree && enrollment.paymentStatus !== BundlePaymentStatus.PAID) {
+      throw new ForbiddenException('This bundle is locked until you subscribe in it');
     }
     if (bundle.availableFrom && bundle.availableFrom > new Date()) {
       throw new ForbiddenException('Bundle access has not started yet');
     }
-    return { ...bundle, ...this.accessState(confirmedEnrollment, bundle), partial_access: false, visible_week_ids: null as string[] | null, essay_week_ids: null as string[] | null };
+    return {
+      ...bundle,
+      ...this.accessState(enrollment, bundle),
+      partial_access: false,
+      visible_week_ids: null as string[] | null,
+      essay_week_ids: null as string[] | null,
+    };
   }
 
   async getContent(id: string, actor: AuthenticatedUser) {
