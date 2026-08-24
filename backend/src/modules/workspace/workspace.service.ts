@@ -8,7 +8,7 @@ import { NotebookNote } from '../../common/entities/notebook-note.entity';
 import { NotebookTag } from '../../common/entities/notebook-tag.entity';
 import { QuestionDifficulty } from '../../common/entities/question.entity';
 import { StudentStudyPlan } from '../../common/entities/student-study-plan.entity';
-import { StudyPlanItem, StudyPlanItemStatus, StudyPlanItemType } from '../../common/entities/study-plan-item.entity';
+import { StudyPlanItem } from '../../common/entities/study-plan-item.entity';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { FlashcardsService } from '../flashcards/flashcards.service';
 import { UserRole } from '../users/entities/user.entity';
@@ -17,7 +17,7 @@ import {
  DrugReferenceQueryDto, NotebookQueryDto, SaveDrugReferenceDto,
  SaveNotebookCollectionDto, SaveNotebookTagDto, StudyPlanCalendarQueryDto,
  UpdateDrugReferenceDto, UpdateNotebookCollectionDto, UpdateNotebookNoteDto,
- UpdateStudyPlanDto, UpdateStudyPlanItemDto,
+ UpdateStudyPlanDto,
 } from './dtos/workspace.dto';
 
 @Injectable()
@@ -128,59 +128,14 @@ export class WorkspaceService {
   }
   return this.plans.save(plan);
  }
- async generatePlan(studentId:string){
-  const plan=await this.getPlan(studentId);if(!plan.examDate)throw new BadRequestException('Set an exam date before generating a schedule');
-  const today=this.isoDate(new Date()),examDate=new Date(`${plan.examDate}T00:00:00Z`);
-  const lastDate=new Date(Math.min(examDate.getTime()-86_400_000,new Date().getTime()+179*86_400_000));
-  if(lastDate<new Date(`${today}T00:00:00Z`))throw new BadRequestException('Exam date must leave at least one study day');
-  const preferences=plan.preferences as {available_days?:number[];rest_day?:number;questions_minutes?:number;flashcards_minutes?:number};
-  const availableDays=preferences.available_days?.filter((day)=>Number.isInteger(day)&&day>=0&&day<=6)??[1,2,3,4,5,6];
-  const restDay=preferences.rest_day??0;
-  const lectures=await this.dataSource.query<{id:string;title:string}[]>(`
-   SELECT DISTINCT lecture.id,lecture.title FROM bundle_enrollments enrollment
-   JOIN bundles bundle ON bundle.id=enrollment.bundle_id AND bundle.status='PUBLISHED'
-   LEFT JOIN bundle_courses bc ON bc.bundle_id=bundle.id LEFT JOIN bundle_weeks bw ON bw.bundle_id=bundle.id
-   JOIN weeks week ON week.course_id=bc.course_id OR week.id=bw.week_id
-   JOIN lectures lecture ON lecture.week_id=week.id AND lecture.is_published=TRUE
-   WHERE enrollment.student_id=$1 AND enrollment.status='ACTIVE' AND (enrollment.expires_at IS NULL OR enrollment.expires_at>CURRENT_TIMESTAMP)
-   ORDER BY lecture.title`,[studentId]);
-  const generated:Partial<StudyPlanItem>[]=[];let cursor=new Date(`${today}T00:00:00Z`),lectureIndex=0;
-  while(cursor<=lastDate){
-   const day=cursor.getUTCDay(),scheduledDate=this.isoDate(cursor);
-   if(day===restDay||!availableDays.includes(day))generated.push({studentId,scheduledDate,itemType:StudyPlanItemType.REST,status:StudyPlanItemStatus.PLANNED,durationMinutes:15,targetCount:null,lectureId:null,metadata:{reason:'Protected recovery day'}});
-   else {
-    generated.push({studentId,scheduledDate,itemType:StudyPlanItemType.QUESTIONS,status:StudyPlanItemStatus.PLANNED,durationMinutes:preferences.questions_minutes??Math.max(30,Math.ceil(plan.dailyQuestionTarget*1.5)),targetCount:plan.dailyQuestionTarget,lectureId:null,metadata:{source:'bundle_question_bank'}});
-    generated.push({studentId,scheduledDate,itemType:StudyPlanItemType.FLASHCARDS,status:StudyPlanItemStatus.PLANNED,durationMinutes:preferences.flashcards_minutes??Math.max(15,Math.ceil(plan.dailyFlashcardTarget*.5)),targetCount:plan.dailyFlashcardTarget,lectureId:null,metadata:{source:'spaced_repetition'}});
-    if(lectures.length){const lecture=lectures[lectureIndex++%lectures.length];generated.push({studentId,scheduledDate,itemType:StudyPlanItemType.LECTURE,status:StudyPlanItemStatus.PLANNED,durationMinutes:60,targetCount:null,lectureId:lecture.id,metadata:{title:lecture.title}});}
-   }
-   cursor=new Date(cursor.getTime()+86_400_000);
-  }
-  await this.dataSource.transaction(async(manager)=>{
-   await manager.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[`${studentId}:study-plan`]);
-   await manager.getRepository(StudyPlanItem).createQueryBuilder().delete().where('student_id=:studentId AND scheduled_date>=:today AND status=:status',{studentId,today,status:StudyPlanItemStatus.PLANNED}).execute();
-   await manager.getRepository(StudyPlanItem).save(generated.map((item)=>manager.getRepository(StudyPlanItem).create(item)));
-   await manager.getRepository(StudentStudyPlan).update({studentId},{generatedAt:new Date(),scheduleVersion:plan.scheduleVersion+1});
-  });
-  return this.getCalendar(studentId,{from:today,to:this.isoDate(lastDate)});
- }
+
  async getCalendar(studentId:string,query:StudyPlanCalendarQueryDto){
   await this.getPlan(studentId);const from=query.from??this.isoDate(new Date()),to=query.to??this.isoDate(new Date(Date.now()+30*86_400_000));
   if(new Date(to)<new Date(from))throw new BadRequestException('Calendar end date must not precede start date');
   const data=await this.planItems.createQueryBuilder('item').leftJoinAndSelect('item.lecture','lecture').where('item.student_id=:studentId',{studentId}).andWhere('item.scheduled_date BETWEEN :from AND :to',{from,to}).orderBy('item.scheduled_date','ASC').addOrderBy('item.created_at','ASC').getMany();
   return{from,to,data};
  }
- async updatePlanItem(studentId:string,id:string,dto:UpdateStudyPlanItemDto){
-  if(dto.status===undefined&&dto.scheduled_date===undefined)throw new BadRequestException('Provide a status or scheduled date');
-  const item=await this.planItems.findOne({where:{id,studentId}});if(!item)throw new NotFoundException('Study plan item not found');
-  if(dto.scheduled_date!==undefined){
-   if(item.status===StudyPlanItemStatus.COMPLETED)throw new ConflictException('Completed study sessions cannot be rescheduled');
-   const today=this.isoDate(new Date());if(dto.scheduled_date<today)throw new BadRequestException('Study sessions cannot be moved into the past');
-   const plan=await this.getPlan(studentId);if(plan.examDate&&dto.scheduled_date>=plan.examDate)throw new BadRequestException('Study sessions must be scheduled before the exam date');
-   item.scheduledDate=dto.scheduled_date;
-  }
-  if(dto.status!==undefined){item.status=dto.status as StudyPlanItemStatus;item.completedAt=item.status===StudyPlanItemStatus.COMPLETED?new Date():null;}
-  return this.planItems.save(item);
- }
+
  async readiness(studentId:string){
   await this.getPlan(studentId);
   const rows=await this.dataSource.query(`
