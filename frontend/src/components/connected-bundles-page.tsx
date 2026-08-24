@@ -43,8 +43,6 @@ type Bundle = {
   access_status?: "PENDING_PAYMENT" | "REVOKED" | "DRAFT" | "SCHEDULED" | "EXPIRED" | "ACTIVE" | "PARTIAL";
 };
 
-type PlanKey = "FIRST" | "FINAL";
-type PlanTier = "MCQ" | "MCQ_ESSAY";
 
 type Lecture = {
   id: string;
@@ -117,7 +115,6 @@ export function ConnectedBundlesPage() {
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [planPickerBundle, setPlanPickerBundle] = useState<Bundle | null>(null);
-  const [planPickerBusy, setPlanPickerBusy] = useState(false);
 
   const setUrl = useCallback(
     (bundleId: string | null, nextTab: Tab, replace = false) => {
@@ -251,24 +248,6 @@ export function ConnectedBundlesPage() {
         description: cause instanceof Error ? cause.message : undefined,
         tone: "error",
       });
-    }
-  }
-
-  async function enrollPlan(bundle: Bundle, plan: PlanKey, tier: PlanTier) {
-    setPlanPickerBusy(true);
-    try {
-      await request(`/bundles/${bundle.id}/plans/${plan}/enroll`, { method: "POST", body: { tier } });
-      notify({
-        title: "Requested",
-        description: `${plan === "FIRST" ? "First 5 Weeks" : "Final 5 Weeks"} access to "${bundle.title}" is pending payment confirmation.`,
-        tone: "success",
-      });
-      setPlanPickerBundle(null);
-      await load();
-    } catch (cause) {
-      notify({ title: "Unable to request access", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
-    } finally {
-      setPlanPickerBusy(false);
     }
   }
 
@@ -509,9 +488,7 @@ export function ConnectedBundlesPage() {
         {planPickerBundle && (
           <PlanPickerModal
             bundle={planPickerBundle}
-            busy={planPickerBusy}
             onClose={() => setPlanPickerBundle(null)}
-            onChoosePlan={(plan, tier) => void enrollPlan(planPickerBundle, plan, tier)}
           />
         )}
       </main>
@@ -521,14 +498,10 @@ export function ConnectedBundlesPage() {
 
 function PlanPickerModal({
   bundle,
-  busy,
   onClose,
-  onChoosePlan,
 }: {
   bundle: Bundle;
-  busy: boolean;
   onClose: () => void;
-  onChoosePlan: (plan: PlanKey, tier: PlanTier) => void;
 }) {
   const currency = bundle.priceCurrency || "EGP";
   const money = (value?: string | null) => (value ? `${currency} ${Number(value).toFixed(2)}` : null);
@@ -571,23 +544,7 @@ function PlanPickerModal({
             </>
           )}
 
-          {bundle.firstPlanEnabled && (
-            <fieldset className="bundle-plan-fieldset">
-              <legend>First 5 Weeks</legend>
-              {bundle.firstPlanPriceMcq && <article className="bundle-plan-option"><div><b>MCQ only</b><small>Question bank MCQs, flashcards, resources and past exams for the assigned weeks.</small></div><button className="pp-button secondary" type="button" disabled={busy} onClick={() => onChoosePlan("FIRST", "MCQ")}>{money(bundle.firstPlanPriceMcq)}</button></article>}
-              {bundle.firstPlanPriceMcqEssay && <article className="bundle-plan-option"><div><b>MCQ + Essay</b><small>Everything in MCQ only, plus essay-type questions for the assigned weeks.</small></div><button className="pp-button secondary" type="button" disabled={busy} onClick={() => onChoosePlan("FIRST", "MCQ_ESSAY")}>{money(bundle.firstPlanPriceMcqEssay)}</button></article>}
-            </fieldset>
-          )}
-
-          {bundle.finalPlanEnabled && (
-            <fieldset className="bundle-plan-fieldset">
-              <legend>Final 5 Weeks</legend>
-              {bundle.finalPlanPriceMcq && <article className="bundle-plan-option"><div><b>MCQ only</b><small>Question bank MCQs, flashcards, resources and past exams for the assigned weeks.</small></div><button className="pp-button secondary" type="button" disabled={busy} onClick={() => onChoosePlan("FINAL", "MCQ")}>{money(bundle.finalPlanPriceMcq)}</button></article>}
-              {bundle.finalPlanPriceMcqEssay && <article className="bundle-plan-option"><div><b>MCQ + Essay</b><small>Everything in MCQ only, plus essay-type questions for the assigned weeks.</small></div><button className="pp-button secondary" type="button" disabled={busy} onClick={() => onChoosePlan("FINAL", "MCQ_ESSAY")}>{money(bundle.finalPlanPriceMcqEssay)}</button></article>}
-            </fieldset>
-          )}
-
-          <p className="bundle-plan-note">Choosing an option requests access; an administrator confirms payment before content unlocks.</p>
+          <p className="bundle-plan-note">Checkout is intentionally disabled until each provider flow is specified and connected.</p>
         </div>
       </section>
     </div>
