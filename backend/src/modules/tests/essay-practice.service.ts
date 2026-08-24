@@ -1,3 +1,4 @@
+import { randomInt } from 'crypto';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -64,7 +65,7 @@ export class EssayPracticeService {
       throw new BadRequestException(`Only ${eligible.length} eligible essay questions are available for this selection; ${ESSAY_PRACTICE_SIZE} are required`);
     }
     for (let index = eligible.length - 1; index > 0; index -= 1) {
-      const target = Math.floor(Math.random() * (index + 1));
+      const target = randomInt(index + 1);
       [eligible[index], eligible[target]] = [eligible[target], eligible[index]];
     }
     const selected = eligible.slice(0, ESSAY_PRACTICE_SIZE);
