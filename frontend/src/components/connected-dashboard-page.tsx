@@ -45,6 +45,7 @@ type StudentDashboard = {
   recent_attempts: Attempt[];
   questions: { attempts: number; correct_attempts: number; accuracy: string; bookmarked: number };
   flashcards: { reviewed: number; mastered: number; due: number };
+  clinical_momentum: { study_streak: number; study_minutes: number; completed_sessions: number; xp: number; level: number; level_progress: number };
 };
 
 type InstructorDashboard = {
@@ -183,22 +184,10 @@ function StudentDashboardScreen({
   const completedLectures = data?.courses.reduce((sum, item) => sum + item.lecturesCompleted, 0) || 0;
   const totalLectures = data?.courses.reduce((sum, item) => sum + item.totalLectures, 0) || 0;
   const overallProgress = totalLectures ? clamp(Math.round(completedLectures * 100 / totalLectures)) : 0;
-  const mastered = number(data?.flashcards.mastered);
-  const level = Math.max(1, Math.floor((number(data?.questions.correct_attempts) + mastered) / 100) + 1);
-  const levelProgress = (number(data?.questions.correct_attempts) + mastered) % 100;
-  const completedMinutes = planItems.filter((item) => item.status === "COMPLETED").reduce((sum, item) => sum + item.durationMinutes, 0);
-
-  const streak = useMemo(() => {
-    const completedDates = new Set(planItems.filter((item) => item.status === "COMPLETED").map((item) => item.scheduledDate));
-    let cursor = new Date();
-    if (!completedDates.has(localDateKey(cursor))) cursor = addDays(cursor, -1);
-    let count = 0;
-    while (completedDates.has(localDateKey(cursor))) {
-      count += 1;
-      cursor = addDays(cursor, -1);
-    }
-    return count;
-  }, [planItems]);
+  const streak = number(data?.clinical_momentum.study_streak);
+  const studyMinutes = number(data?.clinical_momentum.study_minutes);
+  const level = Math.max(1, number(data?.clinical_momentum.level));
+  const levelProgress = number(data?.clinical_momentum.level_progress);
 
   const activity = useMemo(() => Array.from({ length: 7 }, (_, index) => {
     const date = addDays(new Date(), index - 6);
@@ -233,7 +222,7 @@ function StudentDashboardScreen({
         <div className="metrics">
           <div className="metric primary"><span className="metric-icon"><FiClipboard /></span><div><small>{translate("Questions answered")}</small><b>{number(data?.questions.attempts)}</b><span>{translate("All time")}</span><em>{translate(`${accuracy}% accuracy`)}</em></div><FiBarChart2 /></div>
           <div className="metric"><span className="metric-icon flame"><FiActivity /></span><div><small>{translate("Study streak")}</small><b>{streak} <sup>{locale === "ar" ? "يوم" : "days"}</sup></b><span>{translate(streak ? "Built from completed plan sessions" : "Complete today’s session to begin")}</span><div className="streak">{[0, 1, 2, 3, 4, 5, 6].map((day) => <i className={day < Math.min(streak, 7) ? "" : "off"} key={day} />)}</div></div></div>
-          <div className="metric"><span className="metric-icon"><FiClock /></span><div><small>{translate("Study hours")}</small><b>{Math.round(completedMinutes / 6) / 10} <sup>{locale === "ar" ? "س" : "hrs"}</sup></b><span>{translate("Completed scheduled sessions")}</span></div></div>
+          <div className="metric"><span className="metric-icon"><FiClock /></span><div><small>{translate("Study hours")}</small><b>{Math.round(studyMinutes / 6) / 10} <sup>{locale === "ar" ? "س" : "hrs"}</sup></b><span>{translate("Recorded lecture time and completed non-lecture plan sessions")}</span></div></div>
         </div>
       </Card>
 
