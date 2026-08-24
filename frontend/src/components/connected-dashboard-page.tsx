@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   FiActivity,
   FiBarChart2,
+  FiBookOpen,
   FiClipboard,
   FiClock,
   FiRefreshCw,
@@ -44,9 +45,10 @@ type StudentDashboard = {
   courses: StudentCourse[];
   recent_attempts: Attempt[];
   questions: { attempts: number; correct_attempts: number; accuracy: string; bookmarked: number };
+  essay_cases: { solved: number };
   flashcards: { reviewed: number; mastered: number; due: number };
   clinical_momentum: { study_streak: number; study_minutes: number; completed_sessions: number; xp: number; level: number; level_progress: number };
-  weekly_activity: Array<{ date: string; questions: number; flashcards: number; lectures: number; plan_sessions: number; total: number }>;
+  weekly_activity: Array<{ date: string; questions: number; essay_cases: number; flashcards: number; lectures: number; plan_sessions: number; total: number }>;
   topic_mastery: Array<{ id: string; course_name: string; mastery: number; questions_attempted: number }>;
 };
 
@@ -206,6 +208,7 @@ function StudentDashboardScreen({
       <Card title={translate("Clinical Momentum")} subtitle={translate("Your progress at a glance")} className="momentum-card">
         <div className="metrics">
           <div className="metric primary"><span className="metric-icon"><FiClipboard /></span><div><small>{translate("Questions answered")}</small><b>{number(data?.questions.attempts)}</b><span>{translate("All time")}</span><em>{translate(`${accuracy}% accuracy`)}</em></div><FiBarChart2 /></div>
+          <div className="metric"><span className="metric-icon"><FiBookOpen /></span><div><small>{translate("Essay cases solved")}</small><b>{number(data?.essay_cases.solved)}</b><span>{translate("Distinct submitted cases")}</span><em>{translate("One case is counted once")}</em></div></div>
           <div className="metric"><span className="metric-icon flame"><FiActivity /></span><div><small>{translate("Study streak")}</small><b>{streak} <sup>{locale === "ar" ? "يوم" : "days"}</sup></b><span>{translate(streak ? "Built from questions, flashcards, lectures, and completed sessions" : "Complete learning activity today to begin")}</span><div className="streak">{[0, 1, 2, 3, 4, 5, 6].map((day) => <i className={day < Math.min(streak, 7) ? "" : "off"} key={day} />)}</div></div></div>
           <div className="metric"><span className="metric-icon"><FiClock /></span><div><small>{translate("Study hours")}</small><b>{Math.round(studyMinutes / 6) / 10} <sup>{locale === "ar" ? "س" : "hrs"}</sup></b><span>{translate("Recorded lecture time and completed non-lecture plan sessions")}</span></div></div>
         </div>
@@ -214,7 +217,7 @@ function StudentDashboardScreen({
       {loading && !data ? <PageSkeleton variant="workspace" label={translate("Loading your dashboard")} /> : <div className="main-grid">
         <div className="column-main">
           <Card title={translate("Weekly Activity")} action={<Link href="/analytics">{translate("Open analytics")} →</Link>} className="activity-card">
-            <div className="chart-legend"><span><i />{translate("Learning interactions")}</span></div><div className="bar-chart">{activity.map((item) => <div key={item.label}><span title={translate(`${item.value} learning interactions`)} style={{ height: `${Math.max(2, Math.round(item.value / maxActivity * 92))}px` }} /><small>{item.label}</small></div>)}</div>
+            <div className="chart-legend"><span><i />{translate("Learning interactions")}</span></div><div className="bar-chart">{activity.map((item) => <div key={item.label}><span title={translate(`${item.value} interactions: ${number(item.detail?.questions)} MCQs, ${number(item.detail?.essay_cases)} essay cases, ${number(item.detail?.flashcards)} flashcards, ${number(item.detail?.lectures)} lectures, ${number(item.detail?.plan_sessions)} plan sessions`)} style={{ height: `${Math.max(2, Math.round(item.value / maxActivity * 92))}px` }} /><small>{item.label}</small></div>)}</div>
           </Card>
         </div>
 
