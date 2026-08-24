@@ -537,7 +537,6 @@ export function ConnectedBundlesPage() {
             bundle={planPickerBundle}
             busy={planPickerBusy}
             onClose={() => setPlanPickerBundle(null)}
-            onChooseFull={() => void enrollFullFromPicker(planPickerBundle)}
             onChoosePlan={(plan, tier) => void enrollPlan(planPickerBundle, plan, tier)}
           />
         )}
@@ -550,13 +549,11 @@ function PlanPickerModal({
   bundle,
   busy,
   onClose,
-  onChooseFull,
   onChoosePlan,
 }: {
   bundle: Bundle;
   busy: boolean;
   onClose: () => void;
-  onChooseFull: () => void;
   onChoosePlan: (plan: PlanKey, tier: PlanTier) => void;
 }) {
   const currency = bundle.priceCurrency || "EGP";
