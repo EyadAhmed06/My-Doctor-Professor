@@ -15,7 +15,7 @@ const ids = {
   topics: [1, 2, 3, 4, 5, 6].map(
     (n) => `60000000-0000-4000-8000-${n.toString().padStart(12, "0")}`,
   ),
-  questions: Array.from({ length: 40 }, (_, index) => index + 1).map(
+  questions: Array.from({ length: 200 }, (_, index) => index + 1).map(
     (n) => `70000000-0000-4000-8000-${n.toString().padStart(12, "0")}`,
   ),
   tests: [1, 2].map(
@@ -177,7 +177,7 @@ async function main() {
       );
     }
 
-    const questionData: Array<[number, string, string, string[], string]> = [
+    const baseQuestionData: Array<[number, string, string, string[], string]> = [
       [0, "Which chamber receives oxygenated blood directly from the pulmonary veins?", "Left atrium", ["Right atrium", "Left ventricle", "Right ventricle", "Coronary sinus"], "The pulmonary veins return oxygenated blood to the left atrium."],
       [0, "Which valve lies between the left atrium and left ventricle?", "Mitral valve", ["Tricuspid valve", "Pulmonary valve", "Aortic valve", "Thebesian valve"], "The mitral valve controls flow from the left atrium into the left ventricle."],
       [0, "Which coronary artery most commonly supplies the anterior interventricular septum?", "Left anterior descending artery", ["Right coronary artery", "Left circumflex artery", "Posterior descending artery", "Obtuse marginal artery"], "Septal branches of the LAD supply the anterior two-thirds of the interventricular septum."],
@@ -224,6 +224,19 @@ async function main() {
       [5, "What is an important daily self-monitoring measure for a patient prone to fluid retention?", "Body weight", ["Hair length", "Pupil diameter", "Shoe color", "Handedness"], "A rapid increase in daily weight can indicate accumulating fluid before severe symptoms develop."],
       [5, "Which dietary measure is commonly advised when heart failure congestion is difficult to control?", "Avoid excessive sodium intake", ["Increase processed salty foods", "Drink unlimited fluid regardless of status", "Eliminate all protein", "Consume trans fats at every meal"], "Avoiding excessive sodium can help reduce fluid retention; advice should be individualized."],
     ];
+    const questionData: Array<[number, string, string, string[], string]> = Array.from(
+      { length: 5 },
+      (_, setIndex) => baseQuestionData.map(([topicIndex, text, correct, distractors, explanation]) => [
+        topicIndex,
+        setIndex === 0 ? text : `${text} (Practice variant ${setIndex + 1})`,
+        correct,
+        distractors,
+        setIndex === 0 ? explanation : `Practice variant ${setIndex + 1}. ${explanation}`,
+      ] as [number, string, string, string[], string]),
+    ).flat();
+    if (questionData.length !== 200) {
+      throw new Error(`The cardiovascular demo pool must contain exactly 200 MCQs; received ${questionData.length}`);
+    }
     const optionIds: string[] = [];
     for (let i = 0; i < questionData.length; i++) {
       const [topicIndex, text, correct, distractors, explanation] = questionData[i];
@@ -280,10 +293,15 @@ async function main() {
         ],
       );
     }
-    for (let i = 0; i < ids.questions.length; i++)
+    for (let i = 0; i < baseQuestionData.length; i++)
       await manager.query(
         `INSERT INTO test_questions(test_id,question_id,display_order,marks) VALUES($1,$2,$3,1) ON CONFLICT(test_id,question_id) DO NOTHING`,
         [ids.tests[0], ids.questions[i], i + 1],
+      );
+    for (let i = 0; i < ids.questions.length; i++)
+      await manager.query(
+        `INSERT INTO test_questions(test_id,question_id,display_order,marks) VALUES($1,$2,$3,1) ON CONFLICT(test_id,question_id) DO NOTHING`,
+        [ids.tests[1], ids.questions[i], i + 1],
       );
 
     await manager.query(
