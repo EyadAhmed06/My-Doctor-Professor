@@ -357,21 +357,27 @@ export class ProgressService {
     if(query.date_from){params.push(query.date_from);dateClauses.push(`answer.answered_at >= $${params.length}::date`);}
     if(query.date_until){params.push(query.date_until);dateClauses.push(`answer.answered_at < ($${params.length}::date + INTERVAL '1 day')`);}
     const answerFilter=dateClauses.length?`AND ${dateClauses.join(' AND ')}`:'';
+    const planDateClauses:string[]=[];
+    if(query.date_from) planDateClauses.push(`scheduled_date >= ${params.indexOf(query.date_from)+1}::date`);
+    if(query.date_until) planDateClauses.push(`scheduled_date <= ${params.indexOf(query.date_until)+1}::date`);
+    const planFilter=planDateClauses.length?`AND ${planDateClauses.join(' AND ')}`:'';
     const [summary,accuracyTrend,topics,activity]=await Promise.all([
       this.dataSource.query(`
         SELECT COALESCE((SELECT COUNT(*)::int
-            FROM student_answers saved
-            JOIN test_attempts saved_attempt ON saved_attempt.id=saved.attempt_id
-            WHERE saved_attempt.student_id=$1
-              AND (saved.selected_option_id IS NOT NULL
-                OR NULLIF(BTRIM(saved.essay_answer),'') IS NOT NULL)),0) AS questions_answered,
-          COALESCE((SELECT ROUND(100.0*COUNT(*) FILTER(WHERE saved.is_correct=TRUE)
-              /NULLIF(COUNT(*) FILTER(WHERE saved.is_correct IS NOT NULL),0),2)::float
-            FROM student_answers saved
-            JOIN test_attempts saved_attempt ON saved_attempt.id=saved.attempt_id
-            WHERE saved_attempt.student_id=$1
-              AND (saved.selected_option_id IS NOT NULL
-                OR NULLIF(BTRIM(saved.essay_answer),'') IS NOT NULL)),0) AS accuracy,
+            FROM student_answers answer
+            JOIN test_attempts attempt ON attempt.id=answer.attempt_id
+            WHERE attempt.student_id=$1
+              AND (answer.selected_option_id IS NOT NULL
+                OR NULLIF(BTRIM(answer.essay_answer),'') IS NOT NULL)
+              ${answerFilter}),0) AS questions_answered,
+          COALESCE((SELECT ROUND(100.0*COUNT(*) FILTER(WHERE answer.is_correct=TRUE)
+              /NULLIF(COUNT(*) FILTER(WHERE answer.is_correct IS NOT NULL),0),2)::float
+            FROM student_answers answer
+            JOIN test_attempts attempt ON attempt.id=answer.attempt_id
+            WHERE attempt.student_id=$1
+              AND (answer.selected_option_id IS NOT NULL
+                OR NULLIF(BTRIM(answer.essay_answer),'') IS NOT NULL)
+              ${answerFilter}),0) AS accuracy,
           COUNT(*) FILTER(WHERE progress.bookmarked)::int AS bookmarked,
           COALESCE((SELECT ROUND(100-AVG(ABS(
             CASE answer.confidence_level WHEN 'LOW' THEN 35 WHEN 'MEDIUM' THEN 65 WHEN 'HIGH' THEN 85 END
@@ -384,7 +390,7 @@ export class ProgressService {
               AND answer.confidence_level IS NOT NULL AND answer.is_correct IS NOT NULL),0) AS confidence_samples,
           COALESCE((SELECT COUNT(*) FILTER(WHERE is_mastered)::int FROM student_flashcard_progress WHERE student_id=$1),0) AS flashcards_mastered,
           COALESCE((SELECT COUNT(*) FILTER(WHERE next_review_at IS NULL OR next_review_at<=CURRENT_TIMESTAMP)::int FROM student_flashcard_progress WHERE student_id=$1),0) AS flashcards_due
-        FROM student_question_progress progress WHERE progress.student_id=$1`,[studentId]),
+        FROM student_question_progress progress WHERE progress.student_id=$1`,params),
       this.dataSource.query(`
         SELECT answer.answered_at::date AS date,COUNT(*)::int AS answered,
           COUNT(*) FILTER(WHERE answer.is_correct)::int AS correct,
@@ -403,7 +409,8 @@ export class ProgressService {
         SELECT scheduled_date AS date,COUNT(*) FILTER(WHERE status='COMPLETED')::int AS completed,
           COUNT(*) FILTER(WHERE status='SKIPPED')::int AS skipped,COUNT(*)::int AS planned
         FROM study_plan_items WHERE student_id=$1 AND scheduled_date<=CURRENT_DATE
-        GROUP BY scheduled_date ORDER BY scheduled_date`,[studentId]),
+          AND item_type<>'REST' ${planFilter}
+        GROUP BY scheduled_date ORDER BY scheduled_date`,params),
     ]);
     const courseReadiness=await this.dataSource.query(`
       SELECT COALESCE(ROUND(AVG(progress.completion_percentage),2),0)::float AS curriculum
@@ -420,7 +427,9 @@ export class ProgressService {
           AND (bundle.available_until IS NULL OR bundle.available_until>CURRENT_TIMESTAMP)
       )
     `,[studentId]);
-    const consistency=activity.length?Math.round(100*activity.reduce((sum:number,row:{completed:number})=>sum+Number(row.completed),0)/Math.max(1,activity.reduce((sum:number,row:{completed:number;skipped:number})=>sum+Number(row.completed)+Number(row.skipped),0))):0;
+    const duePlanItems=activity.reduce((sum:number,row:{planned:number})=>sum+Number(row.planned),0);
+    const completedPlanItems=activity.reduce((sum:number,row:{completed:number})=>sum+Number(row.completed),0);
+    const consistency=duePlanItems?Math.round(100*completedPlanItems/duePlanItems):0;
     const base=summary[0] as {accuracy:number;flashcards_mastered:number;questions_answered:number};
     const flashcardRows=await this.dataSource.query(`SELECT COUNT(*)::int AS reviewed FROM student_flashcard_progress WHERE student_id=$1`,[studentId]);
     const flashcardMastery=Number(flashcardRows[0].reviewed)?100*Number(base.flashcards_mastered)/Number(flashcardRows[0].reviewed):0;
