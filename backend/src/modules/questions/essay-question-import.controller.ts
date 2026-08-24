@@ -2,6 +2,7 @@ import { Body, Controller, Post, UploadedFile, UseGuards, UseInterceptors } from
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { UploadedResourceFile } from '../academic/resource-storage.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RateLimit } from '../auth/decorators/rate-limit.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -15,6 +16,7 @@ import { EssayQuestionImportService } from './essay-question-import.service';
 export class EssayQuestionImportController {
   constructor(private readonly imports: EssayQuestionImportService) {}
 
+  @RateLimit({ key: 'essay-import-inspect', maximum: 10, windowSeconds: 3600 })
   @Post('inspect')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 25 * 1024 * 1024, files: 1 } }))
@@ -25,6 +27,7 @@ export class EssayQuestionImportController {
     return this.imports.inspectPdf(dto.copyright_confirmed, file);
   }
 
+  @RateLimit({ key: 'essay-import-publish', maximum: 20, windowSeconds: 3600 })
   @Post('publish')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   publish(@Body() dto: PublishEssayQuestionImportDto, @CurrentUser() actor: AuthenticatedUser) {
