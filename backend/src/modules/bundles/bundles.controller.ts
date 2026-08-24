@@ -13,6 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -37,6 +38,7 @@ import {
 
 const uuid = new ParseUUIDPipe({ version: '4' });
 
+@Public()
 @Controller('catalog/bundles')
 export class PublicBundlesController {
   constructor(private readonly bundles: BundlesService) {}
