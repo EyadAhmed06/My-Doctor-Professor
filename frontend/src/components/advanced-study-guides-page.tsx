@@ -20,7 +20,7 @@ import {
 import { courseRouteKey, lectureRouteKey, resourceRouteKey } from "@/lib/routes";
 import { useAuth } from "./auth-provider";
 import { EmptyState, ErrorState, PageSkeleton } from "./async-state";
-import { Panel, ProductShell, Progress } from "./product-shell";
+import { ProductShell, Progress } from "./product-shell";
 import { useUx } from "./ux-provider";
 import "./product-pages.css";
 
