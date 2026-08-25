@@ -1,0 +1,28 @@
+{
+  email eyadelmaleh07@gmail.com
+  admin off
+}
+
+{$APP_HOST} {
+  encode zstd gzip
+
+  @api path /api/*
+  handle @api {
+    reverse_proxy backend:3000
+  }
+
+  handle {
+    reverse_proxy frontend:3001
+  }
+
+  header {
+    -Server
+    X-Content-Type-Options nosniff
+    Referrer-Policy no-referrer
+  }
+
+  log {
+    output stdout
+    format json
+  }
+}
