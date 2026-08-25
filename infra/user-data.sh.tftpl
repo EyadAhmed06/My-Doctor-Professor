@@ -38,8 +38,38 @@ APP_HOST=${app_host}
 AWS_REGION=${aws_region}
 BACKEND_IMAGE=${backend_image}:latest
 FRONTEND_IMAGE=${frontend_image}:latest
+APP_ENV_PARAMETER=${parameter_name}
 ENV
 chmod 0600 /opt/mdp/deploy.env
+
+cat > /usr/local/bin/mdp-deploy <<'SCRIPT'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+cd /opt/mdp
+set -a
+. /opt/mdp/deploy.env
+set +a
+aws ssm get-parameter --region "$AWS_REGION" --with-decryption --name "$APP_ENV_PARAMETER" \
+  --query Parameter.Value --output text > /opt/mdp/app.env
+chmod 0600 /opt/mdp/app.env
+registry="${BACKEND_IMAGE%%/*}"
+aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$registry"
+compose=(docker compose --env-file /opt/mdp/deploy.env --env-file /opt/mdp/app.env -f /opt/mdp/compose.production.yml)
+"${compose[@]}" pull
+"${compose[@]}" up -d postgres
+"${compose[@]}" run --rm backend node node_modules/typeorm/cli.js migration:run -d dist/database/data-source.js
+"${compose[@]}" up -d --remove-orphans
+for attempt in $(seq 1 30); do
+  if curl --fail --silent --show-error "https://$APP_HOST/api/v1/health/live" >/dev/null; then
+    "${compose[@]}" ps
+    exit 0
+  fi
+  sleep 10
+done
+"${compose[@]}" logs --tail=100
+exit 1
+SCRIPT
+chmod 0750 /usr/local/bin/mdp-deploy
 
 cat > /usr/local/bin/mdp-backup <<'SCRIPT'
 #!/usr/bin/env bash
