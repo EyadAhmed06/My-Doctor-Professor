@@ -9,7 +9,7 @@
     "lint": "eslint",
     "audit:ui-actions": "node scripts/audit-ui-actions.mjs",
     "audit:security": "node scripts/security-static-audit.mjs",
-    "test": "npm run audit:security && npm run lint"
+    "test": "node scripts/test.mjs"
   },
   "dependencies": {
     "next": "16.3.3",
