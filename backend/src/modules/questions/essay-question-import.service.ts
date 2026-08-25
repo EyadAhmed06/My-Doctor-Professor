@@ -4,7 +4,7 @@ import { createHash } from 'crypto';
 import { inflateSync } from 'zlib';
 import { DataSource, Repository } from 'typeorm';
 import { EssayConfiguration } from '../../common/entities/essay-configuration.entity';
-import { Question, QuestionDifficulty, QuestionType } from '../../common/entities/question.entity';
+import { Question, QuestionType } from '../../common/entities/question.entity';
 import { Topic } from '../../common/entities/topic.entity';
 import { AcademicAccessService } from '../academic/academic-access.service';
 import type { UploadedResourceFile } from '../academic/resource-storage.service';
@@ -216,7 +216,7 @@ export class EssayQuestionImportService {
       const answerMatch = answerMarker.exec(block);
       const questionPart = answerMatch ? block.slice(0, answerMatch.index) : block;
       const answerPart = answerMatch ? block.slice(answerMatch.index + answerMatch[0].length) : '';
-      const questionMatches = [...questionPart.matchAll(/\bQ\s*(\d{1,2})\s*[\.\)]\s*/gi)];
+      const questionMatches = [...questionPart.matchAll(/\bQ\s*(\d{1,2})\s*[.)]\s*/gi)];
       if (!questionMatches.length) continue;
 
       const caseStemRaw = questionPart.slice(0, questionMatches[0].index ?? 0);
