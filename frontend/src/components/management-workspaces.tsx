@@ -6,7 +6,6 @@ import {
   FiActivity,
   FiAlertTriangle,
   FiBookOpen,
-  FiCheckCircle,
   FiChevronRight,
   FiClipboard,
   FiEdit3,
