@@ -557,7 +557,7 @@ export class QuestionImportService {
   }
 
   private splitLectureSections(combined: string): ParsingSection[] {
-    const headingPattern = /^\s*(Lecture\s+(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|\d+)(?:\s*[:\-])?[^\n]*)$/gim;
+    const headingPattern = /^\s*(Lecture\s+(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|\d+)(?:\s*[:-])?[^\n]*)$/gim;
     const headings = Array.from(combined.matchAll(headingPattern));
     if (headings.length === 0) {
       return [{ title: null, text: combined, offset: 0 }];
@@ -673,7 +673,7 @@ export class QuestionImportService {
     const result = new Map<number, string>();
     const lines = value.split('\n');
     for (const line of lines) {
-      const pairs = Array.from(line.matchAll(/(?:^|\s)(\d{1,3})\s*[.)-]?\s*([A-F])\b/gi));
+      const pairs = Array.from(line.matchAll(/(?:^|\s|\()(\d{1,3})\s*[.)-]?\s*([A-F])\b/gi));
       if (pairs.length < 2) continue;
       for (const pair of pairs) {
         result.set(Number(pair[1]), pair[2].toUpperCase());
@@ -683,7 +683,7 @@ export class QuestionImportService {
     const marker = value.search(/answer\s*key/i);
     if (marker >= 0) {
       const tail = value.slice(marker);
-      const pattern = /(?:^|\s)(\d{1,3})\s*[.):-]?\s*([A-F])\b/gim;
+      const pattern = /(?:^|\s|\()(\d{1,3})\s*[.):-]?\s*([A-F])\b/gim;
       let match: RegExpExecArray | null;
       while ((match = pattern.exec(tail)) !== null) {
         result.set(Number(match[1]), match[2].toUpperCase());
