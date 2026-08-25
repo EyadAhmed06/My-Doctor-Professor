@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FiBookOpen, FiCheck, FiChevronDown, FiEdit3, FiPlayCircle } from "react-icons/fi";
 import { useAuth } from "./auth-provider";
 import { Panel, ProductShell, Progress } from "./product-shell";
@@ -21,6 +21,7 @@ const essayCount = (lecture: Lecture) => Math.max(0, count(lecture.question_coun
 export function ConnectedEssayPracticePage() {
   const { request } = useAuth();
   const params = useSearchParams();
+  const router = useRouter();
   const requestedBundle = params.get("bundle");
   const requestedCourse = params.get("course");
   const requestedLecture = params.get("lecture");
@@ -83,7 +84,7 @@ export function ConnectedEssayPracticePage() {
     setStarting(true); setError(null);
     try {
       const generated = await request<Generated>("/essay-practice/generate", { method: "POST", body: { bundle_id: bundleId, lecture_ids: selected } });
-      window.location.assign(`/essay-practice/session?attempt=${encodeURIComponent(generated.attempt.id)}&test=${encodeURIComponent(generated.test.id)}&bundle=${encodeURIComponent(bundleId)}`);
+      router.push(`/essay-practice/session?attempt=${encodeURIComponent(generated.attempt.id)}&test=${encodeURIComponent(generated.test.id)}&bundle=${encodeURIComponent(bundleId)}`);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to build essay quiz."); setStarting(false); }
   }
 
