@@ -44,14 +44,23 @@ describe('RequestRateLimitGuard', () => {
     );
     const enforceBudget = jest.fn().mockRejectedValue(exception);
     const reflector = {
-      getAllAndOverride: jest.fn().mockReturnValue({
-        key: 'resource-upload', maximum: 20, windowSeconds: 3600,
-      }),
+      getAllAndOverride: jest.fn()
+        .mockReturnValueOnce(undefined)
+        .mockReturnValueOnce({
+          key: 'resource-upload',
+          maximum: 20,
+          windowSeconds: 3600,
+        }),
     };
     const guard = new RequestRateLimitGuard(reflector as never, { enforceBudget } as never);
     const test = context({ userId: 'instructor-id' });
 
     await expect(guard.canActivate(test.value as never)).rejects.toBe(exception);
+    expect(enforceBudget).toHaveBeenCalledWith(
+      'http:resource-upload:user:instructor-id',
+      20,
+      3600,
+    );
     expect(test.response.setHeader).toHaveBeenCalledWith('Retry-After', '42');
   });
 });
