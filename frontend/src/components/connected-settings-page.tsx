@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { FiCheck, FiEye, FiEyeOff, FiGlobe, FiImage, FiLock, FiMonitor, FiSave, FiShield, FiUser } from "react-icons/fi";
 import { useAppTheme } from "./app-theme";
 import { AuthUser, useAuth } from "./auth-provider";
@@ -47,6 +48,7 @@ function passwordChecks(value: string) {
 }
 
 export function ConnectedSettingsPage() {
+  const router = useRouter();
   const { user, request, refreshUser, logout } = useAuth();
   const { theme, preference, setTheme } = useAppTheme();
   const { locale } = useLocale();
@@ -176,7 +178,7 @@ export function ConnectedSettingsPage() {
       await request(`/users/${user.id}/change-password`, { method: "POST", body: { current_password: currentPassword, new_password: newPassword } });
       setCurrentPassword(""); setNewPassword(""); setCapsLock(false);
       try { await logout(); } catch { /* session is intentionally revoked by the password change */ }
-      window.location.assign("/login?password=changed");
+      router.push("/login?password=changed");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to change your password."); }
     finally { setSaving(false); }
   }
