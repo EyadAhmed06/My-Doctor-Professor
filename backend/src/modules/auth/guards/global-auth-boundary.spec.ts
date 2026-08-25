@@ -12,7 +12,7 @@ describe('Global authentication boundary', () => {
 
   it('bypasses Passport only for explicitly public handlers', () => {
     class Example {
-      open() { return true; }
+      open(this: void) { return true; }
     }
     const descriptor = Object.getOwnPropertyDescriptor(Example.prototype, 'open')!;
     Public()(Example.prototype, 'open', descriptor);
