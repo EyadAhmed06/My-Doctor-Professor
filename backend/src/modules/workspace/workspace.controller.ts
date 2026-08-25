@@ -96,6 +96,12 @@ export class WorkspaceController {
   }
 
   @Post('notebook/notes/:noteId/attachments/upload')
+  @RateLimit({
+    key: 'notebook-attachment-upload',
+    maximum: 20,
+    windowSeconds: 3600,
+    scope: 'user',
+  })
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 52_428_800, files: 1 } }))
   uploadAttachment(
     @CurrentUser() actor: AuthenticatedUser,
