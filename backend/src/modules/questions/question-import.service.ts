@@ -471,7 +471,7 @@ export class QuestionImportService {
 
   private extractTextOperators(content: string): string {
     const output: string[] = [];
-    const pattern = /(\((?:\\.|[^\\)])*\)|<[A-Fa-f0-9\s]+>|\[(?:\\.|[^\]])*\])\s*(Tj|TJ|'|")/g;
+    const pattern = /(\((?:\\.|[^\\])*?\)|<[A-Fa-f0-9\s]+>|\[(?:\\.|[^\]])*\])\s*(Tj|TJ|'|")/g;
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(content)) !== null) {
       const operand = match[1];
