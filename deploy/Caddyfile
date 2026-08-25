@@ -6,8 +6,7 @@
 {$APP_HOST} {
   encode zstd gzip
 
-  @api path /api/*
-  handle @api {
+  handle_path /api/v1/* {
     reverse_proxy backend:3000
   }
 
