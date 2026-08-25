@@ -1,6 +1,6 @@
 "use client";
 
-import { DragEvent, FormEvent, useEffect, useState } from "react";
+import { DragEvent, FormEvent, useCallback, useEffect, useState } from "react";
 import {
   FiArrowDown,
   FiArrowLeft,
@@ -72,10 +72,10 @@ export function InstructorEssayCaseStudio() {
   const [moving, setMoving] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
-  async function load(id = courseId) {
+  const load = useCallback(async (id: string) => {
     if (!id) return;
     setCurriculum(await request<Curriculum>(`/essay-cases?course_id=${encodeURIComponent(id)}`));
-  }
+  }, [request]);
 
   useEffect(() => {
     request<Course[]>("/essay-cases/courses").then((items) => {
@@ -86,7 +86,7 @@ export function InstructorEssayCaseStudio() {
 
   useEffect(() => {
     if (courseId) void load(courseId);
-  }, [courseId]);
+  }, [courseId, load]);
 
   function create(weekId: string) {
     setForm({ ...empty, week_id: weekId, questions: [{ prompt: "", model_answer: "" }] });
