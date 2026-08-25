@@ -43,3 +43,9 @@ variable "github_branch" {
   type    = string
   default = "agent/phase1-interactions"
 }
+
+variable "retain_backups" {
+  description = "Keep the backup bucket after teardown. False allows a complete nine-day cleanup."
+  type        = bool
+  default     = false
+}
