@@ -143,7 +143,7 @@ export function InstructorEssayCaseStudio() {
       });
       notify({ title: form.id ? "Case updated" : "Case created", tone: "success" });
       setEditing(false);
-      await load();
+      await load(courseId);
     } catch (error) {
       notify({
         title: "Could not save case",
@@ -158,7 +158,7 @@ export function InstructorEssayCaseStudio() {
   async function remove(id: string) {
     if (!window.confirm("Delete this case and its questions?")) return;
     await request(`/essay-cases/${id}`, { method: "DELETE" });
-    await load();
+    await load(courseId);
   }
 
   async function importPdf() {
@@ -173,7 +173,7 @@ export function InstructorEssayCaseStudio() {
         description: `${result.skipped} already existed.`,
         tone: "success",
       });
-      await load();
+      await load(courseId);
     } catch (error) {
       notify({
         title: "Could not import PDF cases",
