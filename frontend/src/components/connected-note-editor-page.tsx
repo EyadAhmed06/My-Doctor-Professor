@@ -161,7 +161,10 @@ function NotebookImageAttachment({
     </header>
 
     <div className="simple-note-image-stage">
-      {previewError ? <p className="form-error">{previewError}</p> : src ? <img
+      {previewError ? <p className="form-error">{previewError}</p> : src ? <>
+        {/* Blob URLs are authenticated runtime previews and cannot be optimized by next/image. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
         src={src}
         alt={attachment.fileName}
         draggable={false}
@@ -175,7 +178,8 @@ function NotebookImageAttachment({
           width: `${view.width}%`,
           transform: `perspective(${view.perspective}px) translate3d(${view.x}px, ${view.y}px, 0) rotateX(${view.rotateX}deg) rotateY(${view.rotateY}deg) rotateZ(${view.rotate}deg) scale(${view.scale})`,
         }}
-      /> : <span className="simple-note-image-loading">{translate("Loading image…")}</span>}
+        />
+      </> : <span className="simple-note-image-loading">{translate("Loading image…")}</span>}
     </div>
 
     <div className="simple-note-image-controls">
