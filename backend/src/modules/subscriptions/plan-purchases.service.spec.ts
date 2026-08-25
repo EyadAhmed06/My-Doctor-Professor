@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { PlanPaymentMethod, PlanPurchase, PlanPurchaseStatus } from '../../common/entities/plan-purchase.entity';
 import { PromoCode, PromoDiscountType } from '../../common/entities/promo-code.entity';
 import { SubscriptionPlan, SubscriptionPlanKey } from '../../common/entities/subscription-plan.entity';
@@ -63,6 +63,15 @@ function build() {
 
   const config = { get: jest.fn(() => '') } as unknown as ConfigService;
 
+  const manager = {
+    getRepository: jest.fn(() => purchasesRepo),
+    increment: jest.fn(async () => undefined),
+  } as unknown as EntityManager;
+  const dataSource = {
+    transaction: jest.fn(async (work: (manager: EntityManager) => Promise<unknown>) =>
+      work(manager)),
+  } as unknown as DataSource;
+
   const service = new PlanPurchasesService(
     purchasesRepo,
     plansRepo,
@@ -70,6 +79,7 @@ function build() {
     promoCodes as unknown as PromoCodesService,
     paymob as unknown as PaymobService,
     config,
+    dataSource,
   );
 
   return { service, purchases, promoCodes, paymob };
