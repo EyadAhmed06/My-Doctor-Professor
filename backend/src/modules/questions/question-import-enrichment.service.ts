@@ -23,7 +23,7 @@ type ImportInspection = {
 };
 type EnrichmentRow = {
   candidate_id: string;
-  correct_label: string;
+  correct_label?: string;
   difficulty: 'EASY' | 'MEDIUM' | 'HARD';
   explanation_lines: string[];
 };
@@ -151,7 +151,10 @@ export class QuestionImportEnrichmentService {
 
   private applyEnrichment(candidate: ImportCandidate, row: EnrichmentRow): ImportCandidate {
     const existingCorrect = candidate.options.find((option) => option.is_correct)?.label.toUpperCase() || null;
-    const correctLabel = row.correct_label.trim().toUpperCase();
+    const correctLabel = row.correct_label?.trim().toUpperCase() || existingCorrect;
+    if (!correctLabel) {
+      return this.withEnrichmentFailure(candidate, 'The automated enrichment did not return a correct option.');
+    }
     const availableLabels = new Set(candidate.options.map((option) => option.label.toUpperCase()));
     if (!availableLabels.has(correctLabel) || (existingCorrect && correctLabel !== existingCorrect)) {
       return this.withEnrichmentFailure(candidate, existingCorrect
