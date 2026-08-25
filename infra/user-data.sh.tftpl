@@ -2,16 +2,34 @@
 set -Eeuo pipefail
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y ca-certificates curl docker.io docker-compose-v2
+apt-get install -y ca-certificates curl docker.io docker-compose-v2 openssl awscli
 systemctl enable --now docker
 systemctl enable --now amazon-ssm-agent 2>/dev/null || true
 snap start amazon-ssm-agent 2>/dev/null || true
 
-install -d -m 0750 /opt/mdp /opt/mdp/config
+install -d -m 0750 /opt/mdp /opt/mdp/config /opt/mdp/config/postgres-certs
 install -d -m 0700 /opt/mdp/data/postgres /opt/mdp/data/uploads /opt/mdp/data/backups
 install -d -m 0750 /opt/mdp/data/caddy /opt/mdp/config/caddy
 chown -R 999:999 /opt/mdp/data/postgres
 chown -R 1001:1001 /opt/mdp/data/uploads /opt/mdp/data/backups
+
+if [ ! -f /opt/mdp/config/postgres-certs/ca.crt ]; then
+  cert_dir=/opt/mdp/config/postgres-certs
+  openssl genrsa -out "$cert_dir/ca.key" 4096
+  openssl req -x509 -new -nodes -key "$cert_dir/ca.key" -sha256 -days 30 \
+    -subj "/CN=mdp-postgres-ca" -out "$cert_dir/ca.crt"
+  openssl genrsa -out "$cert_dir/server.key" 2048
+  openssl req -new -key "$cert_dir/server.key" -subj "/CN=postgres" -out "$cert_dir/server.csr"
+  cat > "$cert_dir/server.ext" <<'CERT'
+subjectAltName=DNS:postgres,DNS:localhost,IP:127.0.0.1
+extendedKeyUsage=serverAuth
+CERT
+  openssl x509 -req -in "$cert_dir/server.csr" -CA "$cert_dir/ca.crt" -CAkey "$cert_dir/ca.key" \
+    -CAcreateserial -out "$cert_dir/server.crt" -days 30 -sha256 -extfile "$cert_dir/server.ext"
+  chmod 0600 "$cert_dir/ca.key" "$cert_dir/server.key"
+  chmod 0644 "$cert_dir/ca.crt" "$cert_dir/server.crt"
+  chown -R 999:999 "$cert_dir"
+fi
 
 echo '${compose_b64}' | base64 --decode > /opt/mdp/compose.production.yml
 echo '${caddy_b64}' | base64 --decode > /opt/mdp/Caddyfile
