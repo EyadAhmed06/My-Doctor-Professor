@@ -226,6 +226,7 @@ resource "aws_instance" "app" {
     backend_image  = aws_ecr_repository.backend.repository_url
     frontend_image = aws_ecr_repository.frontend.repository_url
     backup_bucket  = aws_s3_bucket.backups.id
+    parameter_name = local.parameter_name
   })
   user_data_replace_on_change = true
   tags = { Name = local.name }
