@@ -26,3 +26,11 @@ frontend/playwright-report/
 *.log
 *.tsbuildinfo
 .github/workflows/*.yml
+
+# Terraform local state, cached providers, plans, and environment overrides.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+**/terraform.tfvars
+crash.log
