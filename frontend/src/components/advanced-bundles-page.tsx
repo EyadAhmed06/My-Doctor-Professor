@@ -454,9 +454,6 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
       } catch { /* best-effort session recovery */ }
       startNavigation();
       router.push(href);
-      window.setTimeout(() => {
-        if (window.location.pathname !== "/mock-exam/session") window.location.assign(href);
-      }, 800);
     } catch (cause) {
       notify({
         title: "Could not build quiz",
