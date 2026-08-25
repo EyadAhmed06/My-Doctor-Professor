@@ -1,3 +1,4 @@
+import { ConflictException } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { Bundle } from '../../common/entities/bundle.entity';
 import { BundleAllowedPlan } from '../../common/entities/bundle-allowed-plan.entity';
@@ -156,21 +157,20 @@ describe('SubscriptionsService access resolution', () => {
     expect(await service.canAccessBundle(userId, bundleId)).toBe(true);
   });
 
-  it('an expired PlanPurchase no longer counts as active, but an existing unlock row is untouched', async () => {
+  it('an expired PlanPurchase stays locked and direct browser purchase cannot create an unlock', async () => {
     const { service, allow, grantPaidPlan, unlocks } = build();
     allow(SubscriptionPlanKey.FIRST_5_WEEKS);
-    grantPaidPlan(SubscriptionPlanKey.FIRST_5_WEEKS, { startedDaysAgo: 40, endsInDays: -5 }); // window already closed
+    grantPaidPlan(SubscriptionPlanKey.FIRST_5_WEEKS, {
+      startedDaysAgo: 40,
+      endsInDays: -5,
+    });
 
-    // No live grant and no unlock yet — locked.
     expect(await service.canAccessBundle(userId, bundleId)).toBe(false);
-
-    // Directly purchasing the bundle (independent of any plan) still grants permanent access...
-    await service.purchaseBundle(userId, bundleId);
-    expect(unlocks).toHaveLength(1);
-    expect(unlocks[0].unlockReason).toBe(UnlockReason.PURCHASE);
-
-    // ...and that unlock is unaffected by the plan having expired before or after this point.
-    expect(await service.canAccessBundle(userId, bundleId)).toBe(true);
+    await expect(service.purchaseBundle(userId, bundleId)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(unlocks).toHaveLength(0);
+    expect(await service.canAccessBundle(userId, bundleId)).toBe(false);
   });
 
   it('canAccessBundle never writes an unlock row — only openBundle/purchaseBundle do', async () => {
