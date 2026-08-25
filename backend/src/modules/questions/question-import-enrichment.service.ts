@@ -218,8 +218,11 @@ export class QuestionImportEnrichmentService {
         if (!row) return candidate;
         const normalizedOptions = this.validateRecoveredOptions(row.options);
         if (!normalizedOptions) return candidate;
-        const correctLabel = row.correct_label.trim().toUpperCase();
-        if (!normalizedOptions.some((option) => option.label === correctLabel)) return candidate;
+        const correctLabel = row.correct_label?.trim().toUpperCase()
+          || candidate.options.find((option) => option.is_correct)?.label;
+        if (!correctLabel || !normalizedOptions.some((option) => option.label === correctLabel)) {
+          return candidate;
+        }
 
         const draft: ImportCandidate = {
           ...candidate,
