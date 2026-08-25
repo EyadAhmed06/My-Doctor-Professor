@@ -63,6 +63,11 @@ describe('QuestionsController route registration', () => {
     expect(response.status).toBe(201);
     expect(inspectPdf).toHaveBeenCalledTimes(1);
     expect(enrichInspection).toHaveBeenCalledTimes(1);
-    expect(response.body).toEqual({ status: 'OK', candidates: [] });
+    expect(response.body).toEqual({
+      status: 'OK',
+      candidates: [],
+      inspector_contract_version: 3,
+      enrichment_contract: 'answer+explanation+difficulty',
+    });
   });
 });
