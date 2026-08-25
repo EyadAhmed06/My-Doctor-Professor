@@ -15,7 +15,6 @@ import { GoogleAuthService } from './google-auth.service';
 import { GoogleIdentityService } from './google-identity.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
-import { RequestRateLimitGuard } from './guards/request-rate-limit.guard';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
@@ -42,6 +41,6 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     RolesGuard,
   ],
   controllers: [AuthController],
-  exports: [AuthService, AuthRateLimitService, JwtAuthGuard, RolesGuard, RequestRateLimitGuard],
+  exports: [AuthService, AuthRateLimitService, JwtAuthGuard, RolesGuard],
 })
 export class AuthModule {}
