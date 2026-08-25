@@ -693,7 +693,7 @@ export class QuestionImportService {
   }
 
   private isCompactAnswerKeyLine(value: string): boolean {
-    return Array.from(value.matchAll(/(?:^|\s)\d{1,3}\s*[.)-]?\s*[A-F]\b/gi)).length >= 2;
+    return Array.from(value.matchAll(/(?:^|\s|\()\d{1,3}\s*[.)-]?\s*[A-F]\b/gi)).length >= 2;
   }
 
   private findCompactAnswerKeyOffset(value: string): number {
