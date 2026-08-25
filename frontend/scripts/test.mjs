@@ -7,7 +7,7 @@ const checks = [
 ];
 
 for (const args of checks) {
-  const result = spawnSync(npm, args, { stdio: "inherit", shell: false });
+  const result = spawnSync(npm, args, { stdio: "inherit", shell: process.platform === "win32" });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
