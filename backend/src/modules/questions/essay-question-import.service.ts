@@ -36,13 +36,6 @@ type EssayCandidate = {
   issues: EssayIssue[];
 };
 
-type CaseBlock = {
-  section: string;
-  caseNumber: number;
-  caseLabel: string;
-  body: string;
-  startPage: number | null;
-};
 
 @Injectable()
 export class EssayQuestionImportService {
