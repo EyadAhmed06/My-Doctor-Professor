@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y ca-certificates curl docker.io docker-compose-v2
+systemctl enable --now docker
+systemctl enable --now amazon-ssm-agent 2>/dev/null || true
+snap start amazon-ssm-agent 2>/dev/null || true
+
+install -d -m 0750 /opt/mdp /opt/mdp/config
+install -d -m 0700 /opt/mdp/data/postgres /opt/mdp/data/uploads /opt/mdp/data/backups
+install -d -m 0750 /opt/mdp/data/caddy /opt/mdp/config/caddy
+chown -R 999:999 /opt/mdp/data/postgres
+chown -R 1001:1001 /opt/mdp/data/uploads /opt/mdp/data/backups
+
+echo '${compose_b64}' | base64 --decode > /opt/mdp/compose.production.yml
+echo '${caddy_b64}' | base64 --decode > /opt/mdp/Caddyfile
+cat > /opt/mdp/deploy.env <<'ENV'
+APP_HOST=${app_host}
+AWS_REGION=${aws_region}
+BACKEND_IMAGE=${backend_image}:latest
+FRONTEND_IMAGE=${frontend_image}:latest
+ENV
+chmod 0600 /opt/mdp/deploy.env
+
+cat > /usr/local/bin/mdp-backup <<'SCRIPT'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+db_user="$(docker exec mdp-postgres printenv POSTGRES_USER)"
+db_name="$(docker exec mdp-postgres printenv POSTGRES_DB)"
+docker exec mdp-postgres pg_dump --clean --if-exists --no-owner -U "$db_user" "$db_name" |
+  gzip |
+  aws s3 cp - "s3://${backup_bucket}/database/$stamp.sql.gz" --sse AES256
+aws s3 sync /opt/mdp/data/uploads "s3://${backup_bucket}/uploads/" --delete --sse AES256
+SCRIPT
+chmod 0750 /usr/local/bin/mdp-backup
+
+cat > /etc/systemd/system/mdp-backup.service <<'UNIT'
+[Unit]
+Description=My Doctor Professor encrypted application backup
+After=docker.service
+Requires=docker.service
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/mdp-backup
+UNIT
+
+cat > /etc/systemd/system/mdp-backup.timer <<'UNIT'
+[Unit]
+Description=Daily My Doctor Professor backup
+[Timer]
+OnCalendar=*-*-* 02:00:00 UTC
+Persistent=true
+RandomizedDelaySec=600
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now mdp-backup.timer
