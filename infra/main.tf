@@ -107,7 +107,8 @@ resource "aws_ecr_lifecycle_policy" "images" {
 }
 
 resource "aws_s3_bucket" "backups" {
-  bucket = "${local.name}-backups-${data.aws_caller_identity.current.account_id}"
+  bucket        = "${local.name}-backups-${data.aws_caller_identity.current.account_id}"
+  force_destroy = !var.retain_backups
 }
 
 resource "aws_s3_bucket_public_access_block" "backups" {
@@ -135,6 +136,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "backups" {
   rule {
     id     = "expire-demo-backups"
     status = "Enabled"
+    filter {}
     expiration { days = 30 }
     noncurrent_version_expiration { noncurrent_days = 14 }
   }
