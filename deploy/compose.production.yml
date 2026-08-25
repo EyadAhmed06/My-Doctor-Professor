@@ -11,6 +11,17 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - /opt/mdp/data/postgres:/var/lib/postgresql/data
+      - /opt/mdp/config/postgres-certs:/certs:ro
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/certs/server.crt
+      - -c
+      - ssl_key_file=/certs/server.key
+      - -c
+      - ssl_ca_file=/certs/ca.crt
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
       interval: 10s
@@ -28,10 +39,13 @@ services:
       PORT: "3000"
       DB_HOST: postgres
       DB_PORT: "5432"
-      DB_SSL_ENABLED: "false"
+      DB_SSL_ENABLED: "true"
+      DB_SSL_REJECT_UNAUTHORIZED: "true"
+      DB_SSL_CA_PATH: /run/postgres-certs/ca.crt
       TRUST_PROXY_HOPS: "1"
       FILE_UPLOAD_PATH: /app/uploads
     volumes:
+      - /opt/mdp/config/postgres-certs:/run/postgres-certs:ro
       - /opt/mdp/data/uploads:/app/uploads
       - /opt/mdp/data/backups:/app/backups
     depends_on:
