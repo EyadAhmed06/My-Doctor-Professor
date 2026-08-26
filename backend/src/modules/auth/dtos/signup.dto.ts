@@ -9,6 +9,7 @@ import {
   IsPhoneNumber,
   IsString,
   Matches,
+  Max,
   MaxLength,
   Min,
   MinLength,
@@ -47,6 +48,7 @@ export class SignupDto {
 
   @IsInt()
   @Min(1)
+  @Max(6)
   current_semester: number;
 
   @IsOptional()
