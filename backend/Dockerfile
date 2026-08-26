@@ -15,6 +15,8 @@ RUN groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 --gid nod
 COPY --from=builder /app/package.json /app/package-lock.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/tsconfig.json /app/tsconfig.build.json ./
 RUN mkdir -p /app/uploads /app/backups && chown -R app:nodejs /app
 USER app
 EXPOSE 3000
