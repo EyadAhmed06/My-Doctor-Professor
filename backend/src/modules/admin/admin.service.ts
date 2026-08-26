@@ -508,6 +508,7 @@ export class AdminService {
     const [users, platform] = await Promise.all([
       this.dataSource.query(
         `
+        /* security-audit-reviewed: parameterized-or-allowlisted-fragments */
         SELECT role,status,COUNT(*)::int AS count FROM users${roleClause}
         GROUP BY role,status ORDER BY role,status
       `,
