@@ -24,6 +24,11 @@ export class UsersController {
    gender:dto.gender,profilePictureUrl:dto.profile_picture_url,
   });
  }
+ @Delete(':userId') @HttpCode(HttpStatus.NO_CONTENT)
+ async deleteOwnAccount(@Param('userId',uuid) id:string,@Body() dto:DeleteOwnAccountDto,@CurrentUser() actor:AuthenticatedUser){
+  this.assertSelf(id,actor);
+  await this.users.deactivateOwnAccount(id,dto.current_password);
+ }
  @Post(':userId/change-password') @HttpCode(HttpStatus.NO_CONTENT)
  async changePassword(@Param('userId',uuid) id:string,@Body() dto:ChangePasswordDto,@CurrentUser() actor:AuthenticatedUser){
   this.assertSelf(id,actor);
