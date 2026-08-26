@@ -110,7 +110,7 @@ export function RegisterPage() {
               {!googleOnboarding&&<><Field label="Password" icon={icons.Lock} placeholder="12+ characters with upper, lower, and number" type="password" value={form.password} onChange={update("password")} required autoComplete="new-password"/><Field label="Confirm password" icon={icons.Lock} placeholder="Repeat your password" type="password" value={form.confirm_password} onChange={update("confirm_password")} required autoComplete="new-password"/></>}
             </div>
             <div className="registration-divider"><span>Academic information</span></div>
-            <div className="form-grid academic-grid"><Field label="Current semester" placeholder="1" type="number" value={form.current_semester} onChange={update("current_semester")} required/></div>
+            <div className="form-grid academic-grid"><Field label="Current semester" placeholder="1" type="number" min={1} max={6} step={1} value={form.current_semester} onChange={update("current_semester")} required/></div>
             <label className="checkline terms"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/><span>I agree to the <Link href="/terms">Terms of Service</Link> and <Link href="/privacy">Privacy Policy</Link>.</span></label>
           </SubmitForm>
           {googleLoading&&<p className="google-auth-status" role="status">Verifying your Google account…</p>}
