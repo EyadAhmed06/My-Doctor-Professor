@@ -285,6 +285,22 @@ export class UsersService {
     return this.safeUser(await this.usersRepository.save(user));
   }
 
+  async deactivateOwnAccount(userId:string,currentPassword:string) {
+    const user=await this.findById(userId);
+    if(!user) throw new NotFoundException('User not found');
+    if(user.role!==UserRole.STUDENT) throw new BadRequestException('Self-service account deletion is available to students only');
+    if(!(await this.validatePassword(currentPassword,user.passwordHash))) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+    await this.dataSource.transaction(async manager=>{
+      user.status=UserStatus.DEACTIVATED;
+      await manager.save(User,user);
+      await manager.createQueryBuilder().update(AuthSession)
+        .set({revokedAt:new Date()})
+        .where('user_id = :userId AND revoked_at IS NULL',{userId}).execute();
+    });
+  }
+
   async changePassword(userId:string,currentPassword:string,newPassword:string) {
     const user=await this.findById(userId);
     if(!user) throw new NotFoundException('User not found');
