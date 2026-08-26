@@ -1640,3 +1640,10 @@ html[data-theme="light"] .reference-login .auth-proof-strip{
   .reference-register .registration-content{padding:18px 22px 24px}
   .reference-register .registration-form .form-grid,.reference-register .academic-grid{grid-template-columns:1fr}
 }
+
+
+/* Mobile hero: lead with the Doctor & Professor visual without changing desktop order. */
+@media(max-width:720px){
+  .public-hero .hero-duo{order:-1}
+  .public-hero .hero-copy{order:0}
+}
