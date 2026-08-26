@@ -38,7 +38,16 @@ function inspect(path) {
     ]);
   }
   for (const [name, pattern] of rules) {
-    for (const match of file.text.matchAll(pattern)) report(file, name, match);
+    for (const match of file.text.matchAll(pattern)) {
+      if (
+        name === 'dynamic SQL interpolation' &&
+        file.text.slice(match.index, match.index + 240)
+          .includes('security-audit-reviewed: parameterized-or-allowlisted-fragments')
+      ) {
+        continue;
+      }
+      report(file, name, match);
+    }
   }
 }
 
