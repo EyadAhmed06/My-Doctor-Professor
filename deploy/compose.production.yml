@@ -6,9 +6,9 @@ services:
     container_name: mdp-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:?DB_NAME must be supplied through the production app env file}
+      POSTGRES_USER: ${DB_USERNAME:?DB_USERNAME must be supplied through the production app env file}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be supplied through the production app env file}
     volumes:
       - /opt/mdp/data/postgres:/var/lib/postgresql/data
       - /opt/mdp/config/postgres-certs:/certs:ro
@@ -23,14 +23,14 @@ services:
       - -c
       - ssl_ca_file=/certs/ca.crt
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:?DB_USERNAME is required} -d ${DB_NAME:?DB_NAME is required}"]
       interval: 10s
       timeout: 5s
       retries: 10
     networks: [internal]
 
   backend:
-    image: ${BACKEND_IMAGE}
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be supplied through the deployment env file}
     container_name: mdp-backend
     restart: unless-stopped
     env_file: /opt/mdp/app.env
@@ -59,7 +59,7 @@ services:
     networks: [internal]
 
   frontend:
-    image: ${FRONTEND_IMAGE}
+    image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE must be supplied through the deployment env file}
     container_name: mdp-frontend
     restart: unless-stopped
     environment:
@@ -81,7 +81,7 @@ services:
     container_name: mdp-caddy
     restart: unless-stopped
     environment:
-      APP_HOST: ${APP_HOST}
+      APP_HOST: ${APP_HOST:?APP_HOST must be supplied through the deployment env file}
     ports:
       - "80:80"
       - "443:443"
