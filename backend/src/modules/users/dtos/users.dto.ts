@@ -16,3 +16,8 @@ export class ChangePasswordDto {
  @IsString() @MinLength(12) @MaxLength(128)
  @Matches(/[a-z]/) @Matches(/[A-Z]/) @Matches(/[0-9]/) new_password:string;
 }
+
+export class DeleteOwnAccountDto {
+ @IsString() @IsNotEmpty() current_password:string;
+ @IsString() @Matches(/^DELETE$/, { message: "confirmation must equal DELETE" }) confirmation:string;
+}
