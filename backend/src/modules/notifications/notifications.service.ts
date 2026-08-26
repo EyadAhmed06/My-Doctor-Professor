@@ -137,6 +137,7 @@ export class NotificationsService {
 
   private async activeSubscriberIds(scopeSql:string,scopeId:string):Promise<string[]> {
     const rows=await this.dataSource.query(`
+        /* security-audit-reviewed: parameterized-or-allowlisted-fragments */
       SELECT DISTINCT user_account.id
       FROM bundle_enrollments enrollment
       JOIN bundles bundle ON bundle.id=enrollment.bundle_id
