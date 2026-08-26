@@ -38,7 +38,7 @@ export function RegisterPage() {
   const [loading,setLoading]=useState(false);
   const [googleLoading,setGoogleLoading]=useState(false);
   const [error,setError]=useState<string|null>(null);
-  const update=(key:keyof typeof form)=>(event:React.ChangeEvent<HTMLInputElement>)=>setForm(current=>({...current,[key]:event.target.value}));
+  const update=(key:keyof typeof form)=>(event:React.ChangeEvent<HTMLInputElement>)=>setForm(current=>({...current,[key]:key==="current_semester"?String(Math.min(6,Math.max(1,Number.parseInt(event.target.value||"1",10)||1))):event.target.value}));
 
   useEffect(()=>{
     if(!authLoading&&user){router.replace("/dashboard");return;}
