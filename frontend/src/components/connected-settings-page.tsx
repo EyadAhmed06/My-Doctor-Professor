@@ -2,7 +2,7 @@
 
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FiCheck, FiEye, FiEyeOff, FiGlobe, FiImage, FiLock, FiMonitor, FiSave, FiShield, FiUser } from "react-icons/fi";
+import { FiCheck, FiEye, FiEyeOff, FiGlobe, FiImage, FiLock, FiMonitor, FiSave, FiShield, FiTrash2, FiUser } from "react-icons/fi";
 import { useAppTheme } from "./app-theme";
 import { AuthUser, useAuth } from "./auth-provider";
 import { LanguageSwitcher, useLocale } from "./locale-provider";
@@ -67,6 +67,9 @@ export function ConnectedSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [securityBusy, setSecurityBusy] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -193,6 +196,18 @@ export function ConnectedSettingsPage() {
     finally{setSecurityBusy(false);}
   }
 
+  async function deleteAccount(event: FormEvent) {
+    event.preventDefault();
+    if (!user || deleteConfirmation !== "DELETE" || !deletePassword) return;
+    setDeleteBusy(true); setError(null); setMessage(null);
+    try {
+      await request(`/users/${user.id}`, { method: "DELETE", body: { current_password: deletePassword, confirmation: deleteConfirmation } });
+      try { await logout(); } catch { /* the account deletion already revoked this session */ }
+      router.push("/login?account=deleted");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to delete your account."); }
+    finally { setDeleteBusy(false); }
+  }
+
   function passwordKey(event: KeyboardEvent<HTMLInputElement>) { setCapsLock(event.getModifierState("CapsLock")); }
   function setMotion(value: boolean) {
     setReducedMotion(value); localStorage.setItem("mdp-reduced-motion", String(value));
@@ -208,7 +223,7 @@ export function ConnectedSettingsPage() {
     <div className="pp-title settings-v2-heading"><div><small className="page-eyebrow">ACCOUNT CONTROL</small><h1>{locale==="ar"?"الإعدادات":"Settings"}</h1><p>{locale==="ar"?"إدارة هويتك وأمان الحساب والجلسات والمظهر واللغة من مكان واحد.":"One place for identity, account security, active sessions, appearance, language, and accessibility."}</p></div>{dirty && <span className="settings-unsaved-badge">Unsaved changes</span>}</div>
     {error && <p className="form-error" role="alert">{error}</p>}{message && <p className="form-success"><FiCheck /> {message}</p>}
     {loading ? <div className="product-auth-loading">Loading settings…</div> : <div className="settings-v2-layout">
-      <nav className="settings-section-nav" aria-label="Settings sections"><a href="#profile"><FiUser/> Identity</a><a href="#security"><FiShield/> Security</a><a href="#appearance"><FiGlobe/> Appearance & language</a></nav>
+      <nav className="settings-section-nav" aria-label="Settings sections"><a href="#profile"><FiUser/> Identity</a><a href="#security"><FiShield/> Security</a><a href="#appearance"><FiGlobe/> Appearance & language</a>{user?.role==="STUDENT"&&<a href="#delete-account"><FiTrash2/> Delete account</a>}</nav>
       <div className="settings-v2-content">
         <Panel id="profile" title="Profile & identity">
           <div className="profile-card settings-avatar-preview">{draft.profilePictureUrl && !imageError ? <img src={draft.profilePictureUrl} alt={`${displayName} profile`} onError={() => setImageError(true)} /> : <span className="avatar-large">{initials}</span>}<div><h2>{displayName}</h2><p>{profile?.email}</p><p>{profile?.role.replaceAll("_", " ")} · {profile?.status}</p></div></div>
@@ -232,6 +247,8 @@ export function ConnectedSettingsPage() {
             {capsLock && <p className="caps-lock-warning">Caps Lock is on.</p>}<ul className="password-requirements"><li className={checks.length ? "met" : ""}>At least 12 characters</li><li className={checks.lower ? "met" : ""}>Lowercase letter</li><li className={checks.upper ? "met" : ""}>Uppercase letter</li><li className={checks.number ? "met" : ""}>Number</li></ul><button className="pp-button" disabled={saving || !currentPassword || !newPassword}><FiLock /> {saving ? "Updating…" : "Change password"}</button>
           </form>
         </Panel>
+
+        {user?.role==="STUDENT"&&<Panel id="delete-account" title="Delete account"><form onSubmit={deleteAccount} className="settings-password-form"><p>Deleting your account immediately disables sign-in and signs out every active session. Academic and audit records are retained securely.</p><label>Current password<input type="password" autoComplete="current-password" value={deletePassword} onChange={(event)=>setDeletePassword(event.target.value)} required /></label><label>Type DELETE to confirm<input value={deleteConfirmation} onChange={(event)=>setDeleteConfirmation(event.target.value)} required /></label><button className="pp-button danger" disabled={deleteBusy||!deletePassword||deleteConfirmation!=="DELETE"}><FiTrash2/> {deleteBusy?"Deleting…":"Delete my account"}</button></form></Panel>}
 
         <Panel id="appearance" title="Appearance & language"><div className="settings-preference-grid"><section><h3>Theme</h3><div className="theme-choices"><button className={preference === "light" ? "active" : ""} onClick={() => setTheme("light")}>Light</button><button className={preference === "dark" ? "active" : ""} onClick={() => setTheme("dark")}>Dark</button><button className={preference === "system" ? "active" : ""} onClick={() => setTheme("system")}>System</button></div><p>Resolved theme: <b>{theme}</b>.</p></section><section><h3>Language</h3><LanguageSwitcher/><p>English and Arabic UI are available. Arabic switches the application shell to RTL while academic/user-authored content keeps its original language.</p></section></div><label className="settings-switch"><span><b>Reduce motion</b><small>Disable non-essential movement and animated feedback.</small></span><input type="checkbox" checked={reducedMotion} onChange={(event) => setMotion(event.target.checked)} /></label></Panel>
       </div>
