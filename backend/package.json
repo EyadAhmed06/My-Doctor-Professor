@@ -33,6 +33,7 @@
     "postman:verify-inventory": "node scripts/verify-generated-route-inventory.mjs",
     "postman:verify-report": "node scripts/verify-newman-report.mjs",
     "seed:demo": "ts-node scripts/seed-demo.ts",
+    "seed:roles": "ts-node scripts/seed-role-accounts.ts",
     "backup:create": "node scripts/backup-db.mjs",
     "backup:verify": "node scripts/verify-backup.mjs",
     "backup:restore": "node scripts/restore-backup.mjs",
