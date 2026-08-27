@@ -88,7 +88,8 @@ const MAX_PDF_BYTES = 25 * 1024 * 1024;
 const MAX_PDF_PAGES = 200;
 const MAX_IMPORT_CANDIDATES = 500;
 const MIN_TEXT_LENGTH = 80;
-const MAX_MCQ_OPTIONS = 6;
+const REQUIRED_MCQ_OPTIONS = 5;
+const MAX_PARSED_MCQ_OPTIONS = 6;
 const IMPORT_REFERENCE_PREFIX = 'MDP_PDF_IMPORT';
 
 const STOPWORDS = new Set([
@@ -646,7 +647,7 @@ export class QuestionImportService {
       }
       accepted.push(marker);
       previous = code;
-      if (accepted.length >= MAX_MCQ_OPTIONS) break;
+      if (accepted.length >= MAX_PARSED_MCQ_OPTIONS) break;
     }
 
     return accepted.map((marker, index) => {
@@ -723,11 +724,11 @@ export class QuestionImportService {
     if (candidate.questionText.length < 8) {
       issues.push({ code: 'STEM_TOO_SHORT', severity: 'ERROR', message: 'Question stem is too short to publish safely.' });
     }
-    if (candidate.options.length < 2 || candidate.options.length > MAX_MCQ_OPTIONS) {
+    if (candidate.options.length !== REQUIRED_MCQ_OPTIONS) {
       issues.push({
         code: 'INVALID_OPTION_COUNT',
         severity: 'ERROR',
-        message: `MCQs must contain between two and ${MAX_MCQ_OPTIONS} answer options.`,
+        message: `MCQs must contain exactly ${REQUIRED_MCQ_OPTIONS} answer options (A-E).`,
       });
     }
     if (new Set(optionTexts).size !== optionTexts.length) {
@@ -827,8 +828,8 @@ export class QuestionImportService {
   private validatePublishCandidate(candidate: PublishImportedQuestionDto, index: number): void {
     const text = candidate.question_text.trim();
     if (text.length < 8) throw new BadRequestException(`Question ${index + 1} has an invalid stem`);
-    if (candidate.options.length < 2 || candidate.options.length > MAX_MCQ_OPTIONS) {
-      throw new BadRequestException(`Question ${index + 1} must contain two to ${MAX_MCQ_OPTIONS} options`);
+    if (candidate.options.length !== REQUIRED_MCQ_OPTIONS) {
+      throw new BadRequestException(`Question ${index + 1} must contain exactly ${REQUIRED_MCQ_OPTIONS} options`);
     }
     const normalized = candidate.options.map((option) => this.normalize(option.option_text));
     if (normalized.some((option) => !option) || new Set(normalized).size !== normalized.length) {

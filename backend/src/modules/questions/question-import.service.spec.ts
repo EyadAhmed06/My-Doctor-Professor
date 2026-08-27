@@ -220,7 +220,8 @@ describe('QuestionImportService', () => {
 
     expect(result.candidates).toHaveLength(1);
     expect(result.candidates[0].options.map((option) => option.label)).toEqual(['A', 'B', 'C', 'D']);
-    expect(result.candidates[0].issues.some((issue) => issue.code === 'INVALID_OPTION_COUNT')).toBe(false);
+    expect(result.candidates[0].issues.some((issue) => issue.code === 'INVALID_OPTION_COUNT')).toBe(true);
+    expect(result.candidates[0].status).toBe('INVALID');
   });
 
   it('does not invent questions when a PDF has no safely extractable text layer', async () => {

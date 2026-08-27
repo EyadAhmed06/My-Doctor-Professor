@@ -602,6 +602,9 @@ async function main() {
           const distractors = course.lectures
             .filter((_, index) => index !== lectureIndex)
             .map((item) => item.focus);
+          const externalDistractor = courses[
+            (courses.indexOf(course) + 1) % courses.length
+          ].lectures[lectureIndex % 4].focus;
           for (let questionIndex = 0; questionIndex < 10; questionIndex++) {
             const questionId = uuid(
               `mcq:${course.code}:${weekNumber}:${questionIndex + 1}`,
@@ -635,7 +638,11 @@ async function main() {
                 ownerId,
               ],
             );
-            const choices = [lecture.focus, ...distractors];
+            const choices = [
+              lecture.focus,
+              ...distractors,
+              externalDistractor,
+            ];
             const rotation = questionIndex % choices.length;
             const ordered = choices.map(
               (_, index) => choices[(index + rotation) % choices.length],
@@ -776,7 +783,23 @@ async function main() {
           COUNT(DISTINCT question.id) FILTER (WHERE question.question_type='MCQ')::int AS mcqs,
           COUNT(DISTINCT question.id) FILTER (WHERE question.question_type='ESSAY')::int AS essays,
           COUNT(DISTINCT deck.id)::int AS decks,
-          COUNT(DISTINCT card.id)::int AS cards
+          COUNT(DISTINCT card.id)::int AS cards,
+          COUNT(DISTINCT question.id) FILTER (
+            WHERE question.question_type='MCQ'
+              AND (
+                SELECT COUNT(*)
+                FROM mcq_options option
+                WHERE option.question_id=question.id
+              ) <> 5
+          )::int AS invalid_option_count_mcqs,
+          COUNT(DISTINCT question.id) FILTER (
+            WHERE question.question_type='MCQ'
+              AND (
+                SELECT COUNT(*)
+                FROM mcq_options option
+                WHERE option.question_id=question.id AND option.is_correct=TRUE
+              ) <> 1
+          )::int AS invalid_correct_answer_mcqs
         FROM courses course
         LEFT JOIN weeks week ON week.course_id=course.id
         LEFT JOIN lectures lecture ON lecture.week_id=week.id
@@ -793,7 +816,9 @@ async function main() {
         Number(audit.mcqs) !== 560 ||
         Number(audit.essays) !== 56 ||
         Number(audit.decks) !== 56 ||
-        Number(audit.cards) !== 280
+        Number(audit.cards) !== 280 ||
+        Number(audit.invalid_option_count_mcqs) !== 0 ||
+        Number(audit.invalid_correct_answer_mcqs) !== 0
       ) {
         throw new Error(`Seed verification failed: ${JSON.stringify(audit)}`);
       }

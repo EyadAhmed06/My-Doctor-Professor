@@ -111,7 +111,7 @@ export class PublishImportedQuestionDto {
   @IsOptional() @IsString() explanation?: string;
   @IsEnum(QuestionDifficulty) difficulty: QuestionDifficulty;
   @IsInt() @Min(1) @Max(999) marks: number;
-  @IsArray() @ArrayMinSize(2) @ArrayMaxSize(6)
+  @IsArray() @ArrayMinSize(5) @ArrayMaxSize(5)
   @ValidateNested({ each: true })
   @Type(() => PublishImportedOptionDto)
   options: PublishImportedOptionDto[];

@@ -321,7 +321,7 @@ export class QuestionImportEnrichmentService {
           instructions: [
             'Recover malformed MCQs from the attached source PDF exactly enough for instructor review.',
             'Use candidate_id and source_page to locate each question. Preserve the question meaning and option texts from the PDF; do not invent replacement distractors.',
-            'Return 2 to 6 sequentially labelled options using A, B, C, D, E, F as present in the source.',
+            'Return exactly 5 sequentially labelled options using A, B, C, D, E as present in the source.',
             'Resolve the correct option from the PDF answer key when it is available. If the key cannot be located, select the medically best supplied option.',
             'Generate a straightforward 4 to 7 line explanation. Explain why the correct option is correct and why every incorrect option is wrong.',
             'Estimate difficulty as EASY, MEDIUM, or HARD.',
@@ -387,7 +387,7 @@ export class QuestionImportEnrichmentService {
   }
 
   private validateRecoveredOptions(options: RecoveryRow['options']): Array<{ label: string; text: string }> | null {
-    if (!Array.isArray(options) || options.length < 2 || options.length > 6) return null;
+    if (!Array.isArray(options) || options.length !== 5) return null;
     const normalized = options.map((option, index) => ({
       label: option.label.trim().toUpperCase(),
       text: option.text.trim(),

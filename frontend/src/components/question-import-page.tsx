@@ -329,7 +329,7 @@ export function QuestionImportPage() {
           <div className="question-import-fields">
             <label><span>Course</span><select value={courseId} onChange={(event) => void chooseCourse(event.target.value)}><option value="">Select course…</option>{courses.map((item) => <option value={item.id} key={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label>
             <label><span>Destination topic</span><select value={topicId} disabled={!course} onChange={(event) => { setTopicId(event.target.value); setInspection(null); setCandidates([]); }}><option value="">Select exact topic…</option>{topics.map((topic) => <option value={topic.id} key={itemKey(topic.id, topic.path)}>{topic.path} · {topic.topicName}</option>)}</select></label>
-            <label className="question-import-file"><span>Question PDF</span><input type="file" accept="application/pdf,.pdf" onChange={(event) => { setFile(event.target.files?.[0] || null); setInspection(null); setCandidates([]); }} /><small>Real PDF only · max 25 MB · max 200 pages. MCQs may contain 2–6 options (A–F).</small></label>
+            <label className="question-import-file"><span>Question PDF</span><input type="file" accept="application/pdf,.pdf" onChange={(event) => { setFile(event.target.files?.[0] || null); setInspection(null); setCandidates([]); }} /><small>Real PDF only · max 25 MB · max 200 pages. Every MCQ must contain exactly 5 options (A–E).</small></label>
           </div>
           <label className="question-import-rights"><input type="checkbox" checked={copyrightConfirmed} onChange={(event) => setCopyrightConfirmed(event.target.checked)} /><span>I confirm I have permission to use and publish questions from this material.</span></label>
           <div className="question-import-upload-actions">
@@ -377,7 +377,7 @@ export function QuestionImportPage() {
             <footer><label className="question-import-approve"><input type="checkbox" checked={Boolean(candidate.approved)} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, approved: event.target.checked }))} /><span>{candidate.reuse_question_id ? "Approve reuse" : "Approve for publication"}</span></label>{candidate.reuse_question_id && <span className="question-import-reuse-chip"><FiCheckCircle /> Existing question will be reused; no duplicate will be created.</span>}</footer>
           </article>)}
 
-          <div className="question-import-publish-bar"><div><strong>{approvedCount} ready</strong><span>Publication re-validates 2–6 option structure, exactly one correct answer, topic overrides, duplicate policy, and access permissions on the server.</span></div><button type="button" className="pp-button" onClick={() => void publishApproved()} disabled={publishing || approvedCount === 0}>{publishing ? <><FiRefreshCw className="spin" /> Publishing…</> : <><FiCheck /> Publish ready questions</>}</button></div>
+          <div className="question-import-publish-bar"><div><strong>{approvedCount} ready</strong><span>Publication re-validates exactly 5 options (A–E), one correct answer, topic overrides, duplicate policy, and access permissions on the server.</span></div><button type="button" className="pp-button" onClick={() => void publishApproved()} disabled={publishing || approvedCount === 0}>{publishing ? <><FiRefreshCw className="spin" /> Publishing…</> : <><FiCheck /> Publish ready questions</>}</button></div>
         </section>}
       </>}
     </main>

@@ -333,8 +333,8 @@ export class QuestionsService {
       throw new ConflictException('Deactivate the question before changing its options');
     }
     const optionCount = await this.options.count({ where: { questionId } });
-    if (optionCount >= 6) {
-      throw new ConflictException('An MCQ cannot contain more than six options');
+    if (optionCount >= 5) {
+      throw new ConflictException('An MCQ cannot contain more than five options');
     }
     await this.assertOptionTextUnique(questionId, dto.option_text);
     if (dto.is_correct && await this.options.exists({ where: { questionId, isCorrect: true } })) {
@@ -559,11 +559,8 @@ export class QuestionsService {
       const options = await this.options.find({
         where: { questionId: question.id },
       });
-      if (options.length < 2) {
-        throw new ConflictException('An active MCQ requires at least two options');
-      }
-      if (options.length > 6) {
-        throw new ConflictException('An active MCQ cannot contain more than six options');
+      if (options.length !== 5) {
+        throw new ConflictException('An active MCQ requires exactly five options');
       }
       if (options.filter((option) => option.isCorrect).length !== 1) {
         throw new ConflictException('An active MCQ requires exactly one correct option');
