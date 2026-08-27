@@ -16,6 +16,9 @@ const MAX_PDF_PAGES = 200;
 const MAX_CANDIDATES = 500;
 const MIN_TEXT_LENGTH = 80;
 const REFERENCE_PREFIX = 'MDP_ESSAY_PDF_IMPORT';
+const ESSAY_ANSWER_MODEL = process.env.OPENAI_QUESTION_ENRICHMENT_MODEL || process.env.OPENAI_MODEL || 'gpt-5-mini';
+const ESSAY_ANSWER_BATCH_SIZE = 24;
+const ESSAY_ANSWER_TIMEOUT_MS = 60_000;
 
 type PdfPage = { page: number; text: string };
 type ParsedPdf = { pages: PdfPage[]; pageCount: number; text: string; extractionConfidence: number };
@@ -35,6 +38,8 @@ type EssayCandidate = {
   status: 'VALID' | 'NEEDS_REVIEW' | 'INVALID';
   issues: EssayIssue[];
 };
+type OpenAiResponse = { output_text?: string; output?: Array<{ content?: Array<{ type?: string; text?: string }> }> };
+type GeneratedEssayAnswer = { candidate_id: string; model_answer: string };
 
 
 @Injectable()
@@ -75,7 +80,8 @@ export class EssayQuestionImportService {
       };
     }
 
-    const parsed = this.parseEssayCases(pdf, sha256).slice(0, MAX_CANDIDATES);
+    const extracted = this.parseEssayCases(pdf, sha256).slice(0, MAX_CANDIDATES);
+    const parsed = await this.enrichMissingModelAnswers(extracted);
     const valid = parsed.filter((item) => item.status === 'VALID').length;
     const needsReview = parsed.filter((item) => item.status === 'NEEDS_REVIEW').length;
     const invalid = parsed.filter((item) => item.status === 'INVALID').length;
@@ -292,6 +298,138 @@ export class EssayQuestionImportService {
       if (answer) map.set(number, answer);
     }
     return map;
+  }
+
+  private async enrichMissingModelAnswers(candidates: EssayCandidate[]): Promise<EssayCandidate[]> {
+    const missing = candidates.filter((candidate) => !candidate.model_answer?.trim());
+    if (!missing.length) return candidates;
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
+    if (!apiKey) {
+      return candidates.map((candidate) => !candidate.model_answer?.trim()
+        ? this.withAnswerGenerationFailure(candidate, 'OPENAI_API_KEY is not configured on the backend.')
+        : candidate);
+    }
+
+    const generated = new Map<string, string>();
+    const failed = new Set<string>();
+    for (let offset = 0; offset < missing.length; offset += ESSAY_ANSWER_BATCH_SIZE) {
+      const batch = missing.slice(offset, offset + ESSAY_ANSWER_BATCH_SIZE);
+      try {
+        const rows = await this.generateEssayAnswers(batch, apiKey);
+        for (const row of rows) generated.set(row.candidate_id, row.model_answer.trim());
+        for (const candidate of batch) if (!generated.get(candidate.candidate_id)) failed.add(candidate.candidate_id);
+      } catch {
+        for (const candidate of batch) failed.add(candidate.candidate_id);
+      }
+    }
+
+    return candidates.map((candidate) => {
+      const answer = generated.get(candidate.candidate_id);
+      if (!answer) return failed.has(candidate.candidate_id)
+        ? this.withAnswerGenerationFailure(candidate, 'Automatic model-answer generation failed. Review and enter the answer manually.')
+        : candidate;
+      const issues: EssayIssue[] = [
+        ...candidate.issues.filter((issue) => !['MODEL_ANSWER_MISSING', 'AI_ANSWER_GENERATION_FAILED'].includes(issue.code)),
+        {
+          code: 'AI_MODEL_ANSWER_GENERATED',
+          severity: 'WARNING',
+          message: `${ESSAY_ANSWER_MODEL} generated this model answer because no matching answer was recovered from the PDF. Instructor review is required before publication.`,
+        },
+      ];
+      return { ...candidate, model_answer: answer, issues, status: 'NEEDS_REVIEW' as const };
+    });
+  }
+
+  private async generateEssayAnswers(candidates: EssayCandidate[], apiKey: string): Promise<GeneratedEssayAnswer[]> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), ESSAY_ANSWER_TIMEOUT_MS);
+    try {
+      const input = candidates.map((candidate) => ({
+        candidate_id: candidate.candidate_id,
+        case_stem: candidate.case_stem,
+        question: candidate.question_text,
+      }));
+      const response = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model: ESSAY_ANSWER_MODEL,
+          store: false,
+          max_output_tokens: 12_000,
+          reasoning: { effort: 'low' },
+          instructions: [
+            'Generate instructor-review model answers for medical case-based essay questions.',
+            'Return one answer for every supplied candidate_id and do not omit any candidate.',
+            'Answer the exact question using medically accurate, exam-ready content and the case context.',
+            'Do not invent patient findings, investigations, diagnoses, citations, or facts not justified by the question.',
+            'When a question requests a number of items, provide exactly that number when medically defensible.',
+            'Use concise structured prose or bullet-style lines suitable for a model-answer field.',
+            'Do not mention AI, the prompt, uncertainty policy, or these instructions in the answer.',
+          ].join(' '),
+          input: JSON.stringify(input),
+          text: {
+            verbosity: 'low',
+            format: {
+              type: 'json_schema',
+              name: 'essay_model_answers',
+              strict: true,
+              schema: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['answers'],
+                properties: {
+                  answers: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      additionalProperties: false,
+                      required: ['candidate_id', 'model_answer'],
+                      properties: {
+                        candidate_id: { type: 'string' },
+                        model_answer: { type: 'string' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        }),
+      });
+      if (!response.ok) throw new Error(`OpenAI essay answer generation failed (${response.status})`);
+      const body = await response.json() as OpenAiResponse;
+      const parsed = JSON.parse(this.openAiResponseText(body)) as { answers?: GeneratedEssayAnswer[] };
+      if (!Array.isArray(parsed.answers)) throw new Error('OpenAI response did not contain essay answers');
+      const expected = new Set(candidates.map((candidate) => candidate.candidate_id));
+      const valid = parsed.answers.filter((row) => expected.has(row.candidate_id) && row.model_answer?.trim());
+      if (new Set(valid.map((row) => row.candidate_id)).size !== expected.size) {
+        throw new Error('OpenAI response did not match every essay candidate');
+      }
+      return valid;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private withAnswerGenerationFailure(candidate: EssayCandidate, message: string): EssayCandidate {
+    return {
+      ...candidate,
+      status: 'INVALID',
+      issues: [
+        ...candidate.issues.filter((issue) => issue.code !== 'AI_ANSWER_GENERATION_FAILED'),
+        { code: 'AI_ANSWER_GENERATION_FAILED', severity: 'WARNING', message },
+      ],
+    };
+  }
+
+  private openAiResponseText(body: OpenAiResponse) {
+    if (body.output_text?.trim()) return body.output_text.trim();
+    const joined = (body.output || []).flatMap((item) => item.content || [])
+      .filter((item) => item.type === 'output_text' && typeof item.text === 'string')
+      .map((item) => item.text as string).join('\n').trim();
+    if (!joined) throw new Error('OpenAI response contained no output text');
+    return joined;
   }
 
   private pageBefore(text: string, offset: number) {
