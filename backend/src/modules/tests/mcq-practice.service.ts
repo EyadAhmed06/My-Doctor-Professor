@@ -12,7 +12,7 @@ import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { Student } from '../users/entities/student.entity';
 import { GeneratePracticeTestDto } from './dtos/tests.dto';
 
-const ALLOWED_PRACTICE_SIZES = [40, 200] as const;
+const ALLOWED_PRACTICE_SIZES = [10, 20, 40, 200] as const;
 
 type AccessibleLectureRow = { lecture_id: string };
 
@@ -26,8 +26,8 @@ export class McqPracticeService {
   ) {}
 
   async generate(dto: GeneratePracticeTestDto, actor: AuthenticatedUser) {
-    if (!ALLOWED_PRACTICE_SIZES.includes(dto.question_count as 40 | 200)) {
-      throw new BadRequestException('Lecture practice must contain either 40 or 200 MCQs');
+    if (!ALLOWED_PRACTICE_SIZES.includes(dto.question_count as 10 | 20 | 40 | 200)) {
+      throw new BadRequestException('Practice must contain 10, 20, 40, or 200 MCQs');
     }
     if (![TestMode.TUTOR, TestMode.TIMED].includes(dto.test_mode)) {
       throw new BadRequestException('Lecture practice is available in Tutor or Timed mode');
@@ -77,7 +77,13 @@ export class McqPracticeService {
       .getMany();
     if (lectures.length !== dto.lecture_ids.length) throw new NotFoundException('One or more lectures were not found');
     const courseIds = new Set(lectures.map((lecture) => lecture.week.courseId));
-    if (courseIds.size !== 1) throw new BadRequestException('All selected lectures must belong to the same course');
+    const bundleFinal = dto.question_count === 200 && courseIds.size > 1;
+    if (courseIds.size !== 1 && !bundleFinal) {
+      throw new BadRequestException('A non-final practice must use lectures from one course');
+    }
+    if (bundleFinal && courseIds.size !== 5) {
+      throw new BadRequestException('A 200-MCQ bundle final must contain exactly five courses');
+    }
 
     const builder = this.questions.createQueryBuilder('question')
       .innerJoinAndSelect('question.topic', 'topic')
@@ -92,19 +98,46 @@ export class McqPracticeService {
     if (eligible.length < dto.question_count) {
       throw new BadRequestException(`Only ${eligible.length} eligible MCQs are available for this selection; ${dto.question_count} are required`);
     }
-    for (let index = eligible.length - 1; index > 0; index -= 1) {
-      const target = randomInt(index + 1);
-      [eligible[index], eligible[target]] = [eligible[target], eligible[index]];
+    const shuffle = <T>(items: T[]) => {
+      for (let index = items.length - 1; index > 0; index -= 1) {
+        const target = randomInt(index + 1);
+        [items[index], items[target]] = [items[target], items[index]];
+      }
+      return items;
+    };
+    let selected: Question[];
+    if (bundleFinal) {
+      const courseByLecture = new Map(lectures.map((lecture) => [lecture.id, lecture.week.courseId]));
+      const byCourse = new Map<string, Question[]>();
+      for (const question of eligible) {
+        const courseId = courseByLecture.get(question.topic.lectureId);
+        if (!courseId) continue;
+        const items = byCourse.get(courseId) ?? [];
+        items.push(question);
+        byCourse.set(courseId, items);
+      }
+      for (const courseId of courseIds) {
+        const available = byCourse.get(courseId)?.length ?? 0;
+        if (available < 40) {
+          throw new BadRequestException(`Course ${courseId} has only ${available} eligible MCQs; 40 are required`);
+        }
+      }
+      selected = shuffle([...courseIds].flatMap((courseId) => shuffle(byCourse.get(courseId)!).slice(0, 40)));
+    } else {
+      selected = shuffle(eligible).slice(0, dto.question_count);
     }
-    const selected = eligible.slice(0, dto.question_count);
-    const courseId = lectures[0].week.courseId;
+    const courseId = bundleFinal ? null : lectures[0].week.courseId;
 
     return this.dataSource.transaction(async (manager) => {
       const now = new Date();
       const total = selected.reduce((sum, question) => sum + Number(question.marks), 0);
       const test = await manager.save(Test, manager.create(Test, {
-        title: `${dto.question_count}-MCQ ${dto.test_mode === TestMode.TIMED ? 'Timed' : 'Tutor'} practice · ${now.toISOString().slice(0, 10)}`,
-        description: `Generated from ${lectures.length} selected lecture${lectures.length === 1 ? '' : 's'}`,
+        title: bundleFinal
+          ? `200-MCQ Bundle Final · ${now.toISOString().slice(0, 10)}`
+          : `${dto.question_count}-MCQ ${dto.test_mode === TestMode.TIMED ? 'Timed' : 'Tutor'} practice · ${now.toISOString().slice(0, 10)}`,
+        description: bundleFinal
+          ? 'Generated as 40 MCQs from each of five courses.'
+          : `Generated from ${lectures.length} selected lecture${lectures.length === 1 ? '' : 's'}`,
         testType: TestType.CUSTOM,
         courseId,
         weekId: null,
