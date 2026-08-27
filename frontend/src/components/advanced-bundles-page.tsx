@@ -401,13 +401,13 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
     setQuestionTarget(40);
   }, [content.bundle.id]);
 
-  const selectedCourse = courses.find((course) => course.id === selectedCourseId);
-  const selectedLectures = selectedCourse?.weeks.flatMap((week) => week.lectures).filter((lecture) => selectedIds.includes(lecture.id)) || [];
+  const selectedLectures = courses.flatMap((course) => course.weeks.flatMap((week) => week.lectures)).filter((lecture) => selectedIds.includes(lecture.id));
+  const selectedCourseCount = courses.filter((course) => course.weeks.some((week) => week.lectures.some((lecture) => selectedIds.includes(lecture.id)))).length;
   const pool = selectedLectures.reduce((sum, lecture) => sum + Number(lecture.mcq_count || 0), 0);
-  const ready = selectedIds.length > 0 && pool >= required && !content.bundle.read_only;
+  const ready = selectedIds.length > 0 && pool >= required && (required !== 200 || selectedCourseCount === 5) && !content.bundle.read_only;
 
   function toggleLecture(course: Course, lecture: Lecture) {
-    if (selectedCourseId && selectedCourseId !== course.id) {
+    if (required === 40 && selectedCourseId && selectedCourseId !== course.id) {
       setSelectedCourseId(course.id);
       setSelectedIds([lecture.id]);
       return;
@@ -420,7 +420,7 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
 
   function toggleWeek(course: Course, week: Week) {
     const eligible = week.lectures.filter((lecture) => Number(lecture.mcq_count || 0) > 0).map((lecture) => lecture.id);
-    if (selectedCourseId && selectedCourseId !== course.id) {
+    if (required === 40 && selectedCourseId && selectedCourseId !== course.id) {
       setSelectedCourseId(course.id);
       setSelectedIds(eligible);
       return;
@@ -465,12 +465,15 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
   }
 
   if (!courses.length) return <EmptyState title="No curriculum available" description="This bundle has no accessible courses or lectures." />;
+  if (!courses.some((course) => course.weeks.some((week) => week.lectures.some((lecture) => Number(lecture.mcq_count || 0) > 0)))) {
+    return <EmptyState title="No active MCQs in this bundle" description="The bundle curriculum is visible, but none of its lecture topics currently contains an active question-bank MCQ." />;
+  }
 
   return <section className="bundle-question-builder">
     <Panel title={`Build a ${required}-MCQ quiz`}>
       <div className="question-count-selector" role="group" aria-label="Exam question count">
-        <button type="button" className={required === 40 ? "active" : ""} onClick={() => setQuestionTarget(40)}>40 MCQs</button>
-        <button type="button" className={required === 200 ? "active" : ""} onClick={() => setQuestionTarget(200)}>200 MCQs</button>
+        <button type="button" className={required === 40 ? "active" : ""} onClick={() => { setQuestionTarget(40); setSelectedCourseId(""); setSelectedIds([]); }}>40 MCQs</button>
+        <button type="button" className={required === 200 ? "active" : ""} onClick={() => { setQuestionTarget(200); setSelectedCourseId(""); setSelectedIds([]); }}>200 MCQs</button>
         <small>{required === 200 ? "Full exam · 200 minutes in Timed mode" : "Standard quiz · 40 minutes in Timed mode"}</small>
       </div>
       <div className="question-builder-intro">
@@ -479,9 +482,11 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
       </div>
       <div className="question-curriculum">
         {courses.map((course) => {
-          const courseSelected = selectedCourseId === course.id;
+          const courseSelected = required === 200
+            ? course.weeks.some((week) => week.lectures.some((lecture) => selectedIds.includes(lecture.id)))
+            : selectedCourseId === course.id;
           return <section className={`question-course ${courseSelected ? "selected" : ""}`} key={course.id}>
-            <header><b>{course.courseCode} · {course.courseName}</b><small>Choose lectures from one course per quiz</small></header>
+            <header><b>{course.courseCode} · {course.courseName}</b><small>{required === 200 ? "Select five courses for the full final" : "Choose lectures from one course per quiz"}</small></header>
             {course.weeks.map((week) => {
               const eligible = week.lectures.filter((lecture) => Number(lecture.mcq_count || 0) > 0);
               const allSelected = eligible.length > 0 && courseSelected && eligible.every((lecture) => selectedIds.includes(lecture.id));
@@ -575,7 +580,7 @@ function BundleWorkspaceTab({ content, tab, courses, lectures, openWeeks, setOpe
 
   if (tab === "exams") return <Panel title="Bundle Past Exams">{content.past_exams.length ? content.past_exams.map((exam) => <Link className="bundle-row" href={`/past-exams?bundle=${encodeURIComponent(content.bundle.id)}&test=${encodeURIComponent(exam.id)}`} key={exam.id}><FiClock /><span><b>{exam.title}</b><small>{exam.durationMinutes ? `${exam.durationMinutes} minute instructor timer · choose Tutor or Timed` : "Tutor mode available · no timed duration configured"}</small></span><strong>Open →</strong></Link>) : <EmptyState title="No past exams" description="No past exams are assigned to this bundle." />}</Panel>;
 
-  if (tab === "flashcards") return <Panel title="Bundle Flashcards">{lectures.filter((item) => item.lecture.flashcard_deck_count).map(({ week, lecture }) => <Link className="bundle-row" href={`/flashcards?lecture=${encodeURIComponent(lecture.id)}`} key={lecture.id}><FiLayers /><span><b>{lecture.title}</b><small>Week {week.weekNumber} · open your enrolled review queue</small></span><strong>{lecture.flashcard_deck_count} decks</strong></Link>)}</Panel>;
+  if (tab === "flashcards") { const available = lectures.filter((item) => item.lecture.flashcard_deck_count); return <Panel title="Bundle Flashcards">{available.length ? available.map(({ course, week, lecture }) => <Link className="bundle-row" href={`/flashcards?bundle=${encodeURIComponent(content.bundle.id)}&course=${encodeURIComponent(course.id)}&lecture=${encodeURIComponent(lecture.id)}`} key={lecture.id}><FiLayers /><span><b>{lecture.title}</b><small>Week {week.weekNumber} · open your enrolled review queue</small></span><strong>{lecture.flashcard_deck_count} decks</strong></Link>) : <EmptyState title="No published flashcards in this bundle" description="The curriculum is connected, but no published flashcard deck is currently available in its courses." />}</Panel>; }
 
   return <Panel title="Bundle Resources">{lectures.filter((item) => item.lecture.resource_count).map(({ course, week, lecture }) => <Link className="bundle-row" href={guideHref(course, lecture)} key={lecture.id}><FiBookOpen /><span><b>{lecture.title}</b><small>Week {week.weekNumber}</small></span><strong>{lecture.resource_count} files</strong></Link>)}</Panel>;
 }
