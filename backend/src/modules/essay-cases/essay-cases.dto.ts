@@ -29,7 +29,6 @@ export class SubmitEssayCaseDto {
   @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => EssayAnswerDto) answers: EssayAnswerDto[];
 }
 export class EssayAnswerDto { @IsUUID() question_id: string; @IsString() @IsNotEmpty() answer: string; }
-export class ImportPdfCasesDto { @IsUUID() course_id: string; }
 
 export class EssayCasePositionDto {
   @IsUUID() case_id: string;
