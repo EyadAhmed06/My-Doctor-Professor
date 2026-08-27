@@ -1,6 +1,15 @@
 import 'dotenv/config';
 import { createHash } from 'node:crypto';
-import { AppDataSource } from '../src/database/data-source';
+import type { DataSource } from 'typeorm';
+
+// Production images ship compiled application code in dist/ and intentionally
+// omit src/. Local seed runs continue to load the TypeScript data source.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { AppDataSource } = require(
+  process.env.NODE_ENV === 'production'
+    ? '../dist/database/data-source'
+    : '../src/database/data-source',
+) as { AppDataSource: DataSource };
 
 type CourseSeed = {
   semester: 3 | 4 | 5 | 6;
