@@ -2,6 +2,13 @@ import { EssayQuestionImportService } from './essay-question-import.service';
 
 describe('EssayQuestionImportService PDF parsing', () => {
   const service = Object.create(EssayQuestionImportService.prototype) as EssayQuestionImportService;
+  const originalApiKey = process.env.OPENAI_API_KEY;
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    if (originalApiKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = originalApiKey;
+  });
 
   function parse(text: string) {
     return (service as any).parseEssayCases({
@@ -61,5 +68,33 @@ describe('EssayQuestionImportService PDF parsing', () => {
 
     expect(candidates[0].model_answer).toBeNull();
     expect(candidates[1].model_answer).toBe('Second examination answer.');
+  });
+
+  it('generates review-required answers for every question missing a source answer', async () => {
+    process.env.OPENAI_API_KEY = 'test-key';
+    const candidates = parse(`
+      Final 2028
+      CASE 1: A patient presents with progressive urinary symptoms.
+      Q1. What investigations are required?
+      Q2. Mention four causes of a hard prostate.
+    `);
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        output_text: JSON.stringify({ answers: candidates.map((candidate: any) => ({
+          candidate_id: candidate.candidate_id,
+          model_answer: `Generated answer for Q${candidate.question_number}`,
+        })) }),
+      }),
+    } as Response);
+
+    const enriched = await (service as any).enrichMissingModelAnswers(candidates);
+
+    expect(enriched.map((candidate: any) => candidate.model_answer)).toEqual([
+      'Generated answer for Q1',
+      'Generated answer for Q2',
+    ]);
+    expect(enriched.every((candidate: any) => candidate.status === 'NEEDS_REVIEW')).toBe(true);
+    expect(enriched.every((candidate: any) => candidate.issues.some((issue: any) => issue.code === 'AI_MODEL_ANSWER_GENERATED'))).toBe(true);
   });
 });
