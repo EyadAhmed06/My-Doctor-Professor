@@ -175,7 +175,7 @@ export class BundlesService {
     const [courseLinks, weekLinksAll, testLinks, lectureStats] = await Promise.all([
       this.bundleCourses.find({
         where: { bundleId: id },
-        relations: { course: { semester: true } },
+        relations: { course: { semester: true, weeks: { lectures: true } } },
         order: { course: { displayOrder: 'ASC' } },
       }),
       this.bundleWeeks.find({
@@ -196,14 +196,33 @@ export class BundlesService {
           )::int AS mcq_count,
           COUNT(DISTINCT deck.id)::int AS flashcard_deck_count,
           COUNT(DISTINCT resource.id)::int AS resource_count
-        FROM bundle_weeks bundle_week
-        JOIN weeks week ON week.id = bundle_week.week_id
+        FROM bundle_courses bundle_course
+        JOIN courses course ON course.id = bundle_course.course_id
+        JOIN weeks week ON week.course_id = course.id
         JOIN lectures lecture ON lecture.week_id = week.id
         LEFT JOIN topics topic ON topic.lecture_id = lecture.id
         LEFT JOIN questions question ON question.topic_id = topic.id AND question.is_active = TRUE
-        LEFT JOIN flashcard_decks deck ON deck.lecture_id = lecture.id AND deck.is_published = TRUE
+        LEFT JOIN flashcard_decks deck ON deck.course_id = course.id AND deck.is_published = TRUE
+          AND (
+            deck.lecture_id = lecture.id
+            OR (deck.lecture_id IS NULL AND lecture.id = (
+              SELECT first_lecture.id FROM weeks first_week
+              JOIN lectures first_lecture ON first_lecture.week_id=first_week.id
+              WHERE first_week.course_id=course.id
+              ORDER BY first_week.display_order,first_week.week_number,first_lecture.display_order,first_lecture.lecture_number
+              LIMIT 1
+            ))
+          )
         LEFT JOIN resources resource ON resource.lecture_id = lecture.id
-        WHERE bundle_week.bundle_id = $1
+        WHERE bundle_course.bundle_id = $1
+          AND (
+            EXISTS (SELECT 1 FROM bundle_weeks selected WHERE selected.bundle_id=$1 AND selected.week_id=week.id)
+            OR NOT EXISTS (
+              SELECT 1 FROM bundle_weeks selected
+              JOIN weeks selected_week ON selected_week.id=selected.week_id
+              WHERE selected.bundle_id=$1 AND selected_week.course_id=course.id
+            )
+          )
         GROUP BY lecture.id`, [id]),
     ]);
     const weekLinks = visibleWeekIds ? weekLinksAll.filter((item) => visibleWeekIds.has(item.weekId)) : weekLinksAll;
@@ -214,10 +233,16 @@ export class BundlesService {
       flashcard_deck_count: number;
       resource_count: number;
     }>).map((row) => [row.id, row]));
-    const courses = courseLinks.map((link) => ({
+    const courses = courseLinks.map((link) => {
+      const explicitlyLinked = weekLinks.filter((item) => item.week.courseId === link.courseId);
+      const effectiveWeeks = explicitlyLinked.length
+        ? explicitlyLinked
+        : (link.course.weeks || [])
+            .filter((week) => !visibleWeekIds || visibleWeekIds.has(week.id))
+            .map((week) => ({ weekId: week.id, week }));
+      return ({
       ...link.course,
-      weeks: weekLinks
-        .filter((item) => item.week.courseId === link.courseId)
+      weeks: effectiveWeeks
         .map((item) => {
           const essayVisible = !essayWeekIds || essayWeekIds.has(item.weekId);
           return {
@@ -239,16 +264,17 @@ export class BundlesService {
               }),
           };
         }),
-    }));
-    const visibleLectures = courses.flatMap((course) => course.weeks).flatMap((week) => week.lectures);
+    }); });
+    const visibleWeeks = courses.flatMap((course) => course.weeks);
+    const visibleLectures = visibleWeeks.flatMap((week) => week.lectures);
     return {
       bundle: access,
       courses,
       past_exams: testLinks.map((link) => link.test),
-      selected_week_count: weekLinks.length,
+      selected_week_count: visibleWeeks.length,
       totals: {
         courses: courses.length,
-        weeks: weekLinks.length,
+        weeks: visibleWeeks.length,
         lectures: visibleLectures.length,
         questions: visibleLectures.reduce((sum, lecture) => sum + Number(lecture.question_count), 0),
         flashcard_decks: visibleLectures.reduce((sum, lecture) => sum + Number(lecture.flashcard_deck_count), 0),
