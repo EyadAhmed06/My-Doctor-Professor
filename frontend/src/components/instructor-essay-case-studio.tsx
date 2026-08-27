@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { DragEvent, FormEvent, useCallback, useEffect, useState } from "react";
 import {
   FiArrowDown,
@@ -9,7 +10,7 @@ import {
   FiEdit3,
   FiMove,
   FiPlus,
-  FiRefreshCw,
+  FiUploadCloud,
   FiTrash2,
 } from "react-icons/fi";
 import { useAuth } from "./auth-provider";
@@ -161,30 +162,6 @@ export function InstructorEssayCaseStudio() {
     await load(courseId);
   }
 
-  async function importPdf() {
-    setSaving(true);
-    try {
-      const result = await request<{ imported: number; skipped: number }>(
-        "/essay-cases/imports/summer-uro-nephrology",
-        { method: "POST", body: { course_id: courseId } },
-      );
-      notify({
-        title: `Imported ${result.imported} PDF cases`,
-        description: `${result.skipped} already existed.`,
-        tone: "success",
-      });
-      await load(courseId);
-    } catch (error) {
-      notify({
-        title: "Could not import PDF cases",
-        description: error instanceof Error ? error.message : undefined,
-        tone: "error",
-      });
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function moveCase(caseId: string, targetWeekId: string, targetIndex: number) {
     if (!curriculum || moving) return;
     const previous = curriculum;
@@ -259,13 +236,12 @@ export function InstructorEssayCaseStudio() {
             </p>
           </div>
           <div className="role-heading-actions">
-            <button
+            <Link
+              href="/instructor/questions/import-essay"
               className="pp-button secondary"
-              disabled={!courseId || saving}
-              onClick={() => void importPdf()}
             >
-              <FiRefreshCw /> Import Summer PDF
-            </button>
+              <FiUploadCloud /> Inspect PDF
+            </Link>
           </div>
         </div>
 
