@@ -39,7 +39,10 @@ type Question = {
   isActive: boolean;
   topic?: Topic;
   creator?: { fullName?: string };
+  options?: McqOption[];
+  essayConfiguration?: { modelAnswer?: string | null; gradingRubric?: string | null } | null;
 };
+type McqOption = { id: string; optionText: string; explanation: string | null; isCorrect: boolean; displayOrder: number };
 type Test = {
   id: string;
   title: string;
@@ -97,6 +100,10 @@ type Card = {
   backContent: string;
   difficulty: "EASY" | "MEDIUM" | "HARD";
   isActive: boolean;
+  explanation?: string | null;
+  hint?: string | null;
+  estimatedReviewSeconds?: number | null;
+  displayOrder?: number;
 };
 
 function RoleBoundary({ children }: { children: React.ReactNode }) {
@@ -165,6 +172,9 @@ export function QuestionBankPage({ admin = false }: { admin?: boolean }) {
   const [type, setType] = useState("");
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+  const [editQuestionForm, setEditQuestionForm] = useState({ title: "", question_text: "", explanation: "", difficulty: "MEDIUM" as "EASY" | "MEDIUM" | "HARD", marks: 1, model_answer: "", grading_rubric: "" });
+  const [editOptions, setEditOptions] = useState<McqOption[]>([]);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(initialQuestionForm);
   const [error, setError] = useState<string | null>(null);
@@ -230,17 +240,40 @@ export function QuestionBankPage({ admin = false }: { admin?: boolean }) {
   }
 
   async function editQuestion(question: Question) {
-    const title = window.prompt("Question title", question.title || "") ?? undefined;
-    if (title === undefined) return;
-    const questionText = window.prompt("Question text", question.questionText) ?? undefined;
-    if (questionText === undefined || !questionText.trim()) return;
-    const explanation = window.prompt("General explanation", question.explanation || "") ?? undefined;
-    if (explanation === undefined) return;
+    setSaving(true);
     try {
-      await request(`/questions/${question.id}`, { method: "PUT", body: { title: title.trim() || undefined, question_text: questionText.trim(), explanation: explanation.trim(), is_active: false } });
-      notify({ title: "Question updated", description: question.isActive ? "The edited question was returned to inactive status for review." : undefined, tone: "success" });
-      await load();
+      const detail = await request<Question>(`/questions/${question.id}`);
+      setEditingQuestion(detail);
+      setEditQuestionForm({ title: detail.title || "", question_text: detail.questionText, explanation: detail.explanation || "", difficulty: detail.difficulty, marks: Number(detail.marks), model_answer: detail.essayConfiguration?.modelAnswer || "", grading_rubric: detail.essayConfiguration?.gradingRubric || "" });
+      setEditOptions([...(detail.options || [])].sort((a, b) => a.displayOrder - b.displayOrder));
+    } catch (cause) { notify({ title: "Could not load question", description: cause instanceof Error ? cause.message : undefined, tone: "error" }); }
+    finally { setSaving(false); }
+  }
+
+  async function saveQuestionEdit(event: FormEvent) {
+    event.preventDefault();
+    if (!editingQuestion) return;
+    if (editingQuestion.questionType === "MCQ" && editOptions.filter(option => option.isCorrect).length !== 1) {
+      notify({ title: "Choose one correct option", description: "Every MCQ must have exactly one correct answer.", tone: "error" }); return;
+    }
+    setSaving(true);
+    try {
+      if (editingQuestion.isActive) await request(`/questions/${editingQuestion.id}`, { method: "PUT", body: { is_active: false } });
+      await request(`/questions/${editingQuestion.id}`, { method: "PUT", body: { title: editQuestionForm.title.trim() || undefined, question_text: editQuestionForm.question_text.trim(), explanation: editQuestionForm.explanation.trim(), difficulty: editQuestionForm.difficulty, marks: Number(editQuestionForm.marks) } });
+      if (editingQuestion.questionType === "MCQ") {
+        const correct = editOptions.find(option => option.isCorrect)!;
+        for (const option of editOptions.filter(item => item.id !== correct.id)) {
+          await request(`/questions/options/${option.id}`, { method: "PUT", body: { option_text: option.optionText.trim(), explanation: option.explanation?.trim() || "", is_correct: false } });
+        }
+        await request(`/questions/options/${correct.id}`, { method: "PUT", body: { option_text: correct.optionText.trim(), explanation: correct.explanation?.trim() || "", is_correct: true } });
+      } else {
+        await request(`/questions/${editingQuestion.id}/essay-configuration`, { method: "POST", body: { model_answer: editQuestionForm.model_answer.trim(), grading_rubric: editQuestionForm.grading_rubric.trim() } });
+      }
+      if (editingQuestion.isActive) await request(`/questions/${editingQuestion.id}`, { method: "PUT", body: { is_active: true } });
+      notify({ title: "Question updated", description: "Content and answer configuration were saved together.", tone: "success" });
+      setEditingQuestion(null); await load();
     } catch (cause) { notify({ title: "Could not edit question", description: cause instanceof Error ? cause.message : undefined, tone: "error" }); }
+    finally { setSaving(false); }
   }
 
   async function duplicateQuestion(question: Question) {
@@ -273,6 +306,7 @@ export function QuestionBankPage({ admin = false }: { admin?: boolean }) {
     {error && <p className="form-error" role="alert">{error}</p>}
     {loading ? <Panel><PageSkeleton variant="list" label="Loading questions" /></Panel> : questions.length ? <div className="role-content-grid">{questions.map(question => <Panel className="role-content-card" key={question.id}><header><div><Status value={question.questionType} /><Status value={question.difficulty} /></div><Status value={question.isActive ? "ACTIVE" : "INACTIVE"} /></header><h2>{question.title || question.questionText.slice(0, 90)}</h2><p>{question.questionText}</p><dl><div><dt>Topic</dt><dd>{question.topic?.topicName || question.topicId}</dd></div><div><dt>Marks</dt><dd>{question.marks}</dd></div><div><dt>Creator</dt><dd>{question.creator?.fullName || "Current instructor"}</dd></div></dl><footer><button type="button" onClick={() => void editQuestion(question)}><FiEdit3 /> Edit</button><button type="button" onClick={() => void duplicateQuestion(question)}><FiCopy /> Duplicate</button><button type="button" onClick={() => void toggleQuestion(question)}><FiCheck /> {question.isActive ? "Deactivate" : "Activate"}</button><button className="danger" type="button" onClick={() => void removeQuestion(question)}><FiTrash2 /> Delete</button></footer></Panel>)}</div> : <Empty title="No questions found" description="Create a question or adjust the current filters." action={<button className="pp-button" type="button" onClick={() => setCreateOpen(true)}><FiPlus /> New question</button>} />}
     <Modal title="Create question" open={createOpen} onClose={() => setCreateOpen(false)} wide><form className="role-form" onSubmit={createQuestion}><div className="role-form-grid"><label>Course<select required value={form.course_id} onChange={event => void chooseCourse(event.target.value)}><option value="">Select course…</option>{courses.map(course => <option value={course.id} key={course.id}>{course.courseCode} · {course.courseName}</option>)}</select></label><label>Topic<select required value={form.topic_id} disabled={!courseDetail} onChange={event => setForm(current => ({ ...current, topic_id: event.target.value }))}><option value="">Select topic…</option>{topics.map(topic => <option value={topic.id} key={topic.id}>{topic.path} · {topic.topicName}</option>)}</select></label><label>Question type<select value={form.question_type} onChange={event => setForm(current => ({ ...current, question_type: event.target.value as "MCQ" | "ESSAY" }))}><option value="MCQ">MCQ</option><option value="ESSAY">Essay</option></select></label><label>Difficulty<select value={form.difficulty} onChange={event => setForm(current => ({ ...current, difficulty: event.target.value as "EASY" | "MEDIUM" | "HARD" }))}><option value="EASY">Easy</option><option value="MEDIUM">Medium</option><option value="HARD">Hard</option></select></label><label>Title<input value={form.title} onChange={event => setForm(current => ({ ...current, title: event.target.value }))} /></label><label>Marks<input required type="number" min="0.01" step="0.01" value={form.marks} onChange={event => setForm(current => ({ ...current, marks: Number(event.target.value) }))} /></label><label className="wide">Question text<textarea required rows={4} value={form.question_text} onChange={event => setForm(current => ({ ...current, question_text: event.target.value }))} /></label><label className="wide">Explanation<textarea rows={3} value={form.explanation} onChange={event => setForm(current => ({ ...current, explanation: event.target.value }))} /></label>{form.question_type === "MCQ" ? <><label>Option A<input required value={form.option_a} onChange={event => setForm(current => ({ ...current, option_a: event.target.value }))} /><textarea required placeholder="Why option A is correct or incorrect" value={form.explanation_a} onChange={event => setForm(current => ({ ...current, explanation_a: event.target.value }))} /></label><label>Option B<input required value={form.option_b} onChange={event => setForm(current => ({ ...current, option_b: event.target.value }))} /><textarea required placeholder="Why option B is correct or incorrect" value={form.explanation_b} onChange={event => setForm(current => ({ ...current, explanation_b: event.target.value }))} /></label><label>Option C<input required value={form.option_c} onChange={event => setForm(current => ({ ...current, option_c: event.target.value }))} /><textarea required placeholder="Why option C is correct or incorrect" value={form.explanation_c} onChange={event => setForm(current => ({ ...current, explanation_c: event.target.value }))} /></label><label>Option D<input required value={form.option_d} onChange={event => setForm(current => ({ ...current, option_d: event.target.value }))} /><textarea required placeholder="Why option D is correct or incorrect" value={form.explanation_d} onChange={event => setForm(current => ({ ...current, explanation_d: event.target.value }))} /></label><label>Option E<input required value={form.option_e} onChange={event => setForm(current => ({ ...current, option_e: event.target.value }))} /><textarea required placeholder="Why option E is correct or incorrect" value={form.explanation_e} onChange={event => setForm(current => ({ ...current, explanation_e: event.target.value }))} /></label><label>Correct option<select value={form.correct_option} onChange={event => setForm(current => ({ ...current, correct_option: event.target.value }))}><option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option><option value="4">E</option></select></label></> : <><label className="wide">Model answer<textarea rows={4} value={form.model_answer} onChange={event => setForm(current => ({ ...current, model_answer: event.target.value }))} /></label><label className="wide">Grading rubric<textarea rows={4} value={form.grading_rubric} onChange={event => setForm(current => ({ ...current, grading_rubric: event.target.value }))} /></label></>}</div><footer><button className="pp-button secondary" type="button" onClick={() => setCreateOpen(false)}>Cancel</button><button className="pp-button" disabled={saving} type="submit">{saving ? "Saving…" : "Create question"}</button></footer></form></Modal>
+    <Modal title={`Edit ${editingQuestion?.questionType === "MCQ" ? "MCQ" : "essay question"}`} open={Boolean(editingQuestion)} onClose={() => !saving && setEditingQuestion(null)} wide><form className="role-form" onSubmit={saveQuestionEdit}><div className="role-form-grid"><label>Title<input value={editQuestionForm.title} onChange={event => setEditQuestionForm(current => ({ ...current, title: event.target.value }))} /></label><label>Difficulty<select value={editQuestionForm.difficulty} onChange={event => setEditQuestionForm(current => ({ ...current, difficulty: event.target.value as "EASY" | "MEDIUM" | "HARD" }))}><option value="EASY">Easy</option><option value="MEDIUM">Medium</option><option value="HARD">Hard</option></select></label><label>Marks<input required type="number" min="0.01" step="0.01" value={editQuestionForm.marks} onChange={event => setEditQuestionForm(current => ({ ...current, marks: Number(event.target.value) }))} /></label><label className="wide">Question text<textarea required rows={5} value={editQuestionForm.question_text} onChange={event => setEditQuestionForm(current => ({ ...current, question_text: event.target.value }))} /></label><label className="wide">General explanation<textarea rows={4} value={editQuestionForm.explanation} onChange={event => setEditQuestionForm(current => ({ ...current, explanation: event.target.value }))} /></label>{editingQuestion?.questionType === "MCQ" ? <div className="wide case-question-editor">{editOptions.map((option, index) => <Panel key={option.id} title={`Option ${String.fromCharCode(65 + index)}`}><label className="case-publish"><input type="radio" name="correct-option" checked={option.isCorrect} onChange={() => setEditOptions(items => items.map(item => ({ ...item, isCorrect: item.id === option.id })))} /> Correct answer</label><label>Choice text<textarea required rows={2} value={option.optionText} onChange={event => setEditOptions(items => items.map(item => item.id === option.id ? { ...item, optionText: event.target.value } : item))} /></label><label>Choice explanation<textarea rows={3} value={option.explanation || ""} onChange={event => setEditOptions(items => items.map(item => item.id === option.id ? { ...item, explanation: event.target.value } : item))} /></label></Panel>)}</div> : <><label className="wide">Model answer<textarea required rows={6} value={editQuestionForm.model_answer} onChange={event => setEditQuestionForm(current => ({ ...current, model_answer: event.target.value }))} /></label><label className="wide">Grading rubric<textarea required rows={5} value={editQuestionForm.grading_rubric} onChange={event => setEditQuestionForm(current => ({ ...current, grading_rubric: event.target.value }))} /></label></>}</div><footer><button className="pp-button secondary" type="button" disabled={saving} onClick={() => setEditingQuestion(null)}>Cancel</button><button className="pp-button" disabled={saving} type="submit">{saving ? "Saving…" : "Save all changes"}</button></footer></form></Modal>
   </main></ProductShell></RoleBoundary>;
 }
 
@@ -414,7 +448,7 @@ export function GradingPage({ admin = false }: { admin?: boolean }) {
 }
 
 const initialDeckForm = { course_id: "", title: "", description: "" };
-const initialCardForm = { title: "", front_content: "", back_content: "", explanation: "", hint: "" };
+const initialCardForm = { title: "", front_content: "", back_content: "", explanation: "", hint: "", difficulty: "MEDIUM" as "EASY" | "MEDIUM" | "HARD" };
 
 export function FlashcardStudioPage({ admin = false }: { admin?: boolean }) {
   const { user, request } = useAuth();
@@ -424,7 +458,8 @@ export function FlashcardStudioPage({ admin = false }: { admin?: boolean }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [deckOpen, setDeckOpen] = useState(false);
-  const [cardOpen, setCardOpen] = useState(false);
+  const [cardOpen, rawSetCardOpen] = useState(false);
+  const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [deckForm, setDeckForm] = useState(initialDeckForm);
   const [cardForm, setCardForm] = useState(initialCardForm);
   const [loading, setLoading] = useState(true);
@@ -444,6 +479,15 @@ export function FlashcardStudioPage({ admin = false }: { admin?: boolean }) {
   useEffect(() => { if (selectedId) void request<PageResponse<Card>>(`/flashcards/decks/${selectedId}/cards?limit=100`).then(response => setCards(response.data)); }, [request, selectedId]);
   const selected = decks.find(deck => deck.id === selectedId) || null;
 
+  function setCardOpen(open: boolean) {
+    if (open && selected?.isPublished) {
+      notify({ title: "Return deck to draft first", description: "Unpublish the deck before adding or changing cards.", tone: "info" });
+      return;
+    }
+    rawSetCardOpen(open);
+    if (!open) setCardForm(initialCardForm);
+  }
+
   async function createDeck(event: FormEvent) {
     event.preventDefault();
     try {
@@ -456,9 +500,11 @@ export function FlashcardStudioPage({ admin = false }: { admin?: boolean }) {
     event.preventDefault();
     if (!selected) return;
     try {
-      await request(`/flashcards/decks/${selected.id}/cards`, { method: "POST", body: { title: cardForm.title.trim(), front_content: cardForm.front_content.trim(), back_content: cardForm.back_content.trim(), difficulty: "MEDIUM", explanation: cardForm.explanation.trim() || undefined, hint: cardForm.hint.trim() || undefined } });
-      setCardOpen(false); setCardForm(initialCardForm); setCards((await request<PageResponse<Card>>(`/flashcards/decks/${selected.id}/cards?limit=100`)).data); notify({ title: "Flashcard created", tone: "success" });
-    } catch (cause) { notify({ title: "Could not create flashcard", description: cause instanceof Error ? cause.message : undefined, tone: "error" }); }
+      const body = { title: cardForm.title.trim(), front_content: cardForm.front_content.trim(), back_content: cardForm.back_content.trim(), difficulty: cardForm.difficulty, explanation: cardForm.explanation.trim(), hint: cardForm.hint.trim() };
+      if (editingCard) await request(`/flashcards/cards/${editingCard.id}`, { method: "PUT", body });
+      else await request(`/flashcards/decks/${selected.id}/cards`, { method: "POST", body });
+      rawSetCardOpen(false); setEditingCard(null); setCardForm(initialCardForm); setCards((await request<PageResponse<Card>>(`/flashcards/decks/${selected.id}/cards?limit=100`)).data); notify({ title: editingCard ? "Flashcard updated" : "Flashcard created", tone: "success" });
+    } catch (cause) { notify({ title: editingCard ? "Could not edit flashcard" : "Could not create flashcard", description: cause instanceof Error ? cause.message : undefined, tone: "error" }); }
   }
 
   async function toggleDeck(deck: Deck) {
@@ -466,21 +512,21 @@ export function FlashcardStudioPage({ admin = false }: { admin?: boolean }) {
     catch (cause) { notify({ title: "Could not update deck", description: cause instanceof Error ? cause.message : undefined, tone: "error" }); }
   }
 
-  async function editCard(card: Card) {
-    const title = window.prompt("Flashcard title", card.title);
-    if (title === null || !title.trim()) return;
-    const front = window.prompt("Front", card.frontContent);
-    if (front === null || !front.trim()) return;
-    const back = window.prompt("Back", card.backContent);
-    if (back === null || !back.trim()) return;
-    try {
-      await request(`/flashcards/cards/${card.id}`, { method: "PUT", body: { title: title.trim(), front_content: front.trim(), back_content: back.trim() } });
-      if (selected) setCards((await request<PageResponse<Card>>(`/flashcards/decks/${selected.id}/cards?limit=100`)).data);
-      notify({ title: "Flashcard updated", tone: "success" });
-    } catch (cause) { notify({ title: "Could not edit flashcard", description: cause instanceof Error ? cause.message : undefined, tone: "error" }); }
+  function editCard(card: Card) {
+    if (selected?.isPublished) {
+      notify({ title: "Return deck to draft first", description: "Published learning content is protected from accidental edits.", tone: "info" });
+      return;
+    }
+    setEditingCard(card);
+    setCardForm({ title: card.title, front_content: card.frontContent, back_content: card.backContent, explanation: card.explanation || "", hint: card.hint || "", difficulty: card.difficulty });
+    rawSetCardOpen(true);
   }
 
   async function removeCard(card: Card) {
+    if (selected?.isPublished) {
+      notify({ title: "Return deck to draft first", description: "Published cards cannot be deleted.", tone: "info" });
+      return;
+    }
     if (!selected || !window.confirm("Delete this flashcard?")) return;
     try { await request(`/flashcards/cards/${card.id}`, { method: "DELETE" }); setCards((await request<PageResponse<Card>>(`/flashcards/decks/${selected.id}/cards?limit=100`)).data); }
     catch (cause) { notify({ title: "Could not delete flashcard", description: cause instanceof Error ? cause.message : undefined, tone: "error" }); }
@@ -489,6 +535,6 @@ export function FlashcardStudioPage({ admin = false }: { admin?: boolean }) {
   return <RoleBoundary><ProductShell search="Search decks and cards"><main className="pp-page role-workspace"><Heading eyebrow={admin ? "ADMIN · FLASHCARD CONTROL" : "INSTRUCTOR · FLASHCARD STUDIO"} title="Flashcard studio" description="Create course-linked decks, populate them with teaching cards, and publish only when the deck is ready for learners." actions={<><button className="pp-button secondary" type="button" onClick={() => void load()}><FiRefreshCw /> Refresh</button><button className="pp-button" type="button" onClick={() => setDeckOpen(true)}><FiPlus /> New deck</button></>} />
     {loading ? <Panel><PageSkeleton variant="list" label="Loading flashcard studio" /></Panel> : <div className="role-master-detail"><aside className="role-master-list"><header><b>{decks.length}</b><small>DECKS</small></header>{decks.map(deck => <button className={selectedId === deck.id ? "active" : ""} type="button" key={deck.id} onClick={() => setSelectedId(deck.id)}><div><b>{deck.title}</b><small>{deck.course?.courseName || deck.topic?.topicName || deck.lecture?.title || "Unlinked deck"}</small></div><Status value={deck.isPublished ? "PUBLISHED" : "DRAFT"} /></button>)}</aside><section className="role-detail">{selected ? <><Panel className="role-course-hero"><div><Status value={selected.isPublished ? "PUBLISHED" : "DRAFT"} /><h2>{selected.title}</h2><p>{selected.description || "No deck description."}</p></div><div className="role-hero-actions"><button className="pp-button" type="button" onClick={() => setCardOpen(true)}><FiPlus /> Add card</button><button className="pp-button secondary" type="button" onClick={() => void toggleDeck(selected)}>{selected.isPublished ? "Return to draft" : "Publish deck"}</button></div></Panel>{cards.length ? <div className="role-card-grid">{cards.map(card => <Panel className="role-flashcard" key={card.id}><header><span><button type="button" onClick={() => void editCard(card)}><FiEdit3 /> Edit</button><button className="danger" type="button" onClick={() => void removeCard(card)}><FiTrash2 /></button></span></header><h3>{card.title}</h3><div><small>FRONT</small><p>{card.frontContent}</p></div><div><small>BACK</small><p>{card.backContent}</p></div></Panel>)}</div> : <Empty title="No cards in this deck" description="Add the first teaching card, then publish the deck when it is complete." action={<button className="pp-button" type="button" onClick={() => setCardOpen(true)}><FiPlus /> Add card</button>} />}</> : <Empty title="Select a deck" description="Choose a deck to manage its publication state and cards." />}</section></div>}
     <Modal title="Create flashcard deck" open={deckOpen} onClose={() => setDeckOpen(false)}><form className="role-form" onSubmit={createDeck}><div className="role-form-grid"><label className="wide">Title<input required value={deckForm.title} onChange={event => setDeckForm(current => ({ ...current, title: event.target.value }))} /></label><label className="wide">Course<select value={deckForm.course_id} onChange={event => setDeckForm(current => ({ ...current, course_id: event.target.value }))}><option value="">No course link</option>{courses.map(course => <option key={course.id} value={course.id}>{course.courseCode} · {course.courseName}</option>)}</select></label><label className="wide">Description<textarea rows={4} value={deckForm.description} onChange={event => setDeckForm(current => ({ ...current, description: event.target.value }))} /></label></div><footer><button className="pp-button secondary" type="button" onClick={() => setDeckOpen(false)}>Cancel</button><button className="pp-button" type="submit">Create deck</button></footer></form></Modal>
-    <Modal title="Add flashcard" open={cardOpen} onClose={() => setCardOpen(false)} wide><form className="role-form" onSubmit={createCard}><div className="role-form-grid"><label>Title<input required value={cardForm.title} onChange={event => setCardForm(current => ({ ...current, title: event.target.value }))} /></label><label className="wide">Front<textarea required rows={4} value={cardForm.front_content} onChange={event => setCardForm(current => ({ ...current, front_content: event.target.value }))} /></label><label className="wide">Back<textarea required rows={4} value={cardForm.back_content} onChange={event => setCardForm(current => ({ ...current, back_content: event.target.value }))} /></label><label className="wide">Explanation<textarea rows={3} value={cardForm.explanation} onChange={event => setCardForm(current => ({ ...current, explanation: event.target.value }))} /></label><label className="wide">Hint<textarea rows={2} value={cardForm.hint} onChange={event => setCardForm(current => ({ ...current, hint: event.target.value }))} /></label></div><footer><button className="pp-button secondary" type="button" onClick={() => setCardOpen(false)}>Cancel</button><button className="pp-button" type="submit">Create card</button></footer></form></Modal>
+    <Modal title={editingCard ? "Edit flashcard" : "Add flashcard"} open={cardOpen} onClose={() => { setEditingCard(null); setCardOpen(false); }} wide><form className="role-form" onSubmit={createCard}><div className="role-form-grid"><label>Title<input required value={cardForm.title} onChange={event => setCardForm(current => ({ ...current, title: event.target.value }))} /></label><label>Difficulty<select value={cardForm.difficulty} onChange={event => setCardForm(current => ({ ...current, difficulty: event.target.value as "EASY" | "MEDIUM" | "HARD" }))}><option value="EASY">Easy</option><option value="MEDIUM">Medium</option><option value="HARD">Hard</option></select></label><label className="wide">Front<textarea required rows={4} value={cardForm.front_content} onChange={event => setCardForm(current => ({ ...current, front_content: event.target.value }))} /></label><label className="wide">Back<textarea required rows={4} value={cardForm.back_content} onChange={event => setCardForm(current => ({ ...current, back_content: event.target.value }))} /></label><label className="wide">Explanation<textarea rows={3} value={cardForm.explanation} onChange={event => setCardForm(current => ({ ...current, explanation: event.target.value }))} /></label><label className="wide">Hint<textarea rows={2} value={cardForm.hint} onChange={event => setCardForm(current => ({ ...current, hint: event.target.value }))} /></label></div><footer><button className="pp-button secondary" type="button" onClick={() => { setEditingCard(null); setCardOpen(false); }}>Cancel</button><button className="pp-button" type="submit">{editingCard ? "Save changes" : "Create card"}</button></footer></form></Modal>
   </main></ProductShell></RoleBoundary>;
 }
