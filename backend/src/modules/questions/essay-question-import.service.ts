@@ -190,7 +190,13 @@ export class EssayQuestionImportService {
   private parseEssayCases(pdf: ParsedPdf, sha256: string): EssayCandidate[] {
     const stream = pdf.pages.map((page) => `\n[[PAGE:${page.page}]]\n${this.cleanPageText(page.text)}`).join('\n');
     const casePattern = /\bCASE\s*(\d{1,2})\s*:\s*/gi;
-    const matches = [...stream.matchAll(casePattern)];
+    // Answer-key headings also contain "case N". Treat only standalone case
+    // headings as question blocks so an answer section cannot truncate a case.
+    const matches = [...stream.matchAll(casePattern)].filter((match) => {
+      const prefix = stream.slice(Math.max(0, (match.index ?? 0) - 40), match.index ?? 0);
+      return !/Answers?\s+of\s*$/i.test(prefix);
+    });
+    const sectionPattern = /\b(Final\s+20\d{2}|Full\s+nephrology\s+exam(?:\s*\([^)]*\))?)/gi;
     const candidates: EssayCandidate[] = [];
     let section = 'Essay collection';
 
@@ -199,16 +205,34 @@ export class EssayQuestionImportService {
       const start = match.index ?? 0;
       const previousBoundary = index === 0 ? 0 : (matches[index - 1].index ?? 0);
       const prelude = stream.slice(previousBoundary, start);
-      const sectionMatches = [...prelude.matchAll(/\b(Final\s+20\d{2}|Full\s+nephrology\s+exam(?:\s*\([^)]*\))?)/gi)];
-      if (sectionMatches.length) section = this.cleanInline(sectionMatches[sectionMatches.length - 1][1]);
+      const preludeSections = [...prelude.matchAll(sectionPattern)];
+      if (preludeSections.length) section = this.cleanInline(preludeSections[preludeSections.length - 1][1]);
 
-      const end = index + 1 < matches.length ? (matches[index + 1].index ?? stream.length) : stream.length;
+      const nextCaseStart = index + 1 < matches.length ? (matches[index + 1].index ?? stream.length) : stream.length;
       const caseNumber = Number(match[1]);
-      const block = stream.slice(start + match[0].length, end);
-      const answerMarker = new RegExp(`\\bAnswers?\\s+of\\s+case\\s*${caseNumber}\\b`, 'i');
-      const answerMatch = answerMarker.exec(block);
-      const questionPart = answerMatch ? block.slice(0, answerMatch.index) : block;
-      const answerPart = answerMatch ? block.slice(answerMatch.index + answerMatch[0].length) : '';
+      const rawQuestionBlock = stream.slice(start + match[0].length, nextCaseStart);
+      const firstAnswerHeading = rawQuestionBlock.search(/\bAnswers?\s+of\s+case\s*\d{1,2}\b/i);
+      const questionPart = firstAnswerHeading >= 0
+        ? rawQuestionBlock.slice(0, firstAnswerHeading)
+        : rawQuestionBlock;
+      // Case numbers commonly restart in the next exam. The next standalone
+      // occurrence of this same case number is the safe upper bound for its key.
+      const nextSameCase = matches.slice(index + 1).find((item) => Number(item[1]) === caseNumber);
+      const answerScopeEnd = nextSameCase?.index ?? stream.length;
+      const answerSearch = stream.slice(start, answerScopeEnd);
+      const answerMarker = new RegExp(`\\bAnswers?\\s+of\\s+case\\s*${caseNumber}\\b\\s*:?[\\t ]*`, 'i');
+      const answerMatch = answerMarker.exec(answerSearch);
+      const answerStart = answerMatch
+        ? start + (answerMatch.index ?? 0) + answerMatch[0].length
+        : null;
+      const answerTail = answerStart === null ? '' : stream.slice(answerStart, answerScopeEnd);
+      const nextAnswerOffset = answerTail.search(/\bAnswers?\s+of\s+case\s*\d{1,2}\b/i);
+      const answerEnd = answerStart === null
+        ? null
+        : nextAnswerOffset >= 0 ? answerStart + nextAnswerOffset : answerScopeEnd;
+      const answerPart = answerStart === null || answerEnd === null
+        ? ''
+        : stream.slice(answerStart, answerEnd);
       const questionMatches = [...questionPart.matchAll(/\bQ\s*(\d{1,2})\s*[.)]\s*/gi)];
       if (!questionMatches.length) continue;
 
@@ -226,7 +250,9 @@ export class EssayQuestionImportService {
         if (!questionText) continue;
         const model = answerMap.get(questionNumber) || null;
         const sourcePage = this.pageBefore(stream, start + match[0].length + (qMatch.index ?? 0));
-        const answerPage = model ? this.findAnswerPage(stream, start, end, caseNumber, questionNumber) : null;
+        const answerPage = model && answerStart !== null
+          ? this.findNumberedAnswerPage(stream, answerStart, answerEnd ?? answerScopeEnd, questionNumber)
+          : null;
         const issues: EssayIssue[] = [];
         if (!caseStem) issues.push({ code: 'CASE_STEM_MISSING', severity: 'WARNING', message: 'No case stem was detected before this question.' });
         if (!model) issues.push({ code: 'MODEL_ANSWER_MISSING', severity: 'ERROR', message: 'No matching numbered answer was detected for this question.' });
@@ -256,7 +282,7 @@ export class EssayQuestionImportService {
   private parseAnswerMap(text: string) {
     const map = new Map<number, string>();
     const normalized = text.replace(/\r/g, '\n');
-    const marker = /(?:^|\n)\s*(\d{1,2})\s*\)\s*/gm;
+    const marker = /(?:^|\n)\s*(?:Q\s*)?(\d{1,2})\s*[.)-]\s*/gim;
     const matches = [...normalized.matchAll(marker)];
     for (let index = 0; index < matches.length; index += 1) {
       const number = Number(matches[index][1]);
@@ -274,14 +300,11 @@ export class EssayQuestionImportService {
     return matches.length ? Number(matches[matches.length - 1][1]) : null;
   }
 
-  private findAnswerPage(stream: string, caseStart: number, caseEnd: number, caseNumber: number, questionNumber: number) {
-    const block = stream.slice(caseStart, caseEnd);
-    const answerIndex = block.search(new RegExp(`\\bAnswers?\\s+of\\s+case\\s*${caseNumber}\\b`, 'i'));
-    if (answerIndex < 0) return null;
-    const after = block.slice(answerIndex);
-    const marker = new RegExp(`(?:^|\\n)\\s*${questionNumber}\\s*\\)`, 'm');
-    const match = marker.exec(after);
-    return match ? this.pageBefore(stream, caseStart + answerIndex + (match.index ?? 0)) : null;
+  private findNumberedAnswerPage(stream: string, answerStart: number, answerEnd: number, questionNumber: number) {
+    const answerBlock = stream.slice(answerStart, answerEnd);
+    const marker = new RegExp(`(?:^|\\n)\\s*(?:Q\\s*)?${questionNumber}\\s*[.)-]`, 'im');
+    const match = marker.exec(answerBlock);
+    return match ? this.pageBefore(stream, answerStart + (match.index ?? 0)) : null;
   }
 
   private composeQuestion(caseStem: string, question: string) {
@@ -294,6 +317,7 @@ export class EssayQuestionImportService {
     return text
       .replace(/My\s+Doctor\s*&?\s*The\s+Professor\s+Page/gi, ' ')
       .replace(/[.…·]{6,}/g, '\n')
+      .replace(/(?:[«»‹›]\s*){2,}/g, '\n')
       .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, ' ')
       .replace(/[ \t]+/g, ' ')
       .replace(/\n{3,}/g, '\n\n');
