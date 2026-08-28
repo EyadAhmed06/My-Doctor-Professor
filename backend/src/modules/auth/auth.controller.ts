@@ -64,6 +64,7 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponseDto> {
+    this.assertTrustedBrowserOriginIfPresent(request);
     const auth = await this.authService.login(dto, request.ip ?? request.socket.remoteAddress ?? 'unknown');
     this.writeRefreshCookies(request, response, auth.refresh_token, dto.remember !== false);
     return this.forTransport(auth, request);
@@ -86,6 +87,7 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponseDto | GoogleOnboardingResponseDto> {
+    this.assertTrustedBrowserOriginIfPresent(request);
     const result = await this.googleAuthService.signIn(
       dto.credential,
       request.ip ?? request.socket.remoteAddress ?? 'unknown',
@@ -106,6 +108,7 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponseDto> {
+    this.assertTrustedBrowserOriginIfPresent(request);
     const auth = await this.googleAuthService.completeSignup(
       dto,
       request.ip ?? request.socket.remoteAddress ?? 'unknown',
@@ -200,6 +203,7 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponseDto> {
+    this.assertTrustedBrowserOriginIfPresent(request);
     const cookieToken = this.readCookie(request, REFRESH_COOKIE);
     if (!dto.refresh_token && cookieToken) this.assertTrustedCookieOrigin(request);
     const refreshToken = dto.refresh_token || cookieToken;
@@ -253,6 +257,13 @@ export class AuthController {
     this.clearRefreshCookies(request, response);
   }
 
+  private assertTrustedBrowserOriginIfPresent(request: Request): void {
+    const origin = request.headers.origin;
+    if (origin && !isAllowedOrigin(origin, this.allowedOrigins)) {
+      throw new ForbiddenException('Untrusted browser origin');
+    }
+  }
+
   private assertTrustedCookieOrigin(request: Request): void {
     const origin = request.headers.origin;
     if (!origin || !isAllowedOrigin(origin, this.allowedOrigins)) {
@@ -269,13 +280,7 @@ export class AuthController {
 
   private isFrontendBrowserRequest(request: Request): boolean {
     const origin = request.headers.origin;
-    const frontendUrl = this.config.get<string>('FRONTEND_URL');
-    if (!origin || !frontendUrl) return false;
-    try {
-      return new URL(origin).origin === new URL(frontendUrl).origin;
-    } catch {
-      return false;
-    }
+    return Boolean(origin && isAllowedOrigin(origin, this.allowedOrigins));
   }
 
   private writeRefreshCookies(
