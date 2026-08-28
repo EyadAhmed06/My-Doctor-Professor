@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { AuthController } from './auth.controller';
+import { RATE_LIMIT_KEY, type RateLimitPolicy } from './decorators/rate-limit.decorator';
 import { UserRole, UserStatus } from '../users/entities/user.entity';
 
 const authResponse = {
@@ -15,7 +16,7 @@ const authResponse = {
 };
 
 describe('AuthController web refresh transport', () => {
-  function setup() {
+  function setup(nodeEnv = 'test') {
     const authService = {
       login: jest.fn().mockResolvedValue(authResponse),
       refreshAccessToken: jest.fn().mockResolvedValue({ ...authResponse, refresh_token: 'rotated-refresh' }),
@@ -32,9 +33,9 @@ describe('AuthController web refresh transport', () => {
     };
     const config = {
       get: jest.fn((key: string) => ({
-        NODE_ENV: 'test',
+        NODE_ENV: nodeEnv,
         JWT_REFRESH_TTL_SECONDS: 604800,
-        FRONTEND_URL: 'http://localhost:3001',
+        FRONTEND_URL: nodeEnv === 'production' ? 'https://app.example.test' : 'http://localhost:3001',
       } as Record<string, unknown>)[key]),
     };
     const controller = new AuthController(
@@ -52,6 +53,8 @@ describe('AuthController web refresh transport', () => {
   function request(origin?: string, cookie?: string) {
     return {
       ip: '127.0.0.1',
+      secure: false,
+      protocol: 'http',
       socket: { remoteAddress: '127.0.0.1' },
       headers: { ...(origin ? { origin } : {}), ...(cookie ? { cookie } : {}) },
     } as unknown as Request;
@@ -110,5 +113,35 @@ describe('AuthController web refresh transport', () => {
       'rotated-refresh',
       expect.objectContaining({ maxAge: 604800000, httpOnly: true }),
     );
+  });
+
+  it('forces Secure refresh cookies in production even when proxy protocol signals are missing', async () => {
+    const { controller, response, cookie } = setup('production');
+
+    await controller.login(
+      { email: 'student@example.test', password: 'password', remember: true },
+      request('https://app.example.test'),
+      response,
+    );
+
+    expect(cookie).toHaveBeenCalledWith(
+      'mdp_refresh',
+      'refresh-token',
+      expect.objectContaining({ httpOnly: true, secure: true, sameSite: 'lax' }),
+    );
+  });
+
+  it('applies explicit IP abuse budgets to signup and refresh routes', () => {
+    const signupPolicy = Reflect.getMetadata(
+      RATE_LIMIT_KEY,
+      AuthController.prototype.signup,
+    ) as RateLimitPolicy;
+    const refreshPolicy = Reflect.getMetadata(
+      RATE_LIMIT_KEY,
+      AuthController.prototype.refreshToken,
+    ) as RateLimitPolicy;
+
+    expect(signupPolicy).toEqual({ key: 'auth-signup-route', maximum: 12, windowSeconds: 3600 });
+    expect(refreshPolicy).toEqual({ key: 'auth-refresh-route', maximum: 120, windowSeconds: 900 });
   });
 });
