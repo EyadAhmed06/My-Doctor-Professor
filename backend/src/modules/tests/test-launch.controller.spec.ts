@@ -119,4 +119,20 @@ describe('TestLaunchController', () => {
     expect(result.required_question_count).toBe(200);
     expect(result.mcq_count).toBe(200);
   });
+
+  it('treats a generated custom 200-MCQ final as a final instead of legacy 40-question practice', async () => {
+    const { subject } = controller({
+      type: TestType.CUSTOM,
+      title: '200-MCQ Bundle Final · 2026-08-28',
+      questionCount: 200,
+    });
+
+    const result = await subject.getLaunchConfig('22222222-2222-4222-8222-222222222222', student);
+
+    expect(result.is_final).toBe(true);
+    expect(result.launch_ready).toBe(true);
+    expect(result.required_question_count).toBe(200);
+    expect(result.mcq_count).toBe(200);
+    expect(result.issues).toEqual([]);
+  });
 });
