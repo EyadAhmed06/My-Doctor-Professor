@@ -13,6 +13,7 @@ import { QuestionImportEnrichmentService } from './question-import-enrichment.se
 import { QuestionImportService } from './question-import.service';
 import { QuestionsController } from './questions.controller';
 import { QuestionsService } from './questions.service';
+import { StudentQuestionAccessService } from './student-question-access.service';
 
 @Module({
   imports: [
@@ -29,12 +30,14 @@ import { QuestionsService } from './questions.service';
   controllers: [QuestionsController, EssayQuestionImportController],
   providers: [
     QuestionsService,
+    StudentQuestionAccessService,
     QuestionImportService,
     QuestionImportEnrichmentService,
     EssayQuestionImportService,
   ],
   exports: [
     QuestionsService,
+    StudentQuestionAccessService,
     QuestionImportService,
     QuestionImportEnrichmentService,
     EssayQuestionImportService,
