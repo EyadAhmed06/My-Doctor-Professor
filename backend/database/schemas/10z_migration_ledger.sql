@@ -1,11 +1,6 @@
 -- =====================================================
 -- Fresh-install migration baseline
---
--- Current schema snapshots already contain every object produced by the
--- historical migrations below. Recording them prevents TypeORM from trying to
--- replay legacy DDL on top of a current-schema installation.
 -- =====================================================
-
 CREATE TABLE IF NOT EXISTS migrations (
     id serial PRIMARY KEY,
     timestamp bigint NOT NULL,
@@ -39,7 +34,8 @@ FROM (
         (2010000000000::bigint, 'AddQuestionFlagTypes2010000000000'),
         (2020000000000::bigint, 'HardenAssessmentIdempotency2020000000000'),
         (2030000000000::bigint, 'EnforcePublishedMcqShape2030000000000'),
-        (2040000000000::bigint, 'AddStudentAchievements2040000000000')
+        (2040000000000::bigint, 'AddStudentAchievements2040000000000'),
+        (2050000000000::bigint, 'HardenPaymentWebhookBinding2050000000000')
 ) AS entry(timestamp, name)
 WHERE NOT EXISTS (
     SELECT 1 FROM migrations current WHERE current.name = entry.name
