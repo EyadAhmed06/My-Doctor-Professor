@@ -75,3 +75,89 @@ CREATE INDEX idx_answers_attempt ON student_answers(attempt_id);
 CREATE INDEX idx_answers_question ON student_answers(question_id);
 CREATE INDEX idx_flags_attempt ON question_flags(attempt_id);
 CREATE INDEX idx_notes_attempt ON question_notes(attempt_id);
+
+-- Published assessment MCQ integrity is enforced in the database as well as the API.
+CREATE OR REPLACE FUNCTION assert_published_test_mcq_shape(target_test_id uuid)
+RETURNS void AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM test_questions tq
+    JOIN questions q ON q.id = tq.question_id
+    WHERE tq.test_id = target_test_id
+      AND q.question_type = 'MCQ'
+      AND (
+        (SELECT COUNT(*) FROM mcq_options mo WHERE mo.question_id = q.id) <> 5
+        OR
+        (SELECT COUNT(*) FROM mcq_options mo WHERE mo.question_id = q.id AND mo.is_correct = TRUE) <> 1
+      )
+  ) THEN
+    RAISE EXCEPTION 'Published assessments require every MCQ to have exactly five options and exactly one correct answer'
+      USING ERRCODE = '23514';
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION enforce_test_mcq_shape_on_publish()
+RETURNS trigger AS $$
+BEGIN
+  IF NEW.is_published = TRUE THEN
+    PERFORM assert_published_test_mcq_shape(NEW.id);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_tests_mcq_shape
+BEFORE UPDATE OF is_published ON tests
+FOR EACH ROW
+WHEN (NEW.is_published = TRUE)
+EXECUTE FUNCTION enforce_test_mcq_shape_on_publish();
+
+CREATE OR REPLACE FUNCTION enforce_test_question_mcq_shape()
+RETURNS trigger AS $$
+DECLARE
+  target_test uuid;
+  published boolean;
+BEGIN
+  target_test := COALESCE(NEW.test_id, OLD.test_id);
+  SELECT is_published INTO published FROM tests WHERE id = target_test;
+  IF published = TRUE THEN
+    PERFORM assert_published_test_mcq_shape(target_test);
+  END IF;
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE CONSTRAINT TRIGGER trg_test_questions_mcq_shape
+AFTER INSERT OR UPDATE OR DELETE ON test_questions
+DEFERRABLE INITIALLY IMMEDIATE
+FOR EACH ROW
+EXECUTE FUNCTION enforce_test_question_mcq_shape();
+
+CREATE OR REPLACE FUNCTION enforce_option_mcq_shape_for_published_tests()
+RETURNS trigger AS $$
+DECLARE
+  target_question uuid;
+BEGIN
+  target_question := COALESCE(NEW.question_id, OLD.question_id);
+  IF EXISTS (
+    SELECT 1
+    FROM test_questions tq
+    JOIN tests t ON t.id = tq.test_id
+    WHERE tq.question_id = target_question AND t.is_published = TRUE
+  ) THEN
+    PERFORM assert_published_test_mcq_shape(tq.test_id)
+    FROM test_questions tq
+    JOIN tests t ON t.id = tq.test_id
+    WHERE tq.question_id = target_question AND t.is_published = TRUE;
+  END IF;
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE CONSTRAINT TRIGGER trg_mcq_options_published_shape
+AFTER INSERT OR UPDATE OR DELETE ON mcq_options
+DEFERRABLE INITIALLY IMMEDIATE
+FOR EACH ROW
+EXECUTE FUNCTION enforce_option_mcq_shape_for_published_tests();
