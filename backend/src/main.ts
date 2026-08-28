@@ -19,6 +19,7 @@ async function bootstrap() {
     response.setHeader('Cross-Origin-Resource-Policy', 'same-site');
     response.setHeader('Referrer-Policy', 'no-referrer');
     response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+    response.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
     response.setHeader('Cache-Control', 'no-store, max-age=0');
     response.setHeader('Pragma', 'no-cache');
     if (process.env.NODE_ENV === 'production') {
@@ -44,7 +45,7 @@ async function bootstrap() {
     },
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    allowedHeaders: 'Content-Type,Authorization,X-Request-Id',
+    allowedHeaders: 'Content-Type,Authorization,X-Request-Id,Idempotency-Key',
     exposedHeaders: 'X-Request-Id',
     maxAge: 600,
   });
