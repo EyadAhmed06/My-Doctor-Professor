@@ -32,7 +32,12 @@ FROM (
         (1950000000000::bigint, 'AddBundlePricingPayments1950000000000'),
         (1960000000000::bigint, 'AddBundleSubscriptionPlans1960000000000'),
         (1970000000000::bigint, 'AddGlobalSubscriptionPlans1970000000000'),
-        (1980000000000::bigint, 'AddPlanPurchasePayments1980000000000')
+        (1980000000000::bigint, 'AddPlanPurchasePayments1980000000000'),
+        (1985000000000::bigint, 'AddEssayCases1985000000000'),
+        (1990000000000::bigint, 'AddMcqOptionExplanations1990000000000'),
+        (2000000000000::bigint, 'AddAnswerConfidence2000000000000'),
+        (2010000000000::bigint, 'AddQuestionFlagTypes2010000000000'),
+        (2020000000000::bigint, 'HardenAssessmentIdempotency2020000000000')
 ) AS entry(timestamp, name)
 WHERE NOT EXISTS (
     SELECT 1 FROM migrations current WHERE current.name = entry.name
