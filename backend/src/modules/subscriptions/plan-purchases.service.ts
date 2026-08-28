@@ -52,7 +52,7 @@ export class PlanPurchasesService {
         endsAt: addDays(now, plan.durationDays),
       }));
       if (promoId) await this.promoCodes.incrementUsage(promoId);
-      return { status: PlanPurchaseStatus.PAID, purchase, checkout_url: null };
+      return { status: PlanPurchaseStatus.PAID, purchase: this.publicPurchase(purchase), checkout_url: null };
     }
 
     const user = await this.users.findOne({ where: { id: userId } });
@@ -81,7 +81,7 @@ export class PlanPurchasesService {
     purchase.providerReference = intention.clientSecret;
     purchase.providerOrderId = intention.orderId;
     await this.purchases.save(purchase);
-    return { status: PlanPurchaseStatus.PENDING, purchase, checkout_url: intention.checkoutUrl };
+    return { status: PlanPurchaseStatus.PENDING, purchase: this.publicPurchase(purchase), checkout_url: intention.checkoutUrl };
   }
 
   async handlePaymobWebhook(transaction: Record<string, unknown>, receivedHmac: string | undefined): Promise<void> {
@@ -113,6 +113,12 @@ export class PlanPurchasesService {
       await repository.save(purchase);
       if (success && purchase.promoCodeId) await manager.increment(PromoCode, { id: purchase.promoCodeId }, 'usedCount', 1);
     });
+  }
+
+  private publicPurchase(purchase: PlanPurchase) {
+    const { providerReference: _providerReference, ...safe } = purchase;
+    void _providerReference;
+    return safe;
   }
 
   private assertWebhookContext(purchase: PlanPurchase, transaction: Record<string, unknown>): void {
