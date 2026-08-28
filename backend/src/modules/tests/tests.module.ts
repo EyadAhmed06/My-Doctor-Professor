@@ -18,6 +18,7 @@ import { AssessmentAttemptService } from './assessment-attempt.service';
 import { AssessmentAuthoringService } from './assessment-authoring.service';
 import { EssayPracticeController } from './essay-practice.controller';
 import { EssayPracticeService } from './essay-practice.service';
+import { McqPracticeCatalogService } from './mcq-practice-catalog.service';
 import { McqPracticeController } from './mcq-practice.controller';
 import { McqPracticeService } from './mcq-practice.service';
 import { TestLaunchController } from './test-launch.controller';
@@ -30,7 +31,7 @@ import { TestsService } from './tests.service';
   Question,McqOption,EssayConfiguration,Course,Week,Lecture,Student,
  ])],
  controllers:[TestsController,TestLaunchController,McqPracticeController,EssayPracticeController],
- providers:[TestsService,AssessmentAttemptService,AssessmentAuthoringService,McqPracticeService,EssayPracticeService],
+ providers:[TestsService,AssessmentAttemptService,AssessmentAuthoringService,McqPracticeService,McqPracticeCatalogService,EssayPracticeService],
  exports:[TestsService,AssessmentAttemptService,TypeOrmModule],
 })
 export class TestsModule {}
