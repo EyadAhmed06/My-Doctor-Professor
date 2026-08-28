@@ -15,6 +15,7 @@ import { AuthResponseDto } from './dtos/auth-response.dto';
 import { CompleteGoogleSignupDto, GoogleOnboardingResponseDto } from './dtos/google-auth.dto';
 import { JwtPayload } from './dtos/jwt-payload.dto';
 import { GoogleIdentityService, VerifiedGoogleIdentity } from './google-identity.service';
+import type { AuthenticatedUser } from './strategies/jwt.strategy';
 
 type GoogleOnboardingPayload = {
   tokenType: 'google-onboarding';
@@ -69,32 +70,47 @@ export class GoogleAuthService {
       return this.createSession(user);
     }
 
-    let user = await this.usersService.findByEmail(identity.email);
-    if (!user) return this.createOnboardingResponse(identity);
+    const existingUser = await this.usersService.findByEmail(identity.email);
+    if (!existingUser) return this.createOnboardingResponse(identity);
 
-    if (user.status === UserStatus.SUSPENDED || user.status === UserStatus.DEACTIVATED) {
-      throw new UnauthorizedException('Account is not permitted to sign in');
-    }
+    // Never convert email equality into account ownership. A verified Google email
+    // proves control of that Google identity, not possession of an existing local
+    // password account. Existing accounts must authenticate first, then link Google.
+    throw new ConflictException(
+      'An account already exists for this email. Sign in with your existing method, then link Google from account security settings.',
+    );
+  }
 
-    const existingLink = await this.findGoogleIdentityForUser(user.id);
-    if (existingLink && existingLink.provider_subject !== identity.subject) {
-      throw new UnauthorizedException('This account is linked to a different Google identity');
-    }
-
-    if (!user.emailVerified || user.status === UserStatus.PENDING_VERIFICATION) {
-      await this.usersService.verifyEmail(user.id);
-      user = await this.usersService.findById(user.id);
-      if (!user) throw new UnauthorizedException('Account no longer exists');
-    }
+  async linkExistingAccount(
+    credential: string,
+    actor: AuthenticatedUser,
+    ip: string,
+  ): Promise<{ message: string }> {
+    await this.rateLimits.enforceProvider(ip, 'google-link');
+    const identity = await this.googleIdentity.verifyCredential(credential);
+    const user = await this.usersService.findById(actor.userId);
+    if (!user) throw new UnauthorizedException('Account no longer exists');
     this.assertAccountEnabled(user);
 
-    await this.linkIdentity(user.id, identity);
+    if (user.email.trim().toLowerCase() !== identity.email) {
+      throw new ConflictException('Google email must match the signed-in account email');
+    }
+
+    const linkedUserId = await this.findUserIdByGoogleSubject(identity.subject);
+    if (linkedUserId && linkedUserId !== user.id) {
+      throw new ConflictException('This Google identity is already linked to another account');
+    }
+    const existingLink = await this.findGoogleIdentityForUser(user.id);
+    if (existingLink && existingLink.provider_subject !== identity.subject) {
+      throw new ConflictException('This account is already linked to a different Google identity');
+    }
+    if (!existingLink) await this.linkIdentity(user.id, identity);
+    else await this.touchIdentity(user.id, identity);
+
     if (!user.profilePictureUrl && identity.picture) {
       await this.usersService.updateProfile(user.id, { profilePictureUrl: identity.picture });
-      user.profilePictureUrl = identity.picture;
     }
-    await this.usersService.updateLastLogin(user.id);
-    return this.createSession(user);
+    return { message: 'Google account linked successfully.' };
   }
 
   async completeSignup(dto: CompleteGoogleSignupDto, ip: string): Promise<AuthResponseDto> {
