@@ -34,7 +34,7 @@ export class TestLaunchController {
     const [assignments, activeAttempt] = await Promise.all([
       this.testQuestions.find({
         where: { testId },
-        relations: { question: true },
+        relations: { question: { options: true } },
         order: { displayOrder: 'ASC' },
       }),
       actor.role === UserRole.STUDENT
@@ -45,12 +45,20 @@ export class TestLaunchController {
         : Promise.resolve(null),
     ]);
     const questionCount = assignments.length;
-    const mcqCount = assignments.filter((item) => item.question.questionType === QuestionType.MCQ).length;
+    const mcqs = assignments.filter((item) => item.question.questionType === QuestionType.MCQ);
+    const mcqCount = mcqs.length;
+    const malformedMcqs = mcqs.filter((item) =>
+      item.question.options.length !== 5
+      || item.question.options.filter((option) => option.isCorrect).length !== 1,
+    );
     const isFinal = test.testType === TestType.COURSE || /\bfinal\b/i.test(test.title);
     const isPractice = test.testType === TestType.CUSTOM && !isFinal;
     const issues: string[] = [];
 
     if (questionCount === 0) issues.push('This assessment has no questions yet.');
+    if (malformedMcqs.length) {
+      issues.push(`${malformedMcqs.length} MCQ question(s) are malformed. Every MCQ must have exactly five options and exactly one correct answer.`);
+    }
     if (isFinal && questionCount !== FINAL_QUESTION_COUNT) {
       issues.push(`Final exams require exactly ${FINAL_QUESTION_COUNT} questions; ${questionCount} are currently configured.`);
     }
@@ -65,6 +73,7 @@ export class TestLaunchController {
     }
 
     const structurallyReady = questionCount > 0
+      && malformedMcqs.length === 0
       && (!isFinal || (questionCount === FINAL_QUESTION_COUNT && mcqCount === FINAL_QUESTION_COUNT))
       && (!isPractice || (questionCount === PRACTICE_QUESTION_COUNT && mcqCount === PRACTICE_QUESTION_COUNT));
 
@@ -72,6 +81,7 @@ export class TestLaunchController {
       test,
       question_count: questionCount,
       mcq_count: mcqCount,
+      malformed_mcq_count: malformedMcqs.length,
       is_final: isFinal,
       required_question_count: isFinal ? FINAL_QUESTION_COUNT : isPractice ? PRACTICE_QUESTION_COUNT : questionCount,
       timed_available: Boolean(test.durationMinutes),
