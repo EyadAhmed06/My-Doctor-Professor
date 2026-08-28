@@ -49,7 +49,6 @@ import "@/components/logout-modal-polish.css";
 import "@/components/section9-polish.css";
 import "@/components/landing-hero-v2.css";
 import "@/components/landing-hero-polish.css";
-import "@/components/landing-hero-force.css";
 import "@/components/landing-hero-direct.css";
 
 export const metadata: Metadata = {
