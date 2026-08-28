@@ -147,6 +147,16 @@ export class AcademicAccessService {
     await this.assertTopicReadable(rows[0].topic_id, actor);
   }
 
+  async assertQuestionManagedReadable(questionId: string, actor: AuthenticatedUser): Promise<void> {
+    if (actor.role === UserRole.SYSTEM_ADMIN) return;
+    const rows = await this.dataSource.query(
+      `SELECT topic_id FROM questions WHERE id = $1 LIMIT 1`,
+      [questionId],
+    ) as Array<{ topic_id: string }>;
+    if (!rows[0]) throw new NotFoundException('Question not found');
+    await this.assertTopicReadable(rows[0].topic_id, actor);
+  }
+
   async assertResourceReadable(resourceId: string, actor: AuthenticatedUser): Promise<void> {
     const rows = await this.dataSource.query(
       `SELECT lecture_id FROM resources WHERE id = $1 LIMIT 1`,
