@@ -1,12 +1,17 @@
 import { ConfigService } from '@nestjs/config';
+import { Logger } from '@nestjs/common';
 import { createHmac } from 'crypto';
 import { PaymobService } from './paymob.service';
 
 const HMAC_SECRET = 'test-hmac-secret';
 
-function service(): PaymobService {
+function service(overrides: Record<string, string> = {}): PaymobService {
+  const values: Record<string, string> = {
+    PAYMOB_HMAC_SECRET: HMAC_SECRET,
+    ...overrides,
+  };
   const config = {
-    get: (key: string) => (key === 'PAYMOB_HMAC_SECRET' ? HMAC_SECRET : undefined),
+    get: (key: string) => values[key],
   } as unknown as ConfigService;
   return new PaymobService(config);
 }
@@ -73,7 +78,7 @@ describe('PaymobService.verifyWebhookSignature', () => {
   it('rejects a tampered payload even if the original hmac is replayed', () => {
     const transaction = buildTransaction();
     const validHmac = computeExpectedHmac();
-    transaction.amount_cents = 1; // attacker lowers the charged amount after the fact
+    transaction.amount_cents = 1;
     expect(service().verifyWebhookSignature(transaction, validHmac)).toBe(false);
   });
 
@@ -81,5 +86,42 @@ describe('PaymobService.verifyWebhookSignature', () => {
     const transaction = buildTransaction();
     expect(service().verifyWebhookSignature(transaction, undefined)).toBe(false);
     expect(service().verifyWebhookSignature(transaction, '')).toBe(false);
+  });
+});
+
+describe('PaymobService provider error handling', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('does not copy provider response bodies into application logs', async () => {
+    const sensitiveBody = '{"email":"student@example.com","detail":"provider-internal-context"}';
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 422,
+      text: jest.fn().mockResolvedValue(sensitiveBody),
+    } as unknown as Response);
+    const log = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const subject = service({
+      PAYMOB_API_KEY: 'api-key',
+      PAYMOB_PUBLIC_KEY: 'public-key',
+      PAYMOB_CARD_INTEGRATION_ID: '12345',
+    });
+
+    await expect(subject.createIntention({
+      method: 'card',
+      amountCents: 10000,
+      currency: 'EGP',
+      specialReference: 'purchase-1',
+      itemName: 'Plan',
+      billing: { firstName: 'Test', lastName: 'Student', email: 'student@example.com', phoneNumber: '+201000000000' },
+      notificationUrl: 'https://api.example.com/webhooks/paymob',
+      redirectionUrl: 'https://app.example.com/subscription',
+    })).rejects.toThrow('Payment provider rejected the checkout request');
+
+    const logged = log.mock.calls.flat().map(String).join(' ');
+    expect(logged).toContain('HTTP 422');
+    expect(logged).not.toContain('student@example.com');
+    expect(logged).not.toContain('provider-internal-context');
   });
 });
