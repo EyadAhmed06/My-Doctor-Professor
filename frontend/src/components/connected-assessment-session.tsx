@@ -211,7 +211,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   const showOverallProgress = attempt?.testMode === "TIMED" && items.length > BLOCK_SIZE;
   const secondsLeft = attempt?.deadline && now !== null ? Math.max(0, Math.floor((new Date(attempt.deadline).getTime() - now) / 1000)) : null;
   const clock = secondsLeft === null ? "Untimed" : `${String(Math.floor(secondsLeft / 3600)).padStart(2, "0")}:${String(Math.floor((secondsLeft % 3600) / 60)).padStart(2, "0")}:${String(secondsLeft % 60).padStart(2, "0")}`;
-  const tutor = attempt?.testMode === "TUTOR" || source === "rounds";
+  const tutor = attempt?.testMode === "TUTOR";
   const expired = attempt?.testMode === "TIMED" && secondsLeft === 0;
   const elapsedSeconds = attempt?.startedAt && now !== null ? Math.max(0, Math.floor((now - new Date(attempt.startedAt).getTime()) / 1000)) : 0;
   const pace = totalAnswered ? formatPace(elapsedSeconds / totalAnswered) : "—";
@@ -361,7 +361,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
     setIndex((blockIndex + 1) * BLOCK_SIZE); window.scrollTo({ top: 0, behavior: "smooth" });
   }
   useEffect(() => { if (!expired || review || autoSubmitStarted.current) return; autoSubmitStarted.current = true; void finalize(true); }, [expired, finalize, review]);
-  const exitPath = source === "rounds" ? "/rounds" : "/past-exams";
+  const exitPath = source === "rounds" ? "/rounds" : source === "past-exams" ? "/past-exams" : "/assessments";
 
   if (!attemptId || !testId) return <ProductShell><div className="product-auth-loading">Missing attempt information. Start an assessment from Questions or Past Exams.</div></ProductShell>;
 
