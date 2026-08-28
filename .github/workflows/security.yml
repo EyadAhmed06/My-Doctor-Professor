@@ -43,6 +43,9 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
       - name: Static security audit
         run: npm run audit:security
+      - name: Verify migration ledger
+        if: matrix.workspace == 'backend'
+        run: npm run migration:verify-ledger
       - name: Lint
         run: npm run lint
       - name: Build
