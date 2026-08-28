@@ -10,6 +10,7 @@ import { useAuth } from "./auth-provider";
 import type { GoogleOnboardingResult } from "./auth-provider";
 import { GoogleSignInButton } from "./google-sign-in-button";
 import { AuthMotion } from "./auth-motion";
+import styles from "./register-page.module.css";
 
 const registrationProof=[
   {Icon:FiShield,title:"Secure & Private",copy:"Your account actions use protected links"},
@@ -17,6 +18,31 @@ const registrationProof=[
   {Icon:FiCloud,title:"Access Anywhere",copy:"Continue from your signed-in browser"},
   {Icon:FiUsers,title:"Structured Learning",copy:"Courses, questions, notes, and review"},
 ];
+
+const ARAB_COUNTRY_CODES=[
+  {code:"+20",label:"Egypt",flag:"🇪🇬"},
+  {code:"+966",label:"Saudi Arabia",flag:"🇸🇦"},
+  {code:"+971",label:"UAE",flag:"🇦🇪"},
+  {code:"+965",label:"Kuwait",flag:"🇰🇼"},
+  {code:"+974",label:"Qatar",flag:"🇶🇦"},
+  {code:"+973",label:"Bahrain",flag:"🇧🇭"},
+  {code:"+968",label:"Oman",flag:"🇴🇲"},
+  {code:"+962",label:"Jordan",flag:"🇯🇴"},
+  {code:"+961",label:"Lebanon",flag:"🇱🇧"},
+  {code:"+964",label:"Iraq",flag:"🇮🇶"},
+  {code:"+963",label:"Syria",flag:"🇸🇾"},
+  {code:"+970",label:"Palestine",flag:"🇵🇸"},
+  {code:"+967",label:"Yemen",flag:"🇾🇪"},
+  {code:"+212",label:"Morocco",flag:"🇲🇦"},
+  {code:"+213",label:"Algeria",flag:"🇩🇿"},
+  {code:"+216",label:"Tunisia",flag:"🇹🇳"},
+  {code:"+218",label:"Libya",flag:"🇱🇾"},
+  {code:"+249",label:"Sudan",flag:"🇸🇩"},
+  {code:"+252",label:"Somalia",flag:"🇸🇴"},
+  {code:"+253",label:"Djibouti",flag:"🇩🇯"},
+  {code:"+269",label:"Comoros",flag:"🇰🇲"},
+  {code:"+222",label:"Mauritania",flag:"🇲🇷"},
+] as const;
 
 const GOOGLE_ONBOARDING_KEY="mdp_google_onboarding";
 
@@ -29,10 +55,18 @@ function readGoogleOnboarding():GoogleOnboardingResult|null{
   }catch{return null;}
 }
 
+function normalizePhone(countryCode:string,localNumber:string):string|null{
+  const nationalDigits=localNumber.replace(/\D/g,"").replace(/^0+/,"");
+  const normalized=`${countryCode}${nationalDigits}`;
+  return /^\+[1-9]\d{7,14}$/.test(normalized)?normalized:null;
+}
+
 export function RegisterPage() {
   const router=useRouter();
   const {googleLogin,completeGoogleSignup,user,loading:authLoading}=useAuth();
-  const [form,setForm]=useState({full_name:"",email:"",phone_number:"",student_number:"",password:"",confirm_password:"",current_semester:"1"});
+  const [form,setForm]=useState({full_name:"",email:"",password:"",confirm_password:"",current_semester:"1"});
+  const [phoneCountry,setPhoneCountry]=useState("+20");
+  const [phoneLocal,setPhoneLocal]=useState("");
   const [googleOnboarding,setGoogleOnboarding]=useState<GoogleOnboardingResult|null>(null);
   const [accepted,setAccepted]=useState(false);
   const [loading,setLoading]=useState(false);
@@ -51,7 +85,8 @@ export function RegisterPage() {
 
   async function submit(){
     setError(null);
-    if(!form.student_number.trim()){setError("Student number is required for a student account.");return;}
+    const phoneNumber=normalizePhone(phoneCountry,phoneLocal);
+    if(!phoneNumber){setError("Enter a valid phone number for the selected country.");return;}
     if(!accepted){setError("You must agree to the Terms of Service and Privacy Policy.");return;}
     if(!googleOnboarding&&form.password!==form.confirm_password){setError("Passwords do not match.");return;}
     setLoading(true);
@@ -59,14 +94,13 @@ export function RegisterPage() {
       if(googleOnboarding){
         await completeGoogleSignup({
           onboarding_token:googleOnboarding.onboarding_token,
-          phone_number:form.phone_number,
-          student_number:form.student_number,
+          phone_number:phoneNumber,
           current_semester:Number(form.current_semester),
         });
         sessionStorage.removeItem(GOOGLE_ONBOARDING_KEY);
         router.replace("/dashboard");
       }else{
-        await apiRequest<{message:string}>("/auth/signup",{method:"POST",body:{full_name:form.full_name,email:form.email,phone_number:form.phone_number,student_number:form.student_number,password:form.password,role:"STUDENT",current_semester:Number(form.current_semester)}});
+        await apiRequest<{message:string}>("/auth/signup",{method:"POST",body:{full_name:form.full_name,email:form.email,phone_number:phoneNumber,password:form.password,role:"STUDENT",current_semester:Number(form.current_semester)}});
         router.push(`/verify-email?email=${encodeURIComponent(form.email)}`);
       }
     }catch(cause){setError(cause instanceof Error?cause.message:"Unable to create your account. Please try again.");}
@@ -101,12 +135,21 @@ export function RegisterPage() {
       <div className="registration-card">
         <div className="registration-top"><Link href="/"><FiArrowLeft /> Back to home</Link><span>Already registered? <Link href="/login">Log in</Link></span></div>
         <div className="registration-content">
-          <span className="step-label">ACCOUNT SETUP</span><h2>{googleOnboarding?"Complete your student profile":"Create your account"}</h2><p>{googleOnboarding?"Google verified your identity. Add the academic details required for your student workspace.":<>Tell us where you are in your medical journey.<br/>You can update these details later.</>}</p>
+          <span className="step-label">ACCOUNT SETUP</span><h2>{googleOnboarding?"Complete your student profile":"Create your account"}</h2><p>{googleOnboarding?"Google verified your identity. Add the details required for your student workspace.":<>Tell us where you are in your medical journey.<br/>Your internal student ID will be created automatically.</>}</p>
           {googleOnboarding?<div className="google-linked-profile"><span>{googleOnboarding.profile.picture?<img src={googleOnboarding.profile.picture} alt="" referrerPolicy="no-referrer"/>:<b>G</b>}</span><div><strong>{googleOnboarding.profile.full_name}</strong><small>{googleOnboarding.profile.email}</small></div><em>Verified by Google</em></div>:<><GoogleSignInButton onCredential={handleGoogleCredential} disabled={authLoading||loading||googleLoading}/><div className="or"><span/>or use email<span/></div></>}
           <SubmitForm className="registration-form" buttonText={googleOnboarding?"Create student workspace":"Create account"} onSubmit={submit} loading={loading||authLoading} error={error}>
             <div className="form-grid">
               {!googleOnboarding&&<><Field label="Full name" icon={icons.User} placeholder="Enter your full name" value={form.full_name} onChange={update("full_name")} required autoComplete="name"/><Field label="Email address" icon={icons.Mail} placeholder="you@example.com" type="email" value={form.email} onChange={update("email")} required autoComplete="email"/></>}
-              <Field label="Phone number" placeholder="+201001234567" type="tel" value={form.phone_number} onChange={update("phone_number")} required autoComplete="tel"/><Field label="Student number" placeholder="Your university student ID" value={form.student_number} onChange={update("student_number")} required/>
+              <label className={styles.phoneField}>
+                <span>Phone number</span>
+                <span className={styles.phoneShell}>
+                  <select className={styles.countrySelect} value={phoneCountry} onChange={event=>setPhoneCountry(event.target.value)} aria-label="Country calling code">
+                    {ARAB_COUNTRY_CODES.map(country=><option key={`${country.label}-${country.code}`} value={country.code}>{country.flag} {country.code} · {country.label}</option>)}
+                  </select>
+                  <input className={styles.phoneInput} type="tel" inputMode="tel" autoComplete="tel-national" placeholder="100 123 4567" value={phoneLocal} onChange={event=>setPhoneLocal(event.target.value)} required maxLength={22}/>
+                </span>
+                <small className={styles.helper}>Choose your country code and enter the local number. We store it in international E.164 format.</small>
+              </label>
               {!googleOnboarding&&<><Field label="Password" icon={icons.Lock} placeholder="12+ characters with upper, lower, and number" type="password" value={form.password} onChange={update("password")} required autoComplete="new-password"/><Field label="Confirm password" icon={icons.Lock} placeholder="Repeat your password" type="password" value={form.confirm_password} onChange={update("confirm_password")} required autoComplete="new-password"/></>}
             </div>
             <div className="registration-divider"><span>Academic information</span></div>
