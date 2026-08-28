@@ -97,10 +97,16 @@ export class McqPracticeService {
       .andWhere('question.question_type = :questionType', { questionType: QuestionType.MCQ });
     if (dto.difficulty) builder.andWhere('question.difficulty = :difficulty', { difficulty: dto.difficulty });
 
-    const eligible = (await builder.getMany()).filter((question) =>
-      question.options.length === 5
-      && question.options.filter((option) => option.isCorrect).length === 1,
-    );
+    const eligibleById = new Map<string, Question>();
+    for (const question of await builder.getMany()) {
+      if (
+        question.options.length === 5
+        && question.options.filter((option) => option.isCorrect).length === 1
+      ) {
+        eligibleById.set(question.id, question);
+      }
+    }
+    const eligible = [...eligibleById.values()];
     if (eligible.length < dto.question_count) {
       throw new BadRequestException(`Only ${eligible.length} eligible MCQs are available for this selection; ${dto.question_count} are required`);
     }
