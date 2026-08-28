@@ -47,7 +47,7 @@ export class TestLaunchController {
     const questionCount = assignments.length;
     const mcqCount = assignments.filter((item) => item.question.questionType === QuestionType.MCQ).length;
     const isFinal = test.testType === TestType.COURSE || /\bfinal\b/i.test(test.title);
-    const isPractice = test.testType === TestType.CUSTOM;
+    const isPractice = test.testType === TestType.CUSTOM && !isFinal;
     const issues: string[] = [];
 
     if (questionCount === 0) issues.push('This assessment has no questions yet.');
