@@ -29,9 +29,30 @@ export function LandingMotion() {
     if (!root) return;
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const handleAnchorClick = (event: MouseEvent) => {
+      const source = event.target instanceof Element ? event.target : null;
+      const anchor = source?.closest<HTMLAnchorElement>('a[href^="#"]');
+      if (!anchor || !root.contains(anchor) || !anchor.hash) return;
+
+      const id = decodeURIComponent(anchor.hash.slice(1));
+      const target = document.getElementById(id);
+      if (!target) return;
+
+      event.preventDefault();
+      const nav = root.querySelector<HTMLElement>(".public-nav");
+      const offset = (nav?.getBoundingClientRect().height ?? 0) + 18;
+      const top = Math.max(0, target.getBoundingClientRect().top + window.scrollY - offset);
+
+      window.scrollTo({ top, behavior: reducedMotion ? "auto" : "smooth" });
+      window.history.replaceState(null, "", `#${id}`);
+    };
+
+    root.addEventListener("click", handleAnchorClick);
+
     if (reducedMotion) {
       setIntroVisible(false);
-      return;
+      return () => root.removeEventListener("click", handleAnchorClick);
     }
 
     root.classList.add("home-motion-ready");
@@ -109,6 +130,7 @@ export function LandingMotion() {
     fallbackTimer = window.setTimeout(releaseIntro, 3000);
 
     return () => {
+      root.removeEventListener("click", handleAnchorClick);
       window.removeEventListener("load", releaseIntro);
       window.clearTimeout(exitTimer);
       window.clearTimeout(finishTimer);
