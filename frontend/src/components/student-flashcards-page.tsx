@@ -30,6 +30,7 @@ export function StudentFlashcardsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const courseId = searchParams.get("course");
+  const deckId = searchParams.get("deck");
   const cardId = searchParams.get("card");
   const lectureId = searchParams.get("lecture");
   const [decks, setDecks] = useState<Deck[]>([]);
@@ -40,7 +41,7 @@ export function StudentFlashcardsPage() {
   // A course selection always lands on its deck browser first. Bundle deep links may
   // additionally carry a lecture filter; that narrows the visible decks instead of
   // skipping the deck level and jumping straight into an arbitrary card.
-  const choosingDeck = Boolean(courseId && !cardId);
+  const choosingDeck = Boolean(courseId && !deckId && !cardId);
 
   useEffect(() => {
     if (!choosingDeck || !courseId) return;
@@ -80,6 +81,7 @@ export function StudentFlashcardsPage() {
       }
       const params = new URLSearchParams();
       params.set("course", courseId);
+      params.set("deck", deck.id);
       params.set("card", card.id);
       const resolvedLectureId = deck.lecture?.id || lectureId;
       if (resolvedLectureId) params.set("lecture", resolvedLectureId);
