@@ -26,7 +26,6 @@ type LoginInput = { email: string; password: string; remember: boolean };
 type CompleteGoogleSignupInput = {
   onboarding_token: string;
   phone_number: string;
-  student_number: string;
   current_semester: number;
   date_of_birth?: string;
 };
