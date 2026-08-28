@@ -22,6 +22,7 @@ export class ApiError extends Error {
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1").replace(/\/$/, "");
 const REQUEST_START = "mdp:request-start";
 const REQUEST_END = "mdp:request-end";
+const ACHIEVEMENT_CHECK = "mdp:achievement-check";
 
 export const apiBaseUrl = API_URL;
 
@@ -33,6 +34,18 @@ export type RequestOptions = Omit<RequestInit, "body"> & {
 
 function signalRequest(name: typeof REQUEST_START | typeof REQUEST_END) {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(name));
+}
+
+function signalAchievementCheck(path: string, method: string) {
+  if (typeof window === "undefined" || method === "GET" || method === "HEAD") return;
+  const normalized = path.replace(/^\//, "");
+  if (normalized === "progress/achievements/sync") return;
+  const relevant = normalized.startsWith("progress/lectures/")
+    || (/^tests\/attempts\//.test(normalized) && (/\/answers\//.test(normalized) || /\/submit$/.test(normalized)))
+    || (/^flashcards\/cards\/.+\/review$/.test(normalized))
+    || (/^essay-practice\/attempts\/.+\/answers\//.test(normalized))
+    || normalized.startsWith("study-plan/");
+  if (relevant) window.dispatchEvent(new Event(ACHIEVEMENT_CHECK));
 }
 
 function normalizeProblem(path: string, status: number, payload: unknown, statusText: string): ApiProblem {
@@ -126,6 +139,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     if (generatedIdempotencyKey && generatedIdempotencyScope) {
       clearAssessmentIdempotencyKey(generatedIdempotencyScope, generatedIdempotencyKey);
     }
+    signalAchievementCheck(path, method);
     if (response.status === 204) return undefined as T;
     if (responseType === "blob") return await response.blob() as unknown as T;
     if (responseType === "text") return await response.text() as unknown as T;
