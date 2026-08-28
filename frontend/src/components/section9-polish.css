@@ -1,0 +1,221 @@
+/* Section 9 — final UI polish and iOS Safari viewport/safe-area hardening. */
+:root {
+  --mdp-safe-top: env(safe-area-inset-top, 0px);
+  --mdp-safe-right: env(safe-area-inset-right, 0px);
+  --mdp-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --mdp-safe-left: env(safe-area-inset-left, 0px);
+}
+
+.product-app {
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  overflow-x: clip;
+}
+
+.pp-topbar,
+.phase5-mobile-dock,
+.header-popover {
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Keep compact action groups legible and tappable instead of visually colliding. */
+.role-flashcard > header > span,
+.role-row-actions,
+.role-hero-actions,
+.role-heading-actions,
+.settings-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.role-flashcard > header > span > button {
+  min-height: 38px;
+  min-width: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 11px;
+  border: 1px solid var(--p-line, var(--border));
+  border-radius: 8px;
+  background: var(--p-panel2, var(--surface-soft));
+  cursor: pointer;
+}
+
+.role-flashcard > header > span > button.danger {
+  color: var(--p-danger, var(--danger, #d95050));
+  border-color: color-mix(in srgb, var(--p-danger, #d95050) 34%, var(--p-line, #dce3ef));
+}
+
+/* Progress must communicate data, not placeholder state. */
+.progress-card .xp-bar,
+.student-progress-xp,
+.achievement-level-bar,
+.achievement-milestone-bar {
+  min-height: 7px;
+}
+
+.progress-card .xp-bar > i,
+.student-progress-xp > i,
+.achievement-level-bar > i,
+.achievement-milestone-bar > i {
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  /* iOS Safari's dynamic toolbar changes the visual viewport. Use dvh/svh fallbacks
+     and include the hardware safe areas rather than sizing against legacy 100vh only. */
+  .product-app .pp-topbar > nav {
+    top: 0;
+    bottom: auto;
+    height: 100vh;
+    height: 100svh;
+    height: 100dvh;
+    max-height: 100dvh;
+    width: min(86vw, 340px);
+    max-width: calc(100vw - 28px - var(--mdp-safe-right));
+    padding-top: calc(64px + var(--mdp-safe-top));
+    padding-right: calc(16px + var(--mdp-safe-right));
+    padding-bottom: calc(20px + var(--mdp-safe-bottom));
+    padding-left: calc(16px + var(--mdp-safe-left));
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+
+  html[dir="rtl"] .product-app .pp-topbar > nav {
+    max-width: calc(100vw - 28px - var(--mdp-safe-left));
+  }
+
+  .product-app .pp-nav-close {
+    top: calc(12px + var(--mdp-safe-top));
+    right: calc(12px + var(--mdp-safe-right));
+  }
+
+  html[dir="rtl"] .product-app .pp-nav-close {
+    right: auto;
+    left: calc(12px + var(--mdp-safe-left));
+  }
+
+  .product-app .pp-mobile-overlay {
+    inset: 0;
+    height: 100vh;
+    height: 100svh;
+    height: 100dvh;
+    touch-action: none;
+  }
+
+  /* The primary drawer is the active navigation surface. The bottom dock must not
+     remain visible underneath it (the overlap shown on iOS). */
+  .product-app:has(.pp-topbar > nav.open) .phase5-mobile-dock {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(16px);
+  }
+}
+
+@media (max-width: 820px) {
+  .product-app .header-popover {
+    left: calc(12px + var(--mdp-safe-left)) !important;
+    right: calc(12px + var(--mdp-safe-right)) !important;
+    top: calc(66px + var(--mdp-safe-top)) !important;
+    bottom: calc(12px + var(--mdp-safe-bottom));
+    max-height: none !important;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .phase5-drawer-backdrop,
+  .phase5-confirm-backdrop,
+  .role-modal-backdrop {
+    min-height: 100vh;
+    min-height: 100svh;
+    min-height: 100dvh;
+  }
+
+  .phase5-drawer {
+    height: 100vh;
+    height: 100svh;
+    height: 100dvh;
+    max-height: 100dvh;
+    padding-top: calc(20px + var(--mdp-safe-top));
+    padding-right: calc(20px + var(--mdp-safe-right));
+    padding-bottom: calc(20px + var(--mdp-safe-bottom));
+    padding-left: calc(20px + var(--mdp-safe-left));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .role-modal-backdrop {
+    padding-top: calc(12px + var(--mdp-safe-top));
+    padding-right: calc(12px + var(--mdp-safe-right));
+    padding-bottom: calc(12px + var(--mdp-safe-bottom));
+    padding-left: calc(12px + var(--mdp-safe-left));
+  }
+
+  .role-modal {
+    max-height: calc(100dvh - 24px - var(--mdp-safe-top) - var(--mdp-safe-bottom));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 760px) {
+  .phase5-mobile-dock {
+    left: calc(10px + var(--mdp-safe-left));
+    right: calc(10px + var(--mdp-safe-right));
+    bottom: calc(10px + var(--mdp-safe-bottom));
+    transition: opacity .16s ease, visibility .16s ease, transform .16s ease;
+  }
+
+  .product-app {
+    padding-bottom: calc(78px + var(--mdp-safe-bottom));
+  }
+
+  .phase5-achievement {
+    bottom: calc(82px + var(--mdp-safe-bottom));
+  }
+
+  .pp-page,
+  .dash-content {
+    padding-left: calc(14px + var(--mdp-safe-left));
+    padding-right: calc(14px + var(--mdp-safe-right));
+  }
+
+  .role-flashcard > header > span {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .role-flashcard > header > span > button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+@media (max-width: 520px) {
+  .role-heading-actions,
+  .role-hero-actions,
+  .settings-form-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .role-heading-actions > *,
+  .role-hero-actions > *,
+  .settings-form-actions > * {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phase5-mobile-dock,
+  .product-app .pp-topbar > nav {
+    transition: none !important;
+  }
+}
