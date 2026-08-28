@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
+import { AchievementFeedbackService } from './achievement-feedback.service';
 import { AnalyticsQueryDto, BookmarkQuestionDto, DashboardQueryDto, UpdateLectureProgressDto } from './dtos/progress.dto';
 import { ProgressService } from './progress.service';
 const uuid=new ParseUUIDPipe({version:'4'});
@@ -15,11 +16,14 @@ const uuid=new ParseUUIDPipe({version:'4'});
 export class ProgressController {
  constructor(
   private readonly progress:ProgressService,
+  private readonly achievements:AchievementFeedbackService,
   private readonly access:AcademicAccessService,
  ){}
 
  @Get('progress/courses') @Roles(UserRole.STUDENT)
  listCourseProgress(@CurrentUser() actor:AuthenticatedUser){return this.progress.listCourseProgress(actor.userId);}
+ @Get('progress/achievements') @Roles(UserRole.STUDENT)
+ studentAchievements(@CurrentUser() actor:AuthenticatedUser){return this.achievements.getStudentAchievements(actor.userId);}
  @Get('progress/courses/:courseId') @Roles(UserRole.STUDENT)
  async getCourseProgress(@Param('courseId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){await this.access.assertCourseReadable(id,actor);return this.progress.getCourseProgress(id,actor.userId);}
  @Get('progress/lectures/:lectureId') @Roles(UserRole.STUDENT)
