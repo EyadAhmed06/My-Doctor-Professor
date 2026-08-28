@@ -31,7 +31,7 @@ export class PlanPurchase {
   @Column({ type: 'numeric', precision: 10, scale: 2, name: 'amount_paid', default: 0 }) amountPaid: string;
   @Column({ type: 'varchar', length: 3, default: 'EGP' }) currency: string;
   @Column({ type: 'varchar', length: 50, nullable: true }) provider: string | null;
-  @Column({ type: 'varchar', length: 200, name: 'provider_reference', nullable: true }) providerReference: string | null;
+  @Column({ type: 'varchar', length: 200, name: 'provider_reference', nullable: true, select: false }) providerReference: string | null;
   @Column({ type: 'varchar', length: 100, name: 'provider_order_id', nullable: true }) providerOrderId: string | null;
   @Column({ type: 'varchar', length: 100, name: 'provider_transaction_id', nullable: true }) providerTransactionId: string | null;
   @Column('uuid', { name: 'promo_code_id', nullable: true }) promoCodeId: string | null;
