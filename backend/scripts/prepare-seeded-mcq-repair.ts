@@ -11,7 +11,7 @@ const { AppDataSource } = require(
 ) as { AppDataSource: DataSource };
 
 type RepairRow = {
-  repaired_questions: number;
+  seeded_questions: number;
   deleted_options: number;
 };
 
@@ -32,22 +32,18 @@ async function main() {
         "SELECT pg_advisory_xact_lock(hashtext('mdp-medical-content-v1'))",
       );
 
-      const invalid = await manager.query<Array<{ id: string }>>(`
+      const seeded = await manager.query<Array<{ id: string }>>(`
         SELECT q.id
         FROM questions q
         WHERE q.question_type = 'MCQ'
           AND q.reference = 'MDP medical content seed v1'
-          AND (
-            (SELECT COUNT(*) FROM mcq_options o WHERE o.question_id = q.id) <> 5
-            OR (SELECT COUNT(*) FROM mcq_options o WHERE o.question_id = q.id AND o.is_correct = TRUE) <> 1
-          )
       `);
 
-      if (!invalid.length) {
-        return { repaired_questions: 0, deleted_options: 0 } satisfies RepairRow;
+      if (!seeded.length) {
+        return { seeded_questions: 0, deleted_options: 0 } satisfies RepairRow;
       }
 
-      const ids = invalid.map((row) => row.id);
+      const ids = seeded.map((row) => row.id);
       const deleted = await manager.query<Array<{ count: number }>>(
         `WITH removed AS (
            DELETE FROM mcq_options
@@ -59,12 +55,16 @@ async function main() {
       );
 
       return {
-        repaired_questions: ids.length,
+        seeded_questions: ids.length,
         deleted_options: Number(deleted[0]?.count ?? 0),
       } satisfies RepairRow;
     });
 
-    console.log(JSON.stringify({ seed: 'medical-v1', repair: result }, null, 2));
+    console.log(JSON.stringify({
+      seed: 'medical-v1',
+      repair: result,
+      next_step: 'seed:medical-content must immediately recreate five deterministic options per MCQ',
+    }, null, 2));
   } finally {
     await AppDataSource.destroy();
   }
