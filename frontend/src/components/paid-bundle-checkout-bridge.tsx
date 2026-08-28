@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 /**
  * Paid bundles must enter the payment-method selection flow before any paid
@@ -12,7 +12,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 export function PaidBundleCheckoutBridge() {
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (pathname !== "/bundles") return;
@@ -23,7 +22,8 @@ export function PaidBundleCheckoutBridge() {
       const label = target.textContent?.trim() || "";
       if (!label.startsWith("Subscribe for ")) return;
 
-      const bundle = searchParams.get("bundle") || searchParams.get("id");
+      const params = new URLSearchParams(window.location.search);
+      const bundle = params.get("bundle") || params.get("id");
       if (!bundle) return;
 
       event.preventDefault();
@@ -34,7 +34,7 @@ export function PaidBundleCheckoutBridge() {
 
     document.addEventListener("click", onClick, true);
     return () => document.removeEventListener("click", onClick, true);
-  }, [pathname, router, searchParams]);
+  }, [pathname, router]);
 
   return null;
 }
