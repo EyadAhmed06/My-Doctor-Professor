@@ -36,6 +36,8 @@ export function PaymentMethodsClient({ bundleRef }: { bundleRef: string | null }
   const [bundles, setBundles] = useState<Bundle[]>([]);
   const [selected, setSelected] = useState<PaymentMethod | null>(null);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [handoffReady, setHandoffReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -51,16 +53,40 @@ export function PaymentMethodsClient({ bundleRef }: { bundleRef: string | null }
 
   const bundle = useMemo(() => bundles.find((item) => item.id === bundleRef || item.slug === bundleRef) || null, [bundleRef, bundles]);
   const price = bundle ? `${bundle.priceCurrency} ${Number(bundle.priceAmount || 0).toFixed(2)}` : "";
+  const selectedMethod = METHODS.find((method) => method.id === selected) || null;
+
+  async function continuePayment() {
+    if (!bundle || !selected || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await request(`/subscriptions/bundles/${bundle.id}/purchase`, { method: "POST", body: {} });
+      setHandoffReady(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to prepare this payment right now.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return <main className="payment-methods-page">
     <section className="payment-methods-shell">
       <Link className="payment-back" href={bundleRef ? `/bundles?bundle=${encodeURIComponent(bundleRef)}` : "/bundles"}><FiArrowLeft /> Back to bundle</Link>
       <header>
         <span className="payment-eyebrow">SECURE CHECKOUT</span>
-        <h1>Choose a payment method</h1>
+        <h1>{handoffReady ? "Payment request prepared" : "Choose a payment method"}</h1>
       </header>
 
-      {loading ? <div className="payment-state">Loading payment options…</div> : error ? <div className="payment-state error">{error}</div> : !bundle ? <div className="payment-state error">This bundle could not be found.</div> : <>
+      {loading ? <div className="payment-state">Loading payment options…</div> : error ? <div className="payment-state error">{error}</div> : !bundle ? <div className="payment-state error">This bundle could not be found.</div> : handoffReady && selectedMethod ? <section className="payment-handoff">
+        <div className="payment-handoff-icon"><FiCheck /></div>
+        <span className="payment-eyebrow">NEXT STEP</span>
+        <h2>{selectedMethod.label} selected</h2>
+        <p>Your enrollment is pending payment verification. The bundle remains locked until the selected provider confirms payment.</p>
+        <div className="payment-handoff-actions">
+          <Link className="payment-continue" href={`/bundles?bundle=${encodeURIComponent(bundle.id)}`}>Return to bundle</Link>
+          <button className="payment-secondary" type="button" onClick={() => setHandoffReady(false)}>Choose another method</button>
+        </div>
+      </section> : <>
         <section className="payment-summary">
           <div><small>Bundle</small><strong>{bundle.title}</strong></div>
           <div><small>Total</small><strong>{price}</strong></div>
@@ -79,7 +105,7 @@ export function PaymentMethodsClient({ bundleRef }: { bundleRef: string | null }
         </fieldset>
 
         <div className="payment-security-note"><FiLock /><span>Payment details are handled securely by the selected provider.</span></div>
-        <button className="payment-continue" type="button" disabled={!selected} aria-disabled={!selected}><FiCreditCard /> Continue</button>
+        <button className="payment-continue" type="button" disabled={!selected || submitting} aria-disabled={!selected || submitting} onClick={continuePayment}><FiCreditCard /> {submitting ? "Preparing…" : "Continue"}</button>
       </>}
     </section>
   </main>;
