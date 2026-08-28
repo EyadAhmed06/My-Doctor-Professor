@@ -2,7 +2,8 @@
 
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FiCheck, FiEye, FiEyeOff, FiGlobe, FiImage, FiLock, FiMonitor, FiSave, FiShield, FiTrash2, FiUser } from "react-icons/fi";
+import { FiCamera, FiCheck, FiEye, FiEyeOff, FiGlobe, FiLock, FiMonitor, FiSave, FiShield, FiTrash2, FiUploadCloud, FiUser } from "react-icons/fi";
+import { apiAssetUrl } from "@/lib/api";
 import { useAppTheme } from "./app-theme";
 import { AuthUser, useAuth } from "./auth-provider";
 import { LanguageSwitcher, useLocale } from "./locale-provider";
@@ -22,7 +23,6 @@ type ProfileDraft = {
   phone: string;
   dateOfBirth: string;
   gender: "" | "MALE" | "FEMALE";
-  profilePictureUrl: string;
 };
 
 type FieldErrors = Partial<Record<keyof ProfileDraft | "currentPassword" | "newPassword", string>>;
@@ -30,6 +30,9 @@ type SecurityOverview = {
   sessions: Array<{ id:string; current:boolean; created_at:string; last_used_at:string|null; expires_at:string }>;
   providers: Array<{ provider:string; email:string; linked_at:string; last_used_at:string|null }>;
 };
+
+const PROFILE_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const PROFILE_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
 function normalizedPhone(value: string) {
   const trimmed = value.trim();
@@ -54,7 +57,7 @@ export function ConnectedSettingsPage() {
   const { locale } = useLocale();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [security, setSecurity] = useState<SecurityOverview | null>(null);
-  const [draft, setDraft] = useState<ProfileDraft>({ name: "", phone: "", dateOfBirth: "", gender: "", profilePictureUrl: "" });
+  const [draft, setDraft] = useState<ProfileDraft>({ name: "", phone: "", dateOfBirth: "", gender: "" });
   const [baseline, setBaseline] = useState<ProfileDraft | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -63,6 +66,9 @@ export function ConnectedSettingsPage() {
   const [capsLock, setCapsLock] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [pictureFile, setPictureFile] = useState<File | null>(null);
+  const [picturePreview, setPicturePreview] = useState<string | null>(null);
+  const [pictureBusy, setPictureBusy] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -95,16 +101,20 @@ export function ConnectedSettingsPage() {
         phone: value.phoneNumber || "",
         dateOfBirth: value.dateOfBirth ? String(value.dateOfBirth).slice(0, 10) : "",
         gender: value.gender || "",
-        profilePictureUrl: value.profilePictureUrl || "",
       };
       setProfile(value);
       setSecurity(securityValue);
       setDraft(next);
       setBaseline(next);
+      setImageError(false);
     }).catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "Unable to load your settings."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [request, user]);
+
+  useEffect(() => () => {
+    if (picturePreview) URL.revokeObjectURL(picturePreview);
+  }, [picturePreview]);
 
   const dirty = useMemo(() => baseline !== null && JSON.stringify(draft) !== JSON.stringify(baseline), [baseline, draft]);
   const checks = passwordChecks(newPassword);
@@ -112,18 +122,17 @@ export function ConnectedSettingsPage() {
 
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (!dirty) return;
+      if (!dirty && !pictureFile) return;
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  }, [dirty, pictureFile]);
 
   function setField<K extends keyof ProfileDraft>(key: K, value: ProfileDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
     setFieldErrors((current) => ({ ...current, [key]: undefined }));
-    if (key === "profilePictureUrl") setImageError(false);
   }
 
   function validateProfile() {
@@ -133,9 +142,6 @@ export function ConnectedSettingsPage() {
     else if (draft.name.trim().length > 150) errors.name = "Full name must be 150 characters or fewer.";
     if (!/^\+[1-9]\d{6,14}$/.test(phone)) errors.phone = "Use international format, for example +201012345678.";
     if (draft.dateOfBirth && new Date(`${draft.dateOfBirth}T00:00:00`) >= new Date()) errors.dateOfBirth = "Date of birth must be in the past.";
-    if (draft.profilePictureUrl) {
-      try { new URL(draft.profilePictureUrl); } catch { errors.profilePictureUrl = "Enter a complete image URL."; }
-    }
     setFieldErrors(errors);
     return { valid: !Object.keys(errors).length, phone };
   }
@@ -152,7 +158,6 @@ export function ConnectedSettingsPage() {
         body: {
           full_name: draft.name.trim(), phone_number: validation.phone,
           date_of_birth: draft.dateOfBirth || undefined, gender: draft.gender || undefined,
-          profile_picture_url: draft.profilePictureUrl || undefined,
         },
       });
       const next: ProfileDraft = {
@@ -160,12 +165,62 @@ export function ConnectedSettingsPage() {
         phone: updated.phoneNumber || validation.phone,
         dateOfBirth: updated.dateOfBirth ? String(updated.dateOfBirth).slice(0, 10) : draft.dateOfBirth,
         gender: updated.gender || draft.gender,
-        profilePictureUrl: updated.profilePictureUrl || draft.profilePictureUrl,
       };
       setProfile(updated); setDraft(next); setBaseline(next); await refreshUser();
       setMessage("Profile saved across the workspace.");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to save your profile."); }
     finally { setSaving(false); }
+  }
+
+  function chooseProfilePicture(file: File | null) {
+    setError(null); setMessage(null); setImageError(false);
+    if (!file) return;
+    if (!PROFILE_IMAGE_TYPES.has(file.type)) {
+      setError("Choose a JPEG, PNG, or WebP image. SVG and executable formats are not accepted.");
+      return;
+    }
+    if (!file.size || file.size > PROFILE_IMAGE_MAX_BYTES) {
+      setError("Profile picture must be 5 MB or smaller.");
+      return;
+    }
+    if (picturePreview) URL.revokeObjectURL(picturePreview);
+    setPictureFile(file);
+    setPicturePreview(URL.createObjectURL(file));
+  }
+
+  function discardPictureSelection() {
+    if (picturePreview) URL.revokeObjectURL(picturePreview);
+    setPicturePreview(null); setPictureFile(null); setImageError(false);
+  }
+
+  async function uploadProfilePicture() {
+    if (!user || !pictureFile) return;
+    setPictureBusy(true); setError(null); setMessage(null);
+    try {
+      const updated = await request<Profile>(`/users/${user.id}/profile-picture`, {
+        method: "PUT",
+        body: pictureFile,
+        headers: { "Content-Type": pictureFile.type },
+      });
+      setProfile(updated);
+      discardPictureSelection();
+      await refreshUser();
+      setMessage("Profile picture updated across the workspace.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to upload your profile picture."); }
+    finally { setPictureBusy(false); }
+  }
+
+  async function deleteProfilePicture() {
+    if (!user || !profile?.profilePictureUrl) return;
+    setPictureBusy(true); setError(null); setMessage(null);
+    try {
+      await request(`/users/${user.id}/profile-picture`, { method: "DELETE" });
+      discardPictureSelection();
+      setProfile((current) => current ? { ...current, profilePictureUrl: null } : current);
+      await refreshUser();
+      setMessage("Profile picture removed.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to remove your profile picture."); }
+    finally { setPictureBusy(false); }
   }
 
   async function changePassword(event: FormEvent) {
@@ -218,21 +273,30 @@ export function ConnectedSettingsPage() {
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
   const google=security?.providers.find(provider=>provider.provider==="GOOGLE");
   const otherSessions=security?.sessions.filter(session=>!session.current).length||0;
+  const profileImage = picturePreview || apiAssetUrl(profile?.profilePictureUrl);
 
   return <ProductShell><main className="pp-page settings-complete-page settings-v2-page">
-    <div className="pp-title settings-v2-heading"><div><small className="page-eyebrow">ACCOUNT CONTROL</small><h1>{locale==="ar"?"الإعدادات":"Settings"}</h1><p>{locale==="ar"?"إدارة هويتك وأمان الحساب والجلسات والمظهر واللغة من مكان واحد.":"One place for identity, account security, active sessions, appearance, language, and accessibility."}</p></div>{dirty && <span className="settings-unsaved-badge">Unsaved changes</span>}</div>
+    <div className="pp-title settings-v2-heading"><div><small className="page-eyebrow">ACCOUNT CONTROL</small><h1>{locale==="ar"?"الإعدادات":"Settings"}</h1><p>{locale==="ar"?"إدارة هويتك وأمان الحساب والجلسات والمظهر واللغة من مكان واحد.":"One place for identity, account security, active sessions, appearance, language, and accessibility."}</p></div>{(dirty || pictureFile) && <span className="settings-unsaved-badge">Unsaved changes</span>}</div>
     {error && <p className="form-error" role="alert">{error}</p>}{message && <p className="form-success"><FiCheck /> {message}</p>}
     {loading ? <div className="product-auth-loading">Loading settings…</div> : <div className="settings-v2-layout">
       <nav className="settings-section-nav" aria-label="Settings sections"><a href="#profile"><FiUser/> Identity</a><a href="#security"><FiShield/> Security</a><a href="#appearance"><FiGlobe/> Appearance & language</a>{user?.role==="STUDENT"&&<a href="#delete-account"><FiTrash2/> Delete account</a>}</nav>
       <div className="settings-v2-content">
         <Panel id="profile" title="Profile & identity">
-          <div className="profile-card settings-avatar-preview">{draft.profilePictureUrl && !imageError ? <img src={draft.profilePictureUrl} alt={`${displayName} profile`} onError={() => setImageError(true)} /> : <span className="avatar-large">{initials}</span>}<div><h2>{displayName}</h2><p>{profile?.email}</p><p>{profile?.role.replaceAll("_", " ")} · {profile?.status}</p></div></div>
+          <div className="profile-card settings-avatar-preview">
+            <div className="settings-avatar-media">{profileImage && !imageError ? <img src={profileImage} alt={`${displayName} profile`} onError={() => setImageError(true)} /> : <span className="avatar-large">{initials}</span>}</div>
+            <div className="settings-avatar-copy"><h2>{displayName}</h2><p>{profile?.email}</p><p>{profile?.role.replaceAll("_", " ")} · {profile?.status}</p><small>JPEG, PNG, or WebP · max 5 MB. Files are renamed and stored by the server.</small></div>
+            <div className="settings-avatar-actions">
+              <label className="pp-button secondary settings-file-button"><FiCamera/> {profile?.profilePictureUrl ? "Choose replacement" : "Choose photo"}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event)=>chooseProfilePicture(event.target.files?.[0]||null)} disabled={pictureBusy}/></label>
+              {pictureFile && <button type="button" className="pp-button" disabled={pictureBusy} onClick={()=>void uploadProfilePicture()}><FiUploadCloud/> {pictureBusy?"Uploading…":"Upload photo"}</button>}
+              {pictureFile && <button type="button" className="pp-button secondary" disabled={pictureBusy} onClick={discardPictureSelection}>Cancel preview</button>}
+              {profile?.profilePictureUrl && !pictureFile && <button type="button" className="pp-button secondary danger-text" disabled={pictureBusy} onClick={()=>void deleteProfilePicture()}><FiTrash2/> {pictureBusy?"Removing…":"Remove photo"}</button>}
+            </div>
+          </div>
           <form onSubmit={saveProfile} noValidate className="settings-profile-form">
             <label>Full name<input value={draft.name} onChange={(event) => setField("name", event.target.value)} required maxLength={150} />{fieldErrors.name && <small className="field-error">{fieldErrors.name}</small>}</label>
             <label>Phone number<input value={draft.phone} onChange={(event) => setField("phone", event.target.value)} onBlur={() => setField("phone", normalizedPhone(draft.phone))} required type="tel" placeholder="+201012345678" />{fieldErrors.phone && <small className="field-error">{fieldErrors.phone}</small>}</label>
             <label>Date of birth<input type="date" value={draft.dateOfBirth} max={new Date().toISOString().slice(0, 10)} onChange={(event) => setField("dateOfBirth", event.target.value)} />{fieldErrors.dateOfBirth && <small className="field-error">{fieldErrors.dateOfBirth}</small>}</label>
             <label>Gender<select value={draft.gender} onChange={(event) => setField("gender", event.target.value as ProfileDraft["gender"])}><option value="">Not set</option><option value="MALE">Male</option><option value="FEMALE">Female</option></select></label>
-            <label className="wide">Profile picture URL<div className="input-with-icon"><FiImage /><input type="url" value={draft.profilePictureUrl} onChange={(event) => setField("profilePictureUrl", event.target.value)} placeholder="https://…" /></div>{fieldErrors.profilePictureUrl && <small className="field-error">{fieldErrors.profilePictureUrl}</small>}<small>Profile identity is managed here only; the header consumes this same record instead of maintaining a second profile.</small></label>
             <div className="settings-form-actions wide"><button type="button" className="pp-button secondary" disabled={!dirty || saving || !baseline} onClick={() => baseline && setDraft(baseline)}>Discard</button><button className="pp-button" disabled={saving || !dirty}><FiSave /> {saving ? "Saving…" : "Save profile"}</button></div>
           </form>
         </Panel>
