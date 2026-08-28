@@ -66,7 +66,7 @@ export class TestLaunchController {
       issues.push(`Final exams require ${FINAL_QUESTION_COUNT} MCQs; ${mcqCount} configured questions are MCQs.`);
     }
     if (isPractice && (questionCount !== PRACTICE_QUESTION_COUNT || mcqCount !== PRACTICE_QUESTION_COUNT)) {
-      issues.push(`Curriculum practice now requires exactly ${PRACTICE_QUESTION_COUNT} MCQs. This is a legacy ${questionCount}-question practice${activeAttempt ? ' with an unfinished attempt that can still be resumed' : ' and cannot be started again'}.`);
+      issues.push(`Curriculum practice now requires exactly ${PRACTICE_QUESTION_COUNT} MCQs. This is a legacy ${questionCount}-question practice${activeAttempt ? ' with an unfinished attempt that can still be resumed once its question structure is valid' : ' and cannot be started again'}.`);
     }
     if (!isFinal && !isPractice && mcqCount !== questionCount) {
       issues.push(`${questionCount - mcqCount} non-MCQ question${questionCount - mcqCount === 1 ? '' : 's'} are included by the instructor.`);
@@ -85,7 +85,7 @@ export class TestLaunchController {
       is_final: isFinal,
       required_question_count: isFinal ? FINAL_QUESTION_COUNT : isPractice ? PRACTICE_QUESTION_COUNT : questionCount,
       timed_available: Boolean(test.durationMinutes),
-      launch_ready: Boolean(activeAttempt) || structurallyReady,
+      launch_ready: malformedMcqs.length === 0 && (Boolean(activeAttempt) || structurallyReady),
       active_attempt: activeAttempt ? {
         id: activeAttempt.id,
         test_mode: activeAttempt.testMode,
