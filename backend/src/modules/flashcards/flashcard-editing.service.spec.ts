@@ -3,7 +3,6 @@ import { DataSource, Repository } from 'typeorm';
 import { FlashcardDeck } from '../../common/entities/flashcard-deck.entity';
 import { Flashcard } from '../../common/entities/flashcard.entity';
 import { QuestionDifficulty } from '../../common/entities/question.entity';
-import { StudentFlashcardProgress } from '../../common/entities/student-flashcard-progress.entity';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
 import { FlashcardEditingService } from './flashcard-editing.service';
@@ -44,7 +43,6 @@ describe('FlashcardEditingService', () => {
     const service = new FlashcardEditingService(
       { findOne: jest.fn().mockResolvedValue(deck), save } as unknown as Repository<FlashcardDeck>,
       {} as Repository<Flashcard>,
-      {} as Repository<StudentFlashcardProgress>,
       {} as DataSource,
     );
 
@@ -90,7 +88,6 @@ describe('FlashcardEditingService', () => {
     const service = new FlashcardEditingService(
       {} as Repository<FlashcardDeck>,
       { findOne: jest.fn().mockResolvedValue(card) } as unknown as Repository<Flashcard>,
-      {} as Repository<StudentFlashcardProgress>,
       { transaction } as unknown as DataSource,
     );
 
@@ -134,7 +131,6 @@ describe('FlashcardEditingService', () => {
     const service = new FlashcardEditingService(
       {} as Repository<FlashcardDeck>,
       { findOne: jest.fn().mockResolvedValue(card) } as unknown as Repository<Flashcard>,
-      {} as Repository<StudentFlashcardProgress>,
       { transaction: jest.fn().mockImplementation(async (callback) => callback(manager)) } as unknown as DataSource,
     );
 
@@ -148,7 +144,6 @@ describe('FlashcardEditingService', () => {
     const service = new FlashcardEditingService(
       { findOne: jest.fn().mockResolvedValue(deck) } as unknown as Repository<FlashcardDeck>,
       {} as Repository<Flashcard>,
-      {} as Repository<StudentFlashcardProgress>,
       {} as DataSource,
     );
 
