@@ -12,6 +12,7 @@ import { createHash, randomBytes, randomUUID } from 'crypto';
 import { DataSource, IsNull } from 'typeorm';
 import { AuthSession } from '../users/entities/auth-session.entity';
 import { User, UserStatus } from '../users/entities/user.entity';
+import { generateStudentNumber } from '../users/student-number';
 import { UsersService } from '../users/users.service';
 import { AuthRateLimitService } from './auth-rate-limit.service';
 import { AuthResponseDto } from './dtos/auth-response.dto';
@@ -65,7 +66,7 @@ export class AuthService {
       email: dto.email,
       password: dto.password,
       phoneNumber: dto.phone_number,
-      studentNumber: dto.student_number,
+      studentNumber: generateStudentNumber(),
       currentSemester: dto.current_semester,
       dateOfBirth: dto.date_of_birth ? new Date(dto.date_of_birth) : undefined,
       gender: dto.gender,
