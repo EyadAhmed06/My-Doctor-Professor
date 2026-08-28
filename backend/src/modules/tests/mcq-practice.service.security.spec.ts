@@ -69,6 +69,46 @@ describe('McqPracticeService security', () => {
     }, actor)).rejects.toThrow('exactly five courses');
   });
 
+  it('requires at least 40 eligible MCQs in each of the five final courses, not only 200 in total', async () => {
+    const lectureIds = Array.from({ length: 5 }, (_, index) => `lecture-${index + 1}`);
+    const courseIds = Array.from({ length: 5 }, (_, index) => `course-${index + 1}`);
+    const lectures = lectureIds.map((id, index) => ({ id, week: { courseId: courseIds[index] } }));
+    const lectureBuilder = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue(lectures),
+    };
+    const validOptions = Array.from({ length: 5 }, (_, index) => ({ isCorrect: index === 0 }));
+    const counts = [39, 41, 40, 40, 40];
+    const questions = counts.flatMap((count, courseIndex) => Array.from({ length: count }, (_, questionIndex) => ({
+      id: `question-${courseIndex + 1}-${questionIndex + 1}`,
+      topic: { lectureId: lectureIds[courseIndex] },
+      options: validOptions,
+    })));
+    expect(questions).toHaveLength(200);
+    const questionBuilder = {
+      innerJoinAndSelect: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue(questions),
+    };
+    const service = new McqPracticeService(
+      { createQueryBuilder: jest.fn().mockReturnValue(questionBuilder) } as never,
+      { createQueryBuilder: jest.fn().mockReturnValue(lectureBuilder) } as never,
+      { exists: jest.fn().mockResolvedValue(true) } as never,
+      { query: jest.fn().mockResolvedValue(lectureIds.map((lecture_id) => ({ lecture_id }))) } as never,
+    );
+
+    await expect(service.generate({
+      bundle_id: '11111111-1111-4111-8111-111111111111',
+      lecture_ids: lectureIds,
+      question_count: 200,
+      test_mode: TestMode.TIMED,
+      duration_minutes: 200,
+    }, actor)).rejects.toThrow('Course course-1 has only 39 eligible five-option MCQs; 40 are required');
+  });
+
   it('does not count malformed historical MCQs with fewer than five options as eligible', async () => {
     const lectureId = '22222222-2222-4222-8222-222222222222';
     const courseId = '55555555-5555-4555-8555-555555555555';
