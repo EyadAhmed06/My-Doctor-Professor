@@ -11,6 +11,17 @@ function requireStrongSecret(name: string, value: string | undefined, production
   }
 }
 
+function requireHttpsUrl(name: string, value: string | undefined): void {
+  if (!value) throw new Error(`${name} is required when Paymob is configured`);
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`${name} must be a valid HTTPS URL`);
+  }
+  if (url.protocol !== "https:") throw new Error(`${name} must use HTTPS in production`);
+}
+
 export function assertSecureRuntimeConfiguration(env: NodeJS.ProcessEnv = process.env): void {
   const production = env.NODE_ENV === "production";
   requireStrongSecret("JWT_SECRET", env.JWT_SECRET, production);
@@ -25,5 +36,24 @@ export function assertSecureRuntimeConfiguration(env: NodeJS.ProcessEnv = proces
     if (env.DB_SSL_REJECT_UNAUTHORIZED !== "true") throw new Error("Database TLS certificate verification is required in production");
     if (env.ALLOW_ACCOUNT_BOOTSTRAP === "true") throw new Error("Account bootstrap must be disabled in production");
     if (!env.EMAIL_OUTBOX_ENCRYPTION_KEY) throw new Error("EMAIL_OUTBOX_ENCRYPTION_KEY is required in production");
+
+    const paymobEnabled = Boolean(
+      env.PAYMOB_API_KEY
+      || env.PAYMOB_PUBLIC_KEY
+      || env.PAYMOB_HMAC_SECRET
+      || env.PAYMOB_CARD_INTEGRATION_ID
+      || env.PAYMOB_FAWRY_INTEGRATION_ID,
+    );
+    if (paymobEnabled) {
+      if (!env.PAYMOB_API_KEY || !env.PAYMOB_PUBLIC_KEY) {
+        throw new Error("Paymob API and public keys must both be configured in production");
+      }
+      requireStrongSecret("PAYMOB_HMAC_SECRET", env.PAYMOB_HMAC_SECRET, true);
+      if (!env.PAYMOB_CARD_INTEGRATION_ID || !env.PAYMOB_FAWRY_INTEGRATION_ID) {
+        throw new Error("Both Paymob card and Fawry integration ids are required in production");
+      }
+      requireHttpsUrl("API_URL", env.API_URL);
+      if (env.PAYMOB_BASE_URL) requireHttpsUrl("PAYMOB_BASE_URL", env.PAYMOB_BASE_URL);
+    }
   }
 }
