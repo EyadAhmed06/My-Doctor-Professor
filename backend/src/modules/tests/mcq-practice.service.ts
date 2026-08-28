@@ -1,7 +1,7 @@
-import { randomInt } from 'crypto';
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { createHash, randomInt } from 'crypto';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { BundleTest } from '../../common/entities/bundle-test.entity';
 import { Lecture } from '../../common/entities/lecture.entity';
 import { Question, QuestionType } from '../../common/entities/question.entity';
@@ -16,8 +16,15 @@ const PRACTICE_QUESTION_COUNT = 40;
 const FINAL_QUESTION_COUNT = 200;
 const FINAL_COURSE_COUNT = 5;
 const FINAL_QUESTIONS_PER_COURSE = 40;
+const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9._:-]{8,128}$/;
 
 type AccessibleLectureRow = { lecture_id: string };
+
+type GeneratedPractice = {
+  test: Test;
+  attempt: TestAttempt & { test: Test };
+  question_count: number;
+};
 
 @Injectable()
 export class McqPracticeService {
@@ -28,7 +35,7 @@ export class McqPracticeService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async generate(dto: GeneratePracticeTestDto, actor: AuthenticatedUser) {
+  async generate(dto: GeneratePracticeTestDto, actor: AuthenticatedUser, rawIdempotencyKey?: string): Promise<GeneratedPractice> {
     if (![PRACTICE_QUESTION_COUNT, FINAL_QUESTION_COUNT].includes(dto.question_count)) {
       throw new BadRequestException('Assessments must contain either 40 practice MCQs or 200 final MCQs');
     }
@@ -40,8 +47,19 @@ export class McqPracticeService {
         `A timed ${dto.question_count}-MCQ exam must last exactly ${dto.question_count} minutes`,
       );
     }
+    const uniqueLectureIds = [...new Set(dto.lecture_ids)];
+    if (uniqueLectureIds.length !== dto.lecture_ids.length) {
+      throw new BadRequestException('lecture_ids must not contain duplicates');
+    }
     if (!(await this.students.exists({ where: { userId: actor.userId } }))) {
       throw new ForbiddenException('Student profile is required to generate a practice test');
+    }
+
+    const idempotencyKey = this.normalizeIdempotencyKey(rawIdempotencyKey);
+    const fingerprint = idempotencyKey ? this.generationFingerprint(dto) : null;
+    if (idempotencyKey && fingerprint) {
+      const replay = await this.findGeneration(actor.userId, idempotencyKey, fingerprint);
+      if (replay) return replay;
     }
 
     const accessRows = await this.dataSource.query<AccessibleLectureRow[]>(`
@@ -69,16 +87,16 @@ export class McqPracticeService {
       throw new ForbiddenException('This bundle does not grant active access to the selected content');
     }
     const accessibleIds = new Set(accessRows.map((row) => row.lecture_id));
-    if (dto.lecture_ids.some((lectureId) => !accessibleIds.has(lectureId))) {
+    if (uniqueLectureIds.some((lectureId) => !accessibleIds.has(lectureId))) {
       throw new ForbiddenException('One or more lectures are outside this bundle');
     }
 
     const lectures = await this.lectures.createQueryBuilder('lecture')
       .leftJoinAndSelect('lecture.week', 'week')
       .leftJoinAndSelect('week.course', 'course')
-      .where('lecture.id IN (:...lectureIds)', { lectureIds: dto.lecture_ids })
+      .where('lecture.id IN (:...lectureIds)', { lectureIds: uniqueLectureIds })
       .getMany();
-    if (lectures.length !== dto.lecture_ids.length) throw new NotFoundException('One or more lectures were not found');
+    if (lectures.length !== uniqueLectureIds.length) throw new NotFoundException('One or more lectures were not found');
     const courseIds = new Set(lectures.map((lecture) => lecture.week.courseId));
     const bundleFinal = dto.question_count === FINAL_QUESTION_COUNT;
     if (!bundleFinal && courseIds.size !== 1) {
@@ -91,7 +109,7 @@ export class McqPracticeService {
     const builder = this.questions.createQueryBuilder('question')
       .innerJoinAndSelect('question.topic', 'topic')
       .leftJoinAndSelect('question.options', 'options')
-      .where('topic.lecture_id IN (:...lectureIds)', { lectureIds: dto.lecture_ids })
+      .where('topic.lecture_id IN (:...lectureIds)', { lectureIds: uniqueLectureIds })
       .andWhere('question.is_active = TRUE')
       .andWhere('question.is_question_bank = TRUE')
       .andWhere('question.question_type = :questionType', { questionType: QuestionType.MCQ });
@@ -143,6 +161,15 @@ export class McqPracticeService {
     const courseId = bundleFinal ? null : lectures[0].week.courseId;
 
     return this.dataSource.transaction(async (manager) => {
+      if (idempotencyKey && fingerprint) {
+        await manager.query(
+          'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+          [`practice-generation:${actor.userId}:${idempotencyKey}`],
+        );
+        const replay = await this.findGeneration(actor.userId, idempotencyKey, fingerprint, manager);
+        if (replay) return replay;
+      }
+
       const now = new Date();
       const total = selected.reduce((sum, question) => sum + Number(question.marks), 0);
       const test = await manager.save(Test, manager.create(Test, {
@@ -162,6 +189,8 @@ export class McqPracticeService {
         isPublished: true,
         availableFrom: null,
         availableUntil: null,
+        generationKey: idempotencyKey,
+        generationFingerprint: fingerprint,
         createdBy: actor.userId,
       }));
       await manager.save(BundleTest, manager.create(BundleTest, { bundleId: dto.bundle_id, testId: test.id }));
@@ -185,5 +214,54 @@ export class McqPracticeService {
       }));
       return { test, attempt: { ...attempt, test }, question_count: selected.length };
     });
+  }
+
+  private normalizeIdempotencyKey(raw?: string): string | null {
+    const key = raw?.trim();
+    if (!key) return null;
+    if (!IDEMPOTENCY_KEY_PATTERN.test(key)) {
+      throw new BadRequestException('Idempotency-Key must be 8-128 characters using letters, numbers, dot, underscore, colon, or dash');
+    }
+    return key;
+  }
+
+  private generationFingerprint(dto: GeneratePracticeTestDto): string {
+    const canonical = {
+      bundle_id: dto.bundle_id,
+      lecture_ids: [...new Set(dto.lecture_ids)].sort(),
+      question_count: dto.question_count,
+      test_mode: dto.test_mode,
+      duration_minutes: dto.duration_minutes ?? null,
+      difficulty: dto.difficulty ?? null,
+    };
+    return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+  }
+
+  private async findGeneration(
+    actorId: string,
+    key: string,
+    fingerprint: string,
+    manager?: EntityManager,
+  ): Promise<GeneratedPractice | null> {
+    const testRepository = manager?.getRepository(Test) ?? this.dataSource.getRepository(Test);
+    const test = await testRepository.createQueryBuilder('test')
+      .addSelect('test.generationKey')
+      .addSelect('test.generationFingerprint')
+      .where('test.created_by = :actorId', { actorId })
+      .andWhere('test.generation_key = :key', { key })
+      .getOne();
+    if (!test) return null;
+    if (test.generationFingerprint !== fingerprint) {
+      throw new ConflictException('This Idempotency-Key was already used for a different practice request');
+    }
+    const attemptRepository = manager?.getRepository(TestAttempt) ?? this.dataSource.getRepository(TestAttempt);
+    const questionRepository = manager?.getRepository(TestQuestion) ?? this.dataSource.getRepository(TestQuestion);
+    const attempt = await attemptRepository.findOne({
+      where: { testId: test.id, studentId: actorId },
+      order: { createdAt: 'ASC' },
+    });
+    if (!attempt) throw new ConflictException('The prior idempotent practice request is incomplete; contact support before retrying');
+    const questionCount = await questionRepository.count({ where: { testId: test.id } });
+    return { test, attempt: { ...attempt, test }, question_count: questionCount };
   }
 }
