@@ -47,9 +47,7 @@ import "@/components/brand-light-navbar.css";
 import "@/components/assessment-session-responsive-fix.css";
 import "@/components/logout-modal-polish.css";
 import "@/components/section9-polish.css";
-import "@/components/landing-hero-v2.css";
-import "@/components/landing-hero-polish.css";
-import "@/components/landing-hero-direct.css";
+import "@/components/final-theme-fixes.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
