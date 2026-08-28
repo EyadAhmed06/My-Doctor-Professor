@@ -26,6 +26,7 @@ import "@/components/study-plan-calendar-polish.css";
 import "@/components/notebook-completion.css";
 import "@/components/study-guides-completion.css";
 import "@/components/bundles-completion.css";
+import "@/components/bundle-sidebar-fix.css";
 import "@/components/bundle-quiz-availability.css";
 import "@/components/settings-completion.css";
 import "@/components/assessment-authoring-completion.css";
