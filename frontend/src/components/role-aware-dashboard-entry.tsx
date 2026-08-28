@@ -7,7 +7,6 @@ import { useAuth } from "./auth-provider";
 import { ConnectedDashboardPage } from "./connected-dashboard-page";
 import { RoleDashboardPage } from "./management-workspaces";
 import { ProductShell } from "./product-shell";
-import { useUx } from "./ux-provider";
 
 type AcademicTarget = {
   stage: number;
@@ -17,7 +16,6 @@ type AcademicTarget = {
 
 export function RoleAwareDashboardEntry() {
   const { user, loading } = useAuth();
-  const { celebrate } = useUx();
   const router = useRouter();
   const [academicTarget, setAcademicTarget] = useState<AcademicTarget | null>(null);
   const [stageResolved, setStageResolved] = useState(false);
@@ -36,16 +34,6 @@ export function RoleAwareDashboardEntry() {
     setAcademicTarget({ stage, semester, track });
     setStageResolved(true);
   }, []);
-
-  useEffect(() => {
-    if (user?.role !== "STUDENT") return;
-    celebrate({
-      id: "student-learning-workspace-opened",
-      title: "Learning workspace activated",
-      description: "Your bundles, review queue, notebook, analytics, and plan now form one learning loop.",
-      points: 20,
-    });
-  }, [celebrate, user?.role]);
 
   useEffect(() => {
     if (!stageResolved || user?.role !== "STUDENT" || !academicTarget) return;
