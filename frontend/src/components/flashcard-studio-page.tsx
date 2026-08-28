@@ -58,7 +58,7 @@ function Modal({ title, open, onClose, children }: { title: string; open: boolea
 
 export function FlashcardStudioPage({ admin = false }: { admin?: boolean }) {
   const { user, request } = useAuth();
-  const { notify } = useUx();
+  const { notify, confirm } = useUx();
   const [decks, setDecks] = useState<Deck[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -244,7 +244,14 @@ export function FlashcardStudioPage({ admin = false }: { admin?: boolean }) {
       notify({ title: "Return deck to Draft to delete cards", description: "Published cards can be edited live, but structural deletion stays protected.", tone: "info" });
       return;
     }
-    if (!window.confirm("Delete this flashcard?")) return;
+    const accepted = await confirm({
+      title: "Delete flashcard?",
+      description: `Remove “${card.title}” from this draft deck? This action cannot be undone.`,
+      confirmLabel: "Delete card",
+      cancelLabel: "Keep card",
+      tone: "danger",
+    });
+    if (!accepted) return;
     try {
       await request(`/flashcards/cards/${card.id}`, { method: "DELETE" });
       await loadCards(selected.id);
@@ -263,7 +270,7 @@ export function FlashcardStudioPage({ admin = false }: { admin?: boolean }) {
     {loading ? <Panel><PageSkeleton variant="list" label="Loading flashcard studio" /></Panel> : <div className="role-master-detail">
       <aside className="role-master-list"><header><b>{decks.length}</b><small>DECKS</small></header>{decks.map((deck) => <button className={selectedId === deck.id ? "active" : ""} type="button" key={deck.id} onClick={() => setSelectedId(deck.id)}><div><b>{deck.title}</b><small>{deck.course?.courseName || deck.topic?.topicName || deck.lecture?.title || "Unlinked deck"}</small></div><Status published={deck.isPublished} /></button>)}</aside>
       <section className="role-detail">{selected ? <><Panel className="role-course-hero"><div><Status published={selected.isPublished} /><h2>{selected.title}</h2><p>{selected.description || "No deck description."}</p>{selected.isPublished && <small>Published cards can be edited without taking the deck offline.</small>}</div><div className="role-hero-actions"><button className="pp-button secondary" type="button" onClick={() => beginDeckEdit(selected)}><FiEdit3 /> Edit deck</button><button className="pp-button" type="button" onClick={beginCardCreate}><FiPlus /> Add card</button><button className="pp-button secondary" disabled={saving} type="button" onClick={() => void toggleDeck(selected)}>{selected.isPublished ? "Return to Draft" : "Publish deck"}</button></div></Panel>
-        {cardsLoading ? <Panel><PageSkeleton variant="list" label="Loading deck cards" /></Panel> : cards.length ? <div className="role-card-grid">{cards.map((card) => <Panel className="role-flashcard" key={card.id}><header><span><button type="button" onClick={() => beginCardEdit(card)}><FiEdit3 /> Edit</button><button className="danger" type="button" onClick={() => void removeCard(card)}><FiTrash2 /></button></span></header><h3>{card.title}</h3><div><small>FRONT</small><p>{card.frontContent}</p></div><div><small>BACK</small><p>{card.backContent}</p></div></Panel>)}</div> : <Panel title="No cards in this deck"><p>Add the first teaching card, then publish the deck when it is complete.</p><button className="pp-button" type="button" onClick={beginCardCreate}><FiPlus /> Add card</button></Panel>}
+        {cardsLoading ? <Panel><PageSkeleton variant="list" label="Loading deck cards" /></Panel> : cards.length ? <div className="role-card-grid">{cards.map((card) => <Panel className="role-flashcard" key={card.id}><header><span><button type="button" onClick={() => beginCardEdit(card)}><FiEdit3 /> Edit</button><button className="danger" type="button" aria-label={`Delete ${card.title}`} title="Delete flashcard" onClick={() => void removeCard(card)}><FiTrash2 /></button></span></header><h3>{card.title}</h3><div><small>FRONT</small><p>{card.frontContent}</p></div><div><small>BACK</small><p>{card.backContent}</p></div></Panel>)}</div> : <Panel title="No cards in this deck"><p>Add the first teaching card, then publish the deck when it is complete.</p><button className="pp-button" type="button" onClick={beginCardCreate}><FiPlus /> Add card</button></Panel>}
       </> : <Panel title="Select a deck"><p>Choose a deck to manage its publication state and cards.</p></Panel>}</section>
     </div>}
 
