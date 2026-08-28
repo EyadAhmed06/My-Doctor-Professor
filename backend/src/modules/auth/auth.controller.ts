@@ -1,5 +1,6 @@
 import {
   Body,
+  ConflictException,
   Controller,
   ForbiddenException,
   Get,
@@ -34,6 +35,7 @@ import type { AuthenticatedUser } from './strategies/jwt.strategy';
 interface MessageResponse { message: string }
 const REFRESH_COOKIE = 'mdp_refresh';
 const REFRESH_MODE_COOKIE = 'mdp_refresh_mode';
+const SIGNUP_RESPONSE = 'If registration can be completed, check your email to continue. Otherwise use sign in or account recovery.';
 
 @Controller('auth')
 export class AuthController {
@@ -132,8 +134,13 @@ export class AuthController {
   @RateLimit({ key: 'auth-signup-route', maximum: 12, windowSeconds: 3600 })
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
-  signup(@Body() dto: SignupDto): Promise<MessageResponse> {
-    return this.authService.signup(dto);
+  async signup(@Body() dto: SignupDto): Promise<MessageResponse> {
+    try {
+      await this.authService.signup(dto);
+    } catch (error) {
+      if (!(error instanceof ConflictException)) throw error;
+    }
+    return { message: SIGNUP_RESPONSE };
   }
 
   @Public()
