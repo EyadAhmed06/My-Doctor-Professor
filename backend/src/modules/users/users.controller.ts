@@ -46,7 +46,7 @@ export class UsersController {
   });
  }
  @Put(':userId/profile-picture')
- @RateLimit({limit:8,windowMs:60_000})
+ @RateLimit({key:'profile-picture-write',maximum:8,windowSeconds:60,scope:'user'})
  async uploadProfilePicture(
   @Param('userId',uuid) id:string,
   @CurrentUser() actor:AuthenticatedUser,
@@ -67,7 +67,7 @@ export class UsersController {
   }
  }
  @Delete(':userId/profile-picture') @HttpCode(HttpStatus.NO_CONTENT)
- @RateLimit({limit:8,windowMs:60_000})
+ @RateLimit({key:'profile-picture-write',maximum:8,windowSeconds:60,scope:'user'})
  async deleteProfilePicture(@Param('userId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){
   this.assertSelf(id,actor);
   const existing=await this.users.getUserProfile(id);
