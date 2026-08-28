@@ -68,11 +68,22 @@ export class McqPracticeService {
       INNER JOIN bundle_enrollments enrollment
         ON enrollment.bundle_id = bundle.id AND enrollment.student_id = $2
       INNER JOIN bundle_courses bundle_course ON bundle_course.bundle_id = bundle.id
-      INNER JOIN bundle_weeks bundle_week ON bundle_week.bundle_id = bundle.id
-      INNER JOIN weeks week
-        ON week.id = bundle_week.week_id AND week.course_id = bundle_course.course_id
+      INNER JOIN weeks week ON week.course_id = bundle_course.course_id
       INNER JOIN lectures lecture ON lecture.week_id = week.id
       WHERE bundle.id = $1
+        AND (
+          EXISTS (
+            SELECT 1 FROM bundle_weeks selected
+            WHERE selected.bundle_id = bundle.id AND selected.week_id = week.id
+          )
+          OR NOT EXISTS (
+            SELECT 1
+            FROM bundle_weeks selected
+            INNER JOIN weeks selected_week ON selected_week.id = selected.week_id
+            WHERE selected.bundle_id = bundle.id
+              AND selected_week.course_id = bundle_course.course_id
+          )
+        )
         AND enrollment.status = 'ACTIVE'
         AND (enrollment.starts_at IS NULL OR enrollment.starts_at <= CURRENT_TIMESTAMP)
         AND (enrollment.expires_at IS NULL OR enrollment.expires_at > CURRENT_TIMESTAMP)
