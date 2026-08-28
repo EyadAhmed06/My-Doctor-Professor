@@ -4,6 +4,7 @@ CREATE TABLE tests (
  test_type test_type NOT NULL, course_id UUID, week_id UUID, lecture_id UUID,
  duration_minutes INTEGER, total_marks NUMERIC(6,2), passing_marks NUMERIC(6,2),
  is_published BOOLEAN NOT NULL DEFAULT FALSE, available_from TIMESTAMP, available_until TIMESTAMP,
+ generation_key VARCHAR(128), generation_fingerprint VARCHAR(64),
  created_by UUID NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE SET NULL,
@@ -15,6 +16,7 @@ CREATE TABLE tests (
  CONSTRAINT chk_passing_marks CHECK (passing_marks IS NULL OR passing_marks >= 0),
  CONSTRAINT chk_test_window CHECK (available_from IS NULL OR available_until IS NULL OR available_until > available_from)
 );
+CREATE UNIQUE INDEX uq_tests_creator_generation_key ON tests(created_by, generation_key) WHERE generation_key IS NOT NULL;
 CREATE TABLE test_questions (
  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), test_id UUID NOT NULL, question_id UUID NOT NULL,
  display_order INTEGER NOT NULL, marks NUMERIC(5,2) NOT NULL DEFAULT 1, time_limit_seconds INTEGER,
