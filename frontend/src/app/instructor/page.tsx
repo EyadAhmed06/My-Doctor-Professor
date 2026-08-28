@@ -1,5 +1,5 @@
-import { RoleDashboardPage } from "@/components/management-workspaces";
+import { InstructorDashboardPage } from "@/components/instructor-dashboard-page";
 
 export default function Page() {
-  return <RoleDashboardPage />;
+  return <InstructorDashboardPage />;
 }
