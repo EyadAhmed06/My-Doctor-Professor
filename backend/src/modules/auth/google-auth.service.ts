@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { randomBytes, randomUUID, createHash } from 'crypto';
 import { DataSource, QueryFailedError } from 'typeorm';
 import { User, UserStatus } from '../users/entities/user.entity';
+import { generateStudentNumber } from '../users/student-number';
 import { UsersService } from '../users/users.service';
 import { AuthRateLimitService } from './auth-rate-limit.service';
 import { AuthResponseDto } from './dtos/auth-response.dto';
@@ -134,7 +135,7 @@ export class GoogleAuthService {
       email: onboarding.email,
       password: generatedPassword,
       phoneNumber: dto.phone_number,
-      studentNumber: dto.student_number,
+      studentNumber: generateStudentNumber(),
       currentSemester: dto.current_semester,
       dateOfBirth,
     });
