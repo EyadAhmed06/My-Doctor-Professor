@@ -15,6 +15,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { AcademicAccessService } from '../academic/academic-access.service';
 import type { UploadedResourceFile } from '../academic/resource-storage.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RateLimit } from '../auth/decorators/rate-limit.decorator';
@@ -38,6 +39,7 @@ import {
 import { QuestionImportEnrichmentService } from './question-import-enrichment.service';
 import { QuestionImportService } from './question-import.service';
 import { QuestionsService } from './questions.service';
+import { StudentQuestionAccessService } from './student-question-access.service';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
 const PDF_INSPECTOR_CONTRACT_VERSION = 3;
@@ -47,33 +49,30 @@ const PDF_INSPECTOR_CONTRACT_VERSION = 3;
 export class QuestionsController {
   constructor(
     private readonly questions: QuestionsService,
+    private readonly studentQuestions: StudentQuestionAccessService,
+    private readonly access: AcademicAccessService,
     private readonly imports: QuestionImportService,
     private readonly importEnrichment: QuestionImportEnrichmentService,
   ) {}
 
   @Post()
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
-  create(
-    @Body() dto: CreateQuestionDto,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
+  create(@Body() dto: CreateQuestionDto, @CurrentUser() actor: AuthenticatedUser) {
     return this.questions.create(dto, actor);
   }
 
   @Get()
-  list(
-    @Query() query: QuestionQueryDto,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
-    return this.questions.list(query, actor);
+  list(@Query() query: QuestionQueryDto, @CurrentUser() actor: AuthenticatedUser) {
+    return actor.role === UserRole.STUDENT
+      ? this.studentQuestions.list(query, actor)
+      : this.questions.list(query, actor);
   }
 
   @Get('search')
-  search(
-    @Query() query: SearchQuestionsDto,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
-    return this.questions.search(query, actor);
+  search(@Query() query: SearchQuestionsDto, @CurrentUser() actor: AuthenticatedUser) {
+    return actor.role === UserRole.STUDENT
+      ? this.studentQuestions.search(query, actor)
+      : this.questions.search(query, actor);
   }
 
   @Get('tags/all')
@@ -90,9 +89,7 @@ export class QuestionsController {
   @RateLimit({ key: 'question-import-inspect', maximum: 10, windowSeconds: 3600 })
   @Post('imports/inspect')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
-  @UseInterceptors(FileInterceptor('file', {
-    limits: { fileSize: 25 * 1024 * 1024, files: 1 },
-  }))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 25 * 1024 * 1024, files: 1 } }))
   async inspectImport(
     @Body() dto: InspectQuestionImportDto,
     @UploadedFile() file: UploadedResourceFile | undefined,
@@ -100,12 +97,10 @@ export class QuestionsController {
   ) {
     const inspection = await this.imports.inspectPdf(dto, file, actor);
     const enriched = await this.importEnrichment.enrichInspection(inspection, file);
-
     const candidates = enriched.candidates.map((candidate) => ({
       ...candidate,
       issues: candidate.issues.filter((issue) => issue.code !== 'NO_SOURCE_EXPLANATION'),
     }));
-
     return {
       ...enriched,
       inspector_contract_version: PDF_INSPECTOR_CONTRACT_VERSION,
@@ -117,10 +112,7 @@ export class QuestionsController {
   @RateLimit({ key: 'question-import-publish', maximum: 20, windowSeconds: 3600 })
   @Post('imports/publish')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
-  publishImport(
-    @Body() dto: PublishQuestionImportDto,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
+  publishImport(@Body() dto: PublishQuestionImportDto, @CurrentUser() actor: AuthenticatedUser) {
     return this.imports.publish(dto, actor);
   }
 
@@ -137,10 +129,7 @@ export class QuestionsController {
   @Delete('options/:optionId')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async removeOption(
-    @Param('optionId', uuid) id: string,
-    @CurrentUser() actor: AuthenticatedUser,
-  ): Promise<void> {
+  async removeOption(@Param('optionId', uuid) id: string, @CurrentUser() actor: AuthenticatedUser): Promise<void> {
     await this.questions.removeOption(id, actor);
   }
 
@@ -152,10 +141,8 @@ export class QuestionsController {
   }
 
   @Get(':questionId')
-  getOne(
-    @Param('questionId', uuid) id: string,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
+  async getOne(@Param('questionId', uuid) id: string, @CurrentUser() actor: AuthenticatedUser) {
+    if (actor.role === UserRole.STUDENT) await this.access.assertQuestionReadable(id, actor);
     return this.questions.getOne(id, actor);
   }
 
@@ -172,27 +159,19 @@ export class QuestionsController {
   @Delete(':questionId')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(
-    @Param('questionId', uuid) id: string,
-    @CurrentUser() actor: AuthenticatedUser,
-  ): Promise<void> {
+  async remove(@Param('questionId', uuid) id: string, @CurrentUser() actor: AuthenticatedUser): Promise<void> {
     await this.questions.remove(id, actor);
   }
 
   @Post(':questionId/duplicate')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
-  duplicate(
-    @Param('questionId', uuid) id: string,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
+  duplicate(@Param('questionId', uuid) id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.questions.duplicate(id, actor);
   }
 
   @Get(':questionId/options')
-  getOptions(
-    @Param('questionId', uuid) id: string,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
+  async getOptions(@Param('questionId', uuid) id: string, @CurrentUser() actor: AuthenticatedUser) {
+    if (actor.role === UserRole.STUDENT) await this.access.assertQuestionReadable(id, actor);
     return this.questions.getOptions(id, actor);
   }
 
@@ -217,10 +196,8 @@ export class QuestionsController {
   }
 
   @Get(':questionId/essay-configuration')
-  getEssayConfiguration(
-    @Param('questionId', uuid) id: string,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
+  async getEssayConfiguration(@Param('questionId', uuid) id: string, @CurrentUser() actor: AuthenticatedUser) {
+    if (actor.role === UserRole.STUDENT) await this.access.assertQuestionReadable(id, actor);
     return this.questions.getEssayConfiguration(id, actor);
   }
 
