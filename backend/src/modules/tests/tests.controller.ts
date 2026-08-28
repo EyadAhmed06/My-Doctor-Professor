@@ -7,6 +7,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
 import { QuestionFlagType } from '../../common/entities/question-flag.entity';
+import { AssessmentAttemptService } from './assessment-attempt.service';
 import { AssessmentAuthoringService } from './assessment-authoring.service';
 import { AddTestQuestionDto, CreateTestDto, GeneratePracticeTestDto, GradeEssayDto, PracticeCatalogQueryDto, QuestionNoteDto, ReorderTestQuestionsDto, SaveAnswerDto, StartTestAttemptDto, TestQueryDto, UpdateTestDto } from './dtos/tests.dto';
 import { McqPracticeService } from './mcq-practice.service';
@@ -20,7 +21,12 @@ const uuid = new ParseUUIDPipe();
 @Controller('tests')
 @UseGuards(JwtAuthGuard,RolesGuard)
 export class TestsController {
- constructor(private readonly tests:TestsService,private readonly authoring:AssessmentAuthoringService,private readonly mcqPractice:McqPracticeService){}
+ constructor(
+  private readonly tests:TestsService,
+  private readonly attempts:AssessmentAttemptService,
+  private readonly authoring:AssessmentAuthoringService,
+  private readonly mcqPractice:McqPracticeService,
+ ){}
 
  @Post() @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
  create(@Body() dto:CreateTestDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.create(dto,actor);}
@@ -53,15 +59,17 @@ export class TestsController {
 
  @Get(':testId/attempts') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
  listAttempts(@Param('testId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.listAttempts(id,actor);}
+ @RateLimit({ key: 'assessment-start', maximum: 120, windowSeconds: 3600 })
  @Post(':testId/attempts') @Roles(UserRole.STUDENT)
- startAttempt(@Param('testId',uuid) id:string,@Body() dto:StartTestAttemptDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.startAttempt(id,dto,actor);}
+ startAttempt(@Param('testId',uuid) id:string,@Body() dto:StartTestAttemptDto,@CurrentUser() actor:AuthenticatedUser){return this.attempts.startAttempt(id,dto,actor);}
 
  @Get('attempts/:attemptId')
  getAttempt(@Param('attemptId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.getAttempt(id,actor);}
  @Put('attempts/:attemptId/answers/:questionId') @Roles(UserRole.STUDENT)
- saveAnswer(@Param('attemptId',uuid) attemptId:string,@Param('questionId',uuid) questionId:string,@Body() dto:SaveAnswerDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.saveAnswer(attemptId,questionId,dto,actor);}
+ saveAnswer(@Param('attemptId',uuid) attemptId:string,@Param('questionId',uuid) questionId:string,@Body() dto:SaveAnswerDto,@CurrentUser() actor:AuthenticatedUser){return this.attempts.saveAnswer(attemptId,questionId,dto,actor);}
+ @RateLimit({ key: 'assessment-submit', maximum: 240, windowSeconds: 3600 })
  @Post('attempts/:attemptId/submit') @Roles(UserRole.STUDENT)
- submit(@Param('attemptId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.submit(id,actor);}
+ submit(@Param('attemptId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.attempts.submit(id,actor);}
  @Get('attempts/:attemptId/workspace-state')
  getWorkspaceState(@Param('attemptId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.getWorkspaceState(id,actor);}
  @Get('attempts/:attemptId/answers')
