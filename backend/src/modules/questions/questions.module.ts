@@ -9,6 +9,7 @@ import { Topic } from '../../common/entities/topic.entity';
 import { AcademicModule } from '../academic/academic.module';
 import { EssayQuestionImportController } from './essay-question-import.controller';
 import { EssayQuestionImportService } from './essay-question-import.service';
+import { InstructorQuestionAccessService } from './instructor-question-access.service';
 import { QuestionImportEnrichmentService } from './question-import-enrichment.service';
 import { QuestionImportService } from './question-import.service';
 import { QuestionsController } from './questions.controller';
@@ -31,6 +32,7 @@ import { StudentQuestionAccessService } from './student-question-access.service'
   providers: [
     QuestionsService,
     StudentQuestionAccessService,
+    InstructorQuestionAccessService,
     QuestionImportService,
     QuestionImportEnrichmentService,
     EssayQuestionImportService,
@@ -38,6 +40,7 @@ import { StudentQuestionAccessService } from './student-question-access.service'
   exports: [
     QuestionsService,
     StudentQuestionAccessService,
+    InstructorQuestionAccessService,
     QuestionImportService,
     QuestionImportEnrichmentService,
     EssayQuestionImportService,
