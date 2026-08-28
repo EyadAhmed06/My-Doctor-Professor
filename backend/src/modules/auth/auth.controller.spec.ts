@@ -121,7 +121,7 @@ describe('AuthController web refresh transport', () => {
       response,
     )).rejects.toMatchObject({ message: 'Untrusted browser origin' });
 
-    expect(authService.login).not.toHaveBeenCalled();
+    expect(authService.login.mock.calls).toHaveLength(0);
     expect(cookie).not.toHaveBeenCalled();
   });
 
@@ -147,7 +147,7 @@ describe('AuthController web refresh transport', () => {
       response,
     )).rejects.toMatchObject({ message: 'Untrusted browser origin' });
 
-    expect(authService.refreshAccessToken).not.toHaveBeenCalled();
+    expect(authService.refreshAccessToken.mock.calls).toHaveLength(0);
   });
 
   it('rotates a refresh credential read from the HttpOnly cookie', async () => {
