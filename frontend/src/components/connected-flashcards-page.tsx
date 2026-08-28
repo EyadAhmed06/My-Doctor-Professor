@@ -89,6 +89,7 @@ export function ConnectedFlashcardsPage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const selectedCourseId = searchParams.get("course");
+  const requestedDeck = searchParams.get("deck");
   const requestedCard = searchParams.get("card");
   const requestedLecture = searchParams.get("lecture");
   const reviewMode = Boolean(selectedCourseId && (requestedCard || requestedLecture));
@@ -115,11 +116,12 @@ export function ConnectedFlashcardsPage() {
   const swiped = useRef(false);
   const completionAnnounced = useRef(false);
   const focusRef = useRef<HTMLDivElement>(null);
-  const sessionKey = `mdp-flashcard-session:${user?.id || "anonymous"}:${selectedCourseId || "none"}`;
+  const sessionKey = `mdp-flashcard-session:${user?.id || "anonymous"}:${selectedCourseId || "none"}:${requestedDeck || "all"}`;
 
   const setUrl = useCallback((card: Card | null, replace = false) => {
     const params = new URLSearchParams(searchParams.toString());
     if (card) {
+      params.set("deck", card.deck.id);
       params.set("card", card.id);
       if (card.deck.lecture?.id) params.set("lecture", card.deck.lecture.id);
       else params.delete("lecture");
@@ -138,6 +140,7 @@ export function ConnectedFlashcardsPage() {
     const params = new URLSearchParams(searchParams.toString());
     if (courseId) params.set("course", courseId);
     else params.delete("course");
+    params.delete("deck");
     params.delete("card");
     params.delete("lecture");
     const suffix = params.toString();
@@ -171,12 +174,14 @@ export function ConnectedFlashcardsPage() {
         const next = await request<Page<Card>>(`/flashcards/cards/mine?course_id=${encodeURIComponent(selectedCourseId)}&limit=100&page=${page}`);
         fetched.push(...next.data);
       }
+      const scopedFetched = requestedDeck ? fetched.filter((item) => item.deck.id === requestedDeck) : fetched;
       const storedRatings = session?.reviewedRatings || {};
       const storedCards = session?.reviewedCards || {};
 
-      const byId = new Map<string, Card>(fetched.map((item) => [item.id, item]));
+      const byId = new Map<string, Card>(scopedFetched.map((item) => [item.id, item]));
       for (const id of Object.keys(storedRatings)) {
-        if (!byId.has(id) && storedCards[id]) byId.set(id, storedCards[id]);
+        const stored = storedCards[id];
+        if (!byId.has(id) && stored && (!requestedDeck || stored.deck.id === requestedDeck)) byId.set(id, stored);
       }
       const combined = [...byId.values()];
       const restoredRatings: Record<string, Rating> = {};
@@ -199,7 +204,7 @@ export function ConnectedFlashcardsPage() {
     } finally {
       setLoading(false);
     }
-  }, [readSession, request, selectedCourseId, translate]);
+  }, [readSession, request, requestedDeck, selectedCourseId, translate]);
 
   useEffect(() => {
     let active = true;
@@ -218,14 +223,15 @@ export function ConnectedFlashcardsPage() {
   }, [request, translate]);
 
   useEffect(() => {
-    if (!selectedCourseId && (requestedCard || requestedLecture)) {
+    if (!selectedCourseId && (requestedDeck || requestedCard || requestedLecture)) {
       const params = new URLSearchParams(searchParams.toString());
+      params.delete("deck");
       params.delete("card");
       params.delete("lecture");
       const suffix = params.toString();
       router.replace(suffix ? `${pathname}?${suffix}` : pathname, { scroll: false });
     }
-  }, [pathname, requestedCard, requestedLecture, router, searchParams, selectedCourseId]);
+  }, [pathname, requestedCard, requestedDeck, requestedLecture, router, searchParams, selectedCourseId]);
 
   useEffect(() => { void load(); }, [load]);
 
