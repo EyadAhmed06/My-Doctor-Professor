@@ -77,7 +77,9 @@ export class UsersController {
  @Delete(':userId') @HttpCode(HttpStatus.NO_CONTENT)
  async deleteOwnAccount(@Param('userId',uuid) id:string,@Body() dto:DeleteOwnAccountDto,@CurrentUser() actor:AuthenticatedUser){
   this.assertSelf(id,actor);
+  const existing=await this.users.getUserProfile(id);
   await this.users.deactivateOwnAccount(id,dto.current_password);
+  await this.profilePictures.deleteByUrl(existing.profilePictureUrl);
  }
  @Post(':userId/change-password') @HttpCode(HttpStatus.NO_CONTENT)
  async changePassword(@Param('userId',uuid) id:string,@Body() dto:ChangePasswordDto,@CurrentUser() actor:AuthenticatedUser){
