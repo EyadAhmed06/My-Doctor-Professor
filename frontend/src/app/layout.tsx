@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { AppThemeProvider } from "@/components/app-theme";
@@ -45,10 +45,17 @@ import "@/components/reference-light-palette-metallic.css";
 import "@/components/brand-light-navbar.css";
 import "@/components/assessment-session-responsive-fix.css";
 import "@/components/logout-modal-polish.css";
+import "@/components/section9-polish.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
   description: BRAND_TAGLINE,
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
