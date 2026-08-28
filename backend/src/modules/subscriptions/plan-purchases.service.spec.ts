@@ -120,6 +120,7 @@ describe('PlanPurchasesService.checkout', () => {
 
     expect(result.status).toBe(PlanPurchaseStatus.PAID);
     expect(result.checkout_url).toBeNull();
+    expect(result.purchase).not.toHaveProperty('providerReference');
     expect(purchases).toHaveLength(1);
     expect(purchases[0].paymentMethod).toBe(PlanPaymentMethod.PROMOCODE);
     expect(purchases[0].amountPaid).toBe('0.00');
@@ -139,6 +140,7 @@ describe('PlanPurchasesService.checkout', () => {
     const result = await service.checkout(userId, planId, { payment_method: 'fawry' });
 
     expect(result.status).toBe(PlanPurchaseStatus.PENDING);
+    expect(result.purchase).not.toHaveProperty('providerReference');
     expect(purchases[0].providerOrderId).toBe('999');
     expect(purchases[0].providerReference).toBe('cs_test_123');
 
