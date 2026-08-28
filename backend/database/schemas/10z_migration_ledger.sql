@@ -38,7 +38,8 @@ FROM (
         (2000000000000::bigint, 'AddAnswerConfidence2000000000000'),
         (2010000000000::bigint, 'AddQuestionFlagTypes2010000000000'),
         (2020000000000::bigint, 'HardenAssessmentIdempotency2020000000000'),
-        (2030000000000::bigint, 'EnforcePublishedMcqShape2030000000000')
+        (2030000000000::bigint, 'EnforcePublishedMcqShape2030000000000'),
+        (2040000000000::bigint, 'AddStudentAchievements2040000000000')
 ) AS entry(timestamp, name)
 WHERE NOT EXISTS (
     SELECT 1 FROM migrations current WHERE current.name = entry.name
