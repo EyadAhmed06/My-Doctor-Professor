@@ -82,13 +82,12 @@ export class PaymobService {
         signal: AbortSignal.timeout(10000),
       });
     } catch (cause) {
-      this.logger.error(`Paymob intention request failed: ${cause instanceof Error ? cause.message : cause}`);
+      this.logger.error(`Paymob intention request failed: ${cause instanceof Error ? cause.name : 'network error'}`);
       throw new ServiceUnavailableException('Payment provider is temporarily unavailable');
     }
 
     if (!response.ok) {
-      const body = await response.text().catch(() => '');
-      this.logger.error(`Paymob intention creation rejected: ${response.status} ${body}`);
+      this.logger.error(`Paymob intention creation rejected with HTTP ${response.status}`);
       throw new BadGatewayException('Payment provider rejected the checkout request');
     }
 
