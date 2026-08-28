@@ -17,6 +17,7 @@ import "@/components/phase3-learning.css";
 import "@/components/phase4-polish.css";
 import "@/components/phase-five-ux.css";
 import "@/components/phase-five-shell.css";
+import "@/components/phase-five-achievements.css";
 import "@/components/completion-ux.css";
 import "@/components/notifications-completion.css";
 import "@/components/analytics-completion.css";
