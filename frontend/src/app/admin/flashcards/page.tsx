@@ -1,4 +1,4 @@
-import { FlashcardStudioPage } from "@/components/content-workspaces";
+import { FlashcardStudioPage } from "@/components/flashcard-studio-page";
 
 export default function Page() {
   return <FlashcardStudioPage admin />;
