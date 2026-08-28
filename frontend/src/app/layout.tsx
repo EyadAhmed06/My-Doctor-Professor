@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { AppThemeProvider } from "@/components/app-theme";
+import { AchievementFeedbackBridge } from "@/components/achievement-feedback-bridge";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/components/brand";
 import { AuthProvider } from "@/components/auth-provider";
 import { BundleQuizAvailabilityGuard } from "@/components/bundle-quiz-availability-guard";
@@ -52,6 +53,6 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en" suppressHydrationWarning>
     <head><Script src="/preference-bootstrap.js" strategy="beforeInteractive" /></head>
-    <body><LocaleProvider><AppThemeProvider><PublicThemeAccess /><AuthProvider><UxProvider><GlobalKeyboardShortcuts /><BundleQuizAvailabilityGuard />{children}</UxProvider></AuthProvider></AppThemeProvider></LocaleProvider></body>
+    <body><LocaleProvider><AppThemeProvider><PublicThemeAccess /><AuthProvider><UxProvider><AchievementFeedbackBridge /><GlobalKeyboardShortcuts /><BundleQuizAvailabilityGuard />{children}</UxProvider></AuthProvider></AppThemeProvider></LocaleProvider></body>
   </html>;
 }
