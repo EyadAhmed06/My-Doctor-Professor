@@ -19,6 +19,7 @@ import { isAllowedOrigin, parseAllowedOrigins } from '../../config/cors-policy';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
+import { RateLimit } from './decorators/rate-limit.decorator';
 import { AuthResponseDto, UserProfileDto } from './dtos/auth-response.dto';
 import { ConfirmEmailVerificationDto, RequestEmailVerificationDto } from './dtos/email-verification.dto';
 import { CompleteGoogleSignupDto, GoogleCredentialDto, GoogleOnboardingResponseDto } from './dtos/google-auth.dto';
@@ -128,6 +129,7 @@ export class AuthController {
   }
 
   @Public()
+  @RateLimit({ key: 'auth-signup-route', maximum: 12, windowSeconds: 3600 })
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
   signup(@Body() dto: SignupDto): Promise<MessageResponse> {
@@ -182,6 +184,7 @@ export class AuthController {
   }
 
   @Public()
+  @RateLimit({ key: 'auth-refresh-route', maximum: 120, windowSeconds: 900 })
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')
@@ -291,7 +294,9 @@ export class AuthController {
     const protocol = Array.isArray(forwardedProtocol)
       ? forwardedProtocol[0]
       : forwardedProtocol?.split(',')[0]?.trim();
-    const secure = request.secure || protocol === 'https';
+    const secure = this.config.get<string>('NODE_ENV') === 'production'
+      || request.secure
+      || protocol === 'https';
     return {
       httpOnly: true,
       secure,
