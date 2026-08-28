@@ -24,10 +24,10 @@ export class AcademicAccessService {
            WHERE enrollment.student_id = $2
              AND bundle_course.course_id = $1
              AND enrollment.status = 'ACTIVE'
-             AND enrollment.starts_at <= CURRENT_TIMESTAMP
+             AND (enrollment.starts_at IS NULL OR enrollment.starts_at <= CURRENT_TIMESTAMP)
              AND (enrollment.expires_at IS NULL OR enrollment.expires_at > CURRENT_TIMESTAMP)
+             AND enrollment.payment_status IN ('NOT_REQUIRED','PAID')
              AND bundle.status = 'PUBLISHED'
-             AND (bundle.is_free = TRUE OR enrollment.payment_status = 'PAID')
              AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
              AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
              AND course.is_active = TRUE`,
@@ -50,19 +50,32 @@ export class AcademicAccessService {
           `SELECT 1
            FROM weeks week
            JOIN courses course ON course.id = week.course_id
-           JOIN bundle_weeks bundle_week ON bundle_week.week_id = week.id
-           JOIN bundle_enrollments enrollment ON enrollment.bundle_id = bundle_week.bundle_id
-           JOIN bundles bundle ON bundle.id = enrollment.bundle_id
+           JOIN bundle_courses bundle_course ON bundle_course.course_id = course.id
+           JOIN bundles bundle ON bundle.id = bundle_course.bundle_id
+           JOIN bundle_enrollments enrollment
+             ON enrollment.bundle_id = bundle.id AND enrollment.student_id = $2
            WHERE week.id = $1
-             AND enrollment.student_id = $2
              AND enrollment.status = 'ACTIVE'
-             AND enrollment.starts_at <= CURRENT_TIMESTAMP
+             AND (enrollment.starts_at IS NULL OR enrollment.starts_at <= CURRENT_TIMESTAMP)
              AND (enrollment.expires_at IS NULL OR enrollment.expires_at > CURRENT_TIMESTAMP)
+             AND enrollment.payment_status IN ('NOT_REQUIRED','PAID')
              AND bundle.status = 'PUBLISHED'
-             AND (bundle.is_free = TRUE OR enrollment.payment_status = 'PAID')
              AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
              AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
-             AND course.is_active = TRUE`,
+             AND course.is_active = TRUE
+             AND (
+               EXISTS (
+                 SELECT 1 FROM bundle_weeks selected
+                 WHERE selected.bundle_id = bundle.id AND selected.week_id = week.id
+               )
+               OR NOT EXISTS (
+                 SELECT 1
+                 FROM bundle_weeks selected
+                 JOIN weeks selected_week ON selected_week.id = selected.week_id
+                 WHERE selected.bundle_id = bundle.id
+                   AND selected_week.course_id = course.id
+               )
+             )`,
           [weekId, actor.userId],
         );
     if (!allowed) throw new NotFoundException('Week not found');
@@ -84,20 +97,33 @@ export class AcademicAccessService {
            FROM lectures lecture
            JOIN weeks week ON week.id = lecture.week_id
            JOIN courses course ON course.id = week.course_id
-           JOIN bundle_weeks bundle_week ON bundle_week.week_id = week.id
-           JOIN bundle_enrollments enrollment ON enrollment.bundle_id = bundle_week.bundle_id
-           JOIN bundles bundle ON bundle.id = enrollment.bundle_id
+           JOIN bundle_courses bundle_course ON bundle_course.course_id = course.id
+           JOIN bundles bundle ON bundle.id = bundle_course.bundle_id
+           JOIN bundle_enrollments enrollment
+             ON enrollment.bundle_id = bundle.id AND enrollment.student_id = $2
            WHERE lecture.id = $1
-             AND enrollment.student_id = $2
              AND enrollment.status = 'ACTIVE'
-             AND enrollment.starts_at <= CURRENT_TIMESTAMP
+             AND (enrollment.starts_at IS NULL OR enrollment.starts_at <= CURRENT_TIMESTAMP)
              AND (enrollment.expires_at IS NULL OR enrollment.expires_at > CURRENT_TIMESTAMP)
+             AND enrollment.payment_status IN ('NOT_REQUIRED','PAID')
              AND bundle.status = 'PUBLISHED'
-             AND (bundle.is_free = TRUE OR enrollment.payment_status = 'PAID')
              AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
              AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
              AND course.is_active = TRUE
-             AND lecture.is_published = TRUE`,
+             AND lecture.is_published = TRUE
+             AND (
+               EXISTS (
+                 SELECT 1 FROM bundle_weeks selected
+                 WHERE selected.bundle_id = bundle.id AND selected.week_id = week.id
+               )
+               OR NOT EXISTS (
+                 SELECT 1
+                 FROM bundle_weeks selected
+                 JOIN weeks selected_week ON selected_week.id = selected.week_id
+                 WHERE selected.bundle_id = bundle.id
+                   AND selected_week.course_id = course.id
+               )
+             )`,
           [lectureId, actor.userId],
         );
     if (!allowed) throw new NotFoundException('Lecture not found');
