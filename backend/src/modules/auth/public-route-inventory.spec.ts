@@ -21,6 +21,7 @@ describe('Explicit public route inventory', () => {
       ['modules/bundles/bundles.controller.ts', 1],
       ['modules/subscriptions/paymob-webhook.controller.ts', 1],
       ['modules/admin/admin-bootstrap.controller.ts', 1],
+      ['modules/users/profile-pictures.controller.ts', 1],
     ]);
 
     const actual = new Map<string, number>();
