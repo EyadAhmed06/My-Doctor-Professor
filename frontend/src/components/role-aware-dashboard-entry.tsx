@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AchievementMilestonesPanel } from "./achievement-milestones-panel";
 import { PageSkeleton } from "./async-state";
 import { useAuth } from "./auth-provider";
 import { ConnectedDashboardPage } from "./connected-dashboard-page";
@@ -51,7 +52,7 @@ export function RoleAwareDashboardEntry() {
   }
 
   if (user.role === "STUDENT") {
-    return <ProductShell search="Search cases, topics, or concepts"><ConnectedDashboardPage /></ProductShell>;
+    return <ProductShell search="Search cases, topics, or concepts"><ConnectedDashboardPage /><AchievementMilestonesPanel /></ProductShell>;
   }
 
   return <RoleDashboardPage />;
