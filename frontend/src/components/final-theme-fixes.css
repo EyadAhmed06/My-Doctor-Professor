@@ -2,13 +2,13 @@
    This file intentionally owns the landing hero and auth-field theme contract. */
 
 /* ---------- Landing hero ----------
-   The hero now uses the two real WebP files rendered by the component itself.
-   No SVG wrappers, generated backgrounds, filters, inversion, or blend modes. */
+   Use the real raster artwork directly. No SVG wrappers, inversion, filters,
+   blend modes, or generated dark treatments. */
 .public-home .public-hero .hero-duo {
   display: block !important;
   position: relative !important;
-  width: min(100%, 760px) !important;
-  height: auto !important;
+  width: min(100%, 720px) !important;
+  aspect-ratio: 3 / 2 !important;
   min-height: 0 !important;
   margin: 0 !important;
   justify-self: center !important;
@@ -18,60 +18,35 @@
   outline: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
-  background: transparent !important;
+  background-color: transparent !important;
+  background-repeat: no-repeat !important;
+  background-size: contain !important;
+  background-position: center !important;
   filter: none !important;
   mix-blend-mode: normal !important;
   opacity: 1 !important;
 }
 
+/* The older WebP files were malformed in production and rendered as alt text.
+   Hide those elements and use the real binary JPG assets that are already in
+   public/media until the high-resolution originals replace them. */
 .public-home .public-hero .hero-duo > img {
-  width: 100% !important;
-  height: auto !important;
-  max-width: 100% !important;
-  object-fit: contain !important;
-  object-position: center !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  background: transparent !important;
-  filter: none !important;
-  mix-blend-mode: normal !important;
-  opacity: 1 !important;
-}
-
-/* Dark is the safe default before the persisted theme attribute is restored. */
-.public-home .public-hero .hero-duo-dark {
-  display: block !important;
-  visibility: visible !important;
-}
-
-.public-home .public-hero .hero-duo-light {
   display: none !important;
   visibility: hidden !important;
 }
 
-html[data-theme='light'] .public-home .public-hero .hero-duo-dark,
-html.light .public-home .public-hero .hero-duo-dark {
-  display: none !important;
-  visibility: hidden !important;
+.public-home .public-hero .hero-duo {
+  background-image: url('/media/hero-doctor-professor-dark-original.jpg') !important;
 }
 
-html[data-theme='light'] .public-home .public-hero .hero-duo-light,
-html.light .public-home .public-hero .hero-duo-light {
-  display: block !important;
-  visibility: visible !important;
+html[data-theme='light'] .public-home .public-hero .hero-duo,
+html.light .public-home .public-hero .hero-duo {
+  background-image: url('/media/hero-doctor-professor-light-original.jpg') !important;
 }
 
-html[data-theme='dark'] .public-home .public-hero .hero-duo-dark,
-html.dark .public-home .public-hero .hero-duo-dark {
-  display: block !important;
-  visibility: visible !important;
-}
-
-html[data-theme='dark'] .public-home .public-hero .hero-duo-light,
-html.dark .public-home .public-hero .hero-duo-light {
-  display: none !important;
-  visibility: hidden !important;
+html[data-theme='dark'] .public-home .public-hero .hero-duo,
+html.dark .public-home .public-hero .hero-duo {
+  background-image: url('/media/hero-doctor-professor-dark-original.jpg') !important;
 }
 
 .public-home .public-hero .hero-duo::before,
@@ -82,7 +57,7 @@ html.dark .public-home .public-hero .hero-duo-light {
 
 @media (max-width: 1100px) {
   .public-home .public-hero .hero-duo {
-    width: min(100%, 680px) !important;
+    width: min(100%, 640px) !important;
   }
 }
 
