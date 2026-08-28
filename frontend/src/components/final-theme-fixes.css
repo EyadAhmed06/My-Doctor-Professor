@@ -5,46 +5,43 @@
 .public-home .public-hero .hero-duo {
   display: block !important;
   position: relative !important;
-  width: min(100%, 780px) !important;
-  height: clamp(500px, 42vw, 660px) !important;
-  min-height: 500px !important;
+  width: min(100%, 760px) !important;
+  aspect-ratio: 3 / 2 !important;
+  height: auto !important;
+  min-height: 0 !important;
   margin: 0 !important;
   justify-self: center !important;
   align-self: center !important;
-  overflow: visible !important;
+  overflow: hidden !important;
   border: 0 !important;
   outline: 0 !important;
+  border-radius: 24px !important;
   box-shadow: none !important;
   background-color: transparent !important;
-  background-image: url('/media/hero-doctor-professor-v2-light.svg') !important;
   background-repeat: no-repeat !important;
   background-position: center center !important;
   background-size: contain !important;
 }
 
-/* Legacy image elements stay in the DOM for semantics/fallback only. */
 .public-home .public-hero .hero-duo > img {
   display: none !important;
   visibility: hidden !important;
 }
 
-/* The selected light artwork has a pale canvas; multiply makes that canvas
-   become the page itself rather than a visible white rectangle. */
 html[data-theme='light'] .public-home .public-hero .hero-duo,
 html.light .public-home .public-hero .hero-duo {
+  background-image: url('/media/hero-doctor-professor-v2-light.svg') !important;
   filter: none !important;
   mix-blend-mode: multiply !important;
   opacity: 1 !important;
 }
 
-/* The previously generated dark asset is corrupt/blank in-browser. Until it is
-   replaced by a verified binary source, derive the dark treatment from the
-   same approved illustration instead of leaving half the hero empty. */
 html[data-theme='dark'] .public-home .public-hero .hero-duo,
 html.dark .public-home .public-hero .hero-duo {
-  filter: invert(.93) hue-rotate(178deg) saturate(1.12) brightness(.78) contrast(1.04) !important;
-  mix-blend-mode: screen !important;
-  opacity: .98 !important;
+  background-image: url('/media/hero-doctor-professor-v2-dark.svg') !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+  opacity: 1 !important;
 }
 
 .public-home .public-hero .hero-duo::before,
@@ -56,18 +53,15 @@ html.dark .public-home .public-hero .hero-duo {
 @media (max-width: 1100px) {
   .public-home .public-hero .hero-duo {
     width: min(100%, 680px) !important;
-    height: clamp(420px, 58vw, 590px) !important;
-    min-height: 420px !important;
   }
 }
 
 @media (max-width: 760px) {
   .public-home .public-hero .hero-duo {
     width: 100% !important;
-    height: min(88vw, 520px) !important;
-    min-height: 300px !important;
     margin-top: 18px !important;
     background-position: center top !important;
+    border-radius: 18px !important;
   }
 }
 
