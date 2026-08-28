@@ -14,6 +14,7 @@ import { Test } from '../../common/entities/test.entity';
 import { Week } from '../../common/entities/week.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { Student } from '../users/entities/student.entity';
+import { AssessmentAttemptService } from './assessment-attempt.service';
 import { AssessmentAuthoringService } from './assessment-authoring.service';
 import { EssayPracticeController } from './essay-practice.controller';
 import { EssayPracticeService } from './essay-practice.service';
@@ -29,7 +30,7 @@ import { TestsService } from './tests.service';
   Question,McqOption,EssayConfiguration,Course,Week,Lecture,Student,
  ])],
  controllers:[TestsController,TestLaunchController,McqPracticeController,EssayPracticeController],
- providers:[TestsService,AssessmentAuthoringService,McqPracticeService,EssayPracticeService],
- exports:[TestsService,TypeOrmModule],
+ providers:[TestsService,AssessmentAttemptService,AssessmentAuthoringService,McqPracticeService,EssayPracticeService],
+ exports:[TestsService,AssessmentAttemptService,TypeOrmModule],
 })
 export class TestsModule {}
