@@ -12,7 +12,10 @@ import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { Student } from '../users/entities/student.entity';
 import { GeneratePracticeTestDto } from './dtos/tests.dto';
 
-const ALLOWED_PRACTICE_SIZES = [10, 20, 40, 200] as const;
+const PRACTICE_QUESTION_COUNT = 40;
+const FINAL_QUESTION_COUNT = 200;
+const FINAL_COURSE_COUNT = 5;
+const FINAL_QUESTIONS_PER_COURSE = 40;
 
 type AccessibleLectureRow = { lecture_id: string };
 
@@ -26,8 +29,8 @@ export class McqPracticeService {
   ) {}
 
   async generate(dto: GeneratePracticeTestDto, actor: AuthenticatedUser) {
-    if (!ALLOWED_PRACTICE_SIZES.includes(dto.question_count as 10 | 20 | 40 | 200)) {
-      throw new BadRequestException('Practice must contain 10, 20, 40, or 200 MCQs');
+    if (![PRACTICE_QUESTION_COUNT, FINAL_QUESTION_COUNT].includes(dto.question_count)) {
+      throw new BadRequestException('Assessments must contain either 40 practice MCQs or 200 final MCQs');
     }
     if (![TestMode.TUTOR, TestMode.TIMED].includes(dto.test_mode)) {
       throw new BadRequestException('Lecture practice is available in Tutor or Timed mode');
@@ -53,7 +56,7 @@ export class McqPracticeService {
       INNER JOIN lectures lecture ON lecture.week_id = week.id
       WHERE bundle.id = $1
         AND enrollment.status = 'ACTIVE'
-        AND enrollment.starts_at <= CURRENT_TIMESTAMP
+        AND (enrollment.starts_at IS NULL OR enrollment.starts_at <= CURRENT_TIMESTAMP)
         AND (enrollment.expires_at IS NULL OR enrollment.expires_at > CURRENT_TIMESTAMP)
         AND enrollment.payment_status IN ('NOT_REQUIRED', 'PAID')
         AND bundle.status = 'PUBLISHED'
@@ -77,11 +80,11 @@ export class McqPracticeService {
       .getMany();
     if (lectures.length !== dto.lecture_ids.length) throw new NotFoundException('One or more lectures were not found');
     const courseIds = new Set(lectures.map((lecture) => lecture.week.courseId));
-    const bundleFinal = dto.question_count === 200 && courseIds.size > 1;
-    if (courseIds.size !== 1 && !bundleFinal) {
+    const bundleFinal = dto.question_count === FINAL_QUESTION_COUNT;
+    if (!bundleFinal && courseIds.size !== 1) {
       throw new BadRequestException('A non-final practice must use lectures from one course');
     }
-    if (bundleFinal && courseIds.size !== 5) {
+    if (bundleFinal && courseIds.size !== FINAL_COURSE_COUNT) {
       throw new BadRequestException('A 200-MCQ bundle final must contain exactly five courses');
     }
 
@@ -94,7 +97,10 @@ export class McqPracticeService {
       .andWhere('question.question_type = :questionType', { questionType: QuestionType.MCQ });
     if (dto.difficulty) builder.andWhere('question.difficulty = :difficulty', { difficulty: dto.difficulty });
 
-    const eligible = await builder.getMany();
+    const eligible = (await builder.getMany()).filter((question) =>
+      question.options.length === 5
+      && question.options.filter((option) => option.isCorrect).length === 1,
+    );
     if (eligible.length < dto.question_count) {
       throw new BadRequestException(`Only ${eligible.length} eligible MCQs are available for this selection; ${dto.question_count} are required`);
     }
@@ -118,11 +124,13 @@ export class McqPracticeService {
       }
       for (const courseId of courseIds) {
         const available = byCourse.get(courseId)?.length ?? 0;
-        if (available < 40) {
-          throw new BadRequestException(`Course ${courseId} has only ${available} eligible MCQs; 40 are required`);
+        if (available < FINAL_QUESTIONS_PER_COURSE) {
+          throw new BadRequestException(`Course ${courseId} has only ${available} eligible five-option MCQs; 40 are required`);
         }
       }
-      selected = shuffle([...courseIds].flatMap((courseId) => shuffle(byCourse.get(courseId)!).slice(0, 40)));
+      selected = [...courseIds].flatMap((courseId) =>
+        shuffle(byCourse.get(courseId)!).slice(0, FINAL_QUESTIONS_PER_COURSE),
+      );
     } else {
       selected = shuffle(eligible).slice(0, dto.question_count);
     }

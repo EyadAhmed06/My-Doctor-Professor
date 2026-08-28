@@ -24,6 +24,7 @@ type Week = { id: string; weekNumber: number; title: string | null; description:
 type Course = { id: string; courseName: string; courseCode: string; description: string | null; weeks: Week[] };
 type Content = { bundle: Bundle; courses: Course[] };
 type Generated = { test: { id: string }; attempt: { id: string }; question_count: number };
+type PracticeMode = "TUTOR" | "TIMED";
 
 const PRACTICE_QUESTION_COUNT = 40;
 
@@ -45,8 +46,8 @@ function defaultPracticeLectures(lectures: Lecture[]) {
   return selected;
 }
 
-function sessionHref(generated: Generated, bundleId: string, lectureIds: string[]) {
-  return `/mock-exam/session?attempt=${encodeURIComponent(generated.attempt.id)}&test=${encodeURIComponent(generated.test.id)}&mode=TUTOR&source=rounds&bundle=${encodeURIComponent(bundleId)}&lectures=${encodeURIComponent(lectureIds.join(","))}`;
+function sessionHref(generated: Generated, bundleId: string, lectureIds: string[], mode: PracticeMode) {
+  return `/mock-exam/session?attempt=${encodeURIComponent(generated.attempt.id)}&test=${encodeURIComponent(generated.test.id)}&mode=${mode}&source=rounds&bundle=${encodeURIComponent(bundleId)}&lectures=${encodeURIComponent(lectureIds.join(","))}`;
 }
 
 export function ConnectedRoundsPage() {
@@ -64,6 +65,7 @@ export function ConnectedRoundsPage() {
   const [courseId, setCourseId] = useState("");
   const [activeLecture, setActiveLecture] = useState<Lecture | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [mode, setMode] = useState<PracticeMode>("TUTOR");
   const [openWeeks, setOpenWeeks] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
@@ -169,7 +171,7 @@ export function ConnectedRoundsPage() {
     setSelectedIds((current) => allSelected ? current.filter((id) => !ids.includes(id)) : [...new Set([...current, ...ids])]);
   }
 
-  async function startTutor() {
+  async function startPractice() {
     if (!ready || starting) return;
     setStarting(true);
     setError(null);
@@ -180,10 +182,11 @@ export function ConnectedRoundsPage() {
           bundle_id: bundleId,
           lecture_ids: selectedIds,
           question_count: PRACTICE_QUESTION_COUNT,
-          test_mode: "TUTOR",
+          test_mode: mode,
+          duration_minutes: mode === "TIMED" ? PRACTICE_QUESTION_COUNT : undefined,
         },
       });
-      window.location.assign(sessionHref(generated, bundleId, selectedIds));
+      window.location.assign(sessionHref(generated, bundleId, selectedIds, mode));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to build this 40-question quiz.");
       setStarting(false);
@@ -197,7 +200,7 @@ export function ConnectedRoundsPage() {
           <div>
             <span className="page-eyebrow">CURRICULUM QUIZ BUILDER</span>
             <h1>{course?.courseName || "Lecture Questions"}</h1>
-            <p>Select one or more lectures. The generated practice set is always 40 MCQs in Tutor mode.</p>
+            <p>Select one or more lectures. The generated practice set is always 40 MCQs in Tutor or Timed mode.</p>
           </div>
           <div className="rounds-reference-selectors">
             <label>Bundle<select value={bundleId} onChange={(event) => setBundleId(event.target.value)}>{bundles.map((item) => <option key={item.id} value={item.id}>{item.title}{item.read_only ? " · read-only" : ""}</option>)}</select></label>
@@ -258,10 +261,10 @@ export function ConnectedRoundsPage() {
                   <div className={`rounds-primary-action practice-launch ${ready ? "ready" : "needs-questions"}`}>
                     <div>
                       <small>{ready ? "READY" : "QUESTION POOL"}</small>
-                      <h3>{ready ? "Start a 40-MCQ Tutor quiz" : `Need ${Math.max(0, PRACTICE_QUESTION_COUNT - selectedQuestionPool)} more eligible MCQs`}</h3>
+                      <h3>{ready ? `Start a 40-MCQ ${mode === "TIMED" ? "Timed" : "Tutor"} quiz` : `Need ${Math.max(0, PRACTICE_QUESTION_COUNT - selectedQuestionPool)} more eligible MCQs`}</h3>
                       <p>{ready ? "Questions are sampled from exactly the lectures you selected and answers are saved to the backend." : "Select additional lectures or ask the instructor to publish more active question-bank MCQs. The app will not silently duplicate questions."}</p>
                     </div>
-                    <button className="pp-button" type="button" disabled={!ready || starting} onClick={() => void startTutor()}><FiPlayCircle />{starting ? "Building quiz…" : "Start 40 questions"}<FiArrowRight /></button>
+                    <div className="practice-launch-controls"><label>Mode<select aria-label="Quiz mode" value={mode} disabled={starting} onChange={(event) => setMode(event.target.value as PracticeMode)}><option value="TUTOR">Tutor · explanation after each answer</option><option value="TIMED">Timed · 40 minutes</option></select></label><button className="pp-button" type="button" disabled={!ready || starting} onClick={() => void startPractice()}><FiPlayCircle />{starting ? "Building quiz…" : "Start 40 questions"}<FiArrowRight /></button></div>
                   </div>
                   <div className="rounds-secondary-actions"><Link className="pp-button secondary" href={`/flashcards?bundle=${bundleId}${activeLecture ? `&lecture=${activeLecture.id}` : ""}`}>Review flashcards</Link><Link className="pp-button secondary" href={`/past-exams?bundle=${bundleId}`}>Open configured exams</Link></div>
                 </>
@@ -272,7 +275,7 @@ export function ConnectedRoundsPage() {
               <Panel title="Selection"><div className="rounds-coverage-number">{selectedIds.length}<small> lectures</small></div><Progress value={Math.min(100, Math.round(selectedQuestionPool / PRACTICE_QUESTION_COUNT * 100))} />
                 <dl><div><dt>Required MCQs</dt><dd>{PRACTICE_QUESTION_COUNT}</dd></div><div><dt>Eligible MCQ pool</dt><dd>{selectedQuestionPool}</dd></div><div><dt>Course eligible MCQs</dt><dd>{totals.mcqs}</dd></div></dl>
               </Panel>
-              <Panel title={currentBundle?.read_only ? "Read-only access" : "Quiz rule"}><p>{currentBundle?.read_only ? "You may review existing content, but cannot start a new attempt from this bundle." : "Lecture practice is a fixed 40-MCQ Tutor session. Pre-authored exams use their instructor configuration instead."}</p></Panel>
+              <Panel title={currentBundle?.read_only ? "Read-only access" : "Quiz rule"}><p>{currentBundle?.read_only ? "You may review existing content, but cannot start a new attempt from this bundle." : "Lecture practice is fixed at 40 MCQs. Tutor is untimed; Timed lasts exactly 40 minutes. Pre-authored exams use their instructor configuration instead."}</p></Panel>
               <button className="rounds-refresh" type="button" onClick={() => setRefreshKey((value) => value + 1)}><FiRefreshCw /> Refresh content</button>
             </aside>
           </div>}

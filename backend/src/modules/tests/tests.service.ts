@@ -200,6 +200,14 @@ export class TestsService implements OnModuleInit {
       .where('question.is_active = TRUE')
       .andWhere('question.is_question_bank = TRUE')
       .andWhere('question.question_type = :mcqType', { mcqType: QuestionType.MCQ })
+      .andWhere(`(
+        SELECT COUNT(*) FROM mcq_options option
+        WHERE option.question_id = question.id
+      ) = 5`)
+      .andWhere(`(
+        SELECT COUNT(*) FROM mcq_options option
+        WHERE option.question_id = question.id AND option.is_correct = TRUE
+      ) = 1`)
       .andWhere('topic.lecture_id IN (:...lectureIds)', {
         lectureIds: weeks.flatMap((week) => week.lectures.map((lecture) => lecture.id)).length
           ? weeks.flatMap((week) => week.lectures.map((lecture) => lecture.id)) : ['00000000-0000-0000-0000-000000000000'],
@@ -483,7 +491,7 @@ export class TestsService implements OnModuleInit {
       }
       return !answer.essayAnswer?.trim();
     });
-    if (incomplete.length) {
+    if (attempt.testMode === TestMode.TUTOR && incomplete.length) {
       throw new BadRequestException(`Answer every question and choose a confidence level for every MCQ before submitting. ${incomplete.length} question(s) remain incomplete.`);
     }
     await this.finalizeAttempt(attempt, false);
@@ -869,10 +877,12 @@ export class TestsService implements OnModuleInit {
   }
 
   private questionView(question: Question, revealAnswers: boolean) {
-    const options = question.options?.map((option) => revealAnswers ? option : ({
+    const options = [...(question.options ?? [])]
+      .sort((left, right) => left.displayOrder - right.displayOrder)
+      .map((option) => revealAnswers ? option : ({
       id: option.id, questionId: option.questionId, optionText: option.optionText,
       displayOrder: option.displayOrder, createdAt: option.createdAt,
-    }));
+      }));
     const essayConfiguration = question.essayConfiguration && revealAnswers
       ? question.essayConfiguration
       : question.essayConfiguration ? {

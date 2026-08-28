@@ -339,7 +339,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
 
   const finalize = useCallback(async (auto = false) => {
     const missingConfidence = items.some((item) => !(pendingAnswers[item.question.id] || answers[item.question.id]) || !confidence[item.question.id]);
-    if (!auto && missingConfidence) { notify({ title: "Confidence required", description: "Answer every question and choose a confidence level for each one before submitting.", tone: "error" }); return; }
+    if (!auto && tutor && missingConfidence) { notify({ title: "Confidence required", description: "Answer every question and choose a confidence level for each one before ending Tutor practice.", tone: "error" }); return; }
     if (!auto && !window.confirm(`Submit this assessment with ${totalAnswered} of ${items.length} questions answered?`)) return;
     setSubmitting(true); setError(null);
     try {
@@ -352,7 +352,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
       }
       setError(cause instanceof Error ? cause.message : "Unable to submit the assessment.");
     } finally { setSubmitting(false); }
-  }, [answers, attemptId, celebrate, confidence, items, notify, pendingAnswers, request, totalAnswered]);
+  }, [answers, attemptId, celebrate, confidence, items, notify, pendingAnswers, request, totalAnswered, tutor]);
 
   function endBlock() {
     if (tutor || blockIndex === blockCount - 1) { void finalize(Boolean(expired)); return; }

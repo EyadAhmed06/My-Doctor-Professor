@@ -192,7 +192,10 @@ export class BundlesService {
         SELECT lecture.id,
           COUNT(DISTINCT question.id)::int AS question_count,
           COUNT(DISTINCT question.id) FILTER (
-            WHERE question.question_type = 'MCQ' AND question.is_question_bank = TRUE
+            WHERE question.question_type = 'MCQ'
+              AND question.is_question_bank = TRUE
+              AND (SELECT COUNT(*) FROM mcq_options option WHERE option.question_id = question.id) = 5
+              AND (SELECT COUNT(*) FROM mcq_options option WHERE option.question_id = question.id AND option.is_correct = TRUE) = 1
           )::int AS mcq_count,
           COUNT(DISTINCT deck.id)::int AS flashcard_deck_count,
           COUNT(DISTINCT resource.id)::int AS resource_count

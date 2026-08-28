@@ -47,6 +47,8 @@ type Page<T> = { data: T[] };
 
 const studentNav: NavItem[] = [
   { label: "My Bundles", href: "/bundles" },
+  { label: "Questions", href: "/assessments" },
+  { label: "Mock Exams", href: "/past-exams" },
   { label: "Flashcards", href: "/flashcards" },
   { label: "Essay Cases", href: "/essay-practice" },
   { label: "Notebook", href: "/notebook" },
