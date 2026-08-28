@@ -7,6 +7,7 @@ import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
 import { CardQueryDto, CreateDeckDto, CreateFlashcardDto, DeckQueryDto, ReviewFlashcardDto, UpdateDeckDto, UpdateFlashcardDto } from './dtos/flashcards.dto';
 import { FlashcardAccessService } from './flashcard-access.service';
+import { FlashcardEditingService } from './flashcard-editing.service';
 import { FlashcardsService } from './flashcards.service';
 const uuid=new ParseUUIDPipe({version:'4'});
 
@@ -16,6 +17,7 @@ export class FlashcardsController {
  constructor(
   private readonly flashcards:FlashcardsService,
   private readonly access:FlashcardAccessService,
+  private readonly editing:FlashcardEditingService,
  ){}
 
  @Get('courses') @Roles(UserRole.STUDENT)
@@ -27,7 +29,7 @@ export class FlashcardsController {
  @Get('decks/:deckId')
  async getDeck(@Param('deckId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){await this.access.assertDeckReadable(id,actor);return this.flashcards.getDeck(id,actor);}
  @Put('decks/:deckId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
- updateDeck(@Param('deckId',uuid) id:string,@Body() dto:UpdateDeckDto,@CurrentUser() actor:AuthenticatedUser){return this.flashcards.updateDeck(id,dto,actor);}
+ updateDeck(@Param('deckId',uuid) id:string,@Body() dto:UpdateDeckDto,@CurrentUser() actor:AuthenticatedUser){return this.editing.updateDeck(id,dto,actor);}
  @Delete('decks/:deckId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) @HttpCode(HttpStatus.NO_CONTENT)
  async removeDeck(@Param('deckId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){await this.flashcards.removeDeck(id,actor);}
 
@@ -40,7 +42,7 @@ export class FlashcardsController {
  @Get('cards/mine') @Roles(UserRole.STUDENT)
  listMine(@Query() query:CardQueryDto,@CurrentUser() actor:AuthenticatedUser){return this.access.listStudentAll(actor,query);}
  @Put('cards/:cardId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
- updateCard(@Param('cardId',uuid) id:string,@Body() dto:UpdateFlashcardDto,@CurrentUser() actor:AuthenticatedUser){return this.flashcards.updateCard(id,dto,actor);}
+ updateCard(@Param('cardId',uuid) id:string,@Body() dto:UpdateFlashcardDto,@CurrentUser() actor:AuthenticatedUser){return this.editing.updateCard(id,dto,actor);}
  @Delete('cards/:cardId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) @HttpCode(HttpStatus.NO_CONTENT)
  async removeCard(@Param('cardId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){await this.flashcards.removeCard(id,actor);}
  @Get('cards/:cardId/progress') @Roles(UserRole.STUDENT)
