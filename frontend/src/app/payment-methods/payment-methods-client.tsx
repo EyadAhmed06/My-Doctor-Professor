@@ -17,11 +17,18 @@ type Bundle = {
 
 type PaymentMethod = "FAWRY" | "INSTAPAY" | "TELDA" | "CARD";
 
-const METHODS: Array<{ id: PaymentMethod; label: string; detail: string; mark: string }> = [
-  { id: "FAWRY", label: "Fawry", detail: "Pay through Fawry when integration becomes available.", mark: "F" },
-  { id: "INSTAPAY", label: "InstaPay", detail: "Pay using InstaPay when integration becomes available.", mark: "IP" },
-  { id: "TELDA", label: "Telda", detail: "Pay with Telda when integration becomes available.", mark: "T" },
-  { id: "CARD", label: "Visa / Mastercard", detail: "Card payments will use a hosted PCI-compliant checkout.", mark: "V/M" },
+type Method = {
+  id: PaymentMethod;
+  label: string;
+  logo?: string;
+  logoClass?: string;
+};
+
+const METHODS: Method[] = [
+  { id: "FAWRY", label: "Fawry", logo: "https://seeklogo.com/images/F/fawry-logo-FD61F19B43-seeklogo.com.png", logoClass: "fawry-logo" },
+  { id: "INSTAPAY", label: "InstaPay", logo: "https://www.geekarabi.com/wp-content/uploads/2025/12/instapay-egypt-logo.webp", logoClass: "instapay-logo" },
+  { id: "TELDA", label: "Telda", logo: "https://telda.app/_next/static/media/telda-logo.25c7955c.png", logoClass: "telda-logo" },
+  { id: "CARD", label: "Visa / Mastercard" },
 ];
 
 export function PaymentMethodsClient({ bundleRef }: { bundleRef: string | null }) {
@@ -51,7 +58,6 @@ export function PaymentMethodsClient({ bundleRef }: { bundleRef: string | null }
       <header>
         <span className="payment-eyebrow">SECURE CHECKOUT</span>
         <h1>Choose a payment method</h1>
-        <p>Select how you want to pay. No payment will be submitted until a real provider integration is enabled.</p>
       </header>
 
       {loading ? <div className="payment-state">Loading payment options…</div> : error ? <div className="payment-state error">{error}</div> : !bundle ? <div className="payment-state error">This bundle could not be found.</div> : <>
@@ -64,14 +70,16 @@ export function PaymentMethodsClient({ bundleRef }: { bundleRef: string | null }
           <legend>Payment methods</legend>
           {METHODS.map((method) => <label className={`payment-method ${selected === method.id ? "selected" : ""}`} key={method.id}>
             <input type="radio" name="payment-method" value={method.id} checked={selected === method.id} onChange={() => setSelected(method.id)} />
-            <span className="payment-method-mark" aria-hidden="true">{method.mark}</span>
-            <span className="payment-method-copy"><strong>{method.label}</strong><small>{method.detail}</small></span>
+            <span className="payment-brand" aria-hidden="true">
+              {method.logo ? <img className={method.logoClass} src={method.logo} alt="" /> : <span className="card-brand"><b>VISA</b><i><span/><span/></i></span>}
+            </span>
+            <strong className="payment-label">{method.label}</strong>
             <span className="payment-radio-visual">{selected === method.id ? <FiCheck /> : null}</span>
           </label>)}
         </fieldset>
 
-        <div className="payment-security-note"><FiLock /><span>Card data will never be stored by My Doctor & The Professor. A hosted payment provider will handle sensitive card details.</span></div>
-        <button className="payment-continue" type="button" disabled={!selected} aria-disabled="true"><FiCreditCard /> Payment integration coming soon</button>
+        <div className="payment-security-note"><FiLock /><span>Payment details are handled securely by the selected provider.</span></div>
+        <button className="payment-continue" type="button" disabled={!selected} aria-disabled="true"><FiCreditCard /> Continue</button>
       </>}
     </section>
   </main>;
