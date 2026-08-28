@@ -29,7 +29,6 @@ export class FlashcardEditingService {
   constructor(
     @InjectRepository(FlashcardDeck) private readonly decks: Repository<FlashcardDeck>,
     @InjectRepository(Flashcard) private readonly cards: Repository<Flashcard>,
-    @InjectRepository(StudentFlashcardProgress) private readonly progress: Repository<StudentFlashcardProgress>,
     private readonly dataSource: DataSource,
   ) {}
 
