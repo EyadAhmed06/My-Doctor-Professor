@@ -111,6 +111,22 @@ export class AuthController {
     return this.forTransport(auth, request);
   }
 
+  @Post('google/link')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @Header('Cache-Control', 'no-store')
+  linkGoogleAccount(
+    @Body() dto: GoogleCredentialDto,
+    @CurrentUser() actor: AuthenticatedUser,
+    @Req() request: Request,
+  ): Promise<MessageResponse> {
+    return this.googleAuthService.linkExistingAccount(
+      dto.credential,
+      actor,
+      request.ip ?? request.socket.remoteAddress ?? 'unknown',
+    );
+  }
+
   @Public()
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
