@@ -72,7 +72,10 @@ export function RegisterPage() {
   const [loading,setLoading]=useState(false);
   const [googleLoading,setGoogleLoading]=useState(false);
   const [error,setError]=useState<string|null>(null);
-  const update=(key:keyof typeof form)=>(event:React.ChangeEvent<HTMLInputElement>)=>setForm(current=>({...current,[key]:key==="current_semester"?String(Math.min(6,Math.max(1,Number.parseInt(event.target.value||"1",10)||1))):event.target.value}));
+  const update=(key:keyof typeof form)=>(event:React.ChangeEvent<HTMLInputElement>)=>{
+    const raw=event.target.value;
+    setForm(current=>({...current,[key]:key==="current_semester"?raw.replace(/\D/g,"").slice(0,1):raw}));
+  };
 
   useEffect(()=>{
     if(!authLoading&&user){router.replace("/dashboard");return;}
@@ -86,7 +89,9 @@ export function RegisterPage() {
   async function submit(){
     setError(null);
     const phoneNumber=normalizePhone(phoneCountry,phoneLocal);
+    const semester=Number.parseInt(form.current_semester,10);
     if(!phoneNumber){setError("Enter a valid phone number for the selected country.");return;}
+    if(!Number.isInteger(semester)||semester<1||semester>6){setError("Current semester must be a number from 1 to 6.");return;}
     if(!accepted){setError("You must agree to the Terms of Service and Privacy Policy.");return;}
     if(!googleOnboarding&&form.password!==form.confirm_password){setError("Passwords do not match.");return;}
     setLoading(true);
@@ -95,12 +100,12 @@ export function RegisterPage() {
         await completeGoogleSignup({
           onboarding_token:googleOnboarding.onboarding_token,
           phone_number:phoneNumber,
-          current_semester:Number(form.current_semester),
+          current_semester:semester,
         });
         sessionStorage.removeItem(GOOGLE_ONBOARDING_KEY);
         router.replace("/dashboard");
       }else{
-        await apiRequest<{message:string}>("/auth/signup",{method:"POST",body:{full_name:form.full_name,email:form.email,phone_number:phoneNumber,password:form.password,role:"STUDENT",current_semester:Number(form.current_semester)}});
+        await apiRequest<{message:string}>("/auth/signup",{method:"POST",body:{full_name:form.full_name,email:form.email,phone_number:phoneNumber,password:form.password,role:"STUDENT",current_semester:semester}});
         router.push(`/verify-email?email=${encodeURIComponent(form.email)}`);
       }
     }catch(cause){setError(cause instanceof Error?cause.message:"Unable to create your account. Please try again.");}
