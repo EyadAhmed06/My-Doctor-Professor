@@ -78,7 +78,7 @@ export function StudentProgressControl({ open, onOpenChange }: { open: boolean; 
     const totalLectures = data?.courses.reduce((sum, item) => sum + numeric(item.totalLectures), 0) ?? 0;
     const overallProgress = totalLectures ? clamp(Math.round(completedLectures * 100 / totalLectures)) : 0;
     const mastered = numeric(data?.flashcards.mastered);
-    const progressPoints = numeric(data?.questions.correct_attempts) + mastered;
+    const progressPoints = numeric(data?.questions.correct_attempts) + mastered + 10 * completedLectures;
     const level = Math.max(1, Math.floor(progressPoints / 100) + 1);
     const levelProgress = Math.round(progressPoints % 100);
     const accuracy = clamp(numeric(data?.questions.accuracy));
@@ -113,12 +113,12 @@ export function StudentProgressControl({ open, onOpenChange }: { open: boolean; 
       {loading && !data ? <div className="student-progress-loading" role="status"><span /><span /><span /></div> : error && !data ? <div className="student-progress-error"><p>{error}</p><button type="button" onClick={() => void load()}>{translate("Try again")}</button></div> : data ? <>
         <div className="student-progress-hero">
           <div className="student-progress-shield student-progress-shield-large" aria-hidden="true"><i /><strong>{progress.level}</strong></div>
-          <div><small>{translate(`Level ${progress.level}`)}</small><h3>{translate("Clinical Learner")}</h3><span>{translate(`${progress.levelProgress} / 100 XP`)}</span></div>
+          <div><small>{translate(`Level ${progress.level}`)}</small><h3>{translate("Clinical Learner")}</h3><span>{translate(`${progress.levelProgress} / 100 XP to next level`)}</span></div>
         </div>
-        <div className="student-progress-xp" aria-label={translate(`${progress.levelProgress} of 100 XP toward the next level`)}><i style={{ width: `${progress.levelProgress}%` }} /></div>
+        <div className="student-progress-xp" role="progressbar" aria-label={translate(`${progress.levelProgress} of 100 XP toward the next level`)} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.levelProgress}><i style={{ width: `${progress.levelProgress}%` }} /></div>
 
         <div className="student-progress-stats">
-          <article><FiBookOpen /><span><small>{translate("Curriculum")}</small><b>{progress.overallProgress}%</b><em>{translate(`${progress.completedLectures} of ${progress.totalLectures} lectures`)}</em></span></article>
+          <article><FiBookOpen /><span><small>{translate("Curriculum")}</small><b>{progress.totalLectures ? `${progress.overallProgress}%` : "—"}</b><em>{translate(progress.totalLectures ? `${progress.completedLectures} of ${progress.totalLectures} lectures` : "Open a bundle lecture to begin")}</em></span></article>
           <article><FiBarChart2 /><span><small>{translate("Accuracy")}</small><b>{progress.accuracy}%</b><em>{translate(`${numeric(data.questions.attempts)} questions answered`)}</em></span></article>
           <article><FiActivity /><span><small>{translate("Flashcards")}</small><b>{progress.mastered}</b><em>{translate("mastered")}</em></span></article>
         </div>
