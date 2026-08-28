@@ -16,12 +16,12 @@ export enum PlanPaymentMethod {
   PROMOCODE = 'promocode',
 }
 
-/** One-time payment for a single plan period. Plan periods run in parallel — a paid
- * row grants that plan for [startsAt, endsAt]; buying another plan never touches this row. */
 @Entity('plan_purchases')
 @Index('idx_plan_purchases_user_status', ['userId', 'status'])
 @Index('idx_plan_purchases_active_window', ['userId', 'status', 'startsAt', 'endsAt'])
 @Index('idx_plan_purchases_provider_reference', ['providerReference'])
+@Index('uq_plan_purchases_provider_order', ['provider', 'providerOrderId'], { unique: true, where: '"provider" IS NOT NULL AND "provider_order_id" IS NOT NULL' })
+@Index('uq_plan_purchases_provider_transaction', ['provider', 'providerTransactionId'], { unique: true, where: '"provider" IS NOT NULL AND "provider_transaction_id" IS NOT NULL' })
 export class PlanPurchase {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column('uuid', { name: 'user_id' }) userId: string;
@@ -32,6 +32,8 @@ export class PlanPurchase {
   @Column({ type: 'varchar', length: 3, default: 'EGP' }) currency: string;
   @Column({ type: 'varchar', length: 50, nullable: true }) provider: string | null;
   @Column({ type: 'varchar', length: 200, name: 'provider_reference', nullable: true }) providerReference: string | null;
+  @Column({ type: 'varchar', length: 100, name: 'provider_order_id', nullable: true }) providerOrderId: string | null;
+  @Column({ type: 'varchar', length: 100, name: 'provider_transaction_id', nullable: true }) providerTransactionId: string | null;
   @Column('uuid', { name: 'promo_code_id', nullable: true }) promoCodeId: string | null;
   @Column({ type: 'timestamp', name: 'starts_at', nullable: true }) startsAt: Date | null;
   @Column({ type: 'timestamp', name: 'ends_at', nullable: true }) endsAt: Date | null;
