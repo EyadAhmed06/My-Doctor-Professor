@@ -10,6 +10,8 @@ const { AppDataSource } = require(
     : '../src/database/data-source',
 ) as { AppDataSource: DataSource };
 
+const EXPECTED_SEEDED_MCQS = 560;
+
 type SummaryRow = {
   total_mcqs: number;
   active_question_bank_mcqs: number;
@@ -94,10 +96,19 @@ async function main() {
 
     console.log(JSON.stringify({ summary, invalid_sample: invalid }, null, 2));
 
-    if (process.env.MCQ_INTEGRITY_STRICT === 'true' && summary.invalid_option_count_mcqs + summary.invalid_correct_answer_mcqs > 0) {
+    if (
+      process.env.MCQ_INTEGRITY_STRICT === 'true'
+      && summary.invalid_option_count_mcqs + summary.invalid_correct_answer_mcqs > 0
+    ) {
       process.exitCode = 2;
     }
-    if (process.env.MCQ_SEEDED_STRICT === 'true' && summary.seeded_total !== summary.seeded_eligible) {
+    if (
+      process.env.MCQ_SEEDED_STRICT === 'true'
+      && (
+        summary.seeded_total !== EXPECTED_SEEDED_MCQS
+        || summary.seeded_eligible !== EXPECTED_SEEDED_MCQS
+      )
+    ) {
       process.exitCode = 3;
     }
   } finally {
