@@ -36,6 +36,7 @@ import {
   UpdateMcqOptionDto,
   UpdateQuestionDto,
 } from './dtos/questions.dto';
+import { InstructorQuestionAccessService } from './instructor-question-access.service';
 import { QuestionImportEnrichmentService } from './question-import-enrichment.service';
 import { QuestionImportService } from './question-import.service';
 import { QuestionsService } from './questions.service';
@@ -50,6 +51,7 @@ export class QuestionsController {
   constructor(
     private readonly questions: QuestionsService,
     private readonly studentQuestions: StudentQuestionAccessService,
+    private readonly instructorQuestions: InstructorQuestionAccessService,
     private readonly access: AcademicAccessService,
     private readonly imports: QuestionImportService,
     private readonly importEnrichment: QuestionImportEnrichmentService,
@@ -57,22 +59,23 @@ export class QuestionsController {
 
   @Post()
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
-  create(@Body() dto: CreateQuestionDto, @CurrentUser() actor: AuthenticatedUser) {
+  async create(@Body() dto: CreateQuestionDto, @CurrentUser() actor: AuthenticatedUser) {
+    if (actor.role === UserRole.INSTRUCTOR) await this.access.assertTopicReadable(dto.topic_id, actor);
     return this.questions.create(dto, actor);
   }
 
   @Get()
   list(@Query() query: QuestionQueryDto, @CurrentUser() actor: AuthenticatedUser) {
-    return actor.role === UserRole.STUDENT
-      ? this.studentQuestions.list(query, actor)
-      : this.questions.list(query, actor);
+    if (actor.role === UserRole.STUDENT) return this.studentQuestions.list(query, actor);
+    if (actor.role === UserRole.INSTRUCTOR) return this.instructorQuestions.list(query, actor);
+    return this.questions.list(query, actor);
   }
 
   @Get('search')
   search(@Query() query: SearchQuestionsDto, @CurrentUser() actor: AuthenticatedUser) {
-    return actor.role === UserRole.STUDENT
-      ? this.studentQuestions.search(query, actor)
-      : this.questions.search(query, actor);
+    if (actor.role === UserRole.STUDENT) return this.studentQuestions.search(query, actor);
+    if (actor.role === UserRole.INSTRUCTOR) return this.instructorQuestions.search(query, actor);
+    return this.questions.search(query, actor);
   }
 
   @Get('tags/all')
@@ -142,7 +145,7 @@ export class QuestionsController {
 
   @Get(':questionId')
   async getOne(@Param('questionId', uuid) id: string, @CurrentUser() actor: AuthenticatedUser) {
-    if (actor.role === UserRole.STUDENT) await this.access.assertQuestionReadable(id, actor);
+    await this.assertQuestionRead(id, actor);
     return this.questions.getOne(id, actor);
   }
 
@@ -165,13 +168,14 @@ export class QuestionsController {
 
   @Post(':questionId/duplicate')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
-  duplicate(@Param('questionId', uuid) id: string, @CurrentUser() actor: AuthenticatedUser) {
+  async duplicate(@Param('questionId', uuid) id: string, @CurrentUser() actor: AuthenticatedUser) {
+    if (actor.role === UserRole.INSTRUCTOR) await this.access.assertQuestionManagedReadable(id, actor);
     return this.questions.duplicate(id, actor);
   }
 
   @Get(':questionId/options')
   async getOptions(@Param('questionId', uuid) id: string, @CurrentUser() actor: AuthenticatedUser) {
-    if (actor.role === UserRole.STUDENT) await this.access.assertQuestionReadable(id, actor);
+    await this.assertQuestionRead(id, actor);
     return this.questions.getOptions(id, actor);
   }
 
@@ -197,7 +201,7 @@ export class QuestionsController {
 
   @Get(':questionId/essay-configuration')
   async getEssayConfiguration(@Param('questionId', uuid) id: string, @CurrentUser() actor: AuthenticatedUser) {
-    if (actor.role === UserRole.STUDENT) await this.access.assertQuestionReadable(id, actor);
+    await this.assertQuestionRead(id, actor);
     return this.questions.getEssayConfiguration(id, actor);
   }
 
@@ -220,5 +224,11 @@ export class QuestionsController {
     @CurrentUser() actor: AuthenticatedUser,
   ): Promise<void> {
     await this.questions.removeQuestionTag(questionId, tagId, actor);
+  }
+
+  private async assertQuestionRead(id: string, actor: AuthenticatedUser) {
+    if (actor.role === UserRole.SYSTEM_ADMIN) return;
+    if (actor.role === UserRole.INSTRUCTOR) return this.access.assertQuestionManagedReadable(id, actor);
+    return this.access.assertQuestionReadable(id, actor);
   }
 }
