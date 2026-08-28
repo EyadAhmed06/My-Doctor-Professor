@@ -1,12 +1,15 @@
 import type { ExecutionContext, INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { AcademicAccessService } from '../academic/academic-access.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { InstructorQuestionAccessService } from './instructor-question-access.service';
 import { QuestionImportEnrichmentService } from './question-import-enrichment.service';
 import { QuestionImportService } from './question-import.service';
 import { QuestionsController } from './questions.controller';
 import { QuestionsService } from './questions.service';
+import { StudentQuestionAccessService } from './student-question-access.service';
 
 describe('QuestionsController route registration', () => {
   let app: INestApplication;
@@ -18,6 +21,9 @@ describe('QuestionsController route registration', () => {
       controllers: [QuestionsController],
       providers: [
         { provide: QuestionsService, useValue: {} },
+        { provide: StudentQuestionAccessService, useValue: {} },
+        { provide: InstructorQuestionAccessService, useValue: {} },
+        { provide: AcademicAccessService, useValue: {} },
         { provide: QuestionImportService, useValue: { inspectPdf, publish: jest.fn() } },
         { provide: QuestionImportEnrichmentService, useValue: { enrichInspection } },
       ],
@@ -26,7 +32,9 @@ describe('QuestionsController route registration', () => {
       .useValue({
         canActivate(context: ExecutionContext) {
           context.switchToHttp().getRequest().user = {
-            id: '10000000-0000-4000-8000-000000000002',
+            userId: '10000000-0000-4000-8000-000000000002',
+            sessionId: '20000000-0000-4000-8000-000000000002',
+            email: 'instructor@example.test',
             role: 'INSTRUCTOR',
           };
           return true;
@@ -42,7 +50,7 @@ describe('QuestionsController route registration', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
   });
 
   beforeEach(() => {
