@@ -166,11 +166,12 @@ function StudentDashboardScreen({
   const accuracy = clamp(number(data?.questions.accuracy));
   const completedLectures = data?.courses.reduce((sum, item) => sum + item.lecturesCompleted, 0) || 0;
   const totalLectures = data?.courses.reduce((sum, item) => sum + item.totalLectures, 0) || 0;
-  const overallProgress = totalLectures ? clamp(Math.round(completedLectures * 100 / totalLectures)) : 0;
+  const hasCurriculumProgress = totalLectures > 0;
+  const overallProgress = hasCurriculumProgress ? clamp(Math.round(completedLectures * 100 / totalLectures)) : 0;
   const streak = number(data?.clinical_momentum.study_streak);
   const studyMinutes = number(data?.clinical_momentum.study_minutes);
   const level = Math.max(1, number(data?.clinical_momentum.level));
-  const levelProgress = number(data?.clinical_momentum.level_progress);
+  const levelProgress = clamp(number(data?.clinical_momentum.level_progress));
 
   const activity = useMemo(() => {
     const byDate = new Map((data?.weekly_activity || []).map((item) => [String(item.date).slice(0, 10), item]));
@@ -195,6 +196,10 @@ function StudentDashboardScreen({
   const focusText = continueCourse
     ? translate(`Continue ${continueCourse.course.courseName}: ${continueCourse.lecturesCompleted} of ${continueCourse.totalLectures} lectures completed.`)
     : translate("Your focus will appear after you open your first course.");
+  const progressLabel = hasCurriculumProgress ? translate(`${overallProgress}% complete`) : translate("Ready to start");
+  const lectureProgressLabel = hasCurriculumProgress
+    ? translate(`${completedLectures} of ${totalLectures} lectures completed`)
+    : translate("Open your first bundle lecture to begin curriculum progress.");
 
   return <div className="dashboard-shell dashboard-embedded">
     <main className="dash-content dashboard-embedded-content">
@@ -222,7 +227,7 @@ function StudentDashboardScreen({
         </div>
 
         <aside className="column-side">
-          <Card title={translate("Your Progress")} action={<span>{translate(`${overallProgress}% complete`)}</span>} className="progress-card"><div className="progress-content"><div className="level-badge large">{level}</div><div><strong>{translate(`Level ${level}`)} <small>{translate("Clinical Learner")}</small></strong><span>{translate(`${levelProgress} / 100 XP`)}</span><div className="xp-bar"><i style={{ width: `${levelProgress}%` }} /></div><small>{translate(`${completedLectures} lectures completed`)}</small></div></div></Card>
+          <Card title={translate("Your Progress")} action={<span>{progressLabel}</span>} className="progress-card"><div className="progress-content"><div className="level-badge large">{level}</div><div><strong>{translate(`Level ${level}`)} <small>{translate("Clinical Learner")}</small></strong><span>{translate(`${levelProgress} / 100 XP to next level`)}</span><div className="xp-bar" role="progressbar" aria-label={translate("XP toward next level")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={levelProgress}><i style={{ width: `${levelProgress}%` }} /></div><small>{lectureProgressLabel}</small></div></div></Card>
           <Card title={translate("Topic Mastery")} action={<Link href="/analytics">{translate("View analytics")} →</Link>} className="mastery-card"><div className="mastery-list">{data?.topic_mastery.length ? data.topic_mastery.slice(0, 6).map((item) => <button type="button" onClick={() => navigate("/analytics")} key={item.id}><span><FiActivity /><span data-academic-content>{item.course_name}</span></span><b>{clamp(number(item.mastery))}%</b><div><i style={{ width: `${clamp(number(item.mastery))}%` }} /></div><small>{translate(`${item.questions_attempted} graded answers`)}</small></button>) : <p>{translate("Answer graded questions to build topic mastery.")}</p>}</div></Card>
           <Card title={translate("Professor's Pearls")} action={<Link href="/notebook">{translate("More pearls")} →</Link>} className="pearl-card"><blockquote data-academic-content>{pearl?.content || translate("Save a PEARL note in your notebook and it will appear here.")}</blockquote>{pearl && <cite data-academic-content>— {pearl.title}</cite>}</Card>
         </aside>
