@@ -37,14 +37,19 @@ export function StudentFlashcardsPage() {
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const choosingDeck = Boolean(courseId && !cardId && !lectureId);
+  // A course selection always lands on its deck browser first. Bundle deep links may
+  // additionally carry a lecture filter; that narrows the visible decks instead of
+  // skipping the deck level and jumping straight into an arbitrary card.
+  const choosingDeck = Boolean(courseId && !cardId);
 
   useEffect(() => {
     if (!choosingDeck || !courseId) return;
     let active = true;
     setLoading(true);
     setError(null);
-    void request<PageResponse<Deck>>(`/flashcards/decks?course_id=${encodeURIComponent(courseId)}&limit=100`)
+    const query = new URLSearchParams({ course_id: courseId, limit: "100" });
+    if (lectureId) query.set("lecture_id", lectureId);
+    void request<PageResponse<Deck>>(`/flashcards/decks?${query.toString()}`)
       .then((response) => { if (active) setDecks(response.data); })
       .catch((cause) => {
         if (!active) return;
@@ -53,7 +58,7 @@ export function StudentFlashcardsPage() {
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [choosingDeck, courseId, request]);
+  }, [choosingDeck, courseId, lectureId, request]);
 
   if (!choosingDeck) return <ConnectedFlashcardsPage />;
 
@@ -76,7 +81,8 @@ export function StudentFlashcardsPage() {
       const params = new URLSearchParams();
       params.set("course", courseId);
       params.set("card", card.id);
-      if (deck.lecture?.id) params.set("lecture", deck.lecture.id);
+      const resolvedLectureId = deck.lecture?.id || lectureId;
+      if (resolvedLectureId) params.set("lecture", resolvedLectureId);
       startNavigation();
       router.push(`/flashcards?${params.toString()}`, { scroll: false });
     } catch (cause) {
@@ -90,7 +96,7 @@ export function StudentFlashcardsPage() {
 
   return <ProductShell search="Search flashcard decks"><main className="pp-page flashcards-page flashcards-simplified">
     <div className="pp-title hero flashcards-main-header">
-      <div><small className="page-eyebrow">SPACED REPETITION</small><h1>Choose a deck</h1><p>Open one of the published flashcard decks included in this course and your active bundle access.</p></div>
+      <div><small className="page-eyebrow">SPACED REPETITION</small><h1>Choose a deck</h1><p>{lectureId ? "Choose a published deck from this lecture." : "Open one of the published flashcard decks included in this course and your current bundle access."}</p></div>
       <div className="flashcards-header-actions"><button className="pp-button secondary" type="button" onClick={changeCourse}><FiArrowLeft /> Change course</button></div>
     </div>
 
@@ -106,6 +112,6 @@ export function StudentFlashcardsPage() {
           <footer><span><FiBookOpen /> {deck.cardCount ?? 0} active card{(deck.cardCount ?? 0) === 1 ? "" : "s"}</span><b>{openingId === deck.id ? "Opening…" : "Review deck →"}</b></footer>
         </button>)}
       </div>
-    </section> : <Panel className="flashcard-session-report"><FiLayers /><small className="page-eyebrow">NO DECKS</small><h2>No published decks are available for this course</h2><p>If an instructor has already created a deck, it must be published and linked to content included in your current bundle before it appears here.</p><button className="pp-button secondary" type="button" onClick={changeCourse}><FiArrowLeft /> Choose another course</button></Panel>}
+    </section> : <Panel className="flashcard-session-report"><FiLayers /><small className="page-eyebrow">NO DECKS</small><h2>{lectureId ? "No published decks are available for this lecture" : "No published decks are available for this course"}</h2><p>If an instructor has already created a deck, it must be published and linked to content included in your current bundle before it appears here.</p><button className="pp-button secondary" type="button" onClick={changeCourse}><FiArrowLeft /> Choose another course</button></Panel>}
   </main></ProductShell>;
 }
