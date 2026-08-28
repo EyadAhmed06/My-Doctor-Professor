@@ -25,6 +25,14 @@ const REQUEST_END = "mdp:request-end";
 const ACHIEVEMENT_CHECK = "mdp:achievement-check";
 
 export const apiBaseUrl = API_URL;
+export function apiAssetUrl(value: string | null | undefined) {
+  if (!value) return "";
+  if (/^https?:\/\//i.test(value) || value.startsWith("data:") || value.startsWith("blob:")) return value;
+  if (value.startsWith("/api/v1/")) {
+    return API_URL.endsWith("/api/v1") ? `${API_URL}${value.slice("/api/v1".length)}` : value;
+  }
+  return value;
+}
 
 export type RequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
@@ -81,12 +89,21 @@ function practiceGenerationIntent(body: unknown): string {
   return JSON.stringify({ ...record, lecture_ids: lectureIds });
 }
 
+function isRawBody(value: unknown): value is Blob | ArrayBuffer | ArrayBufferView | URLSearchParams {
+  return value instanceof Blob
+    || value instanceof ArrayBuffer
+    || ArrayBuffer.isView(value)
+    || value instanceof URLSearchParams;
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   signalRequest(REQUEST_START);
   try {
     const headers = new Headers(options.headers);
     const isForm = options.body instanceof FormData;
-    if (options.body !== undefined && !isForm) headers.set("Content-Type", "application/json");
+    const rawBody = isRawBody(options.body);
+    if (options.body !== undefined && !isForm && !rawBody) headers.set("Content-Type", "application/json");
+    if (options.body instanceof Blob && options.body.type && !headers.has("Content-Type")) headers.set("Content-Type", options.body.type);
     if (options.accessToken) headers.set("Authorization", `Bearer ${options.accessToken}`);
 
     const normalizedPath = path.replace(/^\//, "");
@@ -106,8 +123,8 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
     const requestBody: BodyInit | undefined = options.body === undefined
       ? undefined
-      : isForm
-        ? options.body as FormData
+      : isForm || rawBody
+        ? options.body as BodyInit
         : JSON.stringify(options.body);
     const { body: _body, accessToken: _accessToken, responseType = "json", ...requestInit } = options;
     void _body;
