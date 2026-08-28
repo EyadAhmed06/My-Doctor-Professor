@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { AcademicAccessService } from '../academic/academic-access.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -22,7 +22,7 @@ export class ProgressController {
 
  @Get('progress/courses') @Roles(UserRole.STUDENT)
  listCourseProgress(@CurrentUser() actor:AuthenticatedUser){return this.progress.listCourseProgress(actor.userId);}
- @Get('progress/achievements') @Roles(UserRole.STUDENT)
+ @Post('progress/achievements/sync') @Roles(UserRole.STUDENT)
  studentAchievements(@CurrentUser() actor:AuthenticatedUser){return this.achievements.getStudentAchievements(actor.userId);}
  @Get('progress/courses/:courseId') @Roles(UserRole.STUDENT)
  async getCourseProgress(@Param('courseId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){await this.access.assertCourseReadable(id,actor);return this.progress.getCourseProgress(id,actor.userId);}
