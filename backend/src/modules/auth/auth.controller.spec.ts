@@ -205,10 +205,12 @@ describe('AuthController web refresh transport', () => {
   it('applies explicit IP abuse budgets to signup and refresh routes', () => {
     const signupPolicy = Reflect.getMetadata(
       RATE_LIMIT_KEY,
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- metadata is stored on the method function itself; it is not invoked here.
       AuthController.prototype.signup,
     ) as RateLimitPolicy;
     const refreshPolicy = Reflect.getMetadata(
       RATE_LIMIT_KEY,
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- metadata is stored on the method function itself; it is not invoked here.
       AuthController.prototype.refreshToken,
     ) as RateLimitPolicy;
 
