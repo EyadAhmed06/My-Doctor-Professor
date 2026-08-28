@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RateLimit } from '../auth/decorators/rate-limit.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -30,7 +30,7 @@ export class TestsController {
  practiceCatalog(@Query() query:PracticeCatalogQueryDto,@CurrentUser() actor:AuthenticatedUser){return this.tests.practiceCatalog(query.bundle_id,query.course_id,actor);}
  @RateLimit({ key: 'practice-generate', maximum: 30, windowSeconds: 3600 })
  @Post('practice/generate') @Roles(UserRole.STUDENT)
- generatePractice(@Body() dto:GeneratePracticeTestDto,@CurrentUser() actor:AuthenticatedUser){return this.mcqPractice.generate(dto,actor);}
+ generatePractice(@Body() dto:GeneratePracticeTestDto,@CurrentUser() actor:AuthenticatedUser,@Headers('idempotency-key') idempotencyKey?:string){return this.mcqPractice.generate(dto,actor,idempotencyKey);}
  @Get(':testId')
  getOne(@Param('testId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.getOne(id,actor);}
  @Put(':testId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
