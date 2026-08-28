@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
+type AchievementCategory = 'QUESTIONS' | 'LECTURES' | 'FLASHCARDS' | 'ESSAYS' | 'ASSESSMENTS' | 'STREAK' | 'LEVEL';
+
 type AchievementRule = {
   id: string;
-  category: 'QUESTIONS' | 'LECTURES' | 'FLASHCARDS' | 'ESSAYS' | 'ASSESSMENTS' | 'STREAK' | 'LEVEL';
+  category: AchievementCategory;
   title: string;
   description: string;
   metric: keyof AchievementMetrics;
@@ -24,6 +26,16 @@ type AchievementMetrics = {
 type StoredAchievement = {
   achievement_code: string;
   unlocked_at: Date | string;
+};
+
+type NextMilestone = {
+  id: string;
+  category: AchievementCategory;
+  title: string;
+  description: string;
+  current: number;
+  threshold: number;
+  progress: number;
 };
 
 const RULES: AchievementRule[] = [
@@ -97,10 +109,10 @@ export class AchievementFeedbackService {
         }))
         .sort((left, right) => new Date(String(right.unlocked_at)).getTime() - new Date(String(left.unlocked_at)).getTime());
       const newlyUnlocked = unlocked.filter((item) => !beforeIds.has(item.id));
-      const nextByCategory = new Map<string, ReturnType<typeof this.nextMilestone>>();
+      const nextMilestones: NextMilestone[] = [];
       for (const category of [...new Set(RULES.map((rule) => rule.category))]) {
         const next = this.nextMilestone(category, metrics);
-        if (next) nextByCategory.set(category, next);
+        if (next) nextMilestones.push(next);
       }
       return {
         xp,
@@ -109,12 +121,12 @@ export class AchievementFeedbackService {
         metrics,
         unlocked,
         newly_unlocked: newlyUnlocked,
-        next_milestones: [...nextByCategory.values()],
+        next_milestones: nextMilestones,
       };
     });
   }
 
-  private nextMilestone(category: AchievementRule['category'], metrics: AchievementMetrics) {
+  private nextMilestone(category: AchievementCategory, metrics: AchievementMetrics): NextMilestone | null {
     const rule = RULES
       .filter((item) => item.category === category && Number(metrics[item.metric]) < item.threshold)
       .sort((left, right) => left.threshold - right.threshold)[0];
