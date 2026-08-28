@@ -28,6 +28,10 @@ export default defineConfig({
       name: 'chromium-tablet',
       use: { ...devices['Desktop Chrome'], viewport: { width: 820, height: 1180 }, isMobile: true, hasTouch: true },
     },
+    {
+      name: 'webkit-iphone',
+      use: { ...devices['iPhone 13'] },
+    },
   ],
   webServer: {
     command: 'npm run start -- -p 3001',
