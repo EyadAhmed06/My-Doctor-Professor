@@ -28,7 +28,7 @@ const signupDto = {
 const genericSignupMessage = 'If registration can be completed, check your email to continue. Otherwise use sign in or account recovery.';
 
 describe('AuthController web refresh transport', () => {
-  function setup(nodeEnv = 'test') {
+  function setup(nodeEnv = 'test', additionalOrigins?: string) {
     const authService = {
       signup: jest.fn().mockResolvedValue({ message: 'Account created' }),
       login: jest.fn().mockResolvedValue(authResponse),
@@ -49,6 +49,7 @@ describe('AuthController web refresh transport', () => {
         NODE_ENV: nodeEnv,
         JWT_REFRESH_TTL_SECONDS: 604800,
         FRONTEND_URL: nodeEnv === 'production' ? 'https://app.example.test' : 'http://localhost:3001',
+        CORS_ORIGINS: additionalOrigins,
       } as Record<string, unknown>)[key]),
     };
     const controller = new AuthController(
@@ -109,6 +110,44 @@ describe('AuthController web refresh transport', () => {
       'refresh-token',
       expect.not.objectContaining({ maxAge: expect.anything() }),
     );
+  });
+
+  it('blocks an untrusted browser origin before creating a login session or cookie', async () => {
+    const { controller, authService, response, cookie } = setup();
+
+    await expect(controller.login(
+      { email: 'student@example.test', password: 'password', remember: true },
+      request('https://evil.example.test'),
+      response,
+    )).rejects.toMatchObject({ message: 'Untrusted browser origin' });
+
+    expect(authService.login).not.toHaveBeenCalled();
+    expect(cookie).not.toHaveBeenCalled();
+  });
+
+  it('treats configured secondary frontend origins as browser clients and keeps refresh tokens out of JSON', async () => {
+    const { controller, response } = setup('test', 'https://staging.example.test');
+
+    const result = await controller.login(
+      { email: 'student@example.test', password: 'password', remember: true },
+      request('https://staging.example.test'),
+      response,
+    );
+
+    expect(result).toEqual({ access_token: 'access-token', user: authResponse.user });
+    expect(result).not.toHaveProperty('refresh_token');
+  });
+
+  it('rejects refresh from an untrusted browser origin before rotating the session', async () => {
+    const { controller, authService, response } = setup();
+
+    await expect(controller.refreshToken(
+      { refresh_token: 'body-refresh-token' },
+      request('https://evil.example.test'),
+      response,
+    )).rejects.toMatchObject({ message: 'Untrusted browser origin' });
+
+    expect(authService.refreshAccessToken).not.toHaveBeenCalled();
   });
 
   it('rotates a refresh credential read from the HttpOnly cookie', async () => {
