@@ -109,6 +109,44 @@ describe('McqPracticeService security', () => {
     }, actor)).rejects.toThrow('Course course-1 has only 39 eligible five-option MCQs; 40 are required');
   });
 
+  it('counts duplicate question rows only once before enforcing the 40-question invariant', async () => {
+    const lectureId = '22222222-2222-4222-8222-222222222222';
+    const courseId = '55555555-5555-4555-8555-555555555555';
+    const lectureBuilder = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([{ id: lectureId, week: { courseId } }]),
+    };
+    const validOptions = Array.from({ length: 5 }, (_, index) => ({ isCorrect: index === 0 }));
+    const uniqueQuestions = Array.from({ length: 39 }, (_, index) => ({
+      id: `question-${index}`,
+      topic: { lectureId },
+      options: validOptions,
+    }));
+    const questions = [...uniqueQuestions, uniqueQuestions[0]];
+    expect(questions).toHaveLength(40);
+    const questionBuilder = {
+      innerJoinAndSelect: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue(questions),
+    };
+    const service = new McqPracticeService(
+      { createQueryBuilder: jest.fn().mockReturnValue(questionBuilder) } as never,
+      { createQueryBuilder: jest.fn().mockReturnValue(lectureBuilder) } as never,
+      { exists: jest.fn().mockResolvedValue(true) } as never,
+      { query: jest.fn().mockResolvedValue([{ lecture_id: lectureId }]) } as never,
+    );
+
+    await expect(service.generate({
+      bundle_id: '11111111-1111-4111-8111-111111111111',
+      lecture_ids: [lectureId],
+      question_count: 40,
+      test_mode: TestMode.TUTOR,
+    }, actor)).rejects.toThrow('Only 39 eligible MCQs');
+  });
+
   it('does not count malformed historical MCQs with fewer than five options as eligible', async () => {
     const lectureId = '22222222-2222-4222-8222-222222222222';
     const courseId = '55555555-5555-4555-8555-555555555555';
