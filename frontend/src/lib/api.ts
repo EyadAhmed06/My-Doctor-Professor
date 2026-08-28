@@ -1,3 +1,5 @@
+import { clearAssessmentIdempotencyKey, getAssessmentIdempotencyKey } from "./assessment-idempotency";
+
 export type ApiProblem = {
   statusCode?: number;
   message?: string | string[];
@@ -57,6 +59,15 @@ function normalizeProblem(path: string, status: number, payload: unknown, status
   return problem;
 }
 
+function practiceGenerationIntent(body: unknown): string {
+  if (typeof body !== "object" || body === null) return JSON.stringify(body ?? null);
+  const record = body as Record<string, unknown>;
+  const lectureIds = Array.isArray(record.lecture_ids)
+    ? [...record.lecture_ids].map(String).sort()
+    : record.lecture_ids;
+  return JSON.stringify({ ...record, lecture_ids: lectureIds });
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   signalRequest(REQUEST_START);
   try {
@@ -64,6 +75,21 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     const isForm = options.body instanceof FormData;
     if (options.body !== undefined && !isForm) headers.set("Content-Type", "application/json");
     if (options.accessToken) headers.set("Authorization", `Bearer ${options.accessToken}`);
+
+    const normalizedPath = path.replace(/^\//, "");
+    const method = String(options.method || "GET").toUpperCase();
+    const practiceGeneration = method === "POST"
+      && ["tests/practice/generate", "mcq-practice/generate"].includes(normalizedPath);
+    let generatedIdempotencyKey: string | null = null;
+    let generatedIdempotencyScope: string | null = null;
+    if (practiceGeneration && !headers.has("Idempotency-Key")) {
+      generatedIdempotencyScope = `practice:${normalizedPath}`;
+      generatedIdempotencyKey = getAssessmentIdempotencyKey(
+        generatedIdempotencyScope,
+        practiceGenerationIntent(options.body),
+      );
+      headers.set("Idempotency-Key", generatedIdempotencyKey);
+    }
 
     const requestBody: BodyInit | undefined = options.body === undefined
       ? undefined
@@ -89,7 +115,6 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       );
     }
 
-    if (response.status === 204) return undefined as T;
     if (!response.ok) {
       const contentType = response.headers.get("content-type") || "";
       const payload = contentType.includes("application/json")
@@ -98,6 +123,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       throw new ApiError(response.status, normalizeProblem(path, response.status, payload, response.statusText));
     }
 
+    if (generatedIdempotencyKey && generatedIdempotencyScope) {
+      clearAssessmentIdempotencyKey(generatedIdempotencyScope, generatedIdempotencyKey);
+    }
+    if (response.status === 204) return undefined as T;
     if (responseType === "blob") return await response.blob() as unknown as T;
     if (responseType === "text") return await response.text() as unknown as T;
     const contentType = response.headers.get("content-type") || "";
