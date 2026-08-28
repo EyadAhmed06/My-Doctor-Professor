@@ -15,6 +15,7 @@ import {
   FiSettings,
   FiX,
 } from "react-icons/fi";
+import { apiAssetUrl } from "@/lib/api";
 import { ThemeToggle } from "./app-theme";
 import { BrandLockup } from "./brand";
 import { useAuth, type UserRole } from "./auth-provider";
@@ -295,6 +296,7 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
   const displayName = user.fullName || user.full_name || user.email;
   const roleLabel = translate(user.role === "SYSTEM_ADMIN" ? "System Administrator" : user.role === "INSTRUCTOR" ? "Instructor" : "Medical Student");
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join("").toUpperCase();
+  const profileImage = apiAssetUrl(user.profilePictureUrl);
   const unreadPreview = preview.filter(item => item.status === "UNREAD").length;
 
   function navigate(href: string) {
@@ -304,6 +306,8 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
     startNavigation();
     router.push(href);
   }
+
+  const avatar = <span className="avatar-fallback">{profileImage ? <img src={profileImage} alt="" /> : initials}</span>;
 
   return <div className="product-app">
     <header className="pp-topbar">
@@ -333,8 +337,8 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
           }
         }} />
         <div className="header-popover-anchor profile-menu-anchor" ref={profileRef}>
-          <button ref={profileButtonRef} className="profile-menu-trigger" type="button" aria-expanded={profileOpen} aria-haspopup="menu" onClick={() => { setProfileOpen(value => !value); setNotificationsOpen(false); setHelpOpen(false); setAchievementsOpen(false); setProgressOpen(false); }}><span className="avatar-fallback">{initials}</span><span><b>{displayName}</b><small>{roleLabel}</small></span><FiChevronDown /></button>
-          {profileOpen && <div className="header-popover profile-menu" role="menu"><div className="profile-menu-summary"><span className="avatar-fallback">{initials}</span><div><b>{displayName}</b><small>{user.email}</small></div></div><button type="button" role="menuitem" onClick={() => navigate("/settings")}><FiSettings /> {translate("Settings")}</button><div className="profile-theme-row"><span>{translate("Theme")}</span><ThemeToggle compact /></div><button className="danger" data-phase5-confirmed="true" type="button" role="menuitem" onClick={() => void confirmLogout()}><FiLogOut /> {translate("Log out")}</button></div>}
+          <button ref={profileButtonRef} className="profile-menu-trigger" type="button" aria-expanded={profileOpen} aria-haspopup="menu" onClick={() => { setProfileOpen(value => !value); setNotificationsOpen(false); setHelpOpen(false); setAchievementsOpen(false); setProgressOpen(false); }}>{avatar}<span><b>{displayName}</b><small>{roleLabel}</small></span><FiChevronDown /></button>
+          {profileOpen && <div className="header-popover profile-menu" role="menu"><div className="profile-menu-summary">{avatar}<div><b>{displayName}</b><small>{user.email}</small></div></div><button type="button" role="menuitem" onClick={() => navigate("/settings")}><FiSettings /> {translate("Settings")}</button><div className="profile-theme-row"><span>{translate("Theme")}</span><ThemeToggle compact /></div><button className="danger" data-phase5-confirmed="true" type="button" role="menuitem" onClick={() => void confirmLogout()}><FiLogOut /> {translate("Log out")}</button></div>}
         </div>
       </div>
     </header>
