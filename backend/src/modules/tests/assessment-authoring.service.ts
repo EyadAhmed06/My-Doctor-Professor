@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { QuestionType } from '../../common/entities/question.entity';
 import { TestAttempt } from '../../common/entities/test-attempt.entity';
 import { TestQuestion } from '../../common/entities/test-question.entity';
 import { Test } from '../../common/entities/test.entity';
@@ -27,7 +28,7 @@ export class AssessmentAuthoringService {
     const test = await this.requireOwnedTest(testId, actor);
     const items = await this.testQuestions.find({
       where: { testId },
-      relations: { question: true },
+      relations: { question: { options: true } },
       order: { displayOrder: 'ASC' },
     });
     const attemptCount = await this.attempts.count({ where: { testId } });
@@ -130,6 +131,17 @@ export class AssessmentAuthoringService {
     const passing = Number(test.passingMarks || 0);
     if (!items.length) issues.push({ code: 'NO_QUESTIONS', severity: 'ERROR', message: 'Attach at least one active question before publishing.' });
     if (items.some((item) => !item.question?.isActive)) issues.push({ code: 'INACTIVE_QUESTIONS', severity: 'ERROR', message: 'One or more attached questions are inactive.' });
+    const malformedMcqs = items.filter((item) => item.question?.questionType === QuestionType.MCQ && (
+      item.question.options?.length !== 5
+      || item.question.options.filter((option) => option.isCorrect).length !== 1
+    ));
+    if (malformedMcqs.length) {
+      issues.push({
+        code: 'MALFORMED_MCQS',
+        severity: 'ERROR',
+        message: `${malformedMcqs.length} MCQ question(s) must be fixed: every MCQ requires exactly five options and exactly one correct answer.`,
+      });
+    }
     if (items.some((item) => Number(item.marks) <= 0)) issues.push({ code: 'INVALID_MARKS', severity: 'ERROR', message: 'Every attached question must award more than zero marks.' });
     if (total <= 0) issues.push({ code: 'ZERO_TOTAL', severity: 'ERROR', message: 'Total marks must be greater than zero.' });
     if (!test.durationMinutes || test.durationMinutes <= 0) issues.push({ code: 'INVALID_DURATION', severity: 'ERROR', message: 'Set a positive assessment duration.' });
