@@ -25,9 +25,9 @@ type Method = {
 };
 
 const METHODS: Method[] = [
-  { id: "FAWRY", label: "Fawry", logo: "https://seeklogo.com/images/F/fawry-logo-FD61F19B43-seeklogo.com.png", logoClass: "fawry-logo" },
-  { id: "INSTAPAY", label: "InstaPay", logo: "https://www.geekarabi.com/wp-content/uploads/2025/12/instapay-egypt-logo.webp", logoClass: "instapay-logo" },
-  { id: "TELDA", label: "Telda", logo: "https://telda.app/_next/static/media/telda-logo.25c7955c.png", logoClass: "telda-logo" },
+  { id: "FAWRY", label: "Fawry", logo: "/media/payment-fawry.svg", logoClass: "fawry-logo" },
+  { id: "INSTAPAY", label: "InstaPay", logo: "/media/payment-instapay.svg", logoClass: "instapay-logo" },
+  { id: "TELDA", label: "Telda", logo: "/media/payment-telda.svg", logoClass: "telda-logo" },
   { id: "CARD", label: "Visa / Mastercard" },
 ];
 
@@ -79,7 +79,7 @@ export function PaymentMethodsClient({ bundleRef }: { bundleRef: string | null }
         </fieldset>
 
         <div className="payment-security-note"><FiLock /><span>Payment details are handled securely by the selected provider.</span></div>
-        <button className="payment-continue" type="button" disabled={!selected} aria-disabled="true"><FiCreditCard /> Continue</button>
+        <button className="payment-continue" type="button" disabled={!selected} aria-disabled={!selected}><FiCreditCard /> Continue</button>
       </>}
     </section>
   </main>;
