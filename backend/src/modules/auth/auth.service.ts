@@ -213,19 +213,23 @@ export class AuthService {
       await this.ensureMinimumResponseTime(startedAt);
       throw new UnauthorizedException('Invalid email or password');
     }
-    this.assertAccountEnabled(user);
 
+    const passwordValid = await this.usersService.validatePassword(dto.password, user.passwordHash);
+    if (!passwordValid) {
+      await this.usersService.recordFailedLogin(user.id);
+      await this.ensureMinimumResponseTime(startedAt);
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    // Account state is intentionally checked only after proof of password possession.
+    // Otherwise PENDING_VERIFICATION/SUSPENDED/lock responses become an account-enumeration oracle.
     if (await this.usersService.isAccountLocked(user.id)) {
       throw new HttpException(
         'Account is temporarily locked. Try again later.',
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
-    if (!(await this.usersService.validatePassword(dto.password, user.passwordHash))) {
-      await this.usersService.recordFailedLogin(user.id);
-      await this.ensureMinimumResponseTime(startedAt);
-      throw new UnauthorizedException('Invalid email or password');
-    }
+    this.assertAccountEnabled(user);
 
     if (this.usersService.passwordHashNeedsUpgrade(user.passwordHash)) {
       await this.usersService.upgradePasswordHash(user.id, dto.password);
