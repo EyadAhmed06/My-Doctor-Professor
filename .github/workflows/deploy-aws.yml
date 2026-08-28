@@ -71,14 +71,25 @@ jobs:
         env:
           PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
         run: |
-          aws ssm put-parameter             --name "$APP_ENV_PARAMETER"             --type SecureString             --overwrite             --value "$PRODUCTION_ENV_FILE"
+          aws ssm put-parameter \
+            --name "$APP_ENV_PARAMETER" \
+            --type SecureString \
+            --overwrite \
+            --value "$PRODUCTION_ENV_FILE"
 
       - name: Deploy through Systems Manager
         run: |
-          INSTANCE_ID="$(aws ec2 describe-instances             --filters Name=tag:Name,Values=my-doctor-professor-demo Name=instance-state-name,Values=running             --query 'Reservations[0].Instances[0].InstanceId' --output text)"
+          INSTANCE_ID="$(aws ec2 describe-instances \
+            --filters Name=tag:Name,Values=my-doctor-professor-demo Name=instance-state-name,Values=running \
+            --query 'Reservations[0].Instances[0].InstanceId' --output text)"
           test "$INSTANCE_ID" != "None" && test -n "$INSTANCE_ID" || { echo "Running demo instance not found"; exit 1; }
 
-          COMMAND_ID="$(aws ssm send-command             --instance-ids "$INSTANCE_ID"             --document-name AWS-RunShellScript             --comment "Deploy ${{ github.sha }}"             --parameters 'commands=["sudo /usr/local/bin/mdp-deploy"]'             --query Command.CommandId --output text)"
+          COMMAND_ID="$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "Deploy ${{ github.sha }}" \
+            --parameters 'commands=["sudo /usr/local/bin/mdp-deploy","sudo docker exec -e ALLOW_CONTENT_SEED=true -e SEED_CONTENT_OWNER_EMAIL=instructor@mydoctorprofessor.com mdp-backend npm run repair:seeded-mcqs"]' \
+            --query Command.CommandId --output text)"
 
           if ! aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID"; then
             aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID"
