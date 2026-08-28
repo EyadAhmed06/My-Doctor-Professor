@@ -2,18 +2,6 @@ import { BadGatewayException, Injectable, Logger, ServiceUnavailableException } 
 import { ConfigService } from '@nestjs/config';
 import { createHmac, timingSafeEqual } from 'crypto';
 
-/**
- * Thin client around Paymob's v1 Intention API (https://developers.paymob.com), covering the two
- * flows this app needs: card (unified-checkout redirect/iframe) and Fawry (reference code, paid
- * later at a kiosk — the webhook is what eventually confirms it, possibly hours/days later).
- *
- * Every credential is read from env; nothing is hardcoded. Until PAYMOB_API_KEY is set the service
- * fails closed (ServiceUnavailableException) rather than silently no-op — a checkout call should
- * never *appear* to succeed against an unconfigured provider.
- */
-
-// Fixed, Paymob-documented field list for transaction-callback HMAC verification. Already in
-// lexicographic key order — do not reorder; Paymob computes the same concatenation server-side.
 const HMAC_FIELDS = [
   'amount_cents', 'created_at', 'currency', 'error_occured', 'has_parent_transaction', 'id',
   'integration_id', 'is_3d_secure', 'is_auth', 'is_capture', 'is_refunded', 'is_standalone_payment',
@@ -24,6 +12,7 @@ const HMAC_FIELDS = [
 export interface PaymobIntentionResult {
   clientSecret: string;
   checkoutUrl: string;
+  orderId: string;
 }
 
 export interface PaymobBillingData {
@@ -56,7 +45,6 @@ export class PaymobService {
     return Boolean(this.apiKey && this.publicKey && this.hmacSecret);
   }
 
-  /** amountCents must already reflect any promo discount — Paymob only ever sees the final price. */
   async createIntention(params: {
     method: 'card' | 'fawry';
     amountCents: number;
@@ -67,13 +55,9 @@ export class PaymobService {
     notificationUrl: string;
     redirectionUrl: string;
   }): Promise<PaymobIntentionResult> {
-    if (!this.isConfigured) {
-      throw new ServiceUnavailableException('Payment provider is not configured yet');
-    }
+    if (!this.isConfigured) throw new ServiceUnavailableException('Payment provider is not configured yet');
     const integrationId = params.method === 'card' ? this.cardIntegrationId : this.fawryIntegrationId;
-    if (!integrationId) {
-      throw new ServiceUnavailableException(`Paymob integration id for "${params.method}" is not configured`);
-    }
+    if (!integrationId) throw new ServiceUnavailableException(`Paymob integration id for "${params.method}" is not configured`);
 
     let response: Response;
     try {
@@ -108,20 +92,17 @@ export class PaymobService {
       throw new BadGatewayException('Payment provider rejected the checkout request');
     }
 
-    const data = await response.json() as { client_secret?: string };
-    if (!data.client_secret) {
+    const data = await response.json() as { client_secret?: string; intention_order_id?: string | number };
+    if (!data.client_secret || data.intention_order_id === undefined || data.intention_order_id === null) {
       throw new BadGatewayException('Payment provider returned an unexpected response');
     }
     return {
       clientSecret: data.client_secret,
+      orderId: String(data.intention_order_id),
       checkoutUrl: `${this.baseUrl}/unifiedcheckout/?publicKey=${encodeURIComponent(this.publicKey)}&clientSecret=${encodeURIComponent(data.client_secret)}`,
     };
   }
 
-  /** Verifies a transaction-processed webhook using Paymob's documented HMAC-SHA512 scheme:
-   * concatenate the fixed field list's values (in that exact order) and compare against the
-   * `hmac` query parameter Paymob attaches to the notification_url. Never trust an unverified
-   * payload to mark a purchase paid. */
   verifyWebhookSignature(transaction: Record<string, unknown>, receivedHmac: string | undefined): boolean {
     if (!this.hmacSecret || !receivedHmac) return false;
     const concatenated = HMAC_FIELDS.map((path) => this.stringify(this.readPath(transaction, path))).join('');
@@ -130,6 +111,16 @@ export class PaymobService {
     const receivedBuffer = Buffer.from(receivedHmac, 'utf8');
     if (computedBuffer.length !== receivedBuffer.length) return false;
     return timingSafeEqual(computedBuffer, receivedBuffer);
+  }
+
+  expectedIntegrationId(method: 'card' | 'fawry'): string | null {
+    const value = method === 'card' ? this.cardIntegrationId : this.fawryIntegrationId;
+    return value ? String(value) : null;
+  }
+
+  readSignedOrderId(transaction: Record<string, unknown>): string | null {
+    const value = this.readPath(transaction, 'order.id');
+    return typeof value === 'string' || typeof value === 'number' ? String(value) : null;
   }
 
   private readPath(source: Record<string, unknown>, path: string): unknown {
