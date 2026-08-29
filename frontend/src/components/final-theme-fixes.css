@@ -5,8 +5,8 @@
 .public-home .public-hero .hero-duo {
   display: block !important;
   position: relative !important;
-  width: min(100%, 720px) !important;
-  aspect-ratio: 3 / 2 !important;
+  width: min(112%, 760px) !important;
+  aspect-ratio: 1.14 / 1 !important;
   min-height: 0 !important;
   margin: 0 !important;
   justify-self: center !important;

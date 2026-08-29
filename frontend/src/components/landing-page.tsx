@@ -97,8 +97,8 @@ export function LandingPage() {
         <div className="hero-proof"><span><FiCheckCircle /> {t("Organized by academic year", "منظم حسب السنة الدراسية")}</span><span><FiCheckCircle /> {t("Case-based reasoning", "تفكير قائم على الحالات")}</span><span><FiCheckCircle /> {t("Personal progress", "متابعة تقدمك الشخصي")}</span></div>
       </div>
       <figure className="hero-duo" aria-label={t("The Doctor and The Professor", "الطبيب والأستاذ")}>
-        <img className="hero-duo-dark" src="/media/hero-doctor-professor-dark-transparent.webp?v=20260829-transparent-v1" alt={t("The Doctor representing clinical precision and The Professor representing academic wisdom", "الطبيب ممثلًا للدقة السريرية والأستاذ ممثلًا للحكمة الأكاديمية")} />
-        <img className="hero-duo-light" src="/media/hero-doctor-professor-light-transparent.webp?v=20260829-transparent-v1" alt={t("The Doctor representing clinical precision and The Professor representing academic wisdom", "الطبيب ممثلًا للدقة السريرية والأستاذ ممثلًا للحكمة الأكاديمية")} />
+        <img className="hero-duo-dark" src="/media/hero-doctor-professor-dark-final-lossless.webp?v=20260829-final-v2" alt={t("The Doctor representing clinical precision and The Professor representing academic wisdom", "الطبيب ممثلًا للدقة السريرية والأستاذ ممثلًا للحكمة الأكاديمية")} />
+        <img className="hero-duo-light" src="/media/hero-doctor-professor-light-final.webp?v=20260829-final-v2" alt={t("The Doctor representing clinical precision and The Professor representing academic wisdom", "الطبيب ممثلًا للدقة السريرية والأستاذ ممثلًا للحكمة الأكاديمية")} />
       </figure>
     </section>
 
