@@ -30,6 +30,21 @@ type InvalidRow = {
   correct_count: number;
 };
 
+type LecturePipelineRow = {
+  course_code: string;
+  course_name: string;
+  week_number: number;
+  lecture_number: number;
+  lecture_title: string;
+  total_questions: number;
+  mcqs: number;
+  active_mcqs: number;
+  question_bank_mcqs: number;
+  five_option_mcqs: number;
+  one_correct_mcqs: number;
+  eligible_mcqs: number;
+};
+
 async function main() {
   await AppDataSource.initialize();
   try {
@@ -75,6 +90,55 @@ async function main() {
       FROM questions q
     `);
 
+    const lecturePipeline = await AppDataSource.query<LecturePipelineRow[]>(`
+      SELECT
+        course.course_code,
+        course.course_name,
+        week.week_number,
+        lecture.lecture_number,
+        lecture.title AS lecture_title,
+        COUNT(DISTINCT question.id)::int AS total_questions,
+        COUNT(DISTINCT question.id) FILTER (
+          WHERE question.question_type = 'MCQ'
+        )::int AS mcqs,
+        COUNT(DISTINCT question.id) FILTER (
+          WHERE question.question_type = 'MCQ'
+            AND question.is_active = TRUE
+        )::int AS active_mcqs,
+        COUNT(DISTINCT question.id) FILTER (
+          WHERE question.question_type = 'MCQ'
+            AND question.is_active = TRUE
+            AND question.is_question_bank = TRUE
+        )::int AS question_bank_mcqs,
+        COUNT(DISTINCT question.id) FILTER (
+          WHERE question.question_type = 'MCQ'
+            AND question.is_active = TRUE
+            AND question.is_question_bank = TRUE
+            AND (SELECT COUNT(*) FROM mcq_options option WHERE option.question_id = question.id) = 5
+        )::int AS five_option_mcqs,
+        COUNT(DISTINCT question.id) FILTER (
+          WHERE question.question_type = 'MCQ'
+            AND question.is_active = TRUE
+            AND question.is_question_bank = TRUE
+            AND (SELECT COUNT(*) FROM mcq_options option WHERE option.question_id = question.id AND option.is_correct = TRUE) = 1
+        )::int AS one_correct_mcqs,
+        COUNT(DISTINCT question.id) FILTER (
+          WHERE question.question_type = 'MCQ'
+            AND question.is_active = TRUE
+            AND question.is_question_bank = TRUE
+            AND (SELECT COUNT(*) FROM mcq_options option WHERE option.question_id = question.id) = 5
+            AND (SELECT COUNT(*) FROM mcq_options option WHERE option.question_id = question.id AND option.is_correct = TRUE) = 1
+        )::int AS eligible_mcqs
+      FROM courses course
+      JOIN weeks week ON week.course_id = course.id
+      JOIN lectures lecture ON lecture.week_id = week.id
+      LEFT JOIN topics topic ON topic.lecture_id = lecture.id
+      LEFT JOIN questions question ON question.topic_id = topic.id
+      GROUP BY course.course_code, course.course_name, week.week_number,
+        lecture.lecture_number, lecture.id, lecture.title
+      ORDER BY course.course_code, week.week_number, lecture.lecture_number
+    `);
+
     const invalid = await AppDataSource.query<InvalidRow[]>(`
       SELECT
         q.id,
@@ -94,7 +158,18 @@ async function main() {
       LIMIT 25
     `);
 
-    console.log(JSON.stringify({ summary, invalid_sample: invalid }, null, 2));
+    const brokenLectures = lecturePipeline.filter((row) =>
+      row.question_bank_mcqs > 0 && row.eligible_mcqs < row.question_bank_mcqs,
+    );
+    const emptyLectures = lecturePipeline.filter((row) => row.mcqs === 0);
+
+    console.log(JSON.stringify({
+      summary,
+      lecture_pipeline: lecturePipeline,
+      broken_lecture_pipeline: brokenLectures,
+      lectures_with_no_mcqs: emptyLectures,
+      invalid_sample: invalid,
+    }, null, 2));
 
     if (
       process.env.MCQ_INTEGRITY_STRICT === 'true'
