@@ -1,6 +1,39 @@
-/* Keep the level shield and account avatar visually distinct on desktop. */
-@media (min-width: 821px) {
-  .product-app .pp-profile > .profile-menu-anchor {
-    margin-left: 8px !important;
+/* One desktop rhythm for navigation slots and utility controls. */
+@media (min-width: 1181px) {
+  .product-app .pp-topbar {
+    column-gap: 10px !important;
+  }
+
+  .product-app .pp-topbar > .pp-brand {
+    margin-right: 10px;
+  }
+
+  .product-app .pp-topbar:has(.pp-brand[href='/dashboard']) > nav {
+    display: grid;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    gap: 0 !important;
+    align-items: stretch;
+  }
+
+  .product-app .pp-topbar:has(.pp-brand[href='/dashboard']) > nav > a {
+    min-width: 0;
+    padding-inline: 6px !important;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .product-app .pp-profile {
+    gap: 8px !important;
+  }
+
+  .product-app .pp-profile > .global-theme-toggle.icon-only,
+  .product-app .pp-profile > .phase5-header-action,
+  .product-app .pp-profile > .header-popover-anchor,
+  .product-app .pp-profile > .student-progress-anchor {
+    flex: 0 0 42px !important;
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    margin: 0 !important;
   }
 }
