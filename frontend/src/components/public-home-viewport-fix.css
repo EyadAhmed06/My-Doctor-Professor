@@ -1,0 +1,38 @@
+/* Final public-home viewport contract.
+   Keep one document scroll owner and leave the browser gutter unobstructed. */
+html:has(.public-home) {
+  overflow-x: clip;
+  overflow-y: auto;
+}
+
+body:has(.public-home) {
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+body:has(.public-home) .public-theme-access {
+  top: 18px;
+  right: max(24px, env(safe-area-inset-right));
+}
+
+/* Once the intro has settled, release the hero from its compositor layer.
+   This prevents Chromium/WebKit from retaining a softened scaled texture. */
+html[data-theme='dark'] .public-home.home-motion-ready.home-motion-entered .public-hero .hero-duo,
+html.dark .public-home.home-motion-ready.home-motion-entered .public-hero .hero-duo {
+  transform: none !important;
+  will-change: auto !important;
+}
+
+html[data-theme='dark'] .public-home .public-hero .hero-duo-dark,
+html.dark .public-home .public-hero .hero-duo-dark {
+  image-rendering: -webkit-optimize-contrast;
+  backface-visibility: visible;
+  will-change: auto;
+}
+
+@media (max-width: 700px) {
+  body:has(.public-home) .public-theme-access {
+    top: max(10px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+  }
+}

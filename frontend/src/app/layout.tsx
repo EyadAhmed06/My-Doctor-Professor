@@ -53,6 +53,7 @@ import "@/components/release-regression-fixes.css";
 import "@/components/register-submit-fix.css";
 import "@/components/requested-ui-alignment-fixes.css";
 import "@/components/authenticated-mobile-rendering-fix.css";
+import "@/components/public-home-viewport-fix.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
