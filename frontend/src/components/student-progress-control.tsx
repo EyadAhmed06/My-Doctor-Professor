@@ -18,6 +18,7 @@ type StudentProgressSnapshot = {
   courses: StudentCourse[];
   questions: { attempts: number; correct_attempts: number; accuracy: string };
   flashcards: { reviewed: number; mastered: number; due: number };
+  clinical_momentum?: { level: number; level_progress: number };
 };
 
 function numeric(value: string | number | null | undefined) {
@@ -52,8 +53,8 @@ export function StudentProgressControl({ open, onOpenChange }: { open: boolean; 
   }, [request, translate, user?.role]);
 
   useEffect(() => {
-    if (open) void load();
-  }, [load, open]);
+    void load();
+  }, [load]);
 
   useEffect(() => {
     if (!open) return;
@@ -79,8 +80,8 @@ export function StudentProgressControl({ open, onOpenChange }: { open: boolean; 
     const overallProgress = totalLectures ? clamp(Math.round(completedLectures * 100 / totalLectures)) : 0;
     const mastered = numeric(data?.flashcards.mastered);
     const progressPoints = numeric(data?.questions.correct_attempts) + mastered + 10 * completedLectures;
-    const level = Math.max(1, Math.floor(progressPoints / 100) + 1);
-    const levelProgress = Math.round(progressPoints % 100);
+    const level = Math.max(1, numeric(data?.clinical_momentum?.level) || Math.floor(progressPoints / 100) + 1);
+    const levelProgress = Math.round(numeric(data?.clinical_momentum?.level_progress) || progressPoints % 100);
     const accuracy = clamp(numeric(data?.questions.accuracy));
     return { completedLectures, totalLectures, overallProgress, mastered, level, levelProgress, accuracy };
   }, [data]);

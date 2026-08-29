@@ -125,8 +125,9 @@ export class BundlesService {
       order: { createdAt: 'DESC' },
     });
     return enrollmentRows
-      .filter((row) => row.status !== BundleEnrollmentStatus.REVOKED
-        || row.paymentStatus === BundlePaymentStatus.PENDING)
+      .filter((row) => row.bundle.status === BundleStatus.PUBLISHED
+        && (row.status !== BundleEnrollmentStatus.REVOKED
+          || row.paymentStatus === BundlePaymentStatus.PENDING))
       .map((row) => this.enrollmentView(row));
   }
 

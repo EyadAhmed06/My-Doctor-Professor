@@ -1,0 +1,6 @@
+/* Keep the level shield and account avatar visually distinct on desktop. */
+@media (min-width: 821px) {
+  .product-app .pp-profile > .profile-menu-anchor {
+    margin-left: 8px !important;
+  }
+}

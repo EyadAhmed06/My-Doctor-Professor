@@ -125,4 +125,19 @@ describe('BundlesService payment entitlement', () => {
       is_free: false,
     })).rejects.toBeInstanceOf(BadRequestException);
   });
+
+  it('removes an unpublished bundle from the student bundle list', async () => {
+    const { service, enrollments } = build(true);
+    const published = { id: 'published', title: 'Published bundle', status: BundleStatus.PUBLISHED, isFree: true } as Bundle;
+    const unpublished = { id: 'draft', title: 'Unpublished bundle', status: BundleStatus.DRAFT, isFree: true } as Bundle;
+    (enrollments.find as jest.Mock).mockResolvedValue([
+      { bundle: unpublished, status: BundleEnrollmentStatus.ACTIVE, paymentStatus: BundlePaymentStatus.NOT_REQUIRED },
+      { bundle: published, status: BundleEnrollmentStatus.ACTIVE, paymentStatus: BundlePaymentStatus.NOT_REQUIRED },
+    ]);
+
+    const result = await service.mine(studentId);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual(expect.objectContaining({ id: published.id }));
+  });
 });
