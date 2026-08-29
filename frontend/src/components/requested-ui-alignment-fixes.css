@@ -30,6 +30,26 @@ html.dark .reference-register .registration-story .brand-words strong {
   padding: 0;
 }
 
+.pp-profile > .header-popover-anchor {
+  flex: 0 0 38px;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pp-profile > .header-popover-anchor > .phase5-header-action {
+  flex: 0 0 38px !important;
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  margin: 0 !important;
+  font-size: 18px !important;
+}
+
 .pp-profile .phase5-header-action i {
   top: -4px !important;
   right: -4px !important;
@@ -47,7 +67,7 @@ html.dark .reference-register .registration-story .brand-words strong {
 @media (min-width: 1181px) {
   .product-app .pp-topbar {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) minmax(240px, 320px) auto;
+    grid-template-columns: auto minmax(0, 1fr) 42px auto;
     column-gap: clamp(12px, 1.15vw, 22px);
   }
 
@@ -57,14 +77,29 @@ html.dark .reference-register .registration-story .brand-words strong {
   }
 
   .product-app .pp-search-command {
-    width: 100%;
-    min-width: 0;
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
     margin-left: 0;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+  }
+
+  .product-app .pp-search-command > span,
+  .product-app .pp-search-command > kbd {
+    display: none;
+  }
+
+  .product-app .pp-search-command > svg {
+    width: 18px;
+    height: 18px;
   }
 }
 
 @media (max-width: 1500px) and (min-width: 1181px) {
   .product-app .pp-topbar {
-    grid-template-columns: auto minmax(0, 1fr) minmax(210px, 270px) auto;
+    grid-template-columns: auto minmax(0, 1fr) 42px auto;
   }
 }
