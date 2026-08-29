@@ -16,6 +16,7 @@
 .pp-topbar,
 .phase5-mobile-dock,
 .header-popover {
+  backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
 
@@ -66,6 +67,15 @@
 }
 
 @media (max-width: 1180px) {
+  .pp-topbar,
+  .phase5-mobile-dock,
+  .header-popover,
+  .product-app .pp-topbar > nav,
+  .product-app .pp-mobile-overlay {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
   /* iOS Safari's dynamic toolbar changes the visual viewport. Use dvh/svh fallbacks
      and include the hardware safe areas rather than sizing against legacy 100vh only. */
   .product-app .pp-topbar > nav {

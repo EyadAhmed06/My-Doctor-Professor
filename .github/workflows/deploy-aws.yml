@@ -38,6 +38,25 @@ jobs:
           test -n "$ROLE_ARN" || { echo "Missing repository variable AWS_DEPLOY_ROLE_ARN"; exit 1; }
           test -n "$PRODUCTION_ENV_FILE" || { echo "Missing repository secret PRODUCTION_ENV_FILE"; exit 1; }
 
+      - name: Validate authentication configuration
+        env:
+          PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          read_value() { printf '%s\n' "$PRODUCTION_ENV_FILE" | sed -n "s/^$1=//p" | tail -n 1; }
+          GOOGLE_CLIENT_ID="$(read_value GOOGLE_CLIENT_ID)"
+          SMTP_HOST="$(read_value SMTP_HOST)"
+          SMTP_USER="$(read_value SMTP_USER)"
+          SMTP_PASSWORD="$(read_value SMTP_PASSWORD)"
+          SMTP_FROM="$(read_value SMTP_FROM)"
+          FRONTEND_URL="$(read_value FRONTEND_URL)"
+
+          [[ "$GOOGLE_CLIENT_ID" =~ ^[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$ ]] || { echo "PRODUCTION_ENV_FILE contains an invalid GOOGLE_CLIENT_ID"; exit 1; }
+          test -n "$SMTP_HOST" && test -n "$SMTP_USER" && test -n "$SMTP_PASSWORD" && test -n "$SMTP_FROM" || { echo "SMTP configuration is incomplete"; exit 1; }
+          [[ "$SMTP_USER$SMTP_PASSWORD$SMTP_FROM$FRONTEND_URL" != *"REPLACE"* && "$SMTP_USER$SMTP_PASSWORD$SMTP_FROM$FRONTEND_URL" != *"YOUR_"* ]] || { echo "Authentication configuration still contains placeholders"; exit 1; }
+          [[ "$FRONTEND_URL" == https://* ]] || { echo "FRONTEND_URL must be the deployed HTTPS origin"; exit 1; }
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
@@ -62,7 +81,6 @@ jobs:
           push: true
           build-args: |
             NEXT_PUBLIC_API_URL=/api/v1
-            NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
           tags: |
             ${{ steps.ecr.outputs.registry }}/${{ env.FRONTEND_REPOSITORY }}:latest
             ${{ steps.ecr.outputs.registry }}/${{ env.FRONTEND_REPOSITORY }}:${{ github.sha }}

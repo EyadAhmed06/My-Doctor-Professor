@@ -41,11 +41,12 @@ export function GoogleSignInButton({
   onCredential: (credential: string) => void | Promise<void>;
   disabled?: boolean;
 }) {
-  const publicClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim() || null;
   const { locale } = useLocale();
   const containerRef = useRef<HTMLDivElement>(null);
-  const [clientId, setClientId] = useState<string | null>(publicClientId);
-  const [configResolved, setConfigResolved] = useState(Boolean(publicClientId));
+  // Keep one runtime source of truth. A client ID baked into the frontend image
+  // can remain stale after the backend OAuth credentials have been rotated.
+  const [clientId, setClientId] = useState<string | null>(null);
+  const [configResolved, setConfigResolved] = useState(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,7 +74,6 @@ export function GoogleSignInButton({
   }, [clientId, disabled, onCredential]);
 
   useEffect(() => {
-    if (publicClientId) return;
     let active = true;
     void apiRequest<{ enabled: boolean; client_id: string | null }>("/auth/google/config")
       .then((configuration) => {
@@ -88,7 +88,7 @@ export function GoogleSignInButton({
         if (active) setConfigResolved(true);
       });
     return () => { active = false; };
-  }, [publicClientId]);
+  }, []);
 
   useEffect(() => {
     if (window.google) render();

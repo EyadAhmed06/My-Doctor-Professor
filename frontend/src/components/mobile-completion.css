@@ -17,7 +17,7 @@ html,body{max-width:100%;overflow-x:hidden}
   .pp-topbar>nav a.active{border:0}
   .pp-nav-close{display:grid;place-items:center;position:absolute;top:14px;right:14px;width:40px;height:40px;border:1px solid var(--p-line);border-radius:10px;background:var(--p-panel2);cursor:pointer}
   html[dir="rtl"] .pp-nav-close{right:auto;left:14px}
-  .pp-mobile-overlay{display:block;position:fixed;inset:0;z-index:110;border:0;background:rgba(0,0,0,.42);backdrop-filter:blur(2px)}
+  .pp-mobile-overlay{display:block;position:fixed;inset:0;z-index:110;border:0;background:rgba(0,0,0,.58);backdrop-filter:none;-webkit-backdrop-filter:none}
   .pp-search-command{margin-inline-start:auto;min-width:0;flex:1;max-width:430px}
   .profile-menu-trigger>span:nth-child(2){display:none}
   .pp-page{padding:20px 18px}

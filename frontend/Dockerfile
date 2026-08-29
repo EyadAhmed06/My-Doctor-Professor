@@ -6,9 +6,7 @@ RUN npm ci
 
 FROM dependencies AS builder
 ARG NEXT_PUBLIC_API_URL=/api/v1
-ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
 COPY . .
 
 # Reconstruct the approved Doctor/Professor artwork from repository-safe base64

@@ -32,6 +32,7 @@ export class EmailService implements OnModuleInit, OnModuleDestroy {
   private readonly encryptionKey: Buffer;
   private worker?: NodeJS.Timeout;
   private cleanup?: NodeJS.Timeout;
+  private transportReady = false;
 
   constructor(
     private readonly config: ConfigService,
@@ -59,11 +60,24 @@ export class EmailService implements OnModuleInit, OnModuleDestroy {
   }
 
   onModuleInit(): void {
+    void this.verifyTransport();
     this.worker = setInterval(() => void this.processNext(), 5_000);
     this.worker.unref();
     this.cleanup = setInterval(() => void this.cleanupExpiredRecords(), 60 * 60_000);
     this.cleanup.unref();
     void this.processNext();
+  }
+
+  private async verifyTransport(): Promise<void> {
+    try {
+      await this.transporter.verify();
+      if (!this.transportReady) this.logger.log('SMTP transport verified and ready');
+      this.transportReady = true;
+    } catch (error) {
+      this.transportReady = false;
+      const detail = error instanceof Error ? error.message : 'Unknown SMTP error';
+      this.logger.error(`SMTP transport verification failed: ${detail}`);
+    }
   }
 
   onModuleDestroy(): void {
@@ -158,11 +172,13 @@ export class EmailService implements OnModuleInit, OnModuleDestroy {
       if (!message) return;
       const payload = this.decrypt(message);
       await this.transporter.sendMail({ from: this.sender, ...payload });
+      this.transportReady = true;
       await this.dataSource.getRepository(EmailOutbox).update(
         { id: message.id },
         { sentAt: new Date(), nextAttemptAt: null, lastError: null },
       );
     } catch (error) {
+      this.transportReady = false;
       this.logger.error('Queued email delivery failed');
       if (message) {
         const delayMinutes = Math.min(60, 2 ** message.attempts);
@@ -174,6 +190,7 @@ export class EmailService implements OnModuleInit, OnModuleDestroy {
           },
         );
       }
+      void this.verifyTransport();
     }
   }
 
