@@ -25,6 +25,8 @@
     "typeorm": "typeorm-ts-node-commonjs",
     "migration:run": "npm run typeorm -- migration:run -d src/database/data-source.ts",
     "migration:show": "npm run typeorm -- migration:show -d src/database/data-source.ts",
+    "migration:run:prod": "node node_modules/typeorm/cli.js migration:run -d dist/database/data-source.js",
+    "migration:show:prod": "node node_modules/typeorm/cli.js migration:show -d dist/database/data-source.js",
     "migration:verify-ledger": "node scripts/verify-migration-ledger.mjs",
     "schema:log": "npm run typeorm -- schema:log -d src/database/data-source.ts",
     "schema:check": "node scripts/check-schema-compatibility.cjs",
