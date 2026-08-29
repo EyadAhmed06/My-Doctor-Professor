@@ -5,9 +5,9 @@ import { TestMode } from '../../../common/entities/test-attempt.entity';
 import { TestType } from '../../../common/entities/test.entity';
 
 // PostgreSQL's uuid type accepts the canonical 8-4-4-4-12 hexadecimal shape even
-// when historical/demo rows do not carry an RFC variant nibble. The demo seed has
-// existing mcq_options ids in that form, so answer validation must match persisted
-// database reality instead of rejecting a selectable option before the service runs.
+// when historical/demo rows do not carry an RFC variant nibble. Persisted content
+// identifiers must therefore be validated against PostgreSQL's UUID text shape,
+// not against one specific RFC UUID version.
 const POSTGRES_UUID_TEXT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export class CreateTestDto {
@@ -57,7 +57,9 @@ export class StartTestAttemptDto { @IsEnum(TestMode) test_mode:TestMode; }
 export class PracticeCatalogQueryDto { @IsUUID() bundle_id:string; @IsUUID() course_id:string; }
 export class GeneratePracticeTestDto {
  @IsUUID() bundle_id:string;
- @IsArray() @ArrayMinSize(1) @ArrayMaxSize(50) @ArrayUnique() @IsUUID('4',{each:true}) lecture_ids:string[];
+ @IsArray() @ArrayMinSize(1) @ArrayMaxSize(50) @ArrayUnique()
+ @IsString({each:true}) @Matches(POSTGRES_UUID_TEXT,{each:true,message:'each lecture_id must use UUID text format'})
+ lecture_ids:string[];
  @IsInt() @Min(1) @Max(200) question_count:number;
  @IsOptional() @IsEnum(QuestionDifficulty) difficulty?:QuestionDifficulty;
  @IsEnum(TestMode) test_mode:TestMode;
