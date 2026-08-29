@@ -200,13 +200,21 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
   }, []);
 
   useEffect(() => {
+    // Public/auth route transitions temporarily lock body scrolling. When this
+    // persistent authenticated shell mounts, do not inherit a stale lock from
+    // the page that just unmounted (mobile browsers may then only pan the visual
+    // viewport with a two-finger gesture).
+    document.body.style.removeProperty("overflow");
+    document.body.style.removeProperty("touch-action");
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
-    const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const close = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
     window.addEventListener("keydown", close);
     return () => {
-      document.body.style.overflow = previous;
+      document.body.style.removeProperty("overflow");
       window.removeEventListener("keydown", close);
     };
   }, [open]);

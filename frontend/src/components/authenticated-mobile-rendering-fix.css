@@ -1,0 +1,60 @@
+/* Final authenticated-mobile interaction contract.
+   Keep this stylesheet last: legacy responsive layers must not reintroduce
+   filters, transformed text rasterization, or blocked one-finger scrolling. */
+
+@media (max-width: 1180px) {
+  .product-app,
+  .phase5-workspace-main,
+  .product-app .pp-page {
+    touch-action: pan-y pinch-zoom;
+    overscroll-behavior-y: auto;
+  }
+
+  .product-app .pp-topbar,
+  .product-app .pp-topbar > nav,
+  .product-app .pp-topbar > nav.open,
+  .product-app .pp-mobile-overlay,
+  .product-app .phase5-mobile-dock {
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .product-app .pp-topbar > nav {
+    transform: translate3d(-105%, 0, 0) !important;
+    visibility: hidden;
+    transition: none !important;
+    will-change: auto;
+    contain: none;
+    opacity: 1;
+    background: var(--p-panel) !important;
+    isolation: isolate;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .product-app .pp-topbar > nav.open {
+    transform: none !important;
+    visibility: visible;
+  }
+
+  html[dir="rtl"] .product-app .pp-topbar > nav {
+    transform: translate3d(105%, 0, 0) !important;
+  }
+
+  html[dir="rtl"] .product-app .pp-topbar > nav.open {
+    transform: none !important;
+  }
+
+  .product-app .pp-topbar > nav a,
+  .product-app .pp-topbar > nav button {
+    transform: none !important;
+    filter: none !important;
+    opacity: 1 !important;
+  }
+
+  .product-app .pp-mobile-overlay {
+    touch-action: manipulation;
+    background: rgba(2, 5, 16, .62) !important;
+  }
+}
