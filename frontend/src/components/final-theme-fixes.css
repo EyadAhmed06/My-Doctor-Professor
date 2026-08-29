@@ -58,11 +58,13 @@ html.light .public-home .public-hero .hero-duo-dark {
 html[data-theme='light'] .public-home .public-hero .hero-duo-light,
 html.light .public-home .public-hero .hero-duo-light {
   display: block !important;
+  mix-blend-mode: multiply !important;
 }
 
 html[data-theme='dark'] .public-home .public-hero .hero-duo-dark,
 html.dark .public-home .public-hero .hero-duo-dark {
   display: block !important;
+  mix-blend-mode: lighten !important;
 }
 
 html[data-theme='dark'] .public-home .public-hero .hero-duo-light,
