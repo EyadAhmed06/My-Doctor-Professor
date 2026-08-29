@@ -59,9 +59,9 @@ export function useAppTheme() {
   return value;
 }
 
-export function ThemeToggle({ compact = false }: { compact?: boolean }) {
+export function ThemeToggle({ compact = false, iconOnly = false }: { compact?: boolean; iconOnly?: boolean }) {
   const { theme, toggleTheme } = useAppTheme();
-  return <button type="button" className={`global-theme-toggle ${compact ? "compact" : ""}`} onClick={toggleTheme} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} title={`Use ${theme === "dark" ? "light" : "dark"} theme`}>
-    <FiSun /><span><i /></span><FiMoon />
+  return <button type="button" className={`global-theme-toggle ${compact ? "compact" : ""} ${iconOnly ? "icon-only" : ""}`} onClick={toggleTheme} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} title={`Use ${theme === "dark" ? "light" : "dark"} theme`}>
+    {iconOnly ? (theme === "dark" ? <FiSun /> : <FiMoon />) : <><FiSun /><span><i /></span><FiMoon /></>}
   </button>;
 }

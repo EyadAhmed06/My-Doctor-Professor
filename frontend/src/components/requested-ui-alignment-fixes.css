@@ -1,0 +1,70 @@
+/* Targeted alignment fixes for the landing, registration, and student workspace. */
+html[data-theme='dark'] .reference-register .registration-story .brand-words strong,
+html.dark .reference-register .registration-story .brand-words strong {
+  color: #fff !important;
+}
+
+.pp-profile > .global-theme-toggle.icon-only {
+  flex: 0 0 38px;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+}
+
+.pp-profile > .global-theme-toggle.icon-only svg {
+  width: 18px;
+  height: 18px;
+}
+
+.pp-profile .phase5-header-action {
+  position: relative;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.pp-profile .phase5-header-action i {
+  top: -4px !important;
+  right: -4px !important;
+  min-width: 17px !important;
+  height: 17px !important;
+  padding: 0 4px !important;
+  border-radius: 999px !important;
+  background: #3b82f6 !important;
+  color: #fff !important;
+  font: 800 9px/17px Arial, sans-serif !important;
+  text-align: center !important;
+  box-shadow: 0 0 0 2px var(--p-bg) !important;
+}
+
+@media (min-width: 1181px) {
+  .product-app .pp-topbar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) minmax(240px, 320px) auto;
+    column-gap: clamp(12px, 1.15vw, 22px);
+  }
+
+  .product-app .pp-topbar > nav {
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .product-app .pp-search-command {
+    width: 100%;
+    min-width: 0;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 1500px) and (min-width: 1181px) {
+  .product-app .pp-topbar {
+    grid-template-columns: auto minmax(0, 1fr) minmax(210px, 270px) auto;
+  }
+}

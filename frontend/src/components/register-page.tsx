@@ -151,7 +151,7 @@ export function RegisterPage() {
                   <select className={styles.countrySelect} value={phoneCountry} onChange={event=>setPhoneCountry(event.target.value)} aria-label="Country calling code">
                     {ARAB_COUNTRY_CODES.map(country=><option key={`${country.label}-${country.code}`} value={country.code}>{country.flag} {country.code} · {country.label}</option>)}
                   </select>
-                  <input className={styles.phoneInput} type="tel" inputMode="tel" autoComplete="tel-national" placeholder="100 123 4567" value={phoneLocal} onChange={event=>setPhoneLocal(event.target.value)} required maxLength={22}/>
+                  <input className={styles.phoneInput} type="tel" inputMode="tel" autoComplete="tel-national" value={phoneLocal} onChange={event=>setPhoneLocal(event.target.value)} required maxLength={22}/>
                 </span>
                 <small className={styles.helper}>Choose your country code and enter the local number. We store it in international E.164 format.</small>
               </label>

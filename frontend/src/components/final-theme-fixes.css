@@ -20,6 +20,8 @@
   filter: none !important;
   mix-blend-mode: normal !important;
   opacity: 1 !important;
+  left: -14px !important;
+  top: -18px !important;
 }
 
 .public-home .public-hero .hero-duo > img {
@@ -79,6 +81,8 @@ html.dark .public-home .public-hero .hero-duo-light {
 @media (max-width: 1100px) {
   .public-home .public-hero .hero-duo {
     width: min(100%, 640px) !important;
+    left: -6px !important;
+    top: -8px !important;
   }
 }
 
@@ -86,6 +90,8 @@ html.dark .public-home .public-hero .hero-duo-light {
   .public-home .public-hero .hero-duo {
     width: 100% !important;
     margin-top: 18px !important;
+    left: 0 !important;
+    top: 0 !important;
     border-radius: 18px !important;
   }
 }

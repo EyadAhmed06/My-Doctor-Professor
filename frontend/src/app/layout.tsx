@@ -51,6 +51,7 @@ import "@/components/section9-polish.css";
 import "@/components/final-theme-fixes.css";
 import "@/components/release-regression-fixes.css";
 import "@/components/register-submit-fix.css";
+import "@/components/requested-ui-alignment-fixes.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,

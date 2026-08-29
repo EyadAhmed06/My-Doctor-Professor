@@ -30,6 +30,8 @@
   transform:none!important;
 }
 .registration-page .registration-form > .primary-button svg{
+  position:static!important;
+  inset:auto!important;
   width:17px!important;
   height:17px!important;
   flex:0 0 17px!important;
