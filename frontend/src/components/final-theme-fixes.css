@@ -1,9 +1,7 @@
 /* Final deterministic theme fixes.
-   This file intentionally owns the landing hero and auth-field theme contract. */
+   Keep landing media and auth controls on one explicit theme contract. */
 
-/* ---------- Landing hero ----------
-   Use the real raster artwork directly. No SVG wrappers, inversion, filters,
-   blend modes, or generated dark treatments. */
+/* ---------- Landing hero ---------- */
 .public-home .public-hero .hero-duo {
   display: block !important;
   position: relative !important;
@@ -13,40 +11,63 @@
   margin: 0 !important;
   justify-self: center !important;
   align-self: center !important;
-  overflow: visible !important;
+  overflow: hidden !important;
   border: 0 !important;
   outline: 0 !important;
-  border-radius: 0 !important;
+  border-radius: 24px !important;
   box-shadow: none !important;
-  background-color: transparent !important;
-  background-repeat: no-repeat !important;
-  background-size: contain !important;
-  background-position: center !important;
+  background: transparent !important;
   filter: none !important;
   mix-blend-mode: normal !important;
   opacity: 1 !important;
 }
 
-/* The older WebP files were malformed in production and rendered as alt text.
-   Hide those elements and use the real binary JPG assets that are already in
-   public/media until the high-resolution originals replace them. */
 .public-home .public-hero .hero-duo > img {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  border: 0 !important;
+  outline: 0 !important;
+  border-radius: inherit !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+  transform: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.public-home .public-hero .hero-duo-dark {
+  display: block !important;
+}
+
+.public-home .public-hero .hero-duo-light {
   display: none !important;
-  visibility: hidden !important;
 }
 
-.public-home .public-hero .hero-duo {
-  background-image: url('/media/hero-doctor-professor-dark-original.jpg') !important;
+html[data-theme='light'] .public-home .public-hero .hero-duo-dark,
+html.light .public-home .public-hero .hero-duo-dark {
+  display: none !important;
 }
 
-html[data-theme='light'] .public-home .public-hero .hero-duo,
-html.light .public-home .public-hero .hero-duo {
-  background-image: url('/media/hero-doctor-professor-light-original.jpg') !important;
+html[data-theme='light'] .public-home .public-hero .hero-duo-light,
+html.light .public-home .public-hero .hero-duo-light {
+  display: block !important;
 }
 
-html[data-theme='dark'] .public-home .public-hero .hero-duo,
-html.dark .public-home .public-hero .hero-duo {
-  background-image: url('/media/hero-doctor-professor-dark-original.jpg') !important;
+html[data-theme='dark'] .public-home .public-hero .hero-duo-dark,
+html.dark .public-home .public-hero .hero-duo-dark {
+  display: block !important;
+}
+
+html[data-theme='dark'] .public-home .public-hero .hero-duo-light,
+html.dark .public-home .public-hero .hero-duo-light {
+  display: none !important;
 }
 
 .public-home .public-hero .hero-duo::before,
@@ -65,70 +86,172 @@ html.dark .public-home .public-hero .hero-duo {
   .public-home .public-hero .hero-duo {
     width: 100% !important;
     margin-top: 18px !important;
+    border-radius: 18px !important;
   }
 }
 
 /* ---------- Login / registration light fields ---------- */
 html[data-theme='light'] .auth-page .field,
-html[data-theme='light'] .registration-page .field {
-  color: #162253 !important;
+html.light .auth-page .field,
+html[data-theme='light'] .registration-page .field,
+html.light .registration-page .field {
+  color: #121946 !important;
 }
 
 html[data-theme='light'] .auth-page .input-shell,
-html[data-theme='light'] .registration-page .input-shell {
-  background: rgba(252, 253, 253, .94) !important;
-  border-color: #c9d1e7 !important;
-  box-shadow: 0 5px 16px rgba(14, 24, 74, .045) !important;
+html.light .auth-page .input-shell,
+html[data-theme='light'] .registration-page .input-shell,
+html.light .registration-page .input-shell {
+  display: flex !important;
+  align-items: center !important;
+  min-height: 58px !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  background: #ffffff !important;
+  border: 1px solid #cbd2e6 !important;
+  border-radius: 11px !important;
+  box-shadow: 0 7px 22px rgba(20, 27, 80, .055) !important;
+  transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease !important;
 }
 
 html[data-theme='light'] .auth-page .input-shell:focus-within,
-html[data-theme='light'] .registration-page .input-shell:focus-within {
-  background: #fff !important;
-  border-color: #6850e4 !important;
-  box-shadow: 0 0 0 3px rgba(104, 80, 228, .12), 0 7px 20px rgba(14, 24, 74, .06) !important;
-}
-
-html[data-theme='light'] .auth-page .input-shell input,
-html[data-theme='light'] .registration-page .input-shell input {
-  background: transparent !important;
-  color: #0e184a !important;
-  caret-color: #6850e4 !important;
-  -webkit-text-fill-color: #0e184a !important;
-}
-
-html[data-theme='light'] .auth-page .input-shell input::placeholder,
-html[data-theme='light'] .registration-page .input-shell input::placeholder {
-  color: #7c83b2 !important;
-  -webkit-text-fill-color: #7c83b2 !important;
+html.light .auth-page .input-shell:focus-within,
+html[data-theme='light'] .registration-page .input-shell:focus-within,
+html.light .registration-page .input-shell:focus-within {
+  background: #ffffff !important;
+  border-color: #6952ef !important;
+  box-shadow: 0 0 0 3px rgba(105, 82, 239, .13), 0 9px 24px rgba(20, 27, 80, .065) !important;
 }
 
 html[data-theme='light'] .auth-page .input-icon,
-html[data-theme='light'] .auth-page .input-tail,
+html.light .auth-page .input-icon,
 html[data-theme='light'] .registration-page .input-icon,
-html[data-theme='light'] .registration-page .input-tail {
-  color: #61678f !important;
+html.light .registration-page .input-icon {
+  flex: 0 0 auto !important;
+  width: 20px !important;
+  height: 20px !important;
+  margin: 0 14px 0 16px !important;
+  color: #6b7297 !important;
+}
+
+html[data-theme='light'] .auth-page .input-shell input,
+html.light .auth-page .input-shell input,
+html[data-theme='light'] .registration-page .input-shell input,
+html.light .registration-page .input-shell input {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 56px !important;
+  margin: 0 !important;
+  padding: 0 14px 0 0 !important;
+  border: 0 !important;
+  outline: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: #111946 !important;
+  caret-color: #6952ef !important;
+  -webkit-text-fill-color: #111946 !important;
+  font: inherit !important;
+}
+
+html[data-theme='light'] .auth-page .input-shell input::placeholder,
+html.light .auth-page .input-shell input::placeholder,
+html[data-theme='light'] .registration-page .input-shell input::placeholder,
+html.light .registration-page .input-shell input::placeholder {
+  color: #858bad !important;
+  -webkit-text-fill-color: #858bad !important;
+  opacity: 1 !important;
+}
+
+/* Browser autofill must not reintroduce the dark input rectangle. */
+html[data-theme='light'] .auth-page .input-shell input:-webkit-autofill,
+html[data-theme='light'] .auth-page .input-shell input:-webkit-autofill:hover,
+html[data-theme='light'] .auth-page .input-shell input:-webkit-autofill:focus,
+html.light .auth-page .input-shell input:-webkit-autofill,
+html.light .auth-page .input-shell input:-webkit-autofill:hover,
+html.light .auth-page .input-shell input:-webkit-autofill:focus,
+html[data-theme='light'] .registration-page .input-shell input:-webkit-autofill,
+html[data-theme='light'] .registration-page .input-shell input:-webkit-autofill:hover,
+html[data-theme='light'] .registration-page .input-shell input:-webkit-autofill:focus,
+html.light .registration-page .input-shell input:-webkit-autofill,
+html.light .registration-page .input-shell input:-webkit-autofill:hover,
+html.light .registration-page .input-shell input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #111946 !important;
+  caret-color: #6952ef !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  background-color: #ffffff !important;
+  transition: background-color 9999s ease-out 0s !important;
+}
+
+html[data-theme='light'] .auth-page .input-tail,
+html.light .auth-page .input-tail,
+html[data-theme='light'] .registration-page .input-tail,
+html.light .registration-page .input-tail {
+  flex: 0 0 auto !important;
+  margin-right: 14px !important;
+  color: #697092 !important;
+}
+
+html[data-theme='light'] .auth-page .input-tail.icon-button,
+html.light .auth-page .input-tail.icon-button,
+html[data-theme='light'] .registration-page .input-tail.icon-button,
+html.light .registration-page .input-tail.icon-button {
+  display: grid !important;
+  place-items: center !important;
+  width: 34px !important;
+  height: 34px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html[data-theme='light'] .auth-page .input-tail.icon-button:hover,
+html.light .auth-page .input-tail.icon-button:hover,
+html[data-theme='light'] .registration-page .input-tail.icon-button:hover,
+html.light .registration-page .input-tail.icon-button:hover {
+  background: #f2f3fb !important;
+  color: #353b69 !important;
+}
+
+html[data-theme='light'] .auth-page .form-row,
+html.light .auth-page .form-row {
+  align-items: center !important;
+  gap: 18px !important;
 }
 
 html[data-theme='light'] .auth-page .checkline,
-html[data-theme='light'] .registration-page .checkline {
-  color: #474d72 !important;
+html.light .auth-page .checkline,
+html[data-theme='light'] .registration-page .checkline,
+html.light .registration-page .checkline {
+  color: #343b67 !important;
 }
 
 html[data-theme='light'] .auth-page .checkline input,
-html[data-theme='light'] .registration-page .checkline input {
+html.light .auth-page .checkline input,
+html[data-theme='light'] .registration-page .checkline input,
+html.light .registration-page .checkline input {
+  width: 16px !important;
+  height: 16px !important;
+  accent-color: #6952ef !important;
   background: #fff !important;
-  border-color: #9297b8 !important;
+  border-color: #9298b8 !important;
 }
 
-html[data-theme='light'] .auth-page .checkline input:checked,
-html[data-theme='light'] .registration-page .checkline input:checked {
-  background: #6850e4 !important;
-  border-color: #6850e4 !important;
-  box-shadow: inset 0 0 0 4px #fff !important;
+html[data-theme='light'] .auth-page .form-row > a,
+html.light .auth-page .form-row > a {
+  color: #5b46ea !important;
+  font-weight: 600 !important;
+  text-underline-offset: 3px !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .public-home .public-hero .hero-duo {
+  .public-home .public-hero .hero-duo,
+  html[data-theme='light'] .auth-page .input-shell,
+  html.light .auth-page .input-shell {
     transition: none !important;
   }
 }
