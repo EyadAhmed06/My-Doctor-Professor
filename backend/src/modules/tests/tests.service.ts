@@ -672,11 +672,11 @@ export class TestsService implements OnModuleInit {
     if (!accessibleLectureIds.length) {
       throw new ForbiddenException('This bundle does not grant access to the selected content');
     }
-    const accessible = new Set<string>(accessibleLectureIds);
+    const accessible = new Set(accessibleLectureIds);
     if (lectureIds?.some((lectureId) => !accessible.has(lectureId))) {
       throw new ForbiddenException('One or more lectures are outside this bundle');
     }
-    return [...accessible];
+    return accessibleLectureIds;
   }
 
   private assertAvailable(test: Test): void {
