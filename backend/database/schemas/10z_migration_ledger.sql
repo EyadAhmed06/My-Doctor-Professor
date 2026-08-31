@@ -22,6 +22,7 @@ FROM (
         (1840000000000::bigint, 'RevokeLegacyRefreshSessions1840000000000'),
         (1845000000000::bigint, 'AddStudentWorkspace1845000000000'),
         (1850000000000::bigint, 'AddBundleAccessLayer1850000000000'),
+        (1855000000000::bigint, 'AddAssessmentGenerationIdempotency1855000000000'),
         (1860000000000::bigint, 'AddNotebookAnalyticsScheduler1860000000000'),
         (1870000000000::bigint, 'AddExternalAuthIdentities1870000000000'),
         (1950000000000::bigint, 'AddBundlePricingPayments1950000000000'),

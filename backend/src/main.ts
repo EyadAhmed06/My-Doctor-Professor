@@ -58,6 +58,11 @@ async function bootstrap() {
     transformOptions: { enableImplicitConversion: true },
   }));
 
+  // Versioned prefix owned by the app itself, so the path is identical in local
+  // development, tests, and behind the proxy. Caddy matches this prefix without
+  // stripping it (deploy/Caddyfile); changing one without the other breaks routing.
+  app.setGlobalPrefix('api/v1');
+
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);
   console.log(`Application is running on: http://localhost:${port}`);
