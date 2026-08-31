@@ -14,6 +14,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import type { CookieOptions, Request, Response } from 'express';
 import { UsersService } from '../users/users.service';
 import { isAllowedOrigin, parseAllowedOrigins } from '../../config/cors-policy';
@@ -24,6 +25,7 @@ import { RateLimit } from './decorators/rate-limit.decorator';
 import { AuthResponseDto, UserProfileDto } from './dtos/auth-response.dto';
 import { ConfirmEmailVerificationDto, RequestEmailVerificationDto } from './dtos/email-verification.dto';
 import { CompleteGoogleSignupDto, GoogleCredentialDto, GoogleOnboardingResponseDto } from './dtos/google-auth.dto';
+import { JwtPayload } from './dtos/jwt-payload.dto';
 import { LoginDto } from './dtos/login.dto';
 import { ForgotPasswordDto, ResetPasswordDto } from './dtos/password-reset.dto';
 import { RefreshTokenDto } from './dtos/refresh-token.dto';
@@ -40,6 +42,7 @@ const SIGNUP_RESPONSE = 'If registration can be completed, check your email to c
 @Controller('auth')
 export class AuthController {
   private readonly refreshLifetimeSeconds: number;
+  private readonly refreshSecret: string;
   private readonly allowedOrigins: ReadonlySet<string>;
 
   constructor(
@@ -47,8 +50,10 @@ export class AuthController {
     private readonly googleAuthService: GoogleAuthService,
     private readonly usersService: UsersService,
     private readonly config: ConfigService,
+    private readonly jwtService: JwtService,
   ) {
     this.refreshLifetimeSeconds = this.readPositiveInteger('JWT_REFRESH_TTL_SECONDS', 604800);
+    this.refreshSecret = this.config.getOrThrow<string>('JWT_REFRESH_SECRET');
     this.allowedOrigins = parseAllowedOrigins(
       this.config.get('FRONTEND_URL'),
       this.config.get('CORS_ORIGINS'),
@@ -258,11 +263,24 @@ export class AuthController {
   @Public()
   @Post('logout/browser')
   @HttpCode(HttpStatus.NO_CONTENT)
-  clearBrowserLogoutCookies(
+  async browserLogout(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
-  ): void {
-    if (this.readCookie(request, REFRESH_COOKIE)) this.assertTrustedCookieOrigin(request);
+  ): Promise<void> {
+    const refreshToken = this.readCookie(request, REFRESH_COOKIE);
+    if (refreshToken) {
+      this.assertTrustedCookieOrigin(request);
+      try {
+        const payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken, {
+          secret: this.refreshSecret,
+        });
+        if (payload.tokenType === 'refresh' && payload.sid) {
+          await this.authService.revokeSession(payload.sid);
+        }
+      } catch {
+        // Logout is idempotent. An expired or malformed cookie must still be cleared.
+      }
+    }
     this.clearRefreshCookies(request, response);
   }
 
