@@ -9,7 +9,7 @@ const REFRESH_MODE_COOKIE = 'mdp_refresh_mode';
 export class AuthCookieController {
   private readonly production: boolean;
 
-  constructor(config: ConfigService) {
+  constructor(private readonly config: ConfigService) {
     this.production = config.get<string>('NODE_ENV') === 'production';
   }
 
@@ -20,7 +20,7 @@ export class AuthCookieController {
       httpOnly: true,
       secure: this.production,
       sameSite: 'lax',
-      path: '/api/v1/auth',
+      path: this.config.get<string>('AUTH_COOKIE_PATH')?.trim() || '/api/v1/auth',
     };
     response.clearCookie(REFRESH_COOKIE, options);
     response.clearCookie(REFRESH_MODE_COOKIE, options);

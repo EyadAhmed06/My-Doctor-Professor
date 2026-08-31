@@ -36,6 +36,9 @@ export function assertSecureRuntimeConfiguration(env: NodeJS.ProcessEnv = proces
     if (env.DB_SSL_REJECT_UNAUTHORIZED !== "true") throw new Error("Database TLS certificate verification is required in production");
     if (env.ALLOW_ACCOUNT_BOOTSTRAP === "true") throw new Error("Account bootstrap must be disabled in production");
     if (!env.EMAIL_OUTBOX_ENCRYPTION_KEY) throw new Error("EMAIL_OUTBOX_ENCRYPTION_KEY is required in production");
+    if (env.AUTH_COOKIE_PATH && env.AUTH_COOKIE_PATH !== "/api/v1/auth") {
+      throw new Error("AUTH_COOKIE_PATH must be /api/v1/auth in production");
+    }
 
     const paymobEnabled = Boolean(
       env.PAYMOB_API_KEY

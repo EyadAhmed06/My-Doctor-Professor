@@ -37,8 +37,14 @@ describe("runtime security configuration", () => {
     ["plain HTTP frontend", { FRONTEND_URL: "http://app.example.com" }],
     ["database TLS disabled", { DB_SSL_ENABLED: "false" }],
     ["bootstrap enabled", { ALLOW_ACCOUNT_BOOTSTRAP: "true" }],
+    ["insecure AUTH_COOKIE_PATH in production", { AUTH_COOKIE_PATH: "/auth" }],
+    ["root AUTH_COOKIE_PATH in production", { AUTH_COOKIE_PATH: "/" }],
   ])("rejects %s", (_name, override) => {
     expect(() => assertSecureRuntimeConfiguration({ ...secure, ...override })).toThrow();
+  });
+
+  it("accepts explicitly configured /api/v1/auth cookie path in production", () => {
+    expect(() => assertSecureRuntimeConfiguration({ ...secure, AUTH_COOKIE_PATH: "/api/v1/auth" })).not.toThrow();
   });
 
   it.each([

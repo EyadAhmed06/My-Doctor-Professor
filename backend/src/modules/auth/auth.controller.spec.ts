@@ -28,7 +28,7 @@ const signupDto = {
 const genericSignupMessage = 'If registration can be completed, check your email to continue. Otherwise use sign in or account recovery.';
 
 describe('AuthController web refresh transport', () => {
-  function setup(nodeEnv = 'test', additionalOrigins?: string) {
+  function setup(nodeEnv = 'test', additionalOrigins?: string, cookiePath?: string) {
     const authService = {
       signup: jest.fn().mockResolvedValue({ message: 'Account created' }),
       login: jest.fn().mockResolvedValue(authResponse),
@@ -50,6 +50,7 @@ describe('AuthController web refresh transport', () => {
         JWT_REFRESH_TTL_SECONDS: 604800,
         FRONTEND_URL: nodeEnv === 'production' ? 'https://app.example.test' : 'http://localhost:3001',
         CORS_ORIGINS: additionalOrigins,
+        AUTH_COOKIE_PATH: cookiePath,
       } as Record<string, unknown>)[key]),
     };
     const controller = new AuthController(
@@ -93,6 +94,21 @@ describe('AuthController web refresh transport', () => {
       'mdp_refresh_mode',
       'persistent',
       expect.objectContaining({ httpOnly: true }),
+    );
+  });
+
+  it('applies configured AUTH_COOKIE_PATH when supplied', async () => {
+    const { controller, response, cookie } = setup('development', undefined, '/auth');
+    await controller.login(
+      { email: 'student@example.test', password: 'password', remember: true },
+      request('http://localhost:3001'),
+      response,
+    );
+
+    expect(cookie).toHaveBeenCalledWith(
+      'mdp_refresh',
+      'refresh-token',
+      expect.objectContaining({ path: '/auth' }),
     );
   });
 

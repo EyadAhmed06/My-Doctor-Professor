@@ -340,7 +340,7 @@ export class AuthController {
       httpOnly: true,
       secure,
       sameSite: 'lax',
-      path: '/api/v1/auth',
+      path: this.config.get<string>('AUTH_COOKIE_PATH')?.trim() || '/api/v1/auth',
     };
   }
 
