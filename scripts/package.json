@@ -1,0 +1,26 @@
+{
+  "name": "mdp-scripts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Build-time tooling. Kept out of the frontend dependency tree on purpose: none of this ships to the browser.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "anatomy:prepare": "node anatomy/prepare-model.mjs",
+    "anatomy:inspect": "node anatomy/inspect-glb.mjs",
+    "anatomy:measure": "node anatomy/measure.mjs",
+    "anatomy:poster": "node anatomy/capture-poster.mjs"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "^4.4.2",
+    "@gltf-transform/extensions": "^4.4.2",
+    "@gltf-transform/functions": "^4.4.2",
+    "draco3dgltf": "^1.5.7",
+    "meshoptimizer": "^1.0.1"
+  },
+  "devDependencies": {
+    "playwright": "^1.60.0"
+  }
+}

@@ -4,24 +4,30 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "prebuild": "node scripts/sync-draco-decoder.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "anatomy:decoder": "node scripts/sync-draco-decoder.mjs",
     "audit:ui-actions": "node scripts/audit-ui-actions.mjs",
     "audit:security": "node scripts/security-static-audit.mjs",
     "test": "node scripts/test.mjs"
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.8",
+    "@react-three/fiber": "^9.7.0",
     "next": "16.3.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "react-icons": "^5.5.0"
+    "react-icons": "^5.5.0",
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.185.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
     "tailwindcss": "^4",
