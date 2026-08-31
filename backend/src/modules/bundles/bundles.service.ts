@@ -403,6 +403,7 @@ export class BundlesService {
           paymentStatus: row.paymentStatus,
           paidAt: row.paidAt,
           paymentReference: row.paymentReference,
+          enrolled_at: row.createdAt,
           ...this.accessState(row, bundle),
         })),
         planGrants: planGrantRows.map((row) => ({
@@ -901,8 +902,8 @@ export class BundlesService {
 
   private accessState(row: BundleEnrollment, bundle: Bundle) {
     const now = new Date();
-    const paymentRequired = !bundle.isFree && row.paymentStatus !== BundlePaymentStatus.PAID;
-    const revoked = row.status === BundleEnrollmentStatus.REVOKED;
+    const paymentRequired = !bundle.isFree && row.paymentStatus === BundlePaymentStatus.PENDING;
+    const revoked = row.status === BundleEnrollmentStatus.REVOKED && !paymentRequired;
     const scheduled = Boolean(bundle.availableFrom && bundle.availableFrom > now);
     const draft = bundle.status === BundleStatus.DRAFT;
     const expired = bundle.status === BundleStatus.ARCHIVED

@@ -140,4 +140,63 @@ describe('BundlesService payment entitlement', () => {
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual(expect.objectContaining({ id: published.id }));
   });
+
+  it('resolves admin-revoked enrollment on paid bundle as REVOKED not PENDING_PAYMENT', async () => {
+    const { service, enrollments } = build(false);
+    const bundle = {
+      id: bundleId, title: 'Paid bundle', status: BundleStatus.PUBLISHED, isFree: false,
+    } as Bundle;
+    (enrollments.find as jest.Mock).mockResolvedValue([
+      {
+        bundle,
+        status: BundleEnrollmentStatus.REVOKED,
+        paymentStatus: BundlePaymentStatus.CANCELLED,
+      },
+    ]);
+
+    const result = await service.mine(studentId);
+
+    expect(result).toHaveLength(0);
+  });
+
+  it('resolves admin-revoked enrollment with PAID paymentStatus as REVOKED', async () => {
+    const { service, enrollments } = build(false);
+    const bundle = {
+      id: bundleId, title: 'Paid bundle', status: BundleStatus.PUBLISHED, isFree: false,
+    } as Bundle;
+    (enrollments.find as jest.Mock).mockResolvedValue([
+      {
+        bundle,
+        status: BundleEnrollmentStatus.REVOKED,
+        paymentStatus: BundlePaymentStatus.PAID,
+      },
+    ]);
+
+    const result = await service.mine(studentId);
+
+    expect(result).toHaveLength(0);
+  });
+
+  it('resolves self-enrolled pending payment as PENDING_PAYMENT', async () => {
+    const { service, enrollments } = build(false);
+    const bundle = {
+      id: bundleId, title: 'Paid bundle', status: BundleStatus.PUBLISHED, isFree: false,
+    } as Bundle;
+    (enrollments.find as jest.Mock).mockResolvedValue([
+      {
+        bundle,
+        status: BundleEnrollmentStatus.REVOKED,
+        paymentStatus: BundlePaymentStatus.PENDING,
+      },
+    ]);
+
+    const result = await service.mine(studentId);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual(expect.objectContaining({
+      access_status: 'PENDING_PAYMENT',
+      accessible: false,
+      payment_required: true,
+    }));
+  });
 });
