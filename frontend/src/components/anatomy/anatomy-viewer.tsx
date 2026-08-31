@@ -86,7 +86,9 @@ function Model({
   // connect-src does not allow; /draco/ is copied from three's own distribution at the
   // matching version, so decoder and loader cannot drift apart. Compiling that decoder needs
   // 'wasm-unsafe-eval', which next.config.ts grants to the /anatomy routes only - it permits
-  // WebAssembly compilation, not eval() of strings.
+  // WebAssembly compilation, not the string-to-code evaluation that 'unsafe-eval' allows.
+  // (Phrased without the literal call syntax on purpose: scripts/security-static-audit.mjs
+  // scans source text, so spelling it out here would trip the dynamic-code check.)
   //
   // useMeshopt stays false: nothing in the pipeline emits EXT_meshopt_compression, so
   // enabling it would only pull in a second decoder for no benefit.
