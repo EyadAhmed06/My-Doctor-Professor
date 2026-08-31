@@ -21,6 +21,14 @@ export const workspaceArabic = new Map<string, string>([
   ["Bundle Past Exams", "الاختبارات السابقة للحزمة"], ["Untimed", "بدون وقت محدد"], ["No past exams", "لا توجد اختبارات سابقة"],
   ["No past exams are assigned to this bundle.", "لا توجد اختبارات سابقة مرتبطة بهذه الحزمة."], ["Bundle Flashcards", "بطاقات الحزمة التعليمية"],
   ["open your enrolled review queue", "افتح قائمة المراجعة المسجلة"], ["Bundle Resources", "موارد الحزمة"],
+  ["Students", "الطلاب"], ["Student", "الطالب"], ["Email", "البريد الإلكتروني"], ["Status", "الحالة"],
+  ["Enrolled", "تاريخ التسجيل"], ["Expires", "تاريخ الانتهاء"], ["Actions", "الإجراءات"],
+  ["Awaiting payment confirmation", "بانتظار تأكيد الدفع"], ["Not started yet", "لم يبدأ بعد"], ["Bundle is in draft", "الحزمة في وضع المسودة"],
+  ["Confirm payment", "تأكيد الدفع"], ["Payment confirmed", "تم تأكيد الدفع"],
+  ["Revoke access for", "إلغاء وصول"], ["Revoke", "إلغاء"], ["Access revoked", "تم إلغاء الوصول"],
+  ["Choose student", "اختر طالبًا"], ["Grant access", "منح الوصول"], ["Access granted", "تم منح الوصول"],
+  ["No students enrolled yet", "لا يوجد طلاب مسجلون بعد"], ["Grant access to students below or wait for students to enroll.", "امنح الوصول للطلاب أدناه أو انتظر تسجيل الطلاب."],
+  ["Mark", "تحديد"], ["as paid?", "كمدفوع؟"], ["Never", "أبدًا"],
 
   // Study Guides
   ["Unable to load bundle study guides.", "تعذر تحميل أدلة المذاكرة الخاصة بالحزم."], ["Unable to load lecture resources.", "تعذر تحميل موارد المحاضرة."],

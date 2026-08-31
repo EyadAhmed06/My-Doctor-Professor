@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   FiBookOpen,
   FiCheck,
@@ -12,6 +12,7 @@ import {
 } from "react-icons/fi";
 import { EmptyState, PageSkeleton } from "./async-state";
 import { useAuth } from "./auth-provider";
+import { useLocale } from "./locale-provider";
 import { Panel } from "./product-shell";
 import { useUx } from "./ux-provider";
 import "./bundle-management.css";
@@ -29,12 +30,59 @@ type ManagedWeek = { id: string; weekNumber: number; title: string | null; linke
 type ManagedCourse = { id: string; courseCode: string; courseName: string; linked: boolean; weeks: ManagedWeek[] };
 type ManagedTest = { id: string; title: string; testType: string; linked: boolean };
 type Person = { id: string; fullName: string; email: string };
+type StudentEnrollment = {
+  id: string;
+  student: Person;
+  status: "ACTIVE" | "EXPIRED" | "REVOKED";
+  paymentStatus: "NOT_REQUIRED" | "PENDING" | "PAID" | "CANCELLED";
+  paidAt: string | null;
+  paymentReference: string | null;
+  enrolled_at: string;
+  read_only: boolean;
+  accessible: boolean;
+  payment_required: boolean;
+  access_status: "ACTIVE" | "PENDING_PAYMENT" | "REVOKED" | "EXPIRED" | "SCHEDULED" | "DRAFT";
+  expires_at: string | null;
+};
 type Management = {
   bundle: Bundle;
   courses: ManagedCourse[];
   tests: ManagedTest[];
   instructors: { assigned: Person[]; available: Person[] };
+  students: {
+    enrollments: StudentEnrollment[];
+    available: Person[];
+  };
 };
+
+const STATUS_PRIORITY: Record<StudentEnrollment["access_status"], number> = {
+  PENDING_PAYMENT: 1,
+  ACTIVE: 2,
+  SCHEDULED: 3,
+  DRAFT: 4,
+  EXPIRED: 5,
+  REVOKED: 6,
+};
+
+function statusLabel(status: StudentEnrollment["access_status"]): string {
+  switch (status) {
+    case "PENDING_PAYMENT": return "Awaiting payment confirmation";
+    case "ACTIVE": return "Active";
+    case "EXPIRED": return "Expired";
+    case "REVOKED": return "Revoked";
+    case "SCHEDULED": return "Not started yet";
+    case "DRAFT": return "Bundle is in draft";
+  }
+}
+
+function statusBadgeClass(status: StudentEnrollment["access_status"]): string {
+  switch (status) {
+    case "PENDING_PAYMENT": return "pending";
+    case "ACTIVE": return "good";
+    case "REVOKED": case "EXPIRED": return "bad";
+    default: return "";
+  }
+}
 
 export function BundleManagementPanel({ bundleId, onChanged }: {
   bundleId: string;
@@ -42,6 +90,7 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
 }) {
   const { request } = useAuth();
   const { notify } = useUx();
+  const { translate } = useLocale();
   const [data, setData] = useState<Management | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -50,6 +99,8 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
   const [currency, setCurrency] = useState("EGP");
   const [expiry, setExpiry] = useState("");
   const [instructorId, setInstructorId] = useState("");
+  const [studentId, setStudentId] = useState("");
+  const [grantExpiry, setGrantExpiry] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,6 +115,9 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
         : "");
       setInstructorId((current) =>
         result.instructors.available.some((item) => item.id === current) ? current : "",
+      );
+      setStudentId((current) =>
+        result.students?.available?.some((item) => item.id === current) ? current : "",
       );
     } catch (cause) {
       notify({
@@ -120,6 +174,19 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
       available_until: expiry ? new Date(expiry).toISOString() : null,
     }, isFree ? "Bundle is now free" : "Paid bundle price saved");
   }
+
+  const enrollments = data?.students?.enrollments;
+  const sortedEnrollments = useMemo(() => {
+    if (!enrollments) return [];
+    return [...enrollments].sort((a, b) => {
+      const pA = STATUS_PRIORITY[a.access_status] ?? 99;
+      const pB = STATUS_PRIORITY[b.access_status] ?? 99;
+      if (pA !== pB) return pA - pB;
+      const dateA = a.enrolled_at ? new Date(a.enrolled_at).getTime() : 0;
+      const dateB = b.enrolled_at ? new Date(b.enrolled_at).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [enrollments]);
 
   if (loading) {
     return <Panel title="Bundle setup"><PageSkeleton variant="cards" label="Loading bundle setup" /></Panel>;
@@ -312,6 +379,167 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
           <FiPlus /> Add
         </button>
       </form>}
+    </Panel>
+
+    <Panel
+      title="Students"
+      action={<button className="bundle-inline-action" type="button" onClick={() => void load()}>
+        <FiRefreshCw /> {translate("Refresh")}
+      </button>}
+    >
+      {sortedEnrollments.length > 0 ? (
+        <div className="role-table-scroll">
+          <table className="role-table">
+            <thead>
+              <tr>
+                <th>{translate("Student")}</th>
+                <th>{translate("Email")}</th>
+                <th>{translate("Status")}</th>
+                <th>{translate("Enrolled")}</th>
+                <th>{translate("Expires")}</th>
+                <th>{translate("Actions")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedEnrollments.map((row) => {
+                const isPending = row.access_status === "PENDING_PAYMENT";
+                const isActive = row.access_status === "ACTIVE";
+                return (
+                  <tr key={row.id}>
+                    <td>
+                      <div className="role-person">
+                        <span>
+                          {row.student.fullName
+                            .split(/\s+/)
+                            .slice(0, 2)
+                            .map((p) => p[0])
+                            .join("")}
+                        </span>
+                        <b>{row.student.fullName}</b>
+                      </div>
+                    </td>
+                    <td>{row.student.email}</td>
+                    <td>
+                      <span className={`role-status ${statusBadgeClass(row.access_status)}`}>
+                        {translate(statusLabel(row.access_status))}
+                      </span>
+                    </td>
+                    <td>
+                      <small>
+                        {row.enrolled_at ? new Date(row.enrolled_at).toLocaleDateString() : "—"}
+                      </small>
+                    </td>
+                    <td>
+                      <small>
+                        {row.expires_at ? new Date(row.expires_at).toLocaleDateString() : translate("Never")}
+                      </small>
+                    </td>
+                    <td>
+                      <div className="bundle-student-actions">
+                        {isPending && (
+                          <button
+                            type="button"
+                            className="primary"
+                            disabled={busy}
+                            onClick={() => {
+                              const ok = window.confirm(
+                                `${translate("Mark")} ${row.student.fullName} ${translate("as paid?")}`
+                              );
+                              if (!ok) return;
+                              void mutate(
+                                `/bundles/${bundleId}/enrollments/${row.student.id}/confirm-payment`,
+                                "POST",
+                                {},
+                                "Payment confirmed"
+                              );
+                            }}
+                            title={translate("Confirm payment")}
+                          >
+                            <FiCheck /> {translate("Confirm payment")}
+                          </button>
+                        )}
+                        {isActive && (
+                          <button
+                            type="button"
+                            className="danger"
+                            disabled={busy}
+                            onClick={() => {
+                              const ok = window.confirm(
+                                `${translate("Revoke access for")} ${row.student.fullName}?`
+                              );
+                              if (!ok) return;
+                              void mutate(
+                                `/bundles/${bundleId}/enrollments/${row.student.id}`,
+                                "DELETE",
+                                undefined,
+                                "Access revoked"
+                              );
+                            }}
+                            title={translate("Revoke")}
+                          >
+                            <FiTrash2 /> {translate("Revoke")}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <EmptyState
+          title="No students enrolled yet"
+          description="Grant access to students below or wait for students to enroll."
+        />
+      )}
+
+      {data.students?.available && data.students.available.length > 0 && (
+        <form
+          className="bundle-assignment-form student"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!studentId) return;
+            void mutate(
+              `/bundles/${bundleId}/enrollments`,
+              "POST",
+              {
+                student_id: studentId,
+                expires_at: grantExpiry ? new Date(grantExpiry).toISOString() : undefined,
+                payment_confirmed: true,
+              },
+              "Access granted"
+            ).then(() => {
+              setStudentId("");
+              setGrantExpiry("");
+            });
+          }}
+        >
+          <select
+            value={studentId}
+            onChange={(event) => setStudentId(event.target.value)}
+            required
+            aria-label={translate("Choose student")}
+          >
+            <option value="">{translate("Choose student")}</option>
+            {data.students.available.map((person) => (
+              <option key={person.id} value={person.id}>
+                {person.fullName} ({person.email})
+              </option>
+            ))}
+          </select>
+          <input
+            type="datetime-local"
+            aria-label={translate("Expires")}
+            value={grantExpiry}
+            onChange={(event) => setGrantExpiry(event.target.value)}
+          />
+          <button className="pp-button" disabled={busy || !studentId}>
+            <FiPlus /> {translate("Grant access")}
+          </button>
+        </form>
+      )}
     </Panel>
 
     <Panel title="Publishing">
