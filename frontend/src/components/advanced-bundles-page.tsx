@@ -11,6 +11,7 @@ import {
   FiFileText,
   FiLayers,
   FiLock,
+  FiMessageCircle,
   FiPlus,
   FiPlayCircle,
   FiRefreshCw,
@@ -18,6 +19,7 @@ import {
 } from "react-icons/fi";
 import { courseRouteKey, lectureRouteKey, weekRouteKey } from "@/lib/routes";
 import { useAuth } from "./auth-provider";
+import { useLocale } from "./locale-provider";
 import { BundleManagementPanel } from "./bundle-management-panel";
 import { EmptyState, ErrorState, PageSkeleton } from "./async-state";
 import { Panel, ProductShell } from "./product-shell";
@@ -268,13 +270,13 @@ export function AdvancedBundlesPage() {
     setJoining((current) => new Set(current).add(bundle.id));
     try {
       const enrollment = await request<Bundle>(`/bundles/${bundle.id}/enroll`, { method: "POST" });
-      notify({
-        title: bundle.isFree ? "Bundle joined" : "Enrollment created — payment required",
-        description: bundle.isFree
-          ? `${bundle.title} is now available in My Bundles.`
-          : `${bundle.title} stays locked until payment is verified and confirmed.`,
-        tone: bundle.isFree ? "success" : "info",
-      });
+      if (bundle.isFree) {
+        notify({
+          title: "Bundle joined",
+          description: `${bundle.title} is now available in My Bundles.`,
+          tone: "success",
+        });
+      }
       await load();
       setSelectedBundle(enrollment);
       setUrl(bundle.id, "overview");
@@ -532,19 +534,147 @@ function PaymentLockedBundle({ bundle, busy, onSubscribe }: {
   busy: boolean;
   onSubscribe: () => void;
 }) {
-  const price = bundle.isFree ? "free" : `${bundle.priceCurrency} ${Number(bundle.priceAmount || 0).toFixed(2)}`;
-  return <Panel title="Bundle locked">
-    <div className="bundle-read-only-reason">
-      <FiLock />
-      <div>
-        <b>This bundle is locked until you subscribe in it</b>
-        <p>Subscribe to unlock its curriculum, question bank, assessments, flashcards, and resources.</p>
-        <button className="pp-button" type="button" disabled={busy} onClick={onSubscribe}>
-          {busy ? "Subscribing…" : `Subscribe for ${price}`}
-        </button>
+  const { user } = useAuth();
+  const { translate, locale } = useLocale();
+
+  const isPending = bundle.access_status === "PENDING_PAYMENT";
+  const price = bundle.isFree
+    ? (locale === "ar" ? "مجاني" : "free")
+    : `${bundle.priceCurrency} ${Number(bundle.priceAmount || 0).toFixed(2)}`;
+
+  const studentName = (user?.full_name || user?.fullName || "").trim();
+  const studentEmail = (user?.email || "").trim();
+
+  const messageEn = `Hello, I would like to confirm my payment for the bundle "${bundle.title}" (${price}).` +
+    (studentName ? `\nStudent: ${studentName}` : "") +
+    (studentEmail ? `\nEmail: ${studentEmail}` : "");
+
+  const messageAr = `مرحبًا، أود تأكيد الدفع لحزمة "${bundle.title}" (${price}).` +
+    (studentName ? `\nالطالب: ${studentName}` : "") +
+    (studentEmail ? `\nالبريد الإلكتروني: ${studentEmail}` : "");
+
+  const waMessage = locale === "ar" ? messageAr : messageEn;
+  const primaryWaUrl = `https://wa.me/201090725600?text=${encodeURIComponent(waMessage)}`;
+  const alternativeWaUrl = `https://wa.me/201015433123?text=${encodeURIComponent(waMessage)}`;
+
+  if (isPending) {
+    return (
+      <Panel title={translate("Awaiting payment confirmation")}>
+        <div className="bundle-read-only-reason" style={{ flexDirection: "column", gap: "16px", padding: "18px" }}>
+          <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", width: "100%" }}>
+            <FiClock style={{ fontSize: "24px", color: "var(--warning, #c58b2a)", flexShrink: 0, marginTop: "2px" }} />
+            <div style={{ display: "grid", gap: "6px" }}>
+              <b style={{ fontSize: "16px" }}>
+                {translate("Your enrollment request has been registered. Access will be unlocked once payment is confirmed.")}
+              </b>
+              <p style={{ margin: 0, color: "var(--text-muted, var(--muted))", fontSize: "13px", lineHeight: 1.5 }}>
+                {translate("Quote these details when confirming payment:")}
+              </p>
+            </div>
+          </div>
+
+          <div
+            style={{
+              width: "100%",
+              padding: "12px 14px",
+              borderRadius: "10px",
+              background: "var(--surface-soft, var(--soft))",
+              border: "1px solid var(--border, var(--line))",
+              display: "grid",
+              gap: "6px",
+              fontSize: "13px",
+            }}
+          >
+            <div><strong>{translate("Bundle")}:</strong> {bundle.title}</div>
+            <div><strong>{translate("Price")}:</strong> {price}</div>
+            {studentName ? <div><strong>{translate("Student")}:</strong> {studentName}</div> : null}
+            {studentEmail ? <div><strong>{translate("Email")}:</strong> {studentEmail}</div> : null}
+          </div>
+
+          <div style={{ width: "100%", display: "grid", gap: "12px", marginTop: "4px" }}>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "12px",
+                padding: "12px 14px",
+                borderRadius: "10px",
+                background: "var(--surface, var(--card))",
+                border: "1px solid var(--border, var(--line))",
+              }}
+            >
+              <div>
+                <small style={{ color: "var(--accent)", fontWeight: 700, display: "block", fontSize: "11px" }}>
+                  {translate("Primary Contact (Main)")}
+                </small>
+                <span dir="ltr" style={{ fontWeight: 800, fontSize: "15px", letterSpacing: "0.02em" }}>
+                  +20 10 9072 5600
+                </span>
+              </div>
+              <a
+                className="pp-button"
+                href={primaryWaUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <FiMessageCircle /> {translate("Contact via WhatsApp")}
+              </a>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "12px",
+                padding: "12px 14px",
+                borderRadius: "10px",
+                background: "var(--surface, var(--card))",
+                border: "1px solid var(--border, var(--line))",
+              }}
+            >
+              <div>
+                <small style={{ color: "var(--text-muted, var(--muted))", fontWeight: 600, display: "block", fontSize: "11px" }}>
+                  {translate("Alternative Contact")}
+                </small>
+                <span dir="ltr" style={{ fontWeight: 800, fontSize: "15px", letterSpacing: "0.02em" }}>
+                  +20 10 1543 3123
+                </span>
+              </div>
+              <a
+                className="pp-button secondary"
+                href={alternativeWaUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <FiMessageCircle /> {translate("Contact via WhatsApp")}
+              </a>
+            </div>
+          </div>
+        </div>
+      </Panel>
+    );
+  }
+
+  return (
+    <Panel title={translate("Bundle locked")}>
+      <div className="bundle-read-only-reason">
+        <FiLock />
+        <div>
+          <b>{translate("This bundle is locked until you subscribe in it")}</b>
+          <p>{translate("Subscribe to unlock its curriculum, question bank, assessments, flashcards, and resources.")}</p>
+          <button className="pp-button" type="button" disabled={busy} onClick={onSubscribe}>
+            {busy ? translate("Subscribing…") : `${translate("Subscribe for")} ${price}`}
+          </button>
+        </div>
       </div>
-    </div>
-  </Panel>;
+    </Panel>
+  );
 }
 
 function BundleWorkspaceTab({ content, tab, courses, lectures, openWeeks, setOpenWeeks, setUrl }: {
