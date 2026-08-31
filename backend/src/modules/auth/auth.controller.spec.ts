@@ -52,6 +52,10 @@ describe('AuthController web refresh transport', () => {
         CORS_ORIGINS: additionalOrigins,
         AUTH_COOKIE_PATH: cookiePath,
       } as Record<string, unknown>)[key]),
+      getOrThrow: jest.fn((key: string) => {
+        if (key === 'JWT_REFRESH_SECRET') return 'refresh-secret-test-32-chars-long';
+        return 'test-secret';
+      }),
     };
     const controller = new AuthController(
       authService as never,

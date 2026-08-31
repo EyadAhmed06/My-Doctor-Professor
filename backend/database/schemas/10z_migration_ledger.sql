@@ -22,7 +22,7 @@ FROM (
         (1840000000000::bigint, 'RevokeLegacyRefreshSessions1840000000000'),
         (1845000000000::bigint, 'AddStudentWorkspace1845000000000'),
         (1850000000000::bigint, 'AddBundleAccessLayer1850000000000'),
-        (1850000000000::bigint, 'AddAssessmentGenerationIdempotency1850000000000'),
+        (1855000000000::bigint, 'AddAssessmentGenerationIdempotency1855000000000'),
         (1860000000000::bigint, 'AddNotebookAnalyticsScheduler1860000000000'),
         (1870000000000::bigint, 'AddExternalAuthIdentities1870000000000'),
         (1950000000000::bigint, 'AddBundlePricingPayments1950000000000'),
@@ -37,7 +37,8 @@ FROM (
         (2030000000000::bigint, 'EnforcePublishedMcqShape2030000000000'),
         (2040000000000::bigint, 'AddStudentAchievements2040000000000'),
         (2050000000000::bigint, 'HardenPaymentWebhookBinding2050000000000'),
-        (2080000000000::bigint, 'EnforceSingleActiveStudentSession2080000000000')
+        (2080000000000::bigint, 'EnforceSingleActiveStudentSession2080000000000'),
+        (2090000000000::bigint, 'FixAuthOtpDatabaseContract2090000000000')
 ) AS entry(timestamp, name)
 WHERE NOT EXISTS (
     SELECT 1 FROM migrations current WHERE current.name = entry.name

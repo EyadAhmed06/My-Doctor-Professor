@@ -17,6 +17,8 @@ describe('Explicit public route inventory', () => {
     const expected = new Map<string, number>([
       ['app.controller.ts', 1],
       ['modules/auth/auth.controller.ts', 11],
+      ['modules/auth/email-verification-code.controller.ts', 1],
+      ['modules/auth/password-reset-otp.controller.ts', 2],
       ['modules/health/health.controller.ts', 1],
       ['modules/bundles/bundles.controller.ts', 1],
       ['modules/subscriptions/paymob-webhook.controller.ts', 1],

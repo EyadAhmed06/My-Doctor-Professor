@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddAssessmentGenerationIdempotency1850000000000 implements MigrationInterface {
-  name = 'AddAssessmentGenerationIdempotency1850000000000';
+export class AddAssessmentGenerationIdempotency1855000000000 implements MigrationInterface {
+  name = 'AddAssessmentGenerationIdempotency1855000000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
