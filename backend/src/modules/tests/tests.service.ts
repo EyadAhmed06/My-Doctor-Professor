@@ -1,4 +1,4 @@
-this.bundleAccess.applyStudentAccessScope(builder, 'test', actor.userId);import { randomInt } from 'crypto';
+import { randomInt } from 'crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -27,6 +27,7 @@ import { TestQuestion } from '../../common/entities/test-question.entity';
 import { Test, TestType } from '../../common/entities/test.entity';
 import { Week } from '../../common/entities/week.entity';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { BundleAccessService } from '../bundle-access/bundle-access.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Student } from '../users/entities/student.entity';
 import { UserRole } from '../users/entities/user.entity';
@@ -671,7 +672,7 @@ export class TestsService implements OnModuleInit {
     if (!accessibleLectureIds.length) {
       throw new ForbiddenException('This bundle does not grant access to the selected content');
     }
-    const accessible = new Set(accessibleLectureIds);
+    const accessible = new Set<string>(accessibleLectureIds);
     if (lectureIds?.some((lectureId) => !accessible.has(lectureId))) {
       throw new ForbiddenException('One or more lectures are outside this bundle');
     }
