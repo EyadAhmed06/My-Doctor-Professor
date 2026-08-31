@@ -10,6 +10,7 @@ import { StudentAnswer } from '../../common/entities/student-answer.entity';
 import { TestAttempt, TestAttemptStatus, TestMode } from '../../common/entities/test-attempt.entity';
 import { TestQuestion } from '../../common/entities/test-question.entity';
 import { Test, TestType } from '../../common/entities/test.entity';
+import { BundleAccessService } from '../bundle-access/bundle-access.service';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { Student } from '../users/entities/student.entity';
 import { GenerateEssayPracticeDto, SubmitEssayPracticeAnswerDto } from './dtos/essay-practice.dto';
@@ -24,6 +25,7 @@ export class EssayPracticeService {
     @InjectRepository(Lecture) private readonly lectures: Repository<Lecture>,
     @InjectRepository(Student) private readonly students: Repository<Student>,
     @InjectRepository(TestAttempt) private readonly attempts: Repository<TestAttempt>,
+    private readonly bundleAccess: BundleAccessService,
     @InjectRepository(TestQuestion) private readonly testQuestions: Repository<TestQuestion>,
     @InjectRepository(StudentAnswer) private readonly answers: Repository<StudentAnswer>,
     @InjectRepository(EssayConfiguration) private readonly essayConfigs: Repository<EssayConfiguration>,

@@ -7,6 +7,7 @@ import { QuestionTag } from '../../common/entities/question-tag.entity';
 import { Tag } from '../../common/entities/tag.entity';
 import { Topic } from '../../common/entities/topic.entity';
 import { AcademicModule } from '../academic/academic.module';
+import { BundleAccessModule } from '../bundle-access/bundle-access.module';
 import { EssayQuestionImportController } from './essay-question-import.controller';
 import { EssayQuestionImportService } from './essay-question-import.service';
 import { InstructorQuestionAccessService } from './instructor-question-access.service';
@@ -19,6 +20,7 @@ import { StudentQuestionAccessService } from './student-question-access.service'
 @Module({
   imports: [
     AcademicModule,
+    BundleAccessModule,
     TypeOrmModule.forFeature([
       Question,
       McqOption,

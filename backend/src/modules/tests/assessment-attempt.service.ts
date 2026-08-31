@@ -8,7 +8,9 @@ import { TestAttempt, TestAttemptStatus, TestMode } from '../../common/entities/
 import { TestQuestion } from '../../common/entities/test-question.entity';
 import { Test } from '../../common/entities/test.entity';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { BundleAccessService } from '../bundle-access/bundle-access.service';
 import { Student } from '../users/entities/student.entity';
+import { UserRole } from '../users/entities/user.entity';
 import { SaveAnswerDto, StartTestAttemptDto } from './dtos/tests.dto';
 
 @Injectable()
@@ -21,6 +23,7 @@ export class AssessmentAttemptService {
     @InjectRepository(McqOption) private readonly options: Repository<McqOption>,
     @InjectRepository(Student) private readonly students: Repository<Student>,
     private readonly dataSource: DataSource,
+    private readonly bundleAccess: BundleAccessService,
   ) {}
 
   async startAttempt(testId: string, dto: StartTestAttemptDto, actor: AuthenticatedUser) {
@@ -207,23 +210,11 @@ export class AssessmentAttemptService {
   }
 
   private async assertStudentTestAccess(test: Test, studentId: string): Promise<void> {
-    const rows = await this.dataSource.query<Array<{ allowed: number }>>(`
-      SELECT 1 AS allowed
-      FROM bundle_tests bundle_test
-      INNER JOIN bundles bundle ON bundle.id = bundle_test.bundle_id
-      INNER JOIN bundle_enrollments enrollment
-        ON enrollment.bundle_id = bundle.id AND enrollment.student_id = $2
-      WHERE bundle_test.test_id = $1
-        AND enrollment.status = 'ACTIVE'
-        AND (enrollment.starts_at IS NULL OR enrollment.starts_at <= CURRENT_TIMESTAMP)
-        AND (enrollment.expires_at IS NULL OR enrollment.expires_at > CURRENT_TIMESTAMP)
-        AND enrollment.payment_status IN ('NOT_REQUIRED', 'PAID')
-        AND bundle.status = 'PUBLISHED'
-        AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
-        AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
-      LIMIT 1
-    `, [test.id, studentId]);
-    if (!rows.length) throw new ForbiddenException('This test is not available in your bundles');
+    await this.bundleAccess.assertTestAccess(
+      test.id,
+      { role: UserRole.STUDENT, userId: studentId } as AuthenticatedUser,
+      { throwForbidden: true },
+    );
   }
 
   private assertMcqIntegrity(questions: Question[]): void {

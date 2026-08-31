@@ -3,12 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository } from 'typeorm';
 import { Question } from '../../common/entities/question.entity';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { BundleAccessService } from '../bundle-access/bundle-access.service';
 import { QuestionQueryDto, SearchQuestionsDto } from './dtos/questions.dto';
 
 @Injectable()
 export class StudentQuestionAccessService {
   constructor(
     @InjectRepository(Question) private readonly questions: Repository<Question>,
+    private readonly bundleAccess: BundleAccessService,
   ) {}
 
   async list(query: QuestionQueryDto, actor: AuthenticatedUser) {
@@ -24,38 +26,11 @@ export class StudentQuestionAccessService {
       .where('question.is_active = TRUE')
       .andWhere('lecture.is_published = TRUE')
       .andWhere('course.is_active = TRUE')
-      .andWhere(`EXISTS (
-        SELECT 1
-        FROM bundle_courses bundle_course
-        JOIN bundles bundle ON bundle.id = bundle_course.bundle_id
-        JOIN bundle_enrollments enrollment
-          ON enrollment.bundle_id = bundle.id
-         AND enrollment.student_id = :studentId
-        WHERE bundle_course.course_id = course.id
-          AND enrollment.status = 'ACTIVE'
-          AND (enrollment.starts_at IS NULL OR enrollment.starts_at <= CURRENT_TIMESTAMP)
-          AND (enrollment.expires_at IS NULL OR enrollment.expires_at > CURRENT_TIMESTAMP)
-          AND enrollment.payment_status IN ('NOT_REQUIRED', 'PAID')
-          AND bundle.status = 'PUBLISHED'
-          AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
-          AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
-          AND (
-            EXISTS (
-              SELECT 1 FROM bundle_weeks selected
-              WHERE selected.bundle_id = bundle.id AND selected.week_id = week.id
-            )
-            OR NOT EXISTS (
-              SELECT 1
-              FROM bundle_weeks selected
-              JOIN weeks selected_week ON selected_week.id = selected.week_id
-              WHERE selected.bundle_id = bundle.id
-                AND selected_week.course_id = course.id
-            )
-          )
-      )`, { studentId: actor.userId })
       .orderBy('question.created_at', 'DESC')
       .skip((page - 1) * limit)
       .take(limit);
+
+    this.bundleAccess.applyStudentAccessScope(builder, 'question', actor.userId);
 
     if (query.topic_id) builder.andWhere('question.topic_id = :topicId', { topicId: query.topic_id });
     if (query.question_type) builder.andWhere('question.question_type = :type', { type: query.question_type });

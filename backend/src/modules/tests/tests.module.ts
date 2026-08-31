@@ -12,6 +12,7 @@ import { TestAttempt } from '../../common/entities/test-attempt.entity';
 import { TestQuestion } from '../../common/entities/test-question.entity';
 import { Test } from '../../common/entities/test.entity';
 import { Week } from '../../common/entities/week.entity';
+import { BundleAccessModule } from '../bundle-access/bundle-access.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { Student } from '../users/entities/student.entity';
 import { AssessmentAttemptService } from './assessment-attempt.service';
@@ -26,10 +27,14 @@ import { TestsController } from './tests.controller';
 import { TestsService } from './tests.service';
 
 @Module({
- imports:[NotificationsModule,TypeOrmModule.forFeature([
-  Test,TestQuestion,TestAttempt,StudentAnswer,QuestionFlag,QuestionNote,
-  Question,McqOption,EssayConfiguration,Course,Week,Lecture,Student,
- ])],
+ imports:[
+  BundleAccessModule,
+  NotificationsModule,
+  TypeOrmModule.forFeature([
+   Test,TestQuestion,TestAttempt,StudentAnswer,QuestionFlag,QuestionNote,
+   Question,McqOption,EssayConfiguration,Course,Week,Lecture,Student,
+  ]),
+ ],
  controllers:[TestsController,TestLaunchController,McqPracticeController,EssayPracticeController],
  providers:[TestsService,AssessmentAttemptService,AssessmentAuthoringService,McqPracticeService,McqPracticeCatalogService,EssayPracticeService],
  exports:[TestsService,AssessmentAttemptService,TypeOrmModule],

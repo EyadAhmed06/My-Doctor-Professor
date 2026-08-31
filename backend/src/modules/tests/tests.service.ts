@@ -1,4 +1,4 @@
-import { randomInt } from 'crypto';
+this.bundleAccess.applyStudentAccessScope(builder, 'test', actor.userId);import { randomInt } from 'crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -59,6 +59,7 @@ export class TestsService implements OnModuleInit {
     @InjectRepository(Student) private readonly students: Repository<Student>,
     private readonly dataSource: DataSource,
     private readonly notifications: NotificationsService,
+    private readonly bundleAccess: BundleAccessService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -648,61 +649,29 @@ export class TestsService implements OnModuleInit {
     studentId: string,
     requireWritable: boolean,
   ): Promise<void> {
-    const rows = await this.dataSource.query<Array<{ read_only: boolean }>>(`
-      SELECT FALSE AS read_only
-      FROM bundle_tests bundle_test
-      INNER JOIN bundles bundle ON bundle.id = bundle_test.bundle_id
-      INNER JOIN bundle_enrollments enrollment
-        ON enrollment.bundle_id = bundle.id AND enrollment.student_id = $2
-      WHERE bundle_test.test_id = $1
-        AND enrollment.status = 'ACTIVE'
-              AND (enrollment.starts_at IS NULL OR enrollment.starts_at <= CURRENT_TIMESTAMP)
-              AND (enrollment.expires_at IS NULL OR enrollment.expires_at > CURRENT_TIMESTAMP)
-              AND enrollment.payment_status IN ('NOT_REQUIRED', 'PAID')
-              AND bundle.status = 'PUBLISHED'
-              AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
-              AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
-      LIMIT 1
-    `, [test.id, studentId]);
-    if (!rows.length) throw new ForbiddenException('This test is not available in your bundles');
-    if (requireWritable && rows[0].read_only) {
-      throw new ForbiddenException('This bundle is read-only');
-    }
+    await this.bundleAccess.assertTestAccess(
+      test.id,
+      { role: UserRole.STUDENT, userId: studentId } as AuthenticatedUser,
+      { throwForbidden: requireWritable },
+    );
   }
 
   private async requireBundleLectureAccess(
     bundleId: string,
     studentId: string,
     lectureIds?: string[],
-    requireWritable = false,
+    _requireWritable = false,
     courseId?: string,
   ): Promise<string[]> {
-    const rows = await this.dataSource.query<Array<{ lecture_id:string; read_only:boolean }>>(`
-      SELECT DISTINCT lecture.id AS lecture_id, FALSE AS read_only
-      FROM bundles bundle
-      INNER JOIN bundle_enrollments enrollment
-        ON enrollment.bundle_id = bundle.id AND enrollment.student_id = $2
-      INNER JOIN bundle_courses bundle_course ON bundle_course.bundle_id = bundle.id
-      INNER JOIN bundle_weeks bundle_week ON bundle_week.bundle_id = bundle.id
-      INNER JOIN weeks week
-        ON week.id = bundle_week.week_id AND week.course_id = bundle_course.course_id
-      INNER JOIN lectures lecture ON lecture.week_id = week.id
-      WHERE bundle.id = $1
-        AND enrollment.status = 'ACTIVE'
-              AND (enrollment.starts_at IS NULL OR enrollment.starts_at <= CURRENT_TIMESTAMP)
-              AND (enrollment.expires_at IS NULL OR enrollment.expires_at > CURRENT_TIMESTAMP)
-              AND enrollment.payment_status IN ('NOT_REQUIRED', 'PAID')
-              AND bundle.status = 'PUBLISHED'
-              AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
-              AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
-        AND ($3::uuid IS NULL OR bundle_course.course_id = $3::uuid)
-        AND lecture.is_published = TRUE
-    `, [bundleId, studentId, courseId ?? null]);
-    if (!rows.length) throw new ForbiddenException('This bundle does not grant access to the selected content');
-    if (requireWritable && rows[0].read_only) {
-      throw new ForbiddenException('This bundle is read-only');
+    const accessibleLectureIds = await this.bundleAccess.getAccessibleLectureIdsInBundle(
+      bundleId,
+      studentId,
+      courseId,
+    );
+    if (!accessibleLectureIds.length) {
+      throw new ForbiddenException('This bundle does not grant access to the selected content');
     }
-    const accessible = new Set(rows.map((row) => row.lecture_id));
+    const accessible = new Set(accessibleLectureIds);
     if (lectureIds?.some((lectureId) => !accessible.has(lectureId))) {
       throw new ForbiddenException('One or more lectures are outside this bundle');
     }

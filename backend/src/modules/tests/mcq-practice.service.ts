@@ -9,6 +9,7 @@ import { TestAttempt, TestAttemptStatus, TestMode } from '../../common/entities/
 import { TestQuestion } from '../../common/entities/test-question.entity';
 import { Test, TestType } from '../../common/entities/test.entity';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { BundleAccessService } from '../bundle-access/bundle-access.service';
 import { Student } from '../users/entities/student.entity';
 import { GeneratePracticeTestDto } from './dtos/tests.dto';
 
@@ -17,8 +18,6 @@ const FINAL_QUESTION_COUNT = 200;
 const FINAL_COURSE_COUNT = 5;
 const FINAL_QUESTIONS_PER_COURSE = 40;
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9._:-]{8,128}$/;
-
-type AccessibleLectureRow = { lecture_id: string };
 
 type GeneratedPractice = {
   test: Test;
@@ -33,6 +32,7 @@ export class McqPracticeService {
     @InjectRepository(Lecture) private readonly lectures: Repository<Lecture>,
     @InjectRepository(Student) private readonly students: Repository<Student>,
     private readonly dataSource: DataSource,
+    private readonly bundleAccess: BundleAccessService,
   ) {}
 
   async generate(dto: GeneratePracticeTestDto, actor: AuthenticatedUser, rawIdempotencyKey?: string): Promise<GeneratedPractice> {
@@ -62,42 +62,15 @@ export class McqPracticeService {
       if (replay) return replay;
     }
 
-    const accessRows = await this.dataSource.query<AccessibleLectureRow[]>(`
-      SELECT DISTINCT lecture.id AS lecture_id
-      FROM bundles bundle
-      INNER JOIN bundle_enrollments enrollment
-        ON enrollment.bundle_id = bundle.id AND enrollment.student_id = $2
-      INNER JOIN bundle_courses bundle_course ON bundle_course.bundle_id = bundle.id
-      INNER JOIN weeks week ON week.course_id = bundle_course.course_id
-      INNER JOIN lectures lecture ON lecture.week_id = week.id
-      WHERE bundle.id = $1
-        AND (
-          EXISTS (
-            SELECT 1 FROM bundle_weeks selected
-            WHERE selected.bundle_id = bundle.id AND selected.week_id = week.id
-          )
-          OR NOT EXISTS (
-            SELECT 1
-            FROM bundle_weeks selected
-            INNER JOIN weeks selected_week ON selected_week.id = selected.week_id
-            WHERE selected.bundle_id = bundle.id
-              AND selected_week.course_id = bundle_course.course_id
-          )
-        )
-        AND enrollment.status = 'ACTIVE'
-        AND (enrollment.starts_at IS NULL OR enrollment.starts_at <= CURRENT_TIMESTAMP)
-        AND (enrollment.expires_at IS NULL OR enrollment.expires_at > CURRENT_TIMESTAMP)
-        AND enrollment.payment_status IN ('NOT_REQUIRED', 'PAID')
-        AND bundle.status = 'PUBLISHED'
-        AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
-        AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
-        AND lecture.is_published = TRUE
-    `, [dto.bundle_id, actor.userId]);
+    const accessibleLectureIds = await this.bundleAccess.getAccessibleLectureIdsInBundle(
+      dto.bundle_id,
+      actor.userId,
+    );
 
-    if (!accessRows.length) {
+    if (!accessibleLectureIds.length) {
       throw new ForbiddenException('This bundle does not grant active access to the selected content');
     }
-    const accessibleIds = new Set(accessRows.map((row) => row.lecture_id));
+    const accessibleIds = new Set(accessibleLectureIds);
     if (uniqueLectureIds.some((lectureId) => !accessibleIds.has(lectureId))) {
       throw new ForbiddenException('One or more lectures are outside this bundle');
     }
