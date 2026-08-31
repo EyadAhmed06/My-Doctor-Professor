@@ -8,7 +8,6 @@ import { AuthProvider } from "@/components/auth-provider";
 import { BundleQuizAvailabilityGuard } from "@/components/bundle-quiz-availability-guard";
 import { GlobalKeyboardShortcuts } from "@/components/global-keyboard-shortcuts";
 import { LocaleProvider } from "@/components/locale-provider";
-import { PaidBundleCheckoutBridge } from "@/components/paid-bundle-checkout-bridge";
 import { PublicThemeAccess } from "@/components/public-theme-access";
 import { UxProvider } from "@/components/ux-provider";
 import "@/components/interaction-foundations.css";
@@ -70,6 +69,6 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en" suppressHydrationWarning>
     <head><Script src="/preference-bootstrap.js" strategy="beforeInteractive" /></head>
-    <body><LocaleProvider><AppThemeProvider><PublicThemeAccess /><AuthProvider><UxProvider><AchievementFeedbackBridge /><GlobalKeyboardShortcuts /><BundleQuizAvailabilityGuard /><PaidBundleCheckoutBridge />{children}</UxProvider></AuthProvider></AppThemeProvider></LocaleProvider></body>
+    <body><LocaleProvider><AppThemeProvider><PublicThemeAccess /><AuthProvider><UxProvider><AchievementFeedbackBridge /><GlobalKeyboardShortcuts /><BundleQuizAvailabilityGuard />{children}</UxProvider></AuthProvider></AppThemeProvider></LocaleProvider></body>
   </html>;
 }

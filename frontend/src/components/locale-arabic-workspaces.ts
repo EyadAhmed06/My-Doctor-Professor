@@ -27,8 +27,15 @@ export const workspaceArabic = new Map<string, string>([
   ["Confirm payment", "تأكيد الدفع"], ["Payment confirmed", "تم تأكيد الدفع"],
   ["Revoke access for", "إلغاء وصول"], ["Revoke", "إلغاء"], ["Access revoked", "تم إلغاء الوصول"],
   ["Choose student", "اختر طالبًا"], ["Grant access", "منح الوصول"], ["Access granted", "تم منح الوصول"],
-  ["No students enrolled yet", "لا يوجد طلاب مسجلون بعد"], ["Grant access to students below or wait for students to enroll.", "امنح الوصول للطلاب أدناه أو انتظر تسجيل الطلاب."],
   ["Mark", "تحديد"], ["as paid?", "كمدفوع؟"], ["Never", "أبدًا"],
+  ["Bundle locked", "الحزمة مقفلة"], ["This bundle is locked until you subscribe in it", "هذه الحزمة مقفلة حتى تقوم بالاشتراك بها"],
+  ["Subscribe to unlock its curriculum, question bank, assessments, flashcards, and resources.", "اشترك لفتح المنهج الدراسي وبنك الأسئلة والاختبارات والبطاقات والموارد."],
+  ["Subscribe for", "الاشتراك مقابل"], ["Subscribing…", "جارٍ الاشتراك…"],
+  ["Your enrollment request has been registered. Access will be unlocked once payment is confirmed.", "تم تسجيل طلب انضمامك. سيتم تفعيل الوصول فور تأكيد الدفع."],
+  ["Quote these details when confirming payment:", "اذكر هذه التفاصيل عند تأكيد الدفع:"],
+  ["Bundle", "الحزمة"], ["Price", "السعر"],
+  ["Primary Contact (Main)", "جهة الاتصال الرئيسية"], ["Alternative Contact", "جهة اتصال بديلة"],
+  ["Contact via WhatsApp", "تواصل عبر واتساب"],
 
   // Study Guides
   ["Unable to load bundle study guides.", "تعذر تحميل أدلة المذاكرة الخاصة بالحزم."], ["Unable to load lecture resources.", "تعذر تحميل موارد المحاضرة."],
