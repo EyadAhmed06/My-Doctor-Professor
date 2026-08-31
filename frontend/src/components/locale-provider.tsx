@@ -101,6 +101,7 @@ const coreArabic = new Map<string, string>([
   ["All totals below come from current database records.", "كل الأرقام أدناه مأخوذة من بيانات النظام الحالية."],
   ["Course studio", "استوديو المقرر"], ["Question bank", "بنك الأسئلة"], ["Assessment builder", "منشئ الاختبارات"], ["Essay grading", "تصحيح الأسئلة المقالية"],
   ["Flashcard studio", "استوديو البطاقات"], ["User administration", "إدارة المستخدمين"], ["Academic structure", "الهيكل الأكاديمي"], ["Audit trail", "سجل التدقيق"],
+  ["You are already signed in on another device. Sign out on that device to continue, or contact an administrator to release your session.", "أنت مسجّل الدخول بالفعل على جهاز آخر. سجّل الخروج من ذلك الجهاز للمتابعة، أو تواصل مع مسؤول النظام لتحرير جلستك."],
 ]);
 
 function dynamicArabic(core: string): string | null {

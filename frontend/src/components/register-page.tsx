@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { FiArrowLeft, FiBookOpen, FiCloud, FiShield, FiUsers } from "react-icons/fi";
 import { Brand, Field, icons, SubmitForm } from "./ui";
-import { apiRequest } from "@/lib/api";
+import { apiRequest, ApiError } from "@/lib/api";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./auth-provider";
 import type { GoogleOnboardingResult } from "./auth-provider";
 import { GoogleSignInButton } from "./google-sign-in-button";
 import { AuthMotion } from "./auth-motion";
+import { useLocale } from "./locale-provider";
 import styles from "./register-page.module.css";
 
 const registrationProof=[
@@ -64,10 +65,22 @@ function normalizePhone(countryCode:string,localNumber:string):string|null{
 export function RegisterPage() {
   const router=useRouter();
   const {googleLogin,completeGoogleSignup,user,loading:authLoading}=useAuth();
+  const {locale}=useLocale();
   const [form,setForm]=useState({full_name:"",email:"",password:"",confirm_password:"",current_semester:"1"});
   const [phoneCountry,setPhoneCountry]=useState("+20");
   const [phoneLocal,setPhoneLocal]=useState("");
   const [googleOnboarding,setGoogleOnboarding]=useState<GoogleOnboardingResult|null>(null);
+
+  const resolveErrorMessage = useCallback((cause: unknown, fallback: string) => {
+    if (cause instanceof ApiError && cause.status === 409 && cause.problem?.error === "ACTIVE_SESSION_EXISTS") {
+      return locale === "ar"
+        ? "أنت مسجّل الدخول بالفعل على جهاز آخر. سجّل الخروج من ذلك الجهاز للمتابعة، أو تواصل مع مسؤول النظام لتحرير جلستك."
+        : "You are already signed in on another device. Sign out on that device to continue, or contact an administrator to release your session.";
+    }
+    if (cause instanceof Error) return cause.message;
+    return fallback;
+  }, [locale]);
+
   const [accepted,setAccepted]=useState(false);
   const [loading,setLoading]=useState(false);
   const [googleLoading,setGoogleLoading]=useState(false);
@@ -108,7 +121,7 @@ export function RegisterPage() {
         await apiRequest<{message:string}>("/auth/signup",{method:"POST",body:{full_name:form.full_name,email:form.email,phone_number:phoneNumber,password:form.password,role:"STUDENT",current_semester:semester}});
         router.push(`/verify-email?email=${encodeURIComponent(form.email)}`);
       }
-    }catch(cause){setError(cause instanceof Error?cause.message:"Unable to create your account. Please try again.");}
+    }catch(cause){setError(resolveErrorMessage(cause, "Unable to create your account. Please try again."));}
     finally{setLoading(false);}
   }
 
@@ -124,9 +137,9 @@ export function RegisterPage() {
       }else{
         router.replace("/dashboard");
       }
-    }catch(cause){setError(cause instanceof Error?cause.message:"Google sign-up could not be started.");}
+    }catch(cause){setError(resolveErrorMessage(cause, "Google sign-up could not be started."));}
     finally{setGoogleLoading(false);}
-  },[authLoading,googleLoading,googleLogin,router]);
+  },[authLoading,googleLoading,googleLogin,resolveErrorMessage,router]);
 
   return <main className="registration-page reference-register auth-motion-page" data-auth-motion-root>
     <AuthMotion variant="register" />

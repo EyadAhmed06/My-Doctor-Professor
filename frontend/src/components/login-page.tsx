@@ -7,6 +7,8 @@ import { Brand, Field, icons, SubmitForm } from "./ui";
 import { useAuth } from "./auth-provider";
 import { GoogleSignInButton } from "./google-sign-in-button";
 import { AuthMotion } from "./auth-motion";
+import { ApiError } from "@/lib/api";
+import { useLocale } from "./locale-provider";
 
 const loginProof=[
   {Icon:FiShield,title:"Trusted by learners",copy:"Join a global community"},
@@ -17,9 +19,22 @@ const loginProof=[
 
 const GOOGLE_ONBOARDING_KEY="mdp_google_onboarding";
 
+function resolveAuthErrorMessage(cause: unknown, locale: "en" | "ar"): string {
+  if (cause instanceof ApiError && cause.status === 409 && cause.problem?.error === "ACTIVE_SESSION_EXISTS") {
+    return locale === "ar"
+      ? "أنت مسجّل الدخول بالفعل على جهاز آخر. سجّل الخروج من ذلك الجهاز للمتابعة، أو تواصل مع مسؤول النظام لتحرير جلستك."
+      : "You are already signed in on another device. Sign out on that device to continue, or contact an administrator to release your session.";
+  }
+  if (cause instanceof Error) return cause.message;
+  return locale === "ar"
+    ? "تعذر تسجيل الدخول. تحقق من اتصالك وحاول مجددًا."
+    : "Unable to sign in. Check your connection and try again.";
+}
+
 export function LoginPage(){
   const router=useRouter();
   const {login,googleLogin,user,loading:authLoading}=useAuth();
+  const {locale}=useLocale();
   const [email,setEmail]=useState("");
   const [password,setPassword]=useState("");
   const [remember,setRemember]=useState(true);
@@ -35,7 +50,7 @@ export function LoginPage(){
     if(authLoading||user)return;
     setLoading(true);setError(null);
     try { await login({email,password,remember}); router.replace("/dashboard"); }
-    catch (cause) { setError(cause instanceof Error?cause.message:"Unable to sign in. Check your connection and try again."); }
+    catch (cause) { setError(resolveAuthErrorMessage(cause, locale)); }
     finally { setLoading(false); }
   }
 
@@ -51,11 +66,11 @@ export function LoginPage(){
         router.replace("/dashboard");
       }
     }catch(cause){
-      setError(cause instanceof Error?cause.message:"Google sign-in could not be completed.");
+      setError(resolveAuthErrorMessage(cause, locale));
     }finally{
       setGoogleLoading(false);
     }
-  },[authLoading,googleLoading,googleLogin,router]);
+  },[authLoading,googleLoading,googleLogin,locale,router]);
 
   return <main className="auth-page login-page reference-login auth-motion-page" data-auth-motion-root>
     <AuthMotion variant="login" />
