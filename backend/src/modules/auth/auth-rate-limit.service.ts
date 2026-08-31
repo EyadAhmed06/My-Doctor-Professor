@@ -28,6 +28,16 @@ export class AuthRateLimitService {
     );
   }
 
+  async enforceEmailVerificationCode(ip: string, email: string): Promise<void> {
+    const normalizedEmail = email.trim().toLowerCase();
+    await this.consume(`ip:verify-email-confirm:${ip}`, 30, 15 * 60);
+    await this.consume(
+      `account:verify-email-confirm:${normalizedEmail}`,
+      8,
+      15 * 60,
+    );
+  }
+
   async enforceBudget(rawKey: string, maximum: number, windowSeconds: number): Promise<void> {
     return this.consume(rawKey, maximum, windowSeconds);
   }
