@@ -160,12 +160,46 @@ export class UsersService {
     await this.resetFailedLoginAttempts(userId);return false;
   }
 
-  async saveSession(id:string,userId:string,refreshTokenHash:string,expiresAt:Date) {
+  async saveSession(
+    id: string,
+    userId: string,
+    refreshTokenHash: string,
+    expiresAt: Date,
+    ipAddress?: string | null,
+    userAgent?: string | null,
+  ) {
     await this.sessionsRepository.save(this.sessionsRepository.create({
-      id,userId,refreshTokenHash,expiresAt,revokedAt:null,lastUsedAt:null,
+      id,
+      userId,
+      refreshTokenHash,
+      expiresAt,
+      revokedAt: null,
+      lastUsedAt: null,
+      ipAddress: ipAddress ?? null,
+      userAgent: userAgent ?? null,
     }));
   }
   findSession(id:string){return this.sessionsRepository.findOne({where:{id}});}
+
+  async revokeExpiredSessions(userId: string): Promise<number> {
+    const result = await this.sessionsRepository.createQueryBuilder()
+      .update(AuthSession)
+      .set({ revokedAt: new Date() })
+      .where('user_id = :userId', { userId })
+      .andWhere('revoked_at IS NULL')
+      .andWhere('expires_at <= CURRENT_TIMESTAMP')
+      .execute();
+    return result.affected ?? 0;
+  }
+
+  async hasActiveSession(userId: string): Promise<boolean> {
+    const count = await this.sessionsRepository.createQueryBuilder('session')
+      .where('session.user_id = :userId', { userId })
+      .andWhere('session.revoked_at IS NULL')
+      .andWhere('session.expires_at > CURRENT_TIMESTAMP')
+      .getCount();
+    return count > 0;
+  }
 
   async getSecurityOverview(userId:string,currentSessionId:string) {
     const sessions=await this.sessionsRepository.createQueryBuilder('session')
@@ -188,6 +222,8 @@ export class UsersService {
         created_at:session.createdAt,
         last_used_at:session.lastUsedAt,
         expires_at:session.expiresAt,
+        ip_address:session.ipAddress,
+        user_agent:session.userAgent,
       })),
       providers:providers.map(provider=>({
         provider:provider.provider,

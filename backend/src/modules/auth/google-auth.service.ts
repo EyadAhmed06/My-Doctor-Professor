@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpStatus,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -8,7 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes, randomUUID, createHash } from 'crypto';
 import { DataSource, QueryFailedError } from 'typeorm';
-import { User, UserStatus } from '../users/entities/user.entity';
+import { User, UserRole, UserStatus } from '../users/entities/user.entity';
 import { generateStudentNumber } from '../users/student-number';
 import { UsersService } from '../users/users.service';
 import { AuthRateLimitService } from './auth-rate-limit.service';
@@ -57,6 +58,7 @@ export class GoogleAuthService {
   async signIn(
     credential: string,
     ip: string,
+    userAgent?: string | null,
   ): Promise<AuthResponseDto | GoogleOnboardingResponseDto> {
     await this.rateLimits.enforceProvider(ip, 'google');
     const identity = await this.googleIdentity.verifyCredential(credential);
@@ -68,7 +70,7 @@ export class GoogleAuthService {
       this.assertAccountEnabled(user);
       await this.touchIdentity(user.id, identity);
       await this.usersService.updateLastLogin(user.id);
-      return this.createSession(user);
+      return this.createSession(user, ip, userAgent);
     }
 
     const existingUser = await this.usersService.findByEmail(identity.email);
@@ -114,7 +116,11 @@ export class GoogleAuthService {
     return { message: 'Google account linked successfully.' };
   }
 
-  async completeSignup(dto: CompleteGoogleSignupDto, ip: string): Promise<AuthResponseDto> {
+  async completeSignup(
+    dto: CompleteGoogleSignupDto,
+    ip: string,
+    userAgent?: string | null,
+  ): Promise<AuthResponseDto> {
     await this.rateLimits.enforceProvider(ip, 'google-signup');
     const onboarding = await this.verifyOnboardingToken(dto.onboarding_token);
 
@@ -153,7 +159,7 @@ export class GoogleAuthService {
     if (!refreshedUser) throw new UnauthorizedException('Account creation did not complete');
     user = refreshedUser;
     await this.usersService.updateLastLogin(user.id);
-    return this.createSession(user);
+    return this.createSession(user, ip, userAgent);
   }
 
   private async createOnboardingResponse(identity: VerifiedGoogleIdentity): Promise<GoogleOnboardingResponseDto> {
@@ -257,15 +263,70 @@ export class GoogleAuthService {
     );
   }
 
-  private async createSession(user: User): Promise<AuthResponseDto> {
+  private isSingleSessionEnforced(role: UserRole): boolean {
+    const enforcedRoles = (this.config.get<string>('AUTH_SINGLE_SESSION_ROLES') ?? 'STUDENT')
+      .split(',')
+      .map((r) => r.trim().toUpperCase())
+      .filter(Boolean);
+    const exemptRoles = (this.config.get<string>('AUTH_SINGLE_SESSION_EXEMPT_ROLES') ?? 'INSTRUCTOR,SYSTEM_ADMIN')
+      .split(',')
+      .map((r) => r.trim().toUpperCase())
+      .filter(Boolean);
+
+    if (exemptRoles.includes(role)) return false;
+    return enforcedRoles.includes(role);
+  }
+
+  private async createSession(
+    user: User,
+    ip?: string | null,
+    userAgent?: string | null,
+  ): Promise<AuthResponseDto> {
+    // 1. Reclaim expired sessions before inspecting live slot.
+    await this.usersService.revokeExpiredSessions(user.id);
+
+    // 2. Enforce single live session if policy applies to user role.
+    if (this.isSingleSessionEnforced(user.role)) {
+      if (await this.usersService.hasActiveSession(user.id)) {
+        throw new ConflictException({
+          statusCode: HttpStatus.CONFLICT,
+          error: 'ACTIVE_SESSION_EXISTS',
+          message:
+            'An active session already exists for this account. Sign out from your other device or ask an administrator to release your session.',
+        });
+      }
+    } else {
+      // Exempt roles (instructors and admins) clear previous sessions so they are never locked out
+      // and do not collide with the unique unrevoked index.
+      await this.usersService.revokeAllSessions(user.id);
+    }
+
     const sessionId = randomUUID();
     const response = await this.signTokenPair(user, sessionId);
-    await this.usersService.saveSession(
-      sessionId,
-      user.id,
-      this.digestToken(response.refresh_token),
-      new Date(Date.now() + this.refreshLifetimeSeconds * 1000),
-    );
+    try {
+      await this.usersService.saveSession(
+        sessionId,
+        user.id,
+        this.digestToken(response.refresh_token),
+        new Date(Date.now() + this.refreshLifetimeSeconds * 1000),
+        ip,
+        userAgent,
+      );
+    } catch (error) {
+      if (error instanceof ConflictException) throw error;
+      if (
+        error instanceof QueryFailedError &&
+        (error as QueryFailedError & { driverError?: { code?: string } }).driverError?.code === '23505'
+      ) {
+        throw new ConflictException({
+          statusCode: HttpStatus.CONFLICT,
+          error: 'ACTIVE_SESSION_EXISTS',
+          message:
+            'An active session already exists for this account. Sign out from your other device or ask an administrator to release your session.',
+        });
+      }
+      throw error;
+    }
     return response;
   }
 

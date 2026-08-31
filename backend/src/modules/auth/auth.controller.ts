@@ -65,7 +65,12 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponseDto> {
     this.assertTrustedBrowserOriginIfPresent(request);
-    const auth = await this.authService.login(dto, request.ip ?? request.socket.remoteAddress ?? 'unknown');
+    const userAgent = (request.headers['user-agent'] as string) || null;
+    const auth = await this.authService.login(
+      dto,
+      request.ip ?? request.socket.remoteAddress ?? 'unknown',
+      userAgent,
+    );
     this.writeRefreshCookies(request, response, auth.refresh_token, dto.remember !== false);
     return this.forTransport(auth, request);
   }
@@ -88,9 +93,11 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponseDto | GoogleOnboardingResponseDto> {
     this.assertTrustedBrowserOriginIfPresent(request);
+    const userAgent = (request.headers['user-agent'] as string) || null;
     const result = await this.googleAuthService.signIn(
       dto.credential,
       request.ip ?? request.socket.remoteAddress ?? 'unknown',
+      userAgent,
     );
     if ('refresh_token' in result) {
       this.writeRefreshCookies(request, response, result.refresh_token, dto.remember !== false);
@@ -109,9 +116,11 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponseDto> {
     this.assertTrustedBrowserOriginIfPresent(request);
+    const userAgent = (request.headers['user-agent'] as string) || null;
     const auth = await this.googleAuthService.completeSignup(
       dto,
       request.ip ?? request.socket.remoteAddress ?? 'unknown',
+      userAgent,
     );
     this.writeRefreshCookies(request, response, auth.refresh_token, true);
     return this.forTransport(auth, request);
