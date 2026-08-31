@@ -14,7 +14,7 @@ import { useLocale } from "./locale-provider";
 import styles from "./register-page.module.css";
 
 const registrationProof=[
-  {Icon:FiShield,title:"Secure & Private",copy:"Your account actions use protected links"},
+  {Icon:FiShield,title:"Secure & Private",copy:"One-time email codes protect account activation"},
   {Icon:FiBookOpen,title:"For Medical Students",copy:"Built specially for your journey"},
   {Icon:FiCloud,title:"Access Anywhere",copy:"Continue from your signed-in browser"},
   {Icon:FiUsers,title:"Structured Learning",copy:"Courses, questions, notes, and review"},
