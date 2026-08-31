@@ -7,6 +7,7 @@ import { Flashcard } from '../../common/entities/flashcard.entity';
 import { Lecture } from '../../common/entities/lecture.entity';
 import { StudentFlashcardProgress } from '../../common/entities/student-flashcard-progress.entity';
 import { Topic } from '../../common/entities/topic.entity';
+import { BundleAccessModule } from '../bundle-access/bundle-access.module';
 import { Student } from '../users/entities/student.entity';
 import { FlashcardAccessService } from './flashcard-access.service';
 import { FlashcardEditingService } from './flashcard-editing.service';
@@ -14,9 +15,12 @@ import { FlashcardsController } from './flashcards.controller';
 import { FlashcardsService } from './flashcards.service';
 
 @Module({
- imports:[TypeOrmModule.forFeature([
-  FlashcardDeck,Flashcard,StudentFlashcardProgress,Course,CourseInstructor,Lecture,Topic,Student,
- ])],
+ imports:[
+  BundleAccessModule,
+  TypeOrmModule.forFeature([
+   FlashcardDeck,Flashcard,StudentFlashcardProgress,Course,CourseInstructor,Lecture,Topic,Student,
+  ]),
+ ],
  controllers:[FlashcardsController],
  providers:[FlashcardsService,FlashcardAccessService,FlashcardEditingService],
  exports:[FlashcardsService,TypeOrmModule],

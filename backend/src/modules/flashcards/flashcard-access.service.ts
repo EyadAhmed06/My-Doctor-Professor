@@ -4,6 +4,7 @@ import { Brackets, DataSource, Repository } from 'typeorm';
 import { FlashcardDeck } from '../../common/entities/flashcard-deck.entity';
 import { Flashcard } from '../../common/entities/flashcard.entity';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { BundleAccessService } from '../bundle-access/bundle-access.service';
 import { UserRole } from '../users/entities/user.entity';
 import { CardQueryDto, DeckQueryDto } from './dtos/flashcards.dto';
 
@@ -13,39 +14,11 @@ export class FlashcardAccessService {
     @InjectRepository(FlashcardDeck) private readonly decks: Repository<FlashcardDeck>,
     @InjectRepository(Flashcard) private readonly cards: Repository<Flashcard>,
     private readonly dataSource: DataSource,
+    private readonly bundleAccess: BundleAccessService,
   ) {}
 
   async assertDeckReadable(deckId: string, actor: AuthenticatedUser): Promise<void> {
-    if (actor.role !== UserRole.STUDENT) return;
-    const allowed = await this.exists(`
-      SELECT 1
-      FROM flashcard_decks deck
-      JOIN courses course ON course.id = deck.course_id
-      LEFT JOIN lectures lecture ON lecture.id = deck.lecture_id
-      LEFT JOIN weeks week ON week.id = lecture.week_id
-      JOIN bundle_enrollments enrollment ON enrollment.student_id = $2
-      JOIN bundles bundle ON bundle.id = enrollment.bundle_id
-      WHERE deck.id = $1
-        AND deck.is_published = TRUE
-        AND course.is_active = TRUE
-        AND (lecture.id IS NULL OR lecture.is_published = TRUE)
-        AND enrollment.status <> 'REVOKED'
-        AND bundle.status IN ('PUBLISHED','ARCHIVED')
-        AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
-        AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
-        AND (
-          (deck.lecture_id IS NOT NULL AND EXISTS (
-            SELECT 1 FROM bundle_weeks bw
-            WHERE bw.bundle_id = bundle.id AND bw.week_id = week.id
-          ))
-          OR
-          (deck.lecture_id IS NULL AND EXISTS (
-            SELECT 1 FROM bundle_courses bc
-            WHERE bc.bundle_id = bundle.id AND bc.course_id = deck.course_id
-          ))
-        )
-      LIMIT 1`, [deckId, actor.userId]);
-    if (!allowed) throw new NotFoundException('Flashcard deck not found');
+    await this.bundleAccess.assertDeckAccess(deckId, actor);
   }
 
   async assertCardReadable(cardId: string, actor: AuthenticatedUser): Promise<void> {
@@ -69,31 +42,12 @@ export class FlashcardAccessService {
       .where('deck.is_published = TRUE')
       .andWhere('course.is_active = TRUE')
       .andWhere('(deck.lecture_id IS NULL OR lecture.is_published = TRUE)')
-      .andWhere(`EXISTS (
-        SELECT 1
-        FROM bundle_enrollments enrollment
-        JOIN bundles bundle ON bundle.id = enrollment.bundle_id
-        WHERE enrollment.student_id = :studentId
-          AND enrollment.status <> 'REVOKED'
-          AND bundle.status IN ('PUBLISHED','ARCHIVED')
-          AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
-          AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
-          AND (
-            (deck.lecture_id IS NOT NULL AND EXISTS (
-              SELECT 1 FROM bundle_weeks bw
-              WHERE bw.bundle_id = bundle.id AND bw.week_id = lecture.week_id
-            ))
-            OR
-            (deck.lecture_id IS NULL AND EXISTS (
-              SELECT 1 FROM bundle_courses bc
-              WHERE bc.bundle_id = bundle.id AND bc.course_id = deck.course_id
-            ))
-          )
-      )`, { studentId: actor.userId })
       .orderBy('deck.display_order', 'ASC')
       .addOrderBy('deck.created_at', 'DESC')
       .skip((page - 1) * limit)
       .take(limit);
+
+    this.bundleAccess.applyStudentAccessScope(builder, 'deck', actor.userId);
 
     if (query.course_id) builder.andWhere('deck.course_id = :courseId', { courseId: query.course_id });
     if (query.lecture_id) builder.andWhere('deck.lecture_id = :lectureId', { lectureId: query.lecture_id });
@@ -121,34 +75,13 @@ export class FlashcardAccessService {
   }
 
   async listStudentCourses(actor: AuthenticatedUser) {
-    return this.decks.createQueryBuilder('deck')
+    const builder = this.decks.createQueryBuilder('deck')
       .innerJoin('deck.course', 'course')
       .innerJoin('deck.cards', 'card', 'card.is_active = TRUE')
       .leftJoin('deck.lecture', 'lecture')
       .where('deck.is_published = TRUE')
       .andWhere('course.is_active = TRUE')
       .andWhere('(deck.lecture_id IS NULL OR lecture.is_published = TRUE)')
-      .andWhere(`EXISTS (
-        SELECT 1
-        FROM bundle_enrollments enrollment
-        JOIN bundles bundle ON bundle.id = enrollment.bundle_id
-        WHERE enrollment.student_id = :studentId
-          AND enrollment.status <> 'REVOKED'
-          AND bundle.status IN ('PUBLISHED','ARCHIVED')
-          AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
-          AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
-          AND (
-            (deck.lecture_id IS NOT NULL AND EXISTS (
-              SELECT 1 FROM bundle_weeks bw
-              WHERE bw.bundle_id = bundle.id AND bw.week_id = lecture.week_id
-            ))
-            OR
-            (deck.lecture_id IS NULL AND EXISTS (
-              SELECT 1 FROM bundle_courses bc
-              WHERE bc.bundle_id = bundle.id AND bc.course_id = deck.course_id
-            ))
-          )
-      )`, { studentId: actor.userId })
       .select('course.id', 'id')
       .addSelect('course.courseName', 'courseName')
       .addSelect('course.courseCode', 'courseCode')
@@ -157,8 +90,11 @@ export class FlashcardAccessService {
       .groupBy('course.id')
       .addGroupBy('course.courseName')
       .addGroupBy('course.courseCode')
-      .orderBy('course.courseName', 'ASC')
-      .getRawMany<{ id: string; courseName: string; courseCode: string; deckCount: number; cardCount: number }>();
+      .orderBy('course.courseName', 'ASC');
+
+    this.bundleAccess.applyStudentAccessScope(builder, 'deck', actor.userId);
+
+    return builder.getRawMany<{ id: string; courseName: string; courseCode: string; deckCount: number; cardCount: number }>();
   }
 
   async listStudentDue(actor: AuthenticatedUser, query: CardQueryDto) {
@@ -180,32 +116,14 @@ export class FlashcardAccessService {
       .andWhere('course.is_active = TRUE')
       .andWhere('(deck.lecture_id IS NULL OR lecture.is_published = TRUE)')
       .andWhere('(progress.id IS NULL OR progress.next_review_at IS NULL OR progress.next_review_at <= :now)', { now })
-      .andWhere(`EXISTS (
-        SELECT 1
-        FROM bundle_enrollments enrollment
-        JOIN bundles bundle ON bundle.id = enrollment.bundle_id
-        WHERE enrollment.student_id = :studentId
-          AND enrollment.status <> 'REVOKED'
-          AND bundle.status IN ('PUBLISHED','ARCHIVED')
-          AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
-          AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
-          AND (
-            (deck.lecture_id IS NOT NULL AND EXISTS (
-              SELECT 1 FROM bundle_weeks bw
-              WHERE bw.bundle_id = bundle.id AND bw.week_id = lecture.week_id
-            ))
-            OR
-            (deck.lecture_id IS NULL AND EXISTS (
-              SELECT 1 FROM bundle_courses bc
-              WHERE bc.bundle_id = bundle.id AND bc.course_id = deck.course_id
-            ))
-          )
-      )`)
       .orderBy('progress.next_review_at', 'ASC', 'NULLS FIRST')
       .addOrderBy('deck.display_order', 'ASC')
       .addOrderBy('card.display_order', 'ASC')
       .skip((page - 1) * limit)
       .take(limit);
+
+    this.bundleAccess.applyStudentAccessScope(builder, 'card', actor.userId);
+
     if (query.course_id) builder.andWhere('deck.course_id = :courseId', { courseId: query.course_id });
     if (query.difficulty) builder.andWhere('card.difficulty = :difficulty', { difficulty: query.difficulty });
     const [data, total] = await builder.getManyAndCount();
@@ -229,39 +147,16 @@ export class FlashcardAccessService {
       .andWhere('deck.is_published = TRUE')
       .andWhere('course.is_active = TRUE')
       .andWhere('(deck.lecture_id IS NULL OR lecture.is_published = TRUE)')
-      .andWhere(`EXISTS (
-        SELECT 1
-        FROM bundle_enrollments enrollment
-        JOIN bundles bundle ON bundle.id = enrollment.bundle_id
-        WHERE enrollment.student_id = :studentId
-          AND enrollment.status <> 'REVOKED'
-          AND bundle.status IN ('PUBLISHED','ARCHIVED')
-          AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
-          AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
-          AND (
-            (deck.lecture_id IS NOT NULL AND EXISTS (
-              SELECT 1 FROM bundle_weeks bw
-              WHERE bw.bundle_id = bundle.id AND bw.week_id = lecture.week_id
-            ))
-            OR
-            (deck.lecture_id IS NULL AND EXISTS (
-              SELECT 1 FROM bundle_courses bc
-              WHERE bc.bundle_id = bundle.id AND bc.course_id = deck.course_id
-            ))
-          )
-      )`)
       .orderBy('deck.display_order', 'ASC')
       .addOrderBy('card.display_order', 'ASC')
       .skip((page - 1) * limit)
       .take(limit);
+
+    this.bundleAccess.applyStudentAccessScope(builder, 'card', actor.userId);
+
     if (query.course_id) builder.andWhere('deck.course_id = :courseId', { courseId: query.course_id });
     if (query.difficulty) builder.andWhere('card.difficulty = :difficulty', { difficulty: query.difficulty });
     const [data, total] = await builder.getManyAndCount();
     return { data, page, limit, total, total_pages: Math.ceil(total / limit) };
-  }
-
-  private async exists(sql: string, params: unknown[]): Promise<boolean> {
-    const rows = await this.dataSource.query(sql, params) as unknown[];
-    return rows.length > 0;
   }
 }

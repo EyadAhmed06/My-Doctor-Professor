@@ -1,16 +1,31 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { buildCourseAccessExistsSql } from '../bundle-access/bundle-access.predicates';
+import { BundleAccessService } from '../bundle-access/bundle-access.service';
 import { UserRole } from '../users/entities/user.entity';
 import { CreateEssayCaseDto, ReorderEssayCasesDto, SubmitEssayCaseDto, UpdateEssayCaseDto } from './essay-cases.dto';
 
 type Row = Record<string, any>;
 @Injectable()
 export class EssayCasesService {
-  constructor(private readonly db: DataSource) {}
+  constructor(
+    private readonly db: DataSource,
+    private readonly bundleAccess: BundleAccessService,
+  ) {}
 
   async listCourses(actor: AuthenticatedUser) {
-    if (actor.role === UserRole.STUDENT) return this.db.query(`SELECT DISTINCT c.id,c.course_code AS "courseCode",c.course_name AS "courseName" FROM courses c JOIN bundle_courses bc ON bc.course_id=c.id JOIN bundles b ON b.id=bc.bundle_id JOIN bundle_enrollments e ON e.bundle_id=b.id WHERE e.student_id=$1 AND e.status='ACTIVE' AND e.payment_status IN ('NOT_REQUIRED','PAID') AND (e.expires_at IS NULL OR e.expires_at>now()) AND b.status='PUBLISHED' AND (b.available_until IS NULL OR b.available_until>now()) ORDER BY c.course_name`, [actor.userId]);
+    if (actor.role === UserRole.STUDENT) {
+      return this.db.query(
+        /* security-audit-reviewed: parameterized-or-allowlisted-fragments */
+        `SELECT DISTINCT c.id, c.course_code AS "courseCode", c.course_name AS "courseName"
+         FROM courses c
+         WHERE c.is_active = TRUE
+           AND ${buildCourseAccessExistsSql('c.id', '$1', 'c')}
+         ORDER BY c.course_name`,
+        [actor.userId],
+      );
+    }
     if (actor.role === UserRole.INSTRUCTOR) return this.db.query(`SELECT DISTINCT c.id,c.course_code AS "courseCode",c.course_name AS "courseName" FROM courses c LEFT JOIN course_instructors mine ON mine.course_id=c.id AND mine.instructor_id=$1 WHERE mine.instructor_id IS NOT NULL OR NOT EXISTS (SELECT 1 FROM course_instructors owner WHERE owner.course_id=c.id) ORDER BY c.course_name`, [actor.userId]);
     return this.db.query(`SELECT id,course_code AS "courseCode",course_name AS "courseName" FROM courses ORDER BY course_name`);
   }
@@ -128,5 +143,20 @@ export class EssayCasesService {
   private async insertCase(m:EntityManager,dto:any,userId:string){ const row=(await m.query(`INSERT INTO essay_cases(week_id,title,stem,section,source_case_number,is_published,created_by,display_order) VALUES($1,$2,$3,$4,$5,$6,$7,(SELECT COALESCE(MAX(display_order),0)+1 FROM essay_cases WHERE week_id=$1)) RETURNING id`,[dto.week_id,dto.title.trim(),dto.stem.trim(),dto.section?.trim()||null,dto.source_case_number||null,dto.is_published??false,userId]))[0]; for(let i=0;i<dto.questions.length;i++) await m.query(`INSERT INTO essay_case_questions(case_id,prompt,model_answer,display_order) VALUES($1,$2,$3,$4)`,[row.id,dto.questions[i].prompt.trim(),dto.questions[i].model_answer.trim(),i+1]); return row.id; }
   private async requireCase(id:string){ const row=(await this.db.query(`SELECT c.*,w.course_id FROM essay_cases c JOIN weeks w ON w.id=c.week_id WHERE c.id=$1`,[id]))[0]; if(!row) throw new NotFoundException('Essay case not found'); return row; }
   private async courseForWeek(id:string){ const row=(await this.db.query(`SELECT course_id FROM weeks WHERE id=$1`,[id]))[0]; if(!row) throw new NotFoundException('Week not found'); return row.course_id; }
-  private async assertCourseAccess(courseId:string,actor:AuthenticatedUser,manage:boolean){ if(actor.role===UserRole.SYSTEM_ADMIN)return; if(actor.role===UserRole.INSTRUCTOR){ const ok=(await this.db.query(`SELECT 1 FROM course_instructors WHERE course_id=$1 AND instructor_id=$2`,[courseId,actor.userId]))[0]; if(ok)return; } if(!manage&&actor.role===UserRole.STUDENT){ const ok=(await this.db.query(`SELECT 1 FROM bundle_courses bc JOIN bundles b ON b.id=bc.bundle_id JOIN bundle_enrollments e ON e.bundle_id=b.id WHERE bc.course_id=$1 AND e.student_id=$2 AND e.status='ACTIVE' AND e.payment_status IN ('NOT_REQUIRED','PAID') AND (e.expires_at IS NULL OR e.expires_at>now()) AND b.status='PUBLISHED' AND (b.available_until IS NULL OR b.available_until>now())`,[courseId,actor.userId]))[0]; if(ok)return; } throw new ForbiddenException(manage?'You are not assigned to manage this course':'This course is not available in an active enrolled bundle'); }
+  private async assertCourseAccess(courseId: string, actor: AuthenticatedUser, manage: boolean) {
+    if (actor.role === UserRole.SYSTEM_ADMIN) return;
+    if (actor.role === UserRole.INSTRUCTOR) {
+      const ok = (await this.db.query(`SELECT 1 FROM course_instructors WHERE course_id = $1 AND instructor_id = $2`, [courseId, actor.userId]))[0];
+      if (ok) return;
+    }
+    if (!manage && actor.role === UserRole.STUDENT) {
+      const ok = (await this.db.query(
+        /* security-audit-reviewed: parameterized-or-allowlisted-fragments */
+        `SELECT 1 FROM courses c WHERE c.id = $1 AND c.is_active = TRUE AND ${buildCourseAccessExistsSql('$1', '$2', 'c')}`,
+        [courseId, actor.userId],
+      ))[0];
+      if (ok) return;
+    }
+    throw new ForbiddenException(manage ? 'You are not assigned to manage this course' : 'This course is not available in an active enrolled bundle');
+  }
 }

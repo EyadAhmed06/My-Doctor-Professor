@@ -7,6 +7,7 @@ import { Resource } from '../../common/entities/resource.entity';
 import { Semester } from '../../common/entities/semester.entity';
 import { Topic } from '../../common/entities/topic.entity';
 import { Week } from '../../common/entities/week.entity';
+import { BundleAccessModule } from '../bundle-access/bundle-access.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AcademicAccessService } from './academic-access.service';
 import { AcademicController } from './academic.controller';
@@ -15,6 +16,7 @@ import { ResourceStorageService } from './resource-storage.service';
 
 @Module({
   imports: [
+    BundleAccessModule,
     NotificationsModule,
     TypeOrmModule.forFeature([
       Semester,

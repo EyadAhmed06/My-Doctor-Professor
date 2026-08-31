@@ -25,6 +25,7 @@ import { Topic } from '../../common/entities/topic.entity';
 import { Week } from '../../common/entities/week.entity';
 import { NotificationType } from '../../common/entities/notification.entity';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { BundleAccessService } from '../bundle-access/bundle-access.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Instructor } from '../users/entities/instructor.entity';
 import { UserRole } from '../users/entities/user.entity';
@@ -77,6 +78,7 @@ export class AcademicService {
     private readonly dataSource: DataSource,
     private readonly resourceStorage: ResourceStorageService,
     private readonly notifications: NotificationsService,
+    private readonly bundleAccess: BundleAccessService,
   ) {}
 
   async createSemester(dto: CreateSemesterDto): Promise<Semester> {
@@ -176,22 +178,8 @@ export class AcademicService {
       });
     }
     if (actor.role === UserRole.STUDENT) {
-      builder.andWhere('course.is_active = TRUE')
-        .andWhere(`EXISTS (
-          SELECT 1
-          FROM bundle_courses bundle_course
-          JOIN bundles bundle ON bundle.id = bundle_course.bundle_id
-          JOIN bundle_enrollments enrollment ON enrollment.bundle_id = bundle.id
-          WHERE bundle_course.course_id = course.id
-            AND enrollment.student_id = :actorId
-            AND enrollment.status = 'ACTIVE'
-            AND enrollment.starts_at <= CURRENT_TIMESTAMP
-            AND (enrollment.expires_at IS NULL OR enrollment.expires_at > CURRENT_TIMESTAMP)
-            AND bundle.status = 'PUBLISHED'
-            AND (bundle.is_free = TRUE OR enrollment.payment_status = 'PAID')
-            AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
-            AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)
-        )`, { actorId: actor.userId });
+      builder.andWhere('course.is_active = TRUE');
+      this.bundleAccess.applyStudentAccessScope(builder, 'course', actor.userId);
     } else if (actor.role === UserRole.INSTRUCTOR) {
       builder.andWhere(`EXISTS (
         SELECT 1 FROM course_instructors assignment
@@ -710,23 +698,7 @@ export class AcademicService {
   }
 
   private async accessibleWeekIds(studentId:string,courseId:string):Promise<string[]> {
-    if(!studentId) return [];
-    const rows=await this.dataSource.query(`
-      SELECT DISTINCT week.id
-      FROM weeks week
-      JOIN bundle_weeks bundle_week ON bundle_week.week_id=week.id
-      JOIN bundles bundle ON bundle.id=bundle_week.bundle_id
-      JOIN bundle_enrollments enrollment ON enrollment.bundle_id=bundle.id
-      WHERE week.course_id=$1 AND enrollment.student_id=$2
-        AND enrollment.status='ACTIVE'
-        AND enrollment.starts_at<=CURRENT_TIMESTAMP
-        AND (enrollment.expires_at IS NULL OR enrollment.expires_at>CURRENT_TIMESTAMP)
-        AND bundle.status='PUBLISHED'
-        AND (bundle.is_free=TRUE OR enrollment.payment_status='PAID')
-        AND (bundle.available_from IS NULL OR bundle.available_from<=CURRENT_TIMESTAMP)
-        AND (bundle.available_until IS NULL OR bundle.available_until>CURRENT_TIMESTAMP)
-    `,[courseId,studentId]) as Array<{id:string}>;
-    return rows.map((row)=>row.id);
+    return this.bundleAccess.getAccessibleWeekIds(courseId, studentId);
   }
 
   private async assertCourseManager(courseId: string, actor: AuthenticatedUser): Promise<void> {
