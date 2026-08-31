@@ -274,7 +274,12 @@ export class UsersService {
         where:{id,userId},
         lock:{mode:'pessimistic_write'},
       });
-      if(!session||session.revokedAt||session.expiresAt<=new Date())return 'invalid';
+      if(!session||session.revokedAt)return 'invalid';
+      if(session.expiresAt<=new Date()) {
+        session.revokedAt=new Date();
+        await manager.save(AuthSession,session);
+        return 'invalid';
+      }
       if(session.lastUsedAt&&Date.now()-session.lastUsedAt.getTime()<=raceGraceMs) {
         return 'race';
       }

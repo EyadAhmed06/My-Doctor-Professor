@@ -478,4 +478,28 @@ describe('Single Active Session Policy', () => {
     expect(deviceBLogin).toBeDefined();
     expect(mockSessions.filter((s) => s.userId === studentUser.id && !s.revokedAt)).toHaveLength(1);
   });
+
+  it('7. allows a student to log in after an expired session is cleaned up on refresh or login', async () => {
+    const usersService = createMockUsersService();
+    const { authService } = createAuthServices(usersService);
+
+    // Initial login creates session
+    await authService.login(
+      { email: studentUser.email, password: 'password123', remember: true },
+      '192.168.1.1',
+    );
+    expect(mockSessions).toHaveLength(1);
+
+    // Simulate session expiration
+    mockSessions[0].expiresAt = new Date(Date.now() - 1000);
+
+    // Attempting login after session expiration revokes expired session and succeeds without 409
+    const secondLogin = await authService.login(
+      { email: studentUser.email, password: 'password123', remember: true },
+      '192.168.1.2',
+    );
+    expect(secondLogin).toBeDefined();
+    expect(mockSessions[0].revokedAt).not.toBeNull();
+    expect(mockSessions.filter((s) => !s.revokedAt)).toHaveLength(1);
+  });
 });
