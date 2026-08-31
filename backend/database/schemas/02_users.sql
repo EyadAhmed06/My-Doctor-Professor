@@ -141,6 +141,10 @@ CREATE TABLE auth_sessions (
 
     refresh_token_hash TEXT NOT NULL,
 
+    ip_address INET,
+
+    user_agent TEXT,
+
     expires_at TIMESTAMP NOT NULL,
 
     revoked_at TIMESTAMP,
@@ -250,6 +254,9 @@ ON auth_sessions(user_id);
 
 CREATE INDEX idx_auth_sessions_expiry
 ON auth_sessions(expires_at);
+
+CREATE UNIQUE INDEX uq_auth_sessions_active_user
+ON auth_sessions(user_id) WHERE revoked_at IS NULL;
 
 CREATE INDEX idx_users_role
 ON users(role);
