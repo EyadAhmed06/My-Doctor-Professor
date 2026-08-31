@@ -103,6 +103,33 @@ export class AdminController {
     await this.admin.removeUser(id, actor);
   }
 
+  @Get('users/:userId/sessions')
+  getUserSessions(
+    @Param('userId', uuid) id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.admin.getUserSessions(id, actor);
+  }
+
+  @Delete('users/:userId/sessions')
+  @HttpCode(HttpStatus.OK)
+  revokeUserSessions(
+    @Param('userId', uuid) id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.admin.revokeUserSessions(id, actor);
+  }
+
+  @Delete('users/:userId/sessions/:sessionId')
+  @HttpCode(HttpStatus.OK)
+  revokeUserSession(
+    @Param('userId', uuid) userId: string,
+    @Param('sessionId', uuid) sessionId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.admin.revokeUserSession(userId, sessionId, actor);
+  }
+
   @Get('statistics')
   statistics(@Query() query: StatisticsQueryDto) {
     return this.admin.statistics(query);

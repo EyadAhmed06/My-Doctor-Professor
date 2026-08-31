@@ -473,6 +473,64 @@ export class AdminService {
     await this.updateStatus(id, { status: UserStatus.DEACTIVATED }, actor);
   }
 
+  async getUserSessions(id: string, _actor: AuthenticatedUser) {
+    await this.requireUser(id);
+    const sessions = await this.dataSource
+      .getRepository(AuthSession)
+      .createQueryBuilder("session")
+      .where("session.user_id = :id", { id })
+      .orderBy("session.created_at", "DESC")
+      .getMany();
+    return {
+      sessions: sessions.map((session) => ({
+        id: session.id,
+        ip_address: session.ipAddress,
+        user_agent: session.userAgent,
+        created_at: session.createdAt,
+        last_used_at: session.lastUsedAt,
+        expires_at: session.expiresAt,
+        revoked_at: session.revokedAt,
+        is_active: !session.revokedAt && session.expiresAt > new Date(),
+      })),
+    };
+  }
+
+  async revokeUserSessions(id: string, actor: AuthenticatedUser) {
+    const target = await this.requireUser(id);
+    await this.assertCanManageTarget(actor, target);
+    const result = await this.dataSource
+      .getRepository(AuthSession)
+      .createQueryBuilder()
+      .update(AuthSession)
+      .set({ revokedAt: new Date() })
+      .where("user_id = :id AND revoked_at IS NULL", { id })
+      .execute();
+    return {
+      message: "Active sessions for user revoked successfully",
+      revoked_count: result.affected ?? 0,
+    };
+  }
+
+  async revokeUserSession(
+    userId: string,
+    sessionId: string,
+    actor: AuthenticatedUser,
+  ) {
+    const target = await this.requireUser(userId);
+    await this.assertCanManageTarget(actor, target);
+    const session = await this.dataSource
+      .getRepository(AuthSession)
+      .findOne({
+        where: { id: sessionId, userId },
+      });
+    if (!session) throw new NotFoundException("Session not found");
+    if (!session.revokedAt) {
+      session.revokedAt = new Date();
+      await this.dataSource.getRepository(AuthSession).save(session);
+    }
+    return { message: "Session revoked successfully" };
+  }
+
   async importUsers(dto: ImportUsersDto, actor: AuthenticatedUser) {
     const created: any[] = [];
     const errors: any[] = [];
