@@ -136,7 +136,7 @@ export function VerifyEmailPage(){
 
   return <ActionLayout variant="verify" eyebrow="EMAIL VERIFICATION" title={verified?"You are verified.":"One final step."} description={verified?"Your account is active and ready for your learning journey.":"Enter the one-time code we sent to your inbox to activate your account."}>
     <div className={styles.heading}><span className={styles.step}>{verified?<FiCheck/>:"2"}</span><div><h2>{verified?"Email verified":"Enter your verification code"}</h2><p>{email?<>We sent a 6-digit code to <b>{email}</b>.</>:<>Return to registration so we know which account to verify.</>}</p></div></div>
-    {verified?<div className={styles.complete}><span><FiCheck/></span><h2>You're all set</h2><p>Your email is confirmed and your account is now active.</p><Notice message={message} error={null}/><Link className={`primary-button ${styles.submit}`} href="/login">Continue to login <icons.Arrow/></Link></div>:
+    {verified?<div className={styles.complete}><span><FiCheck/></span><h2>All set</h2><p>Your email is confirmed and your account is now active.</p><Notice message={message} error={null}/><Link className={`primary-button ${styles.submit}`} href="/login">Continue to login <icons.Arrow/></Link></div>:
     email?<form className={styles.otpForm} onSubmit={submit} noValidate>
       <div className={styles.otpPanel}>
         <span className={styles.otpLabel}>6-DIGIT CODE</span>
@@ -162,7 +162,7 @@ export function VerifyEmailPage(){
       <SubmitButton loading={loading} label="Verify email"/>
       <Notice message={message} error={error}/>
       <div className={styles.resendRow}>
-        <span>Didn't receive it?</span>
+        <span>No code yet?</span>
         <button type="button" onClick={resend} disabled={loading||cooldown>0}>{cooldown?`Resend in ${cooldown}s`:"Send a new code"}</button>
       </div>
     </form>:<div className={styles.actions}><Notice message={null} error={error}/><Link className={`primary-button ${styles.submit}`} href="/register">Return to registration <icons.Arrow/></Link></div>}
