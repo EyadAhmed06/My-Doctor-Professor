@@ -5,6 +5,7 @@ import { Test } from '../../common/entities/test.entity';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
 import { GeneratePracticeTestDto } from './dtos/tests.dto';
+import { BundleAccessService } from '../bundle-access/bundle-access.service';
 import { McqPracticeService } from './mcq-practice.service';
 
 const actor: AuthenticatedUser = {
@@ -31,9 +32,19 @@ function replayBuilder(test: Test) {
 }
 
 describe('McqPracticeService idempotency', () => {
+  const createService = (
+    questions = {} as never,
+    lectures = {} as never,
+    students = { exists: jest.fn().mockResolvedValue(true) } as never,
+    dataSource = { query: jest.fn() } as never,
+  ) => {
+    const bundleAccess = new BundleAccessService(dataSource);
+    return new McqPracticeService(questions, lectures, students, dataSource, bundleAccess);
+  };
+
   it('rejects malformed idempotency keys before any bundle query runs', async () => {
     const query = jest.fn();
-    const service = new McqPracticeService(
+    const service = createService(
       {} as never,
       {} as never,
       { exists: jest.fn().mockResolvedValue(true) } as never,
@@ -46,7 +57,7 @@ describe('McqPracticeService idempotency', () => {
   });
 
   it('rejects duplicate lecture ids even if the caller bypasses DTO validation', async () => {
-    const service = new McqPracticeService({} as never, {} as never, {} as never, {} as never);
+    const service = createService();
 
     await expect(service.generate({
       ...dto,
@@ -66,7 +77,7 @@ describe('McqPracticeService idempotency', () => {
       query,
       getRepository: jest.fn(),
     };
-    const service = new McqPracticeService(
+    const service = createService(
       {} as never,
       {} as never,
       { exists: jest.fn().mockResolvedValue(true) } as never,
@@ -98,7 +109,7 @@ describe('McqPracticeService idempotency', () => {
 
   it('rejects reusing an idempotency key for a different request fingerprint', async () => {
     const dataSource = { query: jest.fn(), getRepository: jest.fn() };
-    const service = new McqPracticeService(
+    const service = createService(
       {} as never,
       {} as never,
       { exists: jest.fn().mockResolvedValue(true) } as never,

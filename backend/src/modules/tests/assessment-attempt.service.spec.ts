@@ -76,6 +76,8 @@ function assignment(question = validMcq()): TestQuestion {
   };
 }
 
+import { BundleAccessService } from '../bundle-access/bundle-access.service';
+
 function baseService(options: {
   test?: Test;
   assignments?: TestQuestion[];
@@ -83,7 +85,11 @@ function baseService(options: {
 } = {}) {
   const test = options.test ?? testRecord();
   const assignments = options.assignments ?? [assignment()];
-  const dataSource = options.dataSource ?? {};
+  const dataSource = {
+    query: jest.fn().mockResolvedValue([{ allowed: 1 }]),
+    ...options.dataSource,
+  } as never;
+  const bundleAccess = new BundleAccessService(dataSource);
   return new AssessmentAttemptService(
     { findOne: jest.fn().mockResolvedValue(test) } as never,
     { find: jest.fn().mockResolvedValue(assignments) } as never,
@@ -91,10 +97,8 @@ function baseService(options: {
     {} as never,
     {} as never,
     { exists: jest.fn().mockResolvedValue(true) } as never,
-    {
-      query: jest.fn().mockResolvedValue([{ allowed: 1 }]),
-      ...dataSource,
-    } as never,
+    dataSource,
+    bundleAccess,
   );
 }
 

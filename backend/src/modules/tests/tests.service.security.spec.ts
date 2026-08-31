@@ -1,23 +1,29 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { UserRole } from '../users/entities/user.entity';
+import { BundleAccessService } from '../bundle-access/bundle-access.service';
 import { TestsService } from './tests.service';
 
 describe('TestsService security', () => {
-  const createService = (query: jest.Mock) => new TestsService(
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    {} as never,
-    { query } as never,
-    {} as never,
-  );
+  const createService = (query: jest.Mock) => {
+    const bundleAccess = new BundleAccessService({ query } as never);
+    return new TestsService(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      { query } as never,
+      {} as never,
+      bundleAccess,
+    );
+  };
 
   it('denies lecture practice without an active, current, paid-or-free published bundle entitlement', async () => {
     const query = jest.fn().mockResolvedValue([]);
@@ -64,5 +70,15 @@ describe('TestsService security', () => {
     expect(view).not.toHaveProperty('hint');
     expect(view.options[0]).not.toHaveProperty('isCorrect');
     expect(view.options[0]).not.toHaveProperty('explanation');
+  });
+
+  it('throws NotFoundException (404) rather than ForbiddenException (403) when student views un-enrolled test', async () => {
+    const query = jest.fn().mockResolvedValue([]);
+    const service = createService(query);
+
+    const test = { id: 'test-123', isPublished: true } as any;
+    const student = { userId: 'student-123', role: UserRole.STUDENT } as any;
+
+    await expect((service as any).assertCanViewTest(test, student)).rejects.toBeInstanceOf(NotFoundException);
   });
 });

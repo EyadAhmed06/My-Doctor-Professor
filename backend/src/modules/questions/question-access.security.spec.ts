@@ -1,3 +1,4 @@
+import { BundleAccessService } from '../bundle-access/bundle-access.service';
 import { UserRole } from '../users/entities/user.entity';
 import { InstructorQuestionAccessService } from './instructor-question-access.service';
 import { StudentQuestionAccessService } from './student-question-access.service';
@@ -21,9 +22,10 @@ function builderHarness() {
 describe('question access security', () => {
   it('scopes student catalog reads to active paid/not-required bundle enrollment and selected weeks', async () => {
     const builder = builderHarness();
+    const bundleAccess = new BundleAccessService({} as never);
     const service = new StudentQuestionAccessService({
       createQueryBuilder: jest.fn().mockReturnValue(builder),
-    } as never);
+    } as never, bundleAccess);
 
     await service.list({ page: 1, limit: 20 }, {
       userId: '11111111-1111-4111-8111-111111111111',

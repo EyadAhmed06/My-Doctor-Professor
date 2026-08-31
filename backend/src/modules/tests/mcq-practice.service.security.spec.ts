@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { TestMode } from '../../common/entities/test-attempt.entity';
 import { UserRole } from '../users/entities/user.entity';
+import { BundleAccessService } from '../bundle-access/bundle-access.service';
 import { McqPracticeService } from './mcq-practice.service';
 
 describe('McqPracticeService security', () => {
@@ -11,8 +12,18 @@ describe('McqPracticeService security', () => {
     role: UserRole.STUDENT,
   };
 
+  const createService = (
+    questions = {} as never,
+    lectures = {} as never,
+    students = { exists: jest.fn().mockResolvedValue(true) } as never,
+    dataSource = { query: jest.fn() } as never,
+  ) => {
+    const bundleAccess = new BundleAccessService(dataSource);
+    return new McqPracticeService(questions, lectures, students, dataSource, bundleAccess);
+  };
+
   it('rejects legacy 10/20-question payloads so generated quizzes match the 40-question launch contract', async () => {
-    const service = new McqPracticeService({} as never, {} as never, {} as never, {} as never);
+    const service = createService();
 
     await expect(service.generate({
       bundle_id: '11111111-1111-4111-8111-111111111111',
@@ -24,7 +35,7 @@ describe('McqPracticeService security', () => {
 
   it('requires an ACTIVE, current, paid-or-free entitlement before selecting lectures', async () => {
     const query = jest.fn().mockResolvedValue([]);
-    const service = new McqPracticeService(
+    const service = createService(
       {} as never,
       {} as never,
       { exists: jest.fn().mockResolvedValue(true) } as never,
@@ -53,7 +64,7 @@ describe('McqPracticeService security', () => {
       where: jest.fn().mockReturnThis(),
       getMany: jest.fn().mockResolvedValue([{ id: lectureId, week: { courseId: 'course-1' } }]),
     };
-    const service = new McqPracticeService(
+    const service = createService(
       {} as never,
       { createQueryBuilder: jest.fn().mockReturnValue(lectureBuilder) } as never,
       { exists: jest.fn().mockResolvedValue(true) } as never,
@@ -93,7 +104,7 @@ describe('McqPracticeService security', () => {
       andWhere: jest.fn().mockReturnThis(),
       getMany: jest.fn().mockResolvedValue(questions),
     };
-    const service = new McqPracticeService(
+    const service = createService(
       { createQueryBuilder: jest.fn().mockReturnValue(questionBuilder) } as never,
       { createQueryBuilder: jest.fn().mockReturnValue(lectureBuilder) } as never,
       { exists: jest.fn().mockResolvedValue(true) } as never,
@@ -132,7 +143,7 @@ describe('McqPracticeService security', () => {
       andWhere: jest.fn().mockReturnThis(),
       getMany: jest.fn().mockResolvedValue(questions),
     };
-    const service = new McqPracticeService(
+    const service = createService(
       { createQueryBuilder: jest.fn().mockReturnValue(questionBuilder) } as never,
       { createQueryBuilder: jest.fn().mockReturnValue(lectureBuilder) } as never,
       { exists: jest.fn().mockResolvedValue(true) } as never,
@@ -167,7 +178,7 @@ describe('McqPracticeService security', () => {
       andWhere: jest.fn().mockReturnThis(),
       getMany: jest.fn().mockResolvedValue(questions),
     };
-    const service = new McqPracticeService(
+    const service = createService(
       { createQueryBuilder: jest.fn().mockReturnValue(questionBuilder) } as never,
       { createQueryBuilder: jest.fn().mockReturnValue(lectureBuilder) } as never,
       { exists: jest.fn().mockResolvedValue(true) } as never,

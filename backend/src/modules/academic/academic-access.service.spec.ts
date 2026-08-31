@@ -1,5 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { BundleAccessService } from '../bundle-access/bundle-access.service';
 import { AcademicAccessService } from './academic-access.service';
 import { UserRole } from '../users/entities/user.entity';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
@@ -20,7 +21,9 @@ describe('AcademicAccessService', () => {
   function setup(results: unknown[][] = []) {
     const query = jest.fn();
     for (const result of results) query.mockResolvedValueOnce(result);
-    const service = new AcademicAccessService({ query } as unknown as DataSource);
+    const dataSource = { query } as unknown as DataSource;
+    const bundleAccess = new BundleAccessService(dataSource);
+    const service = new AcademicAccessService(dataSource, bundleAccess);
     return { service, query };
   }
 
