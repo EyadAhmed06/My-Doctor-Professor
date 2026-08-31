@@ -277,38 +277,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     const token = accessToken;
 
-    // Logout is intentionally optimistic: the UI must not wait for a slow API or a refresh attempt.
+    // Clear local auth immediately, but do not let navigation race ahead of the
+    // server-side session revocation. Both logout paths are idempotent and use
+    // keepalive so a route change cannot strand an active database session.
     markLoggedOut();
     clearClientAuth();
     setAccessToken(null);
     setUser(null);
 
-    void (async () => {
-      try {
-        if (token) {
-          await apiRequest<void>("/auth/logout", {
-            method: "POST",
-            accessToken: token,
-            signal: AbortSignal.timeout(2500),
-          });
-          return;
-        }
-        await apiRequest<void>("/auth/logout/browser", {
+    const requests: Promise<unknown>[] = [
+      apiRequest<void>("/auth/logout/browser", {
+        method: "POST",
+        signal: AbortSignal.timeout(4000),
+        keepalive: true,
+      }),
+    ];
+    if (token) {
+      requests.push(
+        apiRequest<void>("/auth/logout", {
           method: "POST",
-          signal: AbortSignal.timeout(2500),
-        });
-      } catch {
-        // Best-effort cookie cleanup. The client tombstone prevents silent restoration meanwhile.
-        try {
-          await apiRequest<void>("/auth/logout/browser", {
-            method: "POST",
-            signal: AbortSignal.timeout(1500),
-          });
-        } catch {
-          // Network failure must never trap the user inside the application.
-        }
-      }
-    })();
+          accessToken: token,
+          signal: AbortSignal.timeout(4000),
+          keepalive: true,
+        }),
+      );
+    }
+
+    await Promise.allSettled(requests);
   }, [accessToken]);
 
   const request = useCallback(async <T,>(path: string, options: Omit<Parameters<typeof apiRequest<T>>[1], "accessToken"> = {}) => {
