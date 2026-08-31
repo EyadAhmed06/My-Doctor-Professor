@@ -9,7 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { createHash, randomBytes, randomUUID } from 'crypto';
+import { createHash, createHmac, randomBytes, randomInt, randomUUID } from 'crypto';
 import { DataSource, IsNull, QueryFailedError } from 'typeorm';
 import { AuthSession } from '../users/entities/auth-session.entity';
 import { User, UserRole, UserStatus } from '../users/entities/user.entity';
@@ -57,7 +57,10 @@ export class AuthService {
     }
     this.accessLifetimeSeconds = this.readPositiveInteger('JWT_ACCESS_TTL_SECONDS', 900);
     this.refreshLifetimeSeconds = this.readPositiveInteger('JWT_REFRESH_TTL_SECONDS', 604800);
-    this.verificationLifetimeSeconds = this.readPositiveInteger('EMAIL_VERIFICATION_TTL_SECONDS', 86400);
+    this.verificationLifetimeSeconds = Math.min(
+      this.readPositiveInteger('EMAIL_VERIFICATION_TTL_SECONDS', 600),
+      10 * 60,
+    );
     this.resetLifetimeSeconds = this.readPositiveInteger('PASSWORD_RESET_TTL_SECONDS', 1800);
   }
 
@@ -77,7 +80,7 @@ export class AuthService {
       AccountActionTokenPurpose.EMAIL_VERIFICATION,
       this.verificationLifetimeSeconds,
     );
-    return { message: 'Account created. Check your email to verify your account.' };
+    return { message: 'Account created. Check your email for the 6-digit verification code.' };
   }
 
   async requestEmailVerification(email: string, ip: string): Promise<MessageResponse> {
@@ -92,7 +95,7 @@ export class AuthService {
       );
     }
     await this.ensureMinimumResponseTime(startedAt);
-    return { message: 'If the account is eligible, a verification email has been sent.' };
+    return { message: 'If the account is eligible, a new verification code has been sent.' };
   }
 
   async confirmEmailVerification(rawToken: string, ip: string): Promise<MessageResponse> {
@@ -121,6 +124,56 @@ export class AuthService {
       user.status = UserStatus.ACTIVE;
       token.consumedAt = new Date();
       await manager.save(User, user);
+      await manager.save(AccountActionToken, token);
+    });
+    return { message: 'Email verified successfully. You can now sign in.' };
+  }
+
+  async confirmEmailVerificationCode(
+    email: string,
+    code: string,
+    ip: string,
+  ): Promise<MessageResponse> {
+    const normalizedEmail = email.trim().toLowerCase();
+    await this.rateLimits.enforceEmailVerificationCode(ip, normalizedEmail);
+
+    const user = await this.usersService.findByEmail(normalizedEmail);
+    if (
+      !user ||
+      user.emailVerified ||
+      user.status !== UserStatus.PENDING_VERIFICATION
+    ) {
+      throw new BadRequestException('Invalid or expired verification code');
+    }
+
+    const digest = this.digestEmailVerificationCode(user.id, code);
+    await this.dataSource.transaction(async (manager) => {
+      const token = await manager.findOne(AccountActionToken, {
+        where: {
+          userId: user.id,
+          tokenDigest: digest,
+          purpose: AccountActionTokenPurpose.EMAIL_VERIFICATION,
+        },
+        lock: { mode: 'pessimistic_write' },
+      });
+      this.assertUsableActionToken(token, 'Invalid or expired verification code');
+
+      const lockedUser = await manager.findOne(User, {
+        where: { id: token.userId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (
+        !lockedUser ||
+        lockedUser.emailVerified ||
+        lockedUser.status !== UserStatus.PENDING_VERIFICATION
+      ) {
+        throw new BadRequestException('Invalid or expired verification code');
+      }
+
+      lockedUser.emailVerified = true;
+      lockedUser.status = UserStatus.ACTIVE;
+      token.consumedAt = new Date();
+      await manager.save(User, lockedUser);
       await manager.save(AccountActionToken, token);
     });
     return { message: 'Email verified successfully. You can now sign in.' };
@@ -210,7 +263,6 @@ export class AuthService {
     await this.rateLimits.enforceLogin(ip, dto.email);
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) {
-      // Perform equivalent password work so unknown accounts are not a cheap timing oracle.
       await bcrypt.hash(dto.password, 10);
       await this.ensureMinimumResponseTime(startedAt);
       throw new UnauthorizedException('Invalid email or password');
@@ -223,8 +275,6 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    // Account state is intentionally checked only after proof of password possession.
-    // Otherwise PENDING_VERIFICATION/SUSPENDED/lock responses become an account-enumeration oracle.
     if (await this.usersService.isAccountLocked(user.id)) {
       throw new HttpException(
         'Account is temporarily locked. Try again later.',
@@ -272,7 +322,10 @@ export class AuthService {
     purpose: AccountActionTokenPurpose,
     lifetimeSeconds: number,
   ): Promise<void> {
-    const rawToken = randomBytes(32).toString('base64url');
+    const rawToken = purpose === AccountActionTokenPurpose.EMAIL_VERIFICATION
+      ? randomInt(0, 1_000_000).toString().padStart(6, '0')
+      : randomBytes(32).toString('base64url');
+
     await this.dataSource.transaction(async (manager) => {
       const lockedUser = await manager.findOne(User, {
         where: { id: user.id },
@@ -285,12 +338,17 @@ export class AuthService {
         { userId: lockedUser.id, purpose, consumedAt: IsNull() },
         { consumedAt: new Date() },
       );
+
+      const tokenDigest = purpose === AccountActionTokenPurpose.EMAIL_VERIFICATION
+        ? this.digestEmailVerificationCode(lockedUser.id, rawToken)
+        : this.digestToken(rawToken);
+
       await manager.save(
         AccountActionToken,
         manager.create(AccountActionToken, {
           userId: lockedUser.id,
           purpose,
-          tokenDigest: this.digestToken(rawToken),
+          tokenDigest,
           expiresAt: new Date(Date.now() + lifetimeSeconds * 1000),
           consumedAt: null,
         }),
@@ -302,6 +360,7 @@ export class AuthService {
           lockedUser.email,
           lockedUser.fullName,
           rawToken,
+          lifetimeSeconds,
         );
       } else {
         await this.emailService.queuePasswordReset(
@@ -316,10 +375,17 @@ export class AuthService {
 
   private assertUsableActionToken(
     token: AccountActionToken | null,
+    message = 'Invalid or expired token',
   ): asserts token is AccountActionToken {
     if (!token || token.consumedAt || token.expiresAt <= new Date()) {
-      throw new BadRequestException('Invalid or expired token');
+      throw new BadRequestException(message);
     }
+  }
+
+  private digestEmailVerificationCode(userId: string, code: string): string {
+    return createHmac('sha256', this.accessSecret)
+      .update(`email-verification:${userId}:${code}`)
+      .digest('hex');
   }
 
   private digestToken(token: string): string {
@@ -345,10 +411,8 @@ export class AuthService {
     ip?: string | null,
     userAgent?: string | null,
   ): Promise<AuthResponseDto> {
-    // 1. Reclaim expired sessions before inspecting live slot.
     await this.usersService.revokeExpiredSessions(user.id);
 
-    // 2. Enforce single live session if policy applies to user role.
     if (this.isSingleSessionEnforced(user.role)) {
       if (await this.usersService.hasActiveSession(user.id)) {
         throw new ConflictException({
@@ -359,8 +423,6 @@ export class AuthService {
         });
       }
     } else {
-      // Exempt roles (instructors and admins) clear previous sessions so they are never locked out
-      // and do not collide with the unique unrevoked index.
       await this.usersService.revokeAllSessions(user.id);
     }
 
