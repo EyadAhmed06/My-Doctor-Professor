@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { EmailVerificationCodeController } from './email-verification-code.controller';
+import { PasswordResetOtpController } from './password-reset-otp.controller';
 import { AuthRateLimitService } from './auth-rate-limit.service';
 import { AuthService } from './auth.service';
 import { EmailService } from './email.service';
@@ -16,6 +17,8 @@ import { GoogleAuthService } from './google-auth.service';
 import { GoogleIdentityService } from './google-identity.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { PasswordResetOtpEmailService } from './password-reset-otp-email.service';
+import { PasswordResetOtpService } from './password-reset-otp.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
@@ -35,13 +38,19 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     AuthService,
     AuthRateLimitService,
     EmailService,
+    PasswordResetOtpEmailService,
+    PasswordResetOtpService,
     GoogleIdentityService,
     GoogleAuthService,
     JwtStrategy,
     JwtAuthGuard,
     RolesGuard,
   ],
-  controllers: [AuthController, EmailVerificationCodeController],
+  controllers: [
+    AuthController,
+    EmailVerificationCodeController,
+    PasswordResetOtpController,
+  ],
   exports: [AuthService, AuthRateLimitService, JwtAuthGuard, RolesGuard],
 })
 export class AuthModule {}
