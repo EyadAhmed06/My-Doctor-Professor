@@ -1,0 +1,164 @@
+{
+  "region": "skull-base",
+  "label": "Skull base",
+  "generated": "by scripts/anatomy/prepare-model.mjs - do not edit by hand",
+  "nonCommercialTexturesRemoved": [],
+  "systems": [
+    {
+      "key": "bone",
+      "label": "Bones"
+    }
+  ],
+  "structures": [
+    {
+      "id": "Ethmoid Bone",
+      "name": "Ethmoid Bone",
+      "system": "bone"
+    },
+    {
+      "id": "Frontal bone",
+      "name": "Frontal bone",
+      "system": "bone"
+    },
+    {
+      "id": "Inferior nasal concha bones",
+      "name": "Inferior nasal concha bones",
+      "system": "bone"
+    },
+    {
+      "id": "Lacrimal bones",
+      "name": "Lacrimal bones",
+      "system": "bone"
+    },
+    {
+      "id": "Lower canines",
+      "name": "Lower canines",
+      "system": "bone"
+    },
+    {
+      "id": "Lower first molar teeth",
+      "name": "Lower first molar teeth",
+      "system": "bone"
+    },
+    {
+      "id": "Lower first premolars",
+      "name": "Lower first premolars",
+      "system": "bone"
+    },
+    {
+      "id": "Lower lateral incisors",
+      "name": "Lower lateral incisors",
+      "system": "bone"
+    },
+    {
+      "id": "Lower medial incisors",
+      "name": "Lower medial incisors",
+      "system": "bone"
+    },
+    {
+      "id": "Lower second molar teeth",
+      "name": "Lower second molar teeth",
+      "system": "bone"
+    },
+    {
+      "id": "Lower second premolars",
+      "name": "Lower second premolars",
+      "system": "bone"
+    },
+    {
+      "id": "Mandible bone",
+      "name": "Mandible bone",
+      "system": "bone"
+    },
+    {
+      "id": "Maxilla bone.r",
+      "name": "Maxilla bone (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Nasal bone",
+      "name": "Nasal bone",
+      "system": "bone"
+    },
+    {
+      "id": "Occipital bone",
+      "name": "Occipital bone",
+      "system": "bone"
+    },
+    {
+      "id": "Palatine bone",
+      "name": "Palatine bone",
+      "system": "bone"
+    },
+    {
+      "id": "Parietal bone.l",
+      "name": "Parietal bone (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Parietal bone.r",
+      "name": "Parietal bone (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Sphenoid bone",
+      "name": "Sphenoid bone",
+      "system": "bone"
+    },
+    {
+      "id": "Temporal bones",
+      "name": "Temporal bones",
+      "system": "bone"
+    },
+    {
+      "id": "Upper canines",
+      "name": "Upper canines",
+      "system": "bone"
+    },
+    {
+      "id": "Upper first molar teeth",
+      "name": "Upper first molar teeth",
+      "system": "bone"
+    },
+    {
+      "id": "Upper first premolars",
+      "name": "Upper first premolars",
+      "system": "bone"
+    },
+    {
+      "id": "Upper lateral incisors",
+      "name": "Upper lateral incisors",
+      "system": "bone"
+    },
+    {
+      "id": "Upper medial incisors",
+      "name": "Upper medial incisors",
+      "system": "bone"
+    },
+    {
+      "id": "Upper second molar teeth",
+      "name": "Upper second molar teeth",
+      "system": "bone"
+    },
+    {
+      "id": "Upper second premolars",
+      "name": "Upper second premolars",
+      "system": "bone"
+    },
+    {
+      "id": "Vomer",
+      "name": "Vomer",
+      "system": "bone"
+    },
+    {
+      "id": "Zygomatic bones",
+      "name": "Zygomatic bones",
+      "system": "bone"
+    },
+    {
+      "id": "Maxilla bone.l",
+      "name": "Maxilla bone (left)",
+      "system": "bone"
+    }
+  ]
+}
