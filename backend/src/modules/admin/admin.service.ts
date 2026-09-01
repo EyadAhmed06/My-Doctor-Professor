@@ -19,6 +19,7 @@ import { Instructor } from "../users/entities/instructor.entity";
 import { Student } from "../users/entities/student.entity";
 import { SystemAdmin } from "../users/entities/system-admin.entity";
 import { User, UserRole, UserStatus } from "../users/entities/user.entity";
+import { generateForensicCode } from "../users/forensic-code";
 import { UsersService } from "../users/users.service";
 import {
   AdminUserQueryDto,
@@ -105,8 +106,12 @@ export class AdminService {
           role: UserRole;
         },
         passwordHash: string,
-      ) =>
-        manager.save(
+      ) => {
+        let forensicCode = generateForensicCode();
+        while (await manager.findOne(User, { where: { forensicCode } })) {
+          forensicCode = generateForensicCode();
+        }
+        return manager.save(
           User,
           manager.create(User, {
             fullName: input.fullName.trim(),
@@ -122,8 +127,10 @@ export class AdminService {
             failedLoginAttempts: 0,
             lockedUntil: null,
             lastLoginAt: null,
+            forensicCode,
           }),
         );
+      };
 
       const admin = await createUser(
         {
@@ -246,6 +253,7 @@ export class AdminService {
         "user.email_verified AS email_verified",
         "user.last_login_at AS last_login_at",
         "user.created_at AS created_at",
+        "user.forensic_code AS forensic_code",
         "student.student_number AS student_number",
         "student.current_semester AS current_semester",
         "instructor.specialization AS specialization",
@@ -296,6 +304,7 @@ export class AdminService {
         user_account.phone_number,user_account.date_of_birth,user_account.gender,
         user_account.role,user_account.status,user_account.profile_picture_url,
         user_account.email_verified,user_account.last_login_at,
+        user_account.forensic_code,
         user_account.created_at,user_account.updated_at,
         student.student_number,student.current_semester,
         instructor.specialization,instructor.office_location,instructor.biography,

@@ -1038,7 +1038,13 @@ export class BundlesService {
   }
 
   private userView(user: User) {
-    return { id: user.id, fullName: user.fullName, email: user.email };
+    return {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      forensicCode: user.forensicCode,
+      forensic_code: user.forensicCode,
+    };
   }
 
   private isUnique(error: unknown) {

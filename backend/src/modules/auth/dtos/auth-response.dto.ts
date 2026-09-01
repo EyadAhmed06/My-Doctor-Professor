@@ -9,6 +9,7 @@ export class AuthResponseDto {
     full_name: string;
     role: UserRole;
     status: UserStatus;
+    forensic_code: string;
   };
 }
 
@@ -23,6 +24,7 @@ export class UserProfileDto {
   dateOfBirth: Date | null;
   gender: Gender | null;
   emailVerified: boolean;
+  forensicCode: string;
   createdAt: Date;
   updatedAt: Date;
 }

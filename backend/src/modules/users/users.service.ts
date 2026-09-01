@@ -8,12 +8,13 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import * as argon2 from 'argon2';
 import * as bcrypt from 'bcrypt';
-import { DataSource, Not, QueryFailedError, Repository } from 'typeorm';
+import { DataSource, EntityManager, Not, QueryFailedError, Repository } from 'typeorm';
 import { AuthSession } from './entities/auth-session.entity';
 import { Instructor } from './entities/instructor.entity';
 import { Student } from './entities/student.entity';
 import { SystemAdmin } from './entities/system-admin.entity';
 import { Gender, User, UserRole, UserStatus } from './entities/user.entity';
+import { generateForensicCode } from './forensic-code';
 
 export interface CreateStudentAccountInput {
   fullName:string;email:string;password:string;phoneNumber:string;
@@ -84,6 +85,7 @@ export class UsersService {
         if(input.employeeNumber&&await manager.findOne(SystemAdmin,{where:{employeeNumber:input.employeeNumber.trim()}})) {
           throw new ConflictException('Employee number is already registered');
         }
+        const forensicCode = await this.generateUniqueForensicCode(manager);
         const user=await manager.save(User,manager.create(User,{
           fullName:input.fullName.trim(),email,passwordHash,
           phoneNumber:input.phoneNumber,dateOfBirth:input.dateOfBirth??null,
@@ -91,6 +93,7 @@ export class UsersService {
           status:managed?UserStatus.ACTIVE:UserStatus.PENDING_VERIFICATION,
           profilePictureUrl:null,emailVerified:managed,
           failedLoginAttempts:0,lockedUntil:null,lastLoginAt:null,
+          forensicCode,
         }));
         if(input.role===UserRole.STUDENT) {
           await manager.save(Student,manager.create(Student,{
@@ -360,6 +363,15 @@ export class UsersService {
   safeUser(user:User) {
     const {passwordHash:_password,failedLoginAttempts:_failed,lockedUntil:_locked,...safe}=user;
     return safe;
+  }
+
+  private async generateUniqueForensicCode(manager: EntityManager, maxAttempts = 10): Promise<string> {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const code = generateForensicCode();
+      const existing = await manager.findOne(User, { where: { forensicCode: code } });
+      if (!existing) return code;
+    }
+    throw new ConflictException('Unable to allocate a unique forensic code');
   }
 
   private assertProfileFields(input:CreateManagedAccountInput) {
