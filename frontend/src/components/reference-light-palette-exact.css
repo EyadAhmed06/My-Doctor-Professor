@@ -210,14 +210,7 @@ html[data-theme="light"] .study-plan-calendar,
 html[data-theme="light"] .settings-section,
 html[data-theme="light"] .settings-section-nav,
 html[data-theme="light"] .resource-upload-panel {
-  background:
-    linear-gradient(145deg,
-      rgba(252, 253, 253, .97) 0%,
-      rgba(247, 248, 251, .95) 67%,
-      rgba(174, 192, 251, .12) 100%) !important;
-  border-color: var(--img-border) !important;
   color: var(--img-navy-soft) !important;
-  box-shadow: var(--ref-shadow-soft) !important;
   transition: background-color .22s ease, border-color .22s ease, box-shadow .22s ease;
 }
 

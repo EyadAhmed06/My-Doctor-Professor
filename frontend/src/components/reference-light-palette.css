@@ -391,40 +391,7 @@ html[data-theme="light"] .notification-preview {
 }
 
 /* Primary elevated surfaces across all authenticated routes. */
-html[data-theme="light"] .pp-panel,
-html[data-theme="light"] .dash-card,
-html[data-theme="light"] .role-modal,
-html[data-theme="light"] .role-master-list,
-html[data-theme="light"] .role-course-list,
-html[data-theme="light"] .role-detail,
-html[data-theme="light"] .role-command-card,
-html[data-theme="light"] .role-week,
-html[data-theme="light"] .role-content-card,
-html[data-theme="light"] .role-answer,
-html[data-theme="light"] .role-flashcard,
-html[data-theme="light"] .role-audit-card,
-html[data-theme="light"] .phase5-drawer,
-html[data-theme="light"] .phase5-confirm,
-html[data-theme="light"] .resource-preview-drawer,
-html[data-theme="light"] .assessment-student-preview li,
-html[data-theme="light"] .guide-progress-panel,
-html[data-theme="light"] .guide-resource-card,
-html[data-theme="light"] .guide-course-nav,
-html[data-theme="light"] .guide-content,
-html[data-theme="light"] .app-state-card,
-html[data-theme="light"] .bundle-content,
-html[data-theme="light"] .bundle-list,
-html[data-theme="light"] .advanced-bundle-week,
-html[data-theme="light"] .notebook-library,
-html[data-theme="light"] .note-library-card,
-html[data-theme="light"] .note-inspector,
-html[data-theme="light"] .flashcard-stage,
-html[data-theme="light"] .analytics-range-bar,
-html[data-theme="light"] .analytics-comparison,
-html[data-theme="light"] .study-plan-calendar,
-html[data-theme="light"] .settings-section,
-html[data-theme="light"] .settings-section-nav,
-html[data-theme="light"] .resource-upload-panel {
+html[data-theme="light"] .assessment-student-preview li {
   background: rgba(253, 253, 255, .97) !important;
   border-color: var(--ref-border) !important;
   color: var(--ref-text) !important;
