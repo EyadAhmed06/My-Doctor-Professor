@@ -1,6 +1,7 @@
 import "dotenv/config";
 import * as argon2 from "argon2";
 import { AppDataSource } from "../src/database/data-source";
+import { generateForensicCode } from "../src/modules/users/forensic-code";
 
 const ids = {
   semester: "10000000-0000-4000-8000-000000000001",
@@ -48,13 +49,35 @@ async function main() {
       phone: string,
       role: string,
     ) => {
+      const existing = await manager.query(
+        `SELECT id, forensic_code FROM users WHERE email = $1 OR phone_number = $2`,
+        [email, phone],
+      );
+      if (existing.length) {
+        let forensicCode = existing[0].forensic_code;
+        if (!forensicCode) {
+          forensicCode = generateForensicCode();
+          while ((await manager.query(`SELECT 1 FROM users WHERE forensic_code = $1`, [forensicCode])).length) {
+            forensicCode = generateForensicCode();
+          }
+        }
+        await manager.query(
+          `UPDATE users SET full_name=$1, email=$2, password_hash=$3, phone_number=$4, role=$5, status='ACTIVE', email_verified=TRUE, forensic_code=$6, updated_at=CURRENT_TIMESTAMP WHERE id=$7`,
+          [fullName, email, passwordHash, phone, role, forensicCode, existing[0].id],
+        );
+        return existing[0].id as string;
+      }
+      let forensicCode = generateForensicCode();
+      while ((await manager.query(`SELECT 1 FROM users WHERE forensic_code = $1`, [forensicCode])).length) {
+        forensicCode = generateForensicCode();
+      }
       const [user] = await manager.query(
-        `INSERT INTO users(full_name,email,password_hash,phone_number,role,status,email_verified,failed_login_attempts)
-         VALUES($1,$2,$3,$4,$5,'ACTIVE',TRUE,0)
+        `INSERT INTO users(full_name,email,password_hash,phone_number,role,status,email_verified,failed_login_attempts,forensic_code)
+         VALUES($1,$2,$3,$4,$5,'ACTIVE',TRUE,0,$6)
          ON CONFLICT(email) DO UPDATE SET full_name=EXCLUDED.full_name,password_hash=EXCLUDED.password_hash,
            role=EXCLUDED.role,status='ACTIVE',email_verified=TRUE,updated_at=CURRENT_TIMESTAMP
          RETURNING id`,
-        [fullName, email, passwordHash, phone, role],
+        [fullName, email, passwordHash, phone, role, forensicCode],
       );
       return user.id as string;
     };

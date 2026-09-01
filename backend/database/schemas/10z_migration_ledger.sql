@@ -38,7 +38,8 @@ FROM (
         (2040000000000::bigint, 'AddStudentAchievements2040000000000'),
         (2050000000000::bigint, 'HardenPaymentWebhookBinding2050000000000'),
         (2080000000000::bigint, 'EnforceSingleActiveStudentSession2080000000000'),
-        (2090000000000::bigint, 'FixAuthOtpDatabaseContract2090000000000')
+        (2090000000000::bigint, 'FixAuthOtpDatabaseContract2090000000000'),
+        (2100000000000::bigint, 'AddUserForensicCode2100000000000')
 ) AS entry(timestamp, name)
 WHERE NOT EXISTS (
     SELECT 1 FROM migrations current WHERE current.name = entry.name
