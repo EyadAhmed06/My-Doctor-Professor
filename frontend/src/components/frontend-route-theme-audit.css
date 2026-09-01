@@ -739,14 +739,6 @@ html[data-theme] body .dashboard-embedded .bar-chart {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
-  .guide-course-nav,
-  .role-master-list,
-  .note-detail,
-  .exam-detail {
-    position: static !important;
-    width: 100% !important;
-    max-height: none !important;
-  }
 
   .role-master-list {
     display: grid;
