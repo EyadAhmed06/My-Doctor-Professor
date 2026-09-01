@@ -18,6 +18,7 @@ import { Panel, ProductShell } from "./product-shell";
 import { useUx } from "./ux-provider";
 import "./pdf-essay-cases.css";
 import "./instructor-essay-case-studio.css";
+import "./product-pages.css";
 import "./role-workspace.css";
 
 type Course = { id: string; courseCode: string; courseName: string };

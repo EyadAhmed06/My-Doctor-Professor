@@ -23,6 +23,7 @@ import { useAuth } from "./auth-provider";
 import { EmptyState, ErrorState, PageSkeleton } from "./async-state";
 import { Panel, ProductShell } from "./product-shell";
 import { useUx } from "./ux-provider";
+import "./product-pages.css";
 import "./role-workspace.css";
 
 type PageResponse<T> = { data: T[]; total?: number; page?: number; limit?: number; total_pages?: number };

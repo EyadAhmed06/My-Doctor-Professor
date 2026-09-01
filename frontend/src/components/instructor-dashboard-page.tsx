@@ -6,6 +6,7 @@ import { FiActivity, FiBookOpen, FiClipboard, FiEdit3, FiFileText, FiLayers, FiR
 import { PageSkeleton } from "./async-state";
 import { useAuth } from "./auth-provider";
 import { Panel, ProductShell } from "./product-shell";
+import "./product-pages.css";
 import "./role-workspace.css";
 
 type InstructorDashboard = {
