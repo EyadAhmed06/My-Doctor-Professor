@@ -68,7 +68,6 @@ html.dark .reference-register .registration-story .brand-words strong {
   .product-app .pp-topbar {
     display: flex !important;
     align-items: center !important;
-    gap: clamp(10px, 1vw, 20px) !important;
     padding: 0 24px !important;
   }
 
