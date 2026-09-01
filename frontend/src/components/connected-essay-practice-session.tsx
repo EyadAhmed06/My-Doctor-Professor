@@ -33,7 +33,8 @@ function splitCase(value: string) {
 }
 
 export function ConnectedEssayPracticeSession() {
-  const { request } = useAuth();
+  const { user, request } = useAuth();
+  const forensicCode = user?.forensic_code || user?.forensicCode;
   const { notify } = useUx();
   const params = useSearchParams();
   const attemptId = params.get("attempt") || "";
@@ -97,14 +98,14 @@ export function ConnectedEssayPracticeSession() {
         <div className="essay-session-layout">
           <aside className="essay-question-nav"><h2>Questions</h2><div>{questions.map((question, qIndex) => <button type="button" key={question.question_id} className={`${qIndex === index ? "current" : ""} ${question.submitted ? "done" : ""}`} onClick={() => setIndex(qIndex)}><span>{qIndex + 1}</span>{question.submitted ? <FiCheck/> : null}</button>)}</div><a className="pp-button secondary" href={bundleId ? `/essay-practice?bundle=${encodeURIComponent(bundleId)}` : "/essay-practice"}>Exit practice</a></aside>
           <section className="essay-question-stage">
-            {parts.caseText && <article className="essay-case-card"><small>CASE</small><p>{parts.caseText}</p></article>}
-            <article className="essay-prompt-card"><small>QUESTION {index + 1} OF {questions.length}</small><h2>{parts.prompt}</h2><div className="essay-answer-meta"><span>{current.marks} marks</span><span>{wordCount} words</span>{current.minimum_word_count ? <span>Minimum {current.minimum_word_count}</span> : null}</div>
+            {parts.caseText && <article className="essay-case-card"><small>CASE{forensicCode ? ` · ${forensicCode}` : ""}</small><p>{parts.caseText}</p></article>}
+            <article className="essay-prompt-card"><small>QUESTION {index + 1} OF {questions.length}{forensicCode ? ` · ${forensicCode}` : ""}</small><h2>{parts.prompt}</h2><div className="essay-answer-meta"><span>{current.marks} marks</span><span>{wordCount} words</span>{current.minimum_word_count ? <span>Minimum {current.minimum_word_count}</span> : null}</div>
               <textarea aria-label="Your essay answer" placeholder="Write your answer here…" value={drafts[current.question_id] || ""} disabled={current.submitted} onChange={(event) => setDrafts((value) => ({ ...value, [current.question_id]: event.target.value }))}/>
               <div className="essay-answer-actions"><button className="pp-button" type="button" disabled={current.submitted || saving === current.question_id || !drafts[current.question_id]?.trim()} onClick={() => void submit()}>{current.submitted ? <><FiCheck/>Submitted</> : <><FiSave/>{saving === current.question_id ? "Submitting…" : "Submit answer"}</>}</button><button className="pp-button secondary" type="button" disabled={!current.submitted || revealing === current.question_id} onClick={() => void reveal()}>{current.submitted ? <FiEye/> : <FiLock/>}{revealing === current.question_id ? "Loading answer…" : "Reveal answer"}</button></div>
             </article>
             {models[current.question_id] && <article className="essay-model-answer"><small>PUBLISHED MODEL ANSWER</small><h2>Compare with your response</h2><p>{models[current.question_id].model_answer}</p>{models[current.question_id].grading_rubric ? <details><summary>Grading rubric</summary><p>{models[current.question_id].grading_rubric}</p></details> : null}</article>}
             {error && <p className="form-error" role="alert">{error}</p>}
-            <footer className="essay-session-footer"><button type="button" className="pp-button secondary" disabled={index === 0} onClick={() => setIndex((value) => Math.max(0, value - 1))}><FiArrowLeft/>Previous</button><span>Question {index + 1} of {questions.length}</span><button type="button" className="pp-button" disabled={index >= questions.length - 1} onClick={() => setIndex((value) => Math.min(questions.length - 1, value + 1))}>Next<FiArrowRight/></button></footer>
+            <footer className="essay-session-footer"><button type="button" className="pp-button secondary" disabled={index === 0} onClick={() => setIndex((value) => Math.max(0, value - 1))}><FiArrowLeft/>Previous</button><span>Question {index + 1} of {questions.length}{forensicCode ? ` · ${forensicCode}` : ""}</span><button type="button" className="pp-button" disabled={index >= questions.length - 1} onClick={() => setIndex((value) => Math.min(questions.length - 1, value + 1))}>Next<FiArrowRight/></button></footer>
           </section>
           <aside><Panel title="How it works"><ol className="essay-rules"><li>Write your own answer.</li><li>Submit locks that response.</li><li>Reveal Answer becomes available only after successful backend submission.</li><li>The model answer comes from the instructor-published essay configuration, not from AI.</li></ol></Panel></aside>
         </div>

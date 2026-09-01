@@ -29,7 +29,7 @@ type Bundle = {
 type ManagedWeek = { id: string; weekNumber: number; title: string | null; linked: boolean };
 type ManagedCourse = { id: string; courseCode: string; courseName: string; linked: boolean; weeks: ManagedWeek[] };
 type ManagedTest = { id: string; title: string; testType: string; linked: boolean };
-type Person = { id: string; fullName: string; email: string };
+type Person = { id: string; fullName: string; email: string; forensicCode?: string; forensic_code?: string };
 type StudentEnrollment = {
   id: string;
   student: Person;
@@ -393,6 +393,7 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
             <thead>
               <tr>
                 <th>{translate("Student")}</th>
+                <th>{translate("Forensic code")}</th>
                 <th>{translate("Email")}</th>
                 <th>{translate("Status")}</th>
                 <th>{translate("Enrolled")}</th>
@@ -417,6 +418,11 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
                         </span>
                         <b>{row.student.fullName}</b>
                       </div>
+                    </td>
+                    <td>
+                      <small style={{ fontFamily: "monospace", letterSpacing: "0.05em", fontWeight: 700 }}>
+                        {row.student.forensicCode || row.student.forensic_code || "—"}
+                      </small>
                     </td>
                     <td>{row.student.email}</td>
                     <td>

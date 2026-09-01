@@ -13,6 +13,8 @@ export type AuthUser = {
   status: string;
   emailVerified?: boolean;
   profilePictureUrl?: string | null;
+  forensic_code?: string;
+  forensicCode?: string;
 };
 
 export type GoogleOnboardingResult = {
