@@ -116,8 +116,10 @@ export function UxProvider({ children }: { children: React.ReactNode }) {
   }, [dismiss]);
 
   const startNavigation = useCallback(() => {
-    setRouteBusy(true);
-    window.setTimeout(() => window.dispatchEvent(new Event("mdp:continuity-changed")), 0);
+    window.requestAnimationFrame(() => {
+      setRouteBusy(true);
+      window.dispatchEvent(new Event("mdp:continuity-changed"));
+    });
   }, []);
 
   const finishConfirmation = useCallback((accepted: boolean) => {

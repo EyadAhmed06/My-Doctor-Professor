@@ -324,8 +324,8 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
       {open && <button className="pp-mobile-overlay" type="button" aria-label={translate("Close navigation")} onClick={() => setOpen(false)} />}
       <nav id="product-navigation" className={open ? "open" : ""} aria-label={translate("Primary navigation")}>
         <button className="pp-nav-close" type="button" onClick={() => setOpen(false)} aria-label={translate("Close menu")}><FiX /></button>
-        {nav.map(item => <Link key={item.href} className={isNavActive(path, item.href) ? "active" : ""} href={item.href} onClick={() => { setOpen(false); startNavigation(); }}>{translate(item.label)}</Link>)}
-        <Link href="/settings" className={path.startsWith("/settings") ? "active" : ""} onClick={() => { setOpen(false); startNavigation(); }}>{translate("Settings")}</Link>
+        {nav.map(item => <Link key={item.href} prefetch={true} className={isNavActive(path, item.href) ? "active" : ""} href={item.href} onClick={() => { if (open) setOpen(false); }}>{translate(item.label)}</Link>)}
+        <Link href="/settings" prefetch={true} className={path.startsWith("/settings") ? "active" : ""} onClick={() => { if (open) setOpen(false); }}>{translate("Settings")}</Link>
       </nav>
       <button className="pp-search-command" type="button" onClick={openPalette} aria-label={`${translate("Open command palette")}. ${translate(search)}`}><FiSearch /><span>{translate(search)}</span><kbd>⌘ K</kbd></button>
       <div className="pp-profile">

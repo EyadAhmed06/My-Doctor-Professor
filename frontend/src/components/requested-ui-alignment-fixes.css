@@ -66,40 +66,73 @@ html.dark .reference-register .registration-story .brand-words strong {
 
 @media (min-width: 1181px) {
   .product-app .pp-topbar {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) 42px auto;
-    column-gap: clamp(12px, 1.15vw, 22px);
+    display: flex !important;
+    align-items: center !important;
+    gap: clamp(10px, 1vw, 20px) !important;
+    padding: 0 24px !important;
+  }
+
+  .product-app .pp-topbar > .pp-brand {
+    flex: 0 0 auto !important;
+  }
+
+  .product-app .pp-topbar > .pp-menu {
+    display: none !important;
   }
 
   .product-app .pp-topbar > nav {
-    width: 100%;
-    overflow: hidden;
+    display: flex !important;
+    align-items: stretch !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    gap: 4px !important;
+    height: 100% !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+
+  .product-app .pp-topbar > nav::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .product-app .pp-topbar > nav > a {
+    flex: 0 0 auto !important;
+    padding-inline: clamp(7px, 0.75vw, 14px) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
   }
 
   .product-app .pp-search-command {
-    width: 42px;
-    min-width: 42px;
-    height: 42px;
-    margin-left: 0;
-    padding: 0;
-    display: grid;
-    place-items: center;
-    border-radius: 10px;
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    margin-left: auto !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+    border-radius: 10px !important;
+    flex: 0 0 42px !important;
   }
 
   .product-app .pp-search-command > span,
   .product-app .pp-search-command > kbd {
-    display: none;
+    display: none !important;
   }
 
   .product-app .pp-search-command > svg {
-    width: 18px;
-    height: 18px;
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .product-app .pp-profile {
+    display: flex !important;
+    align-items: center !important;
+    flex: 0 0 auto !important;
+    gap: 8px !important;
+    white-space: nowrap !important;
   }
 }
 
-@media (max-width: 1500px) and (min-width: 1181px) {
-  .product-app .pp-topbar {
-    grid-template-columns: auto minmax(0, 1fr) 42px auto;
-  }
-}

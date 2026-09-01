@@ -1,29 +1,37 @@
 /* One desktop rhythm for navigation slots and utility controls. */
 @media (min-width: 1181px) {
   .product-app .pp-topbar {
-    column-gap: 10px !important;
+    gap: 10px !important;
   }
 
   .product-app .pp-topbar > .pp-brand {
-    margin-right: 10px;
+    margin-right: 8px !important;
+    flex: 0 0 auto !important;
   }
 
-  .product-app .pp-topbar:has(.pp-brand[href='/dashboard']) > nav {
-    display: grid;
-    grid-template-columns: repeat(10, minmax(0, 1fr));
-    gap: 0 !important;
-    align-items: stretch;
+  .product-app .pp-topbar > .pp-menu {
+    display: none !important;
   }
 
-  .product-app .pp-topbar:has(.pp-brand[href='/dashboard']) > nav > a {
-    min-width: 0;
-    padding-inline: 6px !important;
-    justify-content: center;
-    text-align: center;
+  .product-app .pp-topbar > nav {
+    display: flex !important;
+    align-items: stretch !important;
+    gap: 2px !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  .product-app .pp-topbar > nav > a {
+    min-width: 0 !important;
+    padding-inline: clamp(6px, 0.65vw, 12px) !important;
+    justify-content: center !important;
+    text-align: center !important;
+    white-space: nowrap !important;
   }
 
   .product-app .pp-profile {
     gap: 8px !important;
+    flex: 0 0 auto !important;
   }
 
   .product-app .pp-profile > .global-theme-toggle.icon-only,
@@ -37,3 +45,4 @@
     margin: 0 !important;
   }
 }
+
