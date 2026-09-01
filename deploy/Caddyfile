@@ -6,13 +6,41 @@
 {$APP_HOST} {
   encode zstd gzip
 
-  handle_path /api/v1/* {
+  handle /api/v1/* {
     reverse_proxy backend:3000 {
       header_down Cache-Control "no-store"
     }
   }
 
   handle /_next/static/* {
+    reverse_proxy frontend:3001 {
+      header_down Cache-Control "public, max-age=31536000, immutable"
+    }
+  }
+
+  # 3D anatomy models and their poster images.
+  #
+  # Without this they fall through to the catch-all below and are served
+  # "no-cache, must-revalidate": a blocking revalidation round trip on every visit, and a full
+  # re-download whenever the browser evicts the entry - which mobile browsers do readily at
+  # these sizes. They are large, immutable for a given build, and regenerated only by
+  # scripts/anatomy/prepare-model.mjs, so a long immutable cache is both safe and the single
+  # cheapest thing that helps users on slow connections.
+  #
+  # The Draco decoder is versioned with three.js and changes only on upgrade, so it caches the
+  # same way. Note that .glb and .wasm are already compact binary formats; Caddy's encode
+  # gains little on them, which is why the compression work happens in the build pipeline.
+  # A regexp matcher rather than a path wildcard: /anatomy/ also serves the viewer's own HTML
+  # routes (/anatomy/skull), and those must keep the revalidating policy below. Anchoring on
+  # the file extension keeps the two apart unambiguously.
+  @anatomy_assets path_regexp ^/anatomy/[^/]+\.(glb|png)$
+  handle @anatomy_assets {
+    reverse_proxy frontend:3001 {
+      header_down Cache-Control "public, max-age=31536000, immutable"
+    }
+  }
+
+  handle /draco/* {
     reverse_proxy frontend:3001 {
       header_down Cache-Control "public, max-age=31536000, immutable"
     }

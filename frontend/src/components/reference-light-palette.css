@@ -185,6 +185,7 @@ html[data-theme="light"] .year-card > span,
 html[data-theme="light"] .year-open,
 html[data-theme="light"] .workflow-copy > a,
 html[data-theme="light"] .thyroid-copy a,
+html[data-theme="light"] .organ-insight-cta,
 html[data-theme="light"] .public-footer .brand-words small {
   color: var(--ref-blue) !important;
 }

@@ -84,6 +84,7 @@ jobs:
           push: true
           build-args: |
             NEXT_PUBLIC_API_URL=/api/v1
+            NEXT_PUBLIC_ANATOMY_ASSET_BASE=${{ vars.NEXT_PUBLIC_ANATOMY_ASSET_BASE }}
           tags: |
             ${{ steps.ecr.outputs.registry }}/${{ env.FRONTEND_REPOSITORY }}:latest
             ${{ steps.ecr.outputs.registry }}/${{ env.FRONTEND_REPOSITORY }}:${{ github.sha }}

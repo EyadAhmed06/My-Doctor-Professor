@@ -64,6 +64,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Static assets are served verbatim, never bundled, and include third-party code we do
+    // not author: public/draco/ is three.js's Draco decoder, shipped minified with an
+    // emscripten wrapper. Linting a vendored decoder reports on its authors' style, not ours.
+    "public/**",
   ]),
 ]);
 
