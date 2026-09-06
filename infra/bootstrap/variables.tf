@@ -5,9 +5,9 @@ variable "aws_region" {
 }
 
 variable "workload_region" {
-  description = "Opt-in AWS Region for EC2/RDS/Lambda workload resources closest to Egypt in the chosen Middle East deployment design."
+  description = "Opt-in AWS Region for EC2/RDS/Lambda workload resources. Europe (Milan) is selected for the Egypt-facing deployment to keep the origin near Egypt while avoiding Middle East regional concentration."
   type        = string
-  default     = "me-south-1"
+  default     = "eu-south-1"
 }
 
 variable "project_name" {
