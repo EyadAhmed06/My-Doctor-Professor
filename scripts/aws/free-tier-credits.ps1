@@ -5,6 +5,8 @@ param(
 
     [string]$AwsRegion = 'us-east-1',
 
+    [string]$AwsProfile = 'mdp-new-account',
+
     [string]$ProjectName = 'my-doctor-professor',
 
     [string]$BudgetEmail = '',
@@ -39,13 +41,14 @@ function Invoke-Native {
 
 function Show-FreeTierStatus {
     Write-Host "`nAWS Free Tier plan state:" -ForegroundColor Cyan
-    & aws freetier get-account-plan-state --region $AwsRegion --output json
+    & aws freetier get-account-plan-state --profile $AwsProfile --region $AwsRegion --output json
     if ($LASTEXITCODE -ne 0) {
         Write-Warning 'Could not query get-account-plan-state. Make sure AWS CLI is current and this account exposes the Free Tier API.'
     }
 
     Write-Host "`nAWS Free Tier earning activities:" -ForegroundColor Cyan
     Invoke-Native aws freetier list-account-activities `
+        --profile $AwsProfile `
         --region $AwsRegion `
         --query 'activities[].{Activity:title,Status:status,RewardUSD:reward.credit.amount}' `
         --output table
@@ -53,18 +56,29 @@ function Show-FreeTierStatus {
 
 Assert-Command aws
 
+Write-Host "Using dedicated AWS CLI profile '$AwsProfile'; the existing default profile will not be changed." -ForegroundColor Cyan
 Write-Host 'Verifying AWS authentication...' -ForegroundColor Cyan
-& aws sts get-caller-identity --output json
+& aws sts get-caller-identity --profile $AwsProfile --output json
 if ($LASTEXITCODE -ne 0) {
-    Write-Host 'No active AWS CLI session. Starting browser-based AWS login with temporary credentials...' -ForegroundColor Yellow
-    & aws login --region $AwsRegion
+    Write-Host "No active session for '$AwsProfile'. Starting browser-based AWS login with temporary credentials..." -ForegroundColor Yellow
+
+    # Configure only the named profile. This deliberately leaves legacy/default credentials untouched.
+    Invoke-Native aws configure set region $AwsRegion --profile $AwsProfile
+    & aws login --profile $AwsProfile
     if ($LASTEXITCODE -ne 0) {
-        throw 'AWS browser login failed. AWS CLI 2.32.0 or newer is required for the aws login command.'
+        throw "AWS browser login failed for profile '$AwsProfile'. The legacy default profile was not modified. Run 'aws --version' to verify a current AWS CLI v2, or run 'aws login --profile $AwsProfile' directly to inspect the AWS CLI error."
     }
-    Invoke-Native aws sts get-caller-identity --output json
+
+    Invoke-Native aws sts get-caller-identity --profile $AwsProfile --output json
 }
 
+# Terraform's AWS provider inherits this profile without requiring static access keys.
+$env:AWS_PROFILE = $AwsProfile
+$env:AWS_REGION = $AwsRegion
+$env:AWS_DEFAULT_REGION = $AwsRegion
+
 $ActivityCountRaw = & aws freetier list-account-activities `
+    --profile $AwsProfile `
     --region $AwsRegion `
     --query 'length(activities)' `
     --output text
@@ -97,7 +111,7 @@ $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $BootstrapDir = Join-Path $RepoRoot 'infra\bootstrap'
 $CreditsDir = Join-Path $RepoRoot 'infra\credits'
 
-$AccountId = (& aws sts get-caller-identity --query Account --output text).Trim()
+$AccountId = (& aws sts get-caller-identity --profile $AwsProfile --query Account --output text).Trim()
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($AccountId)) {
     throw 'Could not resolve the current AWS account ID.'
 }
@@ -110,6 +124,7 @@ if ($Action -eq 'Destroy') {
     }
 
     $Incomplete = (& aws freetier list-account-activities `
+        --profile $AwsProfile `
         --region $AwsRegion `
         --query 'length(activities[?status!=`COMPLETED`])' `
         --output text).Trim()
@@ -182,6 +197,7 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($BedrockModel)) {
 $MessagesJson = '[{"role":"user","content":[{"text":"Reply with exactly: AWS activity complete"}]}]'
 $InferenceJson = '{"maxTokens":16,"temperature":0}'
 & aws bedrock-runtime converse `
+    --profile $AwsProfile `
     --region $AwsRegion `
     --model-id $BedrockModel `
     --messages $MessagesJson `
@@ -218,4 +234,5 @@ Write-Host "`nBootstrap outputs for later GitHub Actions:" -ForegroundColor Gree
 Write-Host "AWS_CREDITS_ROLE_ARN=$CreditsRoleArn"
 Write-Host "AWS_TERRAFORM_STATE_BUCKET=$StateBucket"
 Write-Host "AWS_BUDGET_EMAIL=$BudgetEmail"
+Write-Host "AWS_PROFILE=$AwsProfile"
 Write-Host "`nDo not destroy the temporary resources until AWS reports every intended activity as COMPLETED. Credits may take additional time to appear." -ForegroundColor Yellow
