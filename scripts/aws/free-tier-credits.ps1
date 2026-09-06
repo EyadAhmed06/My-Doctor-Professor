@@ -54,7 +54,15 @@ function Show-FreeTierStatus {
 Assert-Command aws
 
 Write-Host 'Verifying AWS authentication...' -ForegroundColor Cyan
-Invoke-Native aws sts get-caller-identity --output json
+& aws sts get-caller-identity --output json
+if ($LASTEXITCODE -ne 0) {
+    Write-Host 'No active AWS CLI session. Starting browser-based AWS login with temporary credentials...' -ForegroundColor Yellow
+    & aws login --region $AwsRegion
+    if ($LASTEXITCODE -ne 0) {
+        throw 'AWS browser login failed. AWS CLI 2.32.0 or newer is required for the aws login command.'
+    }
+    Invoke-Native aws sts get-caller-identity --output json
+}
 
 $ActivityCountRaw = & aws freetier list-account-activities `
     --region $AwsRegion `
