@@ -45,7 +45,7 @@ function Get-EnvValue {
 function Assert-RealValue {
     param(
         [Parameter(Mandatory)][string]$Name,
-        [Parameter(Mandatory)][string]$Value
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Value
     )
     if ([string]::IsNullOrWhiteSpace($Value)) {
         throw "Required production setting '$Name' is missing from the source env file."
