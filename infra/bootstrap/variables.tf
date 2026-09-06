@@ -1,7 +1,13 @@
 variable "aws_region" {
-  description = "Region that stores Terraform remote state."
+  description = "Control/state Region used for Terraform bootstrap resources. Keep this in us-east-1 because the existing remote state bucket already lives there."
   type        = string
   default     = "us-east-1"
+}
+
+variable "workload_region" {
+  description = "Opt-in AWS Region for EC2/RDS/Lambda workload resources closest to Egypt in the chosen Middle East deployment design."
+  type        = string
+  default     = "me-south-1"
 }
 
 variable "project_name" {
