@@ -1,0 +1,40 @@
+name: Terraform IaC checks
+
+on:
+  pull_request:
+    paths:
+      - "infra/**/*.tf"
+      - "infra/**/*.tftpl"
+      - "infra/**/lambda/**"
+      - ".github/workflows/terraform-iac-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        directory:
+          - infra/bootstrap
+          - infra/credits
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.1
+          terraform_wrapper: false
+
+      - name: Terraform format check
+        run: terraform -chdir=${{ matrix.directory }} fmt -check -recursive
+
+      - name: Terraform init without remote backend
+        run: terraform -chdir=${{ matrix.directory }} init -backend=false
+
+      - name: Terraform validate
+        run: terraform -chdir=${{ matrix.directory }} validate
