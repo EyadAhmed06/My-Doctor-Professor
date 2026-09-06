@@ -29,8 +29,10 @@ describe('validateEnvironment', () => {
   });
 
   it('accepts production configuration without Google OAuth', () => {
-    const { GOOGLE_CLIENT_ID: _googleClientId, ...withoutGoogle } = production;
-    expect(() => validateEnvironment(withoutGoogle)).not.toThrow();
+    expect(() => validateEnvironment({
+      ...production,
+      GOOGLE_CLIENT_ID: undefined,
+    })).not.toThrow();
   });
 
   it('rejects missing production configuration', () => {
