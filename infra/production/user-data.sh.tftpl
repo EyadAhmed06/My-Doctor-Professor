@@ -3,7 +3,34 @@ set -Eeuo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
 apt-get update
-apt-get install -y ca-certificates curl docker.io docker-compose-v2 awscli e2fsprogs util-linux
+apt-get install -y ca-certificates curl unzip docker.io docker-compose-v2 e2fsprogs util-linux
+
+# Ubuntu 24.04 does not consistently expose an installable `awscli` APT
+# package in the enabled repositories used by the EC2 image. Install AWS CLI v2
+# from AWS's official bundled installer so bootstrap is independent of that
+# distro package.
+if ! command -v aws >/dev/null 2>&1; then
+  machine_arch="$(uname -m)"
+  case "$machine_arch" in
+    x86_64) aws_arch="x86_64" ;;
+    aarch64|arm64) aws_arch="aarch64" ;;
+    *)
+      echo "Unsupported architecture for AWS CLI v2: $machine_arch" >&2
+      exit 1
+      ;;
+  esac
+
+  aws_zip="/tmp/awscliv2.zip"
+  aws_dir="/tmp/awscliv2"
+  rm -rf "$aws_zip" "$aws_dir"
+  curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$aws_arch.zip" -o "$aws_zip"
+  mkdir -p "$aws_dir"
+  unzip -q "$aws_zip" -d "$aws_dir"
+  "$aws_dir/aws/install" --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
+  rm -rf "$aws_zip" "$aws_dir"
+fi
+aws --version
+
 systemctl enable --now docker
 systemctl enable --now amazon-ssm-agent 2>/dev/null || true
 snap start amazon-ssm-agent 2>/dev/null || true
