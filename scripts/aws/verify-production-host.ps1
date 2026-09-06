@@ -65,8 +65,12 @@ if ($PingStatus -ne 'Online') {
 }
 Write-Host 'SSM is Online.' -ForegroundColor Green
 
+# AWS-RunShellScript invokes commands through /bin/sh. On Ubuntu that is dash,
+# which supports `set -eu` but not Bash's `set -o pipefail`. None of the checks
+# below rely on pipelines whose failure could be hidden, so POSIX strict mode is
+# sufficient and avoids failing before the readiness checks even start.
 $Commands = @(
-    'set -Eeuo pipefail',
+    'set -eu',
     'echo "== cloud-init =="',
     'cloud-init status --wait',
     'echo "== docker =="',
