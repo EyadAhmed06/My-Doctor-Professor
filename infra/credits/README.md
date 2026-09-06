@@ -10,14 +10,25 @@ This stack automates the AWS resources/actions that map to the five additional-c
 
 The credit resources are deliberately separate from `../` (the existing application deployment Terraform). They should not be destroyed until AWS reports the relevant account activities as `COMPLETED`.
 
+## Region design
+
+The automation intentionally separates control/state APIs from the Egypt-facing workload Region:
+
+- Terraform state/control Region: `us-east-1`. The existing encrypted/versioned S3 state bucket remains here.
+- Free Tier API Region: `us-east-1`, which is the service endpoint AWS exposes for the Free Tier API.
+- EC2/RDS/Lambda workload Region: `me-south-1` (Middle East — Bahrain).
+- Bedrock credit invocation: `us-east-1`, where the selected Amazon Nova Micro model is known to support direct inference.
+
+`me-south-1` is an opt-in AWS Region. `infra/bootstrap` manages that opt-in through the Terraform `aws_account_region` resource, so no console Region-enable step is required.
+
 ## First run from Windows PowerShell
 
 A brand-new AWS account has a bootstrap problem: GitHub Actions cannot assume an AWS role until that account already contains the GitHub OIDC provider and IAM role. The repository therefore includes a one-command runner that performs the bootstrap and the earning activities without manually creating the five services in the console.
 
 Prerequisites:
 
-- AWS CLI v2.32.0 or newer in `PATH`. If there is no active AWS CLI session, the runner launches `aws login` so the account can authenticate in the browser with temporary credentials instead of long-lived access keys.
-- Terraform 1.16.x in `PATH`.
+- Current AWS CLI v2 in `PATH`. If there is no active AWS CLI session, the runner launches `aws login` so the account can authenticate in the browser with temporary credentials instead of long-lived access keys.
+- Terraform >= 1.15.8 and < 1.17.0 in `PATH`.
 - Optional: authenticated GitHub CLI (`gh`) if you also want the runner to populate the non-secret repository variables automatically.
 
 From the repository root:
@@ -33,6 +44,7 @@ Without GitHub CLI, omit `-ConfigureGitHubVariables`; the script prints the valu
 - `AWS_CREDITS_ROLE_ARN`
 - `AWS_TERRAFORM_STATE_BUCKET`
 - `AWS_BUDGET_EMAIL`
+- `AWS_WORKLOAD_REGION`
 
 Check AWS's authoritative activity state later without touching resources:
 
