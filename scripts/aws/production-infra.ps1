@@ -8,7 +8,7 @@ param(
     [string]$WorkloadRegion = 'eu-south-1',
     [string]$ProjectName = 'my-doctor-professor',
     [string]$BudgetEmail = 'eyad.elmaleh1@gmail.com',
-    [string]$InstanceType = 't3.small'
+    [string]$InstanceType = 'c7i-flex.large'
 )
 
 $ErrorActionPreference = 'Stop'
