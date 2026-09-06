@@ -1,7 +1,7 @@
 variable "aws_region" {
-  description = "Use us-east-1 so the EC2/RDS/Lambda activities and Amazon Nova Bedrock invocation share one region."
+  description = "Region for EC2/RDS/Lambda workload resources. Bahrain is the selected Middle East Region for the Egypt-facing deployment."
   type        = string
-  default     = "us-east-1"
+  default     = "me-south-1"
 }
 
 variable "project_name" {
@@ -32,7 +32,7 @@ variable "rds_instance_class" {
 }
 
 variable "bedrock_model_id" {
-  description = "Low-cost Amazon Bedrock model invoked by the workflow after Terraform apply."
+  description = "Low-cost Amazon Bedrock model invoked by automation in its dedicated Bedrock Region."
   type        = string
   default     = "amazon.nova-micro-v1:0"
 }
