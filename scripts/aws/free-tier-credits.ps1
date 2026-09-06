@@ -61,6 +61,10 @@ if ($Action -eq 'Status') {
     exit 0
 }
 
+if ($Action -eq 'Apply' -and [string]::IsNullOrWhiteSpace($BudgetEmail)) {
+    throw 'Apply requires -BudgetEmail so the AWS Budgets activity includes an alert subscriber, matching the AWS earning tutorial.'
+}
+
 Assert-Command terraform
 
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
@@ -169,9 +173,7 @@ if ($ConfigureGitHubVariables) {
         if ($LASTEXITCODE -eq 0) {
             Invoke-Native gh variable set AWS_CREDITS_ROLE_ARN --body $CreditsRoleArn --repo 'EyadAhmed06/My-Doctor-Professor'
             Invoke-Native gh variable set AWS_TERRAFORM_STATE_BUCKET --body $StateBucket --repo 'EyadAhmed06/My-Doctor-Professor'
-            if (-not [string]::IsNullOrWhiteSpace($BudgetEmail)) {
-                Invoke-Native gh variable set AWS_BUDGET_EMAIL --body $BudgetEmail --repo 'EyadAhmed06/My-Doctor-Professor'
-            }
+            Invoke-Native gh variable set AWS_BUDGET_EMAIL --body $BudgetEmail --repo 'EyadAhmed06/My-Doctor-Professor'
         }
         else {
             Write-Warning 'GitHub CLI is installed but is not authenticated; repository variables were not changed.'
@@ -189,4 +191,5 @@ Show-FreeTierStatus
 Write-Host "`nBootstrap outputs for later GitHub Actions:" -ForegroundColor Green
 Write-Host "AWS_CREDITS_ROLE_ARN=$CreditsRoleArn"
 Write-Host "AWS_TERRAFORM_STATE_BUCKET=$StateBucket"
+Write-Host "AWS_BUDGET_EMAIL=$BudgetEmail"
 Write-Host "`nDo not destroy the temporary resources until AWS reports every intended activity as COMPLETED. Credits may take additional time to appear." -ForegroundColor Yellow
