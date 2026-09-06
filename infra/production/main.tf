@@ -252,7 +252,7 @@ resource "aws_iam_role_policy" "dlm" {
 }
 
 resource "aws_dlm_lifecycle_policy" "database" {
-  description        = "Daily crash-consistent snapshots for the production PostgreSQL EBS volume."
+  description        = "Daily PostgreSQL EBS snapshots"
   execution_role_arn = aws_iam_role.dlm.arn
   state              = "ENABLED"
 
