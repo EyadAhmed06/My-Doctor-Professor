@@ -35,7 +35,7 @@ resource "aws_internet_gateway" "main" {
 resource "aws_subnet" "public_a" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.24.1.0/24"
-  availability_zone       = data.aws_availability_zones.available.names[0]
+  availability_zone       = var.app_availability_zone
   map_public_ip_on_launch = true
   tags                    = { Name = "${local.name}-public-a" }
 }
