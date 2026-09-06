@@ -96,11 +96,15 @@ if ($Action -eq 'Apply' -and $ActivityCount -eq 0) {
     throw 'AWS reports zero earning activities for this account. Refusing to create EC2/RDS resources because the additional credit eligibility is not confirmed.'
 }
 
-if ($Action -eq 'Apply' -and [string]::IsNullOrWhiteSpace($BudgetEmail)) {
-    throw 'Apply requires -BudgetEmail so the AWS Budgets activity includes an alert subscriber, matching the AWS earning tutorial.'
-}
-
 if ($Action -eq 'Apply') {
+    if ([string]::IsNullOrWhiteSpace($BudgetEmail)) {
+        throw 'Apply requires -BudgetEmail so the AWS Budgets activity includes an alert subscriber, matching the AWS earning tutorial.'
+    }
+
+    if ($BudgetEmail -match '(?i)YOUR_|PLACEHOLDER|EXAMPLE' -or $BudgetEmail -notmatch '^[^\s@]+@[^\s@]+\.[^\s@]+$') {
+        throw "BudgetEmail '$BudgetEmail' is a placeholder or is not a valid-looking email address. Re-run with your real email address."
+    }
+
     Write-Host "AWS advertises $ActivityCount earning activity/activities for this account. Continuing." -ForegroundColor Green
     Show-FreeTierStatus
 }
