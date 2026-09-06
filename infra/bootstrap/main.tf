@@ -1,9 +1,5 @@
 data "aws_caller_identity" "current" {}
 
-data "tls_certificate" "github_actions" {
-  url = "https://token.actions.githubusercontent.com"
-}
-
 locals {
   state_bucket_name = "${var.project_name}-terraform-state-${data.aws_caller_identity.current.account_id}"
   github_subjects = [
@@ -48,9 +44,6 @@ resource "aws_s3_bucket_versioning" "terraform_state" {
 resource "aws_iam_openid_connect_provider" "github_actions" {
   url            = "https://token.actions.githubusercontent.com"
   client_id_list = ["sts.amazonaws.com"]
-  thumbprint_list = [
-    data.tls_certificate.github_actions.certificates[0].sha1_fingerprint,
-  ]
 }
 
 resource "aws_iam_role" "github_credits_iac" {
