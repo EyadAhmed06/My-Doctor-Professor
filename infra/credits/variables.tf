@@ -10,13 +10,13 @@ variable "project_name" {
 }
 
 variable "budget_limit_usd" {
-  description = "Small monthly guardrail budget created for the AWS Budgets credit activity."
+  description = "Monthly cost budget amount matching the AWS Free Tier earning tutorial."
   type        = number
-  default     = 10
+  default     = 100
 }
 
 variable "budget_email" {
-  description = "Optional email for the budget alert. Leave empty to create the budget without an email subscriber."
+  description = "Email subscriber for the AWS Budget alert. Automated apply paths require this value."
   type        = string
   default     = ""
 }
