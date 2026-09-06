@@ -59,16 +59,26 @@ jobs:
           role-to-assume: ${{ vars.AWS_CREDITS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Show AWS Free Tier plan and activity status before changes
+      - name: Verify Free Tier earning eligibility before provisioning
         shell: bash
+        env:
+          ACTION: ${{ inputs.action }}
         run: |
           set -euo pipefail
           aws sts get-caller-identity
           aws freetier get-account-plan-state --region "$AWS_REGION" || true
+          ACTIVITY_COUNT="$(aws freetier list-account-activities \
+            --region "$AWS_REGION" \
+            --query 'length(activities)' \
+            --output text)"
           aws freetier list-account-activities \
             --region "$AWS_REGION" \
             --query 'activities[].{Activity:title,Status:status,RewardUSD:reward.credit.amount}' \
             --output table
+          if [ "$ACTION" = "apply" ] && [ "$ACTIVITY_COUNT" = "0" ]; then
+            echo "AWS reports zero earning activities. Refusing to provision EC2/RDS because additional-credit eligibility is not confirmed."
+            exit 1
+          fi
 
       - uses: hashicorp/setup-terraform@v3
         with:
