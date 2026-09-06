@@ -28,6 +28,11 @@ describe('validateEnvironment', () => {
     expect(result.SMTP_PORT).toBe(587);
   });
 
+  it('accepts production configuration without Google OAuth', () => {
+    const { GOOGLE_CLIENT_ID: _googleClientId, ...withoutGoogle } = production;
+    expect(() => validateEnvironment(withoutGoogle)).not.toThrow();
+  });
+
   it('rejects missing production configuration', () => {
     expect(() => validateEnvironment({ NODE_ENV: 'production' })).toThrow(
       'Missing required production environment variables',
