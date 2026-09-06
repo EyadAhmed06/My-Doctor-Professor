@@ -7,6 +7,11 @@ locals {
   ]
 }
 
+resource "aws_account_region" "workload" {
+  region_name = var.workload_region
+  enabled     = true
+}
+
 resource "aws_s3_bucket" "terraform_state" {
   bucket = local.state_bucket_name
 
