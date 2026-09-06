@@ -15,15 +15,15 @@ The credit resources are deliberately separate from `../` (the existing applicat
 The automation intentionally separates control/state APIs from the Egypt-facing workload Region:
 
 - Terraform state/control Region: `us-east-1`. The existing encrypted/versioned S3 state bucket remains here.
-- Free Tier API Region: `us-east-1`, which is the service endpoint AWS exposes for the Free Tier API.
-- EC2/RDS/Lambda workload Region: `me-south-1` (Middle East — Bahrain).
-- Bedrock credit invocation: `us-east-1`, where the selected Amazon Nova Micro model is known to support direct inference.
+- Free Tier API Region: `us-east-1`, which is the service endpoint used by the automation.
+- EC2/RDS/Lambda workload Region: `eu-south-1` (Europe — Milan).
+- Bedrock credit invocation: `us-east-1`, where the selected Amazon Nova Micro model is kept on the known inference path.
 
-`me-south-1` is an opt-in AWS Region. `infra/bootstrap` manages that opt-in through the Terraform `aws_account_region` resource, so no console Region-enable step is required.
+`eu-south-1` is an opt-in AWS Region. `infra/bootstrap` manages that opt-in through the Terraform `aws_account_region` resource, so no console Region-enable step is required.
 
 ## First run from Windows PowerShell
 
-A brand-new AWS account has a bootstrap problem: GitHub Actions cannot assume an AWS role until that account already contains the GitHub OIDC provider and IAM role. The repository therefore includes a one-command runner that performs the bootstrap and the earning activities without manually creating the five services in the console.
+A brand-new AWS account has a bootstrap problem: GitHub Actions cannot assume an AWS role until that account already contains the GitHub OIDC provider and IAM role. The repository therefore includes a runner that performs the bootstrap and the earning activities without manually creating the five services in the console.
 
 Prerequisites:
 
@@ -34,7 +34,11 @@ Prerequisites:
 From the repository root:
 
 ```powershell
-.\scripts\aws\free-tier-credits.ps1 -Action Apply -BudgetEmail "you@example.com" -ConfigureGitHubVariables
+.\scripts\aws\free-tier-credits.ps1 `
+  -Action Apply `
+  -WorkloadRegion "eu-south-1" `
+  -BudgetEmail "you@example.com" `
+  -ConfigureGitHubVariables
 ```
 
 Before creating EC2 or RDS, the runner queries `list-account-activities`. If AWS reports zero earning activities, it refuses to provision anything.
@@ -55,14 +59,14 @@ Check AWS's authoritative activity state later without touching resources:
 Only after AWS reports every intended earning activity as `COMPLETED`:
 
 ```powershell
-.\scripts\aws\free-tier-credits.ps1 -Action Destroy -ConfirmDestroy
+.\scripts\aws\free-tier-credits.ps1 -Action Destroy -WorkloadRegion "eu-south-1" -ConfirmDestroy
 ```
 
 The destroy path intentionally refuses to proceed while AWS reports incomplete activities.
 
 ## GitHub Actions after bootstrap
 
-Once the OIDC role and remote state exist, `.github/workflows/aws-credit-activities.yml` contains `apply`, `status`, and guarded `destroy` automation for use once that workflow is present on the repository's active/default workflow branch. No long-lived AWS access keys are required.
+Once the OIDC role and remote state exist, `.github/workflows/aws-credit-activities.yml` contains `apply`, `status`, and guarded `destroy` automation for later use. No long-lived AWS access keys are required.
 
 ## Bedrock caveat
 
