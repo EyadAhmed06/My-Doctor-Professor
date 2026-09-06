@@ -3,11 +3,11 @@ param(
     [ValidateSet('Apply', 'Status', 'Destroy')]
     [string]$Action = 'Apply',
 
-    # Control-plane Region. The existing Terraform state bucket and the AWS Free Tier API live in us-east-1.
+    # Control-plane Region. The existing Terraform state bucket and AWS Free Tier API live in us-east-1.
     [string]$AwsRegion = 'us-east-1',
 
-    # Egypt-facing workload Region. Terraform will opt this Region in automatically during bootstrap.
-    [string]$WorkloadRegion = 'me-south-1',
+    # Egypt-facing workload Region. Milan keeps the application in Europe while remaining relatively close to Egypt.
+    [string]$WorkloadRegion = 'eu-south-1',
 
     # Keep the Bedrock credit invocation in a known-good Region for Amazon Nova Micro.
     [string]$BedrockRegion = 'us-east-1',
@@ -61,6 +61,50 @@ function Show-FreeTierStatus {
         --output table
 }
 
+function Invoke-BedrockCreditAttempt {
+    param([Parameter(Mandatory)][string]$ModelId)
+
+    # Avoid PowerShell/native-command JSON quoting entirely. AWS CLI document parameters
+    # are supplied through a UTF-8 JSON request file instead of inline JSON arguments.
+    $RequestPath = Join-Path ([System.IO.Path]::GetTempPath()) 'mdp-bedrock-converse.json'
+    $Request = [ordered]@{
+        modelId = $ModelId
+        messages = @(
+            [ordered]@{
+                role = 'user'
+                content = @(
+                    [ordered]@{ text = 'Reply with exactly: AWS activity complete' }
+                )
+            }
+        )
+        inferenceConfig = [ordered]@{
+            maxTokens = 16
+            temperature = 0
+        }
+    }
+
+    $Request | ConvertTo-Json -Depth 10 -Compress | Set-Content -Path $RequestPath -Encoding utf8 -NoNewline
+
+    try {
+        & aws bedrock-runtime converse `
+            --profile $AwsProfile `
+            --region $BedrockRegion `
+            --cli-input-json "file://$RequestPath" `
+            --query 'output.message.content[0].text' `
+            --output text
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning 'Bedrock API invocation failed. The other four activities remain provisioned. Check model access and the authoritative Free Tier status below.'
+            return $false
+        }
+
+        return $true
+    }
+    finally {
+        Remove-Item -Path $RequestPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
 Assert-Command aws
 
 Write-Host "Using dedicated AWS CLI profile '$AwsProfile'; the existing default profile will not be changed." -ForegroundColor Cyan
@@ -71,18 +115,14 @@ Write-Host 'Verifying AWS authentication...' -ForegroundColor Cyan
 & aws sts get-caller-identity --profile $AwsProfile --output json
 if ($LASTEXITCODE -ne 0) {
     Write-Host "No active session for '$AwsProfile'. Starting browser-based AWS login with temporary credentials..." -ForegroundColor Yellow
-
-    # Configure only the named profile. This deliberately leaves legacy/default credentials untouched.
     Invoke-Native aws configure set region $AwsRegion --profile $AwsProfile
     & aws login --profile $AwsProfile
     if ($LASTEXITCODE -ne 0) {
-        throw "AWS browser login failed for profile '$AwsProfile'. The legacy default profile was not modified. Run 'aws login --profile $AwsProfile' directly to inspect the AWS CLI error."
+        throw "AWS browser login failed for profile '$AwsProfile'. Run 'aws login --profile $AwsProfile' directly to inspect the AWS CLI error."
     }
-
     Invoke-Native aws sts get-caller-identity --profile $AwsProfile --output json
 }
 
-# Terraform inherits this profile without requiring static access keys.
 $env:AWS_PROFILE = $AwsProfile
 $env:AWS_REGION = $AwsRegion
 $env:AWS_DEFAULT_REGION = $AwsRegion
@@ -103,18 +143,16 @@ if ($Action -eq 'Status') {
 }
 
 if ($Action -eq 'Apply' -and $ActivityCount -eq 0) {
-    throw 'AWS reports zero earning activities for this account. Refusing to create EC2/RDS resources because the additional credit eligibility is not confirmed.'
+    throw 'AWS reports zero earning activities for this account. Refusing to create EC2/RDS resources because additional-credit eligibility is not confirmed.'
 }
 
 if ($Action -eq 'Apply') {
     if ([string]::IsNullOrWhiteSpace($BudgetEmail)) {
-        throw 'Apply requires -BudgetEmail so the AWS Budgets activity includes an alert subscriber, matching the AWS earning tutorial.'
+        throw 'Apply requires -BudgetEmail so the AWS Budgets activity includes an alert subscriber.'
     }
-
     if ($BudgetEmail -match '(?i)YOUR_|PLACEHOLDER|EXAMPLE|PUT_' -or $BudgetEmail -notmatch '^[^\s@]+@[^\s@]+\.[^\s@]+$') {
-        throw "BudgetEmail '$BudgetEmail' is a placeholder or is not a valid-looking email address. Re-run with your real email address."
+        throw "BudgetEmail '$BudgetEmail' is a placeholder or is not a valid-looking email address."
     }
-
     Write-Host "AWS advertises $ActivityCount earning activity/activities for this account. Continuing." -ForegroundColor Green
     Show-FreeTierStatus
 }
@@ -129,7 +167,6 @@ $AccountId = (& aws sts get-caller-identity --profile $AwsProfile --query Accoun
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($AccountId)) {
     throw 'Could not resolve the current AWS account ID.'
 }
-
 $StateBucket = "$ProjectName-terraform-state-$AccountId"
 
 if ($Action -eq 'Destroy') {
@@ -192,13 +229,12 @@ Invoke-Native terraform "-chdir=$CreditsDir" init -reconfigure `
     '-backend-config=encrypt=true' `
     '-backend-config=use_lockfile=true'
 
-# From this point forward, regional credit resources are created in Bahrain.
 $env:TF_VAR_aws_region = $WorkloadRegion
 $env:TF_VAR_project_name = $ProjectName
 $env:TF_VAR_budget_email = $BudgetEmail
 Invoke-Native terraform "-chdir=$CreditsDir" validate
 
-Write-Host "`n3/6 - Creating Budget, EC2, RDS, and Lambda activities in $WorkloadRegion..." -ForegroundColor Cyan
+Write-Host "`n3/6 - Reconciling Budget, EC2, RDS, and Lambda activities in $WorkloadRegion..." -ForegroundColor Cyan
 $TerraformPlanArgs = @("-chdir=$CreditsDir", 'plan', '-out=credits.tfplan')
 Invoke-Native terraform @TerraformPlanArgs
 $TerraformApplyArgs = @("-chdir=$CreditsDir", 'apply', '-auto-approve', 'credits.tfplan')
@@ -212,24 +248,14 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($LambdaUrl)) {
 $LambdaResponse = Invoke-RestMethod -Uri $LambdaUrl -Method Get
 $LambdaResponse | ConvertTo-Json -Depth 8
 
-Write-Host "`n5/6 - Invoking Amazon Bedrock in $BedrockRegion..." -ForegroundColor Cyan
+Write-Host "`n5/6 - Invoking Amazon Bedrock in $BedrockRegion using a JSON request file..." -ForegroundColor Cyan
 $BedrockModel = (& terraform "-chdir=$CreditsDir" output -raw bedrock_model_id).Trim()
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($BedrockModel)) {
     throw 'Bedrock model ID was not returned by Terraform.'
 }
-
-$MessagesJson = '[{"role":"user","content":[{"text":"Reply with exactly: AWS activity complete"}]}]'
-$InferenceJson = '{"maxTokens":16,"temperature":0}'
-& aws bedrock-runtime converse `
-    --profile $AwsProfile `
-    --region $BedrockRegion `
-    --model-id $BedrockModel `
-    --messages $MessagesJson `
-    --inference-config $InferenceJson `
-    --query 'output.message.content[0].text' `
-    --output text
-if ($LASTEXITCODE -ne 0) {
-    Write-Warning 'Bedrock API invocation failed. The other four activities remain provisioned. Check Bedrock model access and the authoritative Free Tier status below.'
+$BedrockSucceeded = Invoke-BedrockCreditAttempt -ModelId $BedrockModel
+if ($BedrockSucceeded) {
+    Write-Host 'Bedrock API invocation succeeded. AWS Free Tier status will determine whether the Playground-specific activity counts it.' -ForegroundColor Green
 }
 
 if ($ConfigureGitHubVariables) {
