@@ -56,13 +56,31 @@ Assert-Command aws
 Write-Host 'Verifying AWS authentication...' -ForegroundColor Cyan
 Invoke-Native aws sts get-caller-identity --output json
 
+$ActivityCountRaw = & aws freetier list-account-activities `
+    --region $AwsRegion `
+    --query 'length(activities)' `
+    --output text
+if ($LASTEXITCODE -ne 0) {
+    throw 'AWS Free Tier activity API is unavailable. Update AWS CLI v2 and verify this account supports the new Free Tier experience before provisioning anything.'
+}
+$ActivityCount = [int]$ActivityCountRaw.Trim()
+
 if ($Action -eq 'Status') {
     Show-FreeTierStatus
     exit 0
 }
 
+if ($Action -eq 'Apply' -and $ActivityCount -eq 0) {
+    throw 'AWS reports zero earning activities for this account. Refusing to create EC2/RDS resources because the additional credit eligibility is not confirmed.'
+}
+
 if ($Action -eq 'Apply' -and [string]::IsNullOrWhiteSpace($BudgetEmail)) {
     throw 'Apply requires -BudgetEmail so the AWS Budgets activity includes an alert subscriber, matching the AWS earning tutorial.'
+}
+
+if ($Action -eq 'Apply') {
+    Write-Host "AWS advertises $ActivityCount earning activity/activities for this account. Continuing." -ForegroundColor Green
+    Show-FreeTierStatus
 }
 
 Assert-Command terraform
