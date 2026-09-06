@@ -15,9 +15,9 @@ variable "environment" {
 }
 
 variable "instance_type" {
-  description = "EC2 size for the Dockerized Next.js + NestJS + PostgreSQL application host. t3.small is Free-Plan eligible for accounts created on/after 2025-07-15 and keeps the existing x86_64 image/build path."
+  description = "EC2 size for the Dockerized Next.js + NestJS + PostgreSQL application host. c7i-flex.large keeps the existing x86_64 image/build path while providing 4 GiB RAM and is checked against AWS Free Tier eligibility by the production runner before plan/apply."
   type        = string
-  default     = "t3.small"
+  default     = "c7i-flex.large"
 }
 
 variable "root_volume_gb" {
