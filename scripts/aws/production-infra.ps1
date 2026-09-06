@@ -107,12 +107,14 @@ Invoke-Native terraform "-chdir=$ProductionDir" output
 $DeployRoleArn = (& terraform "-chdir=$ProductionDir" output -raw github_actions_role_arn).Trim()
 $ApplicationUrl = (& terraform "-chdir=$ProductionDir" output -raw application_url).Trim()
 $InstanceId = (& terraform "-chdir=$ProductionDir" output -raw instance_id).Trim()
-$RdsEndpoint = (& terraform "-chdir=$ProductionDir" output -raw rds_endpoint).Trim()
+$DatabaseVolumeId = (& terraform "-chdir=$ProductionDir" output -raw database_volume_id).Trim()
+$SnapshotPolicyId = (& terraform "-chdir=$ProductionDir" output -raw database_snapshot_policy_id).Trim()
 
 Write-Host "`nNext deployment values:" -ForegroundColor Green
 Write-Host "AWS_DEPLOY_ROLE_ARN=$DeployRoleArn"
 Write-Host "AWS_WORKLOAD_REGION=$WorkloadRegion"
 Write-Host "APPLICATION_URL=$ApplicationUrl"
 Write-Host "INSTANCE_ID=$InstanceId"
-Write-Host "RDS_ENDPOINT=$RdsEndpoint"
-Write-Host "`nThe official EC2 has now been launched. Check the Free Tier EC2 activity status before cleaning the temporary credit EC2." -ForegroundColor Yellow
+Write-Host "DATABASE_VOLUME_ID=$DatabaseVolumeId"
+Write-Host "DATABASE_SNAPSHOT_POLICY_ID=$SnapshotPolicyId"
+Write-Host "`nThe official EC2 has now been launched with PostgreSQL on a protected persistent EBS volume. Check the Free Tier EC2 activity status before cleaning the temporary credit EC2." -ForegroundColor Yellow
