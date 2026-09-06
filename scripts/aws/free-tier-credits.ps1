@@ -112,7 +112,6 @@ Write-Host "`n1/6 - Bootstrapping Terraform state + GitHub OIDC..." -ForegroundC
 $env:TF_VAR_aws_region = $AwsRegion
 $env:TF_VAR_project_name = $ProjectName
 Invoke-Native terraform "-chdir=$BootstrapDir" init
-Invoke-Native terraform "-chdir=$BootstrapDir" fmt -check -recursive
 Invoke-Native terraform "-chdir=$BootstrapDir" validate
 Invoke-Native terraform "-chdir=$BootstrapDir" apply -auto-approve
 
@@ -129,7 +128,6 @@ Invoke-Native terraform "-chdir=$CreditsDir" init -reconfigure `
     "-backend-config=region=$AwsRegion" `
     '-backend-config=encrypt=true' `
     '-backend-config=use_lockfile=true'
-Invoke-Native terraform "-chdir=$CreditsDir" fmt -check -recursive
 Invoke-Native terraform "-chdir=$CreditsDir" validate
 
 Write-Host "`n3/6 - Creating Budget, EC2, RDS, and Lambda activities..." -ForegroundColor Cyan
