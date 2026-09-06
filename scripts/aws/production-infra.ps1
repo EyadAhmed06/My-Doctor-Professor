@@ -7,7 +7,8 @@ param(
     [string]$StateRegion = 'us-east-1',
     [string]$WorkloadRegion = 'eu-south-1',
     [string]$ProjectName = 'my-doctor-professor',
-    [string]$BudgetEmail = 'eyad.elmaleh1@gmail.com'
+    [string]$BudgetEmail = 'eyad.elmaleh1@gmail.com',
+    [string]$InstanceType = 't3.small'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -37,6 +38,7 @@ Assert-Command terraform
 Write-Host "AWS profile: $AwsProfile" -ForegroundColor Cyan
 Write-Host "Terraform state Region: $StateRegion" -ForegroundColor Cyan
 Write-Host "Production workload Region: $WorkloadRegion" -ForegroundColor Cyan
+Write-Host "Production EC2 instance type: $InstanceType" -ForegroundColor Cyan
 
 & aws sts get-caller-identity --profile $AwsProfile --output json
 if ($LASTEXITCODE -ne 0) {
@@ -55,6 +57,16 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($AccountId)) {
     throw 'Could not resolve AWS account ID.'
 }
 
+if ($Action -ne 'Outputs') {
+    Write-Host "`nChecking EC2 Free Plan eligibility in $WorkloadRegion..." -ForegroundColor Cyan
+    $Eligible = (& aws ec2 describe-instance-types --profile $AwsProfile --region $WorkloadRegion --instance-types $InstanceType --query 'InstanceTypes[0].FreeTierEligible' --output text 2>$null).Trim()
+    if ($LASTEXITCODE -ne 0 -or $Eligible -ne 'True') {
+        $EligibleTypes = (& aws ec2 describe-instance-types --profile $AwsProfile --region $WorkloadRegion --filters 'Name=free-tier-eligible,Values=true' --query 'sort_by(InstanceTypes,&InstanceType)[].InstanceType' --output text 2>$null)
+        throw "EC2 instance type '$InstanceType' is not Free-Tier-eligible in $WorkloadRegion for this account. Eligible types reported by AWS: $EligibleTypes"
+    }
+    Write-Host "EC2 instance type '$InstanceType' is Free-Tier-eligible." -ForegroundColor Green
+}
+
 $StateBucket = "$ProjectName-terraform-state-$AccountId"
 & aws s3api head-bucket --profile $AwsProfile --bucket $StateBucket 2>$null
 if ($LASTEXITCODE -ne 0) {
@@ -67,6 +79,7 @@ $ProductionDir = Join-Path $RepoRoot 'infra\production'
 $env:TF_VAR_aws_region = $WorkloadRegion
 $env:TF_VAR_project_name = $ProjectName
 $env:TF_VAR_budget_email = $BudgetEmail
+$env:TF_VAR_instance_type = $InstanceType
 
 Write-Host "`nInitializing production remote state..." -ForegroundColor Cyan
 $InitArgs = @(
