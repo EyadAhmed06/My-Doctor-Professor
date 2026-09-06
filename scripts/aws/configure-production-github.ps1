@@ -158,7 +158,7 @@ if (-not [string]::IsNullOrWhiteSpace($AnatomyAssetBase)) {
     Write-Host 'Configured NEXT_PUBLIC_ANATOMY_ASSET_BASE from the supplied value.' -ForegroundColor Green
 }
 else {
-    $ExistingAnatomyBase = (& gh variable get NEXT_PUBLIC_ANATOMY_ASSET_BASE --repo $Repository --body 2>$null)
+    $ExistingAnatomyBase = (& gh variable get NEXT_PUBLIC_ANATOMY_ASSET_BASE --repo $Repository 2>$null)
     if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace(($ExistingAnatomyBase | Out-String).Trim())) {
         Write-Host 'Preserving the existing NEXT_PUBLIC_ANATOMY_ASSET_BASE repository variable.' -ForegroundColor Green
     }
