@@ -11,8 +11,14 @@ output "instance_id" {
   value = aws_instance.app.id
 }
 
-output "rds_endpoint" {
-  value = aws_db_instance.postgres.endpoint
+output "database_volume_id" {
+  value       = aws_ebs_volume.database.id
+  description = "Protected persistent EBS volume containing PostgreSQL data."
+}
+
+output "database_snapshot_policy_id" {
+  value       = aws_dlm_lifecycle_policy.database.id
+  description = "Daily EBS snapshot lifecycle policy for the PostgreSQL volume."
 }
 
 output "github_actions_role_arn" {
