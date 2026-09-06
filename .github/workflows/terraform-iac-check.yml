@@ -32,14 +32,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Terraform format check
-        shell: bash
-        run: |
-          set -euo pipefail
-          terraform -chdir=${{ matrix.directory }} fmt -recursive
-          if ! git diff --exit-code -- "${{ matrix.directory }}"; then
-            echo "Terraform formatting changes are required in ${{ matrix.directory }}"
-            exit 1
-          fi
+        run: terraform -chdir=${{ matrix.directory }} fmt -check -recursive
 
       - name: Terraform init without remote backend
         run: terraform -chdir=${{ matrix.directory }} init -backend=false
