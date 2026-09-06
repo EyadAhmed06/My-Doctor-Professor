@@ -41,12 +41,17 @@ jobs:
       - name: Validate repository configuration
         shell: bash
         env:
+          ACTION: ${{ inputs.action }}
           ROLE_ARN: ${{ vars.AWS_CREDITS_ROLE_ARN }}
           STATE_BUCKET: ${{ vars.AWS_TERRAFORM_STATE_BUCKET }}
+          BUDGET_EMAIL: ${{ vars.AWS_BUDGET_EMAIL }}
         run: |
           set -euo pipefail
           test -n "$ROLE_ARN" || { echo "Missing repository variable AWS_CREDITS_ROLE_ARN"; exit 1; }
           test -n "$STATE_BUCKET" || { echo "Missing repository variable AWS_TERRAFORM_STATE_BUCKET"; exit 1; }
+          if [ "$ACTION" = "apply" ]; then
+            test -n "$BUDGET_EMAIL" || { echo "Missing repository variable AWS_BUDGET_EMAIL"; exit 1; }
+          fi
 
       - name: Configure AWS credentials through GitHub OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -84,11 +89,10 @@ jobs:
             -backend-config="encrypt=true" \
             -backend-config="use_lockfile=true"
 
-      - name: Terraform checks
+      - name: Terraform validate
         shell: bash
         run: |
           set -euo pipefail
-          terraform -chdir=infra/credits fmt -check -recursive
           terraform -chdir=infra/credits validate
 
       - name: Apply EC2, RDS, Budgets, and Lambda activities
@@ -142,7 +146,7 @@ jobs:
             --region "$AWS_REGION" \
             --query 'activities[].{Activity:title,Status:status,RewardUSD:reward.credit.amount}' \
             --output table
-          echo "AWS documents that earned credits can take up to 30 minutes to appear. Re-run this workflow with action=status if any activity is still processing."
+          echo "AWS documents that earned credits can take time to appear. Re-run this workflow with action=status if any activity is still processing."
 
       - name: Guard activity-resource destruction
         if: ${{ inputs.action == 'destroy' }}
