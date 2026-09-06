@@ -15,24 +15,27 @@ variable "environment" {
 }
 
 variable "instance_type" {
-  description = "EC2 size for the Dockerized Next.js + NestJS application host."
+  description = "EC2 size for the Dockerized Next.js + NestJS + PostgreSQL application host."
   type        = string
   default     = "t3.medium"
 }
 
 variable "root_volume_gb" {
-  type    = number
-  default = 40
+  description = "Root gp3 volume for the OS, Docker images, and application runtime."
+  type        = number
+  default     = 40
 }
 
-variable "db_instance_class" {
-  type    = string
-  default = "db.t4g.micro"
+variable "db_volume_gb" {
+  description = "Dedicated encrypted gp3 EBS volume that stores PostgreSQL data independently from the EC2 root disk."
+  type        = number
+  default     = 30
 }
 
-variable "db_allocated_storage_gb" {
-  type    = number
-  default = 20
+variable "db_snapshot_retention_count" {
+  description = "Number of daily EBS snapshots retained by the database lifecycle policy."
+  type        = number
+  default     = 7
 }
 
 variable "db_name" {
@@ -43,11 +46,6 @@ variable "db_name" {
 variable "db_username" {
   type    = string
   default = "mdp_app"
-}
-
-variable "rds_backup_retention_days" {
-  type    = number
-  default = 7
 }
 
 variable "budget_limit_usd" {
@@ -75,7 +73,7 @@ variable "github_branches" {
 }
 
 variable "retain_backups" {
-  description = "Keep the S3 backup bucket if the stack is later torn down."
+  description = "Keep the S3 logical-backup bucket if the stack is later torn down."
   type        = bool
   default     = true
 }
