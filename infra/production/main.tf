@@ -9,11 +9,11 @@ data "aws_ssm_parameter" "ubuntu_ami" {
 }
 
 locals {
-  name                   = "${var.project_name}-${var.environment}"
-  app_parameter_name     = "/${var.project_name}/${var.environment}/app-env"
+  name                    = "${var.project_name}-${var.environment}"
+  app_parameter_name      = "/${var.project_name}/${var.environment}/app-env"
   database_parameter_name = "/${var.project_name}/${var.environment}/database-env"
-  temporary_domain       = "${replace(aws_eip.app.public_ip, ".", "-")}.sslip.io"
-  github_oidc_arn        = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
+  temporary_domain        = "${replace(aws_eip.app.public_ip, ".", "-")}.sslip.io"
+  github_oidc_arn         = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
   github_subjects = [
     for branch in var.github_branches : "repo:${var.github_repository}:ref:refs/heads/${branch}"
   ]
@@ -249,11 +249,11 @@ resource "aws_db_instance" "postgres" {
   publicly_accessible    = false
   multi_az               = false
 
-  backup_retention_period = var.rds_backup_retention_days
+  backup_retention_period    = var.rds_backup_retention_days
   auto_minor_version_upgrade = true
-  deletion_protection     = false
-  skip_final_snapshot     = true
-  apply_immediately       = true
+  deletion_protection        = false
+  skip_final_snapshot        = true
+  apply_immediately          = true
 
   tags = { Name = "${local.name}-postgres" }
 }
@@ -362,14 +362,14 @@ resource "aws_instance" "app" {
   }
 
   user_data = templatefile("${path.module}/user-data.sh.tftpl", {
-    compose_b64            = filebase64("${path.module}/../../deploy/compose.aws-rds.yml")
-    caddy_b64              = filebase64("${path.module}/../../deploy/Caddyfile")
-    app_host               = local.temporary_domain
-    aws_region             = var.aws_region
-    backend_image          = aws_ecr_repository.backend.repository_url
-    frontend_image         = aws_ecr_repository.frontend.repository_url
-    backup_bucket          = aws_s3_bucket.backups.id
-    app_parameter_name     = local.app_parameter_name
+    compose_b64             = filebase64("${path.module}/../../deploy/compose.aws-rds.yml")
+    caddy_b64               = filebase64("${path.module}/../../deploy/Caddyfile")
+    app_host                = local.temporary_domain
+    aws_region              = var.aws_region
+    backend_image           = aws_ecr_repository.backend.repository_url
+    frontend_image          = aws_ecr_repository.frontend.repository_url
+    backup_bucket           = aws_s3_bucket.backups.id
+    app_parameter_name      = local.app_parameter_name
     database_parameter_name = local.database_parameter_name
   })
 
@@ -464,11 +464,11 @@ resource "aws_cloudwatch_metric_alarm" "cpu" {
   alarm_name          = "${local.name}-high-cpu"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 3
-  metric_name          = "CPUUtilization"
-  namespace            = "AWS/EC2"
-  period               = 300
-  statistic            = "Average"
-  threshold            = 85
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 85
   alarm_description   = "CPU remained above 85 percent for 15 minutes."
   alarm_actions       = [aws_sns_topic.operations.arn]
   dimensions          = { InstanceId = aws_instance.app.id }
@@ -478,13 +478,13 @@ resource "aws_cloudwatch_metric_alarm" "status" {
   alarm_name          = "${local.name}-status-check"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
-  metric_name          = "StatusCheckFailed"
-  namespace            = "AWS/EC2"
-  period               = 60
-  statistic            = "Maximum"
-  threshold            = 0
-  alarm_actions        = [aws_sns_topic.operations.arn]
-  dimensions           = { InstanceId = aws_instance.app.id }
+  metric_name         = "StatusCheckFailed"
+  namespace           = "AWS/EC2"
+  period              = 60
+  statistic           = "Maximum"
+  threshold           = 0
+  alarm_actions       = [aws_sns_topic.operations.arn]
+  dimensions          = { InstanceId = aws_instance.app.id }
 }
 
 resource "aws_budgets_budget" "production" {
