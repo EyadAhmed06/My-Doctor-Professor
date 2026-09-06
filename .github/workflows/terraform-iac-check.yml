@@ -21,6 +21,7 @@ jobs:
         directory:
           - infra/bootstrap
           - infra/credits
+          - infra/production
 
     steps:
       - uses: actions/checkout@v4
