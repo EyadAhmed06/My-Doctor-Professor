@@ -65,33 +65,29 @@ if ($PingStatus -ne 'Online') {
 }
 Write-Host 'SSM is Online.' -ForegroundColor Green
 
-# AWS-RunShellScript invokes commands through /bin/sh. On Ubuntu that is dash,
-# which supports `set -eu` but not Bash's `set -o pipefail`. None of the checks
-# below rely on pipelines whose failure could be hidden, so POSIX strict mode is
-# sufficient and avoids failing before the readiness checks even start.
+# AWS-RunShellScript uses /bin/sh. Keep the remote script POSIX-compatible and
+# collect diagnostics instead of stopping at the first failing readiness check.
 $Commands = @(
-    'set -eu',
+    'fail=0',
     'echo "== cloud-init =="',
-    'cloud-init status --wait',
+    'cloud-init status --wait || fail=1',
+    'cloud-init status --long || true',
+    'if [ "$fail" -ne 0 ]; then echo "== cloud-init output tail =="; tail -n 180 /var/log/cloud-init-output.log 2>/dev/null || true; echo "== cloud-final journal tail =="; journalctl -u cloud-final.service --no-pager -n 120 2>/dev/null || true; fi',
     'echo "== docker =="',
-    'systemctl is-active docker',
-    'docker --version',
-    'docker compose version',
+    'if systemctl is-active --quiet docker; then echo active; docker --version || fail=1; docker compose version || fail=1; else echo docker:INACTIVE; fail=1; fi',
     'echo "== database volume =="',
-    'findmnt -no SOURCE,FSTYPE,OPTIONS /opt/mdp/data/postgres',
-    'df -h /opt/mdp/data/postgres',
-    'test -w /opt/mdp/data/postgres',
+    'if findmnt -no SOURCE,FSTYPE,OPTIONS /opt/mdp/data/postgres; then df -h /opt/mdp/data/postgres || fail=1; test -w /opt/mdp/data/postgres || { echo database-mount:not-writable; fail=1; }; else echo database-mount:MISSING; fail=1; fi',
     'echo "== swap =="',
-    'swapon --show',
+    'if swapon --show | grep -q /swapfile; then swapon --show; else echo swap:MISSING; fail=1; fi',
     'echo "== bootstrap files =="',
-    'test -s /opt/mdp/deploy.env && echo deploy.env:OK',
-    'test -s /opt/mdp/compose.production.yml && echo compose.production.yml:OK',
-    'test -s /opt/mdp/Caddyfile && echo Caddyfile:OK',
-    'test -x /usr/local/bin/mdp-deploy && echo mdp-deploy:OK',
+    'test -s /opt/mdp/deploy.env && echo deploy.env:OK || { echo deploy.env:MISSING; fail=1; }',
+    'test -s /opt/mdp/compose.production.yml && echo compose.production.yml:OK || { echo compose.production.yml:MISSING; fail=1; }',
+    'test -s /opt/mdp/Caddyfile && echo Caddyfile:OK || { echo Caddyfile:MISSING; fail=1; }',
+    'test -x /usr/local/bin/mdp-deploy && echo mdp-deploy:OK || { echo mdp-deploy:MISSING; fail=1; }',
     'echo "== backups =="',
-    'systemctl is-enabled mdp-backup.timer',
-    'systemctl is-active mdp-backup.timer',
-    'echo "HOST_READINESS_OK"'
+    'systemctl is-enabled mdp-backup.timer 2>/dev/null || { echo backup-timer:not-enabled; fail=1; }',
+    'systemctl is-active mdp-backup.timer 2>/dev/null || { echo backup-timer:not-active; fail=1; }',
+    'if [ "$fail" -eq 0 ]; then echo HOST_READINESS_OK; else echo HOST_READINESS_FAILED; exit 1; fi'
 )
 
 $ParametersFile = Join-Path $env:TEMP 'mdp-production-host-check.json'
@@ -136,7 +132,7 @@ try {
     }
 
     if ($WaitExit -ne 0 -or $Result.Status -ne 'Success' -or $Result.StandardOutputContent -notmatch 'HOST_READINESS_OK') {
-        throw 'Production host readiness verification failed. Review the SSM output above.'
+        throw 'Production host readiness verification failed. Review the diagnostics above.'
     }
 
     Write-Host "`nProduction host is ready for application deployment." -ForegroundColor Green
