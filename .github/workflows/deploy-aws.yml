@@ -53,7 +53,12 @@ jobs:
           SMTP_FROM="$(read_value SMTP_FROM)"
           FRONTEND_URL="$(read_value FRONTEND_URL)"
 
-          [[ "$GOOGLE_CLIENT_ID" =~ ^[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$ ]] || { echo "PRODUCTION_ENV_FILE contains an invalid GOOGLE_CLIENT_ID"; exit 1; }
+          if test -n "$GOOGLE_CLIENT_ID"; then
+            [[ "$GOOGLE_CLIENT_ID" =~ ^[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$ ]] || { echo "PRODUCTION_ENV_FILE contains an invalid GOOGLE_CLIENT_ID"; exit 1; }
+            echo "Google authentication enabled."
+          else
+            echo "GOOGLE_CLIENT_ID is not set; deploying with Google authentication disabled."
+          fi
           test -n "$SMTP_HOST" && test -n "$SMTP_PORT" && test -n "$SMTP_USER" && test -n "$SMTP_PASSWORD" && test -n "$SMTP_FROM" || { echo "SMTP configuration is incomplete"; exit 1; }
           [[ "$SMTP_HOST" != "127.0.0.1" && "$SMTP_HOST" != "localhost" && "$SMTP_HOST" != "::1" ]] || { echo "SMTP_HOST must point to the external mail provider, not the EC2 container itself"; exit 1; }
           [[ "$SMTP_PORT" =~ ^[0-9]+$ ]] || { echo "SMTP_PORT must be numeric"; exit 1; }
