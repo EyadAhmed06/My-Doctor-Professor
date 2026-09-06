@@ -1,0 +1,152 @@
+name: Deploy AWS production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type DEPLOY to publish the current branch to production
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: aws-production-deployment
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: eu-south-1
+  BACKEND_REPOSITORY: my-doctor-professor-production-backend
+  FRONTEND_REPOSITORY: my-doctor-professor-production-frontend
+  APP_ENV_PARAMETER: /my-doctor-professor/production/app-env
+  INSTANCE_NAME: my-doctor-professor-production
+
+jobs:
+  deploy:
+    if: ${{ inputs.confirm == 'DEPLOY' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate required configuration
+        env:
+          ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
+        run: |
+          set -euo pipefail
+          test -n "$ROLE_ARN" || { echo "Missing repository variable AWS_DEPLOY_ROLE_ARN"; exit 1; }
+          test -n "$PRODUCTION_ENV_FILE" || { echo "Missing repository secret PRODUCTION_ENV_FILE"; exit 1; }
+
+      - name: Validate authentication configuration
+        env:
+          PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          read_value() { printf '%s\n' "$PRODUCTION_ENV_FILE" | sed -n "s/^$1=//p" | tail -n 1; }
+          GOOGLE_CLIENT_ID="$(read_value GOOGLE_CLIENT_ID)"
+          SMTP_HOST="$(read_value SMTP_HOST)"
+          SMTP_PORT="$(read_value SMTP_PORT)"
+          SMTP_USER="$(read_value SMTP_USER)"
+          SMTP_PASSWORD="$(read_value SMTP_PASSWORD)"
+          SMTP_FROM="$(read_value SMTP_FROM)"
+          FRONTEND_URL="$(read_value FRONTEND_URL)"
+
+          [[ "$GOOGLE_CLIENT_ID" =~ ^[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$ ]] || { echo "PRODUCTION_ENV_FILE contains an invalid GOOGLE_CLIENT_ID"; exit 1; }
+          test -n "$SMTP_HOST" && test -n "$SMTP_PORT" && test -n "$SMTP_USER" && test -n "$SMTP_PASSWORD" && test -n "$SMTP_FROM" || { echo "SMTP configuration is incomplete"; exit 1; }
+          [[ "$SMTP_HOST" != "127.0.0.1" && "$SMTP_HOST" != "localhost" && "$SMTP_HOST" != "::1" ]] || { echo "SMTP_HOST must point to the external mail provider"; exit 1; }
+          [[ "$SMTP_PORT" =~ ^[0-9]+$ ]] || { echo "SMTP_PORT must be numeric"; exit 1; }
+          [[ "$SMTP_USER$SMTP_PASSWORD$SMTP_FROM$FRONTEND_URL" != *"REPLACE"* && "$SMTP_USER$SMTP_PASSWORD$SMTP_FROM$FRONTEND_URL" != *"YOUR_"* ]] || { echo "Authentication configuration still contains placeholders"; exit 1; }
+          [[ "$FRONTEND_URL" == https://* ]] || { echo "FRONTEND_URL must be the deployed HTTPS origin"; exit 1; }
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ env.BACKEND_REPOSITORY }}:latest
+            ${{ steps.ecr.outputs.registry }}/${{ env.BACKEND_REPOSITORY }}:${{ github.sha }}
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          build-args: |
+            NEXT_PUBLIC_API_URL=/api/v1
+            NEXT_PUBLIC_ANATOMY_ASSET_BASE=${{ vars.NEXT_PUBLIC_ANATOMY_ASSET_BASE }}
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ env.FRONTEND_REPOSITORY }}:latest
+            ${{ steps.ecr.outputs.registry }}/${{ env.FRONTEND_REPOSITORY }}:${{ github.sha }}
+
+      - name: Store encrypted application runtime configuration
+        env:
+          PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
+        run: |
+          aws ssm put-parameter \
+            --region "$AWS_REGION" \
+            --name "$APP_ENV_PARAMETER" \
+            --type SecureString \
+            --overwrite \
+            --value "$PRODUCTION_ENV_FILE"
+
+      - name: Deploy exact commit through Systems Manager
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          INSTANCE_ID="$(aws ec2 describe-instances \
+            --region "$AWS_REGION" \
+            --filters Name=tag:Name,Values="$INSTANCE_NAME" Name=instance-state-name,Values=running \
+            --query 'Reservations[0].Instances[0].InstanceId' --output text)"
+          test "$INSTANCE_ID" != "None" && test -n "$INSTANCE_ID" || { echo "Running production instance not found"; exit 1; }
+
+          BACKEND_IMAGE="${ECR_REGISTRY}/${BACKEND_REPOSITORY}:${GITHUB_SHA}"
+          FRONTEND_IMAGE="${ECR_REGISTRY}/${FRONTEND_REPOSITORY}:${GITHUB_SHA}"
+          export BACKEND_IMAGE FRONTEND_IMAGE
+
+          PARAMETERS="$(python3 - <<'PY'
+          import json
+          import os
+
+          backend = os.environ['BACKEND_IMAGE']
+          frontend = os.environ['FRONTEND_IMAGE']
+          commands = [
+              f"sudo sed -i 's|^BACKEND_IMAGE=.*|BACKEND_IMAGE={backend}|' /opt/mdp/deploy.env",
+              f"sudo sed -i 's|^FRONTEND_IMAGE=.*|FRONTEND_IMAGE={frontend}|' /opt/mdp/deploy.env",
+              "sudo /usr/local/bin/mdp-deploy",
+              "sudo docker exec mdp-backend node -e 'fetch(\"http://127.0.0.1:3000/api/v1/health/ready\").then(async r=>{console.log(await r.text());if(!r.ok)process.exit(1)}).catch(e=>{console.error(e);process.exit(1)})'",
+              "sudo docker exec -e ALLOW_CONTENT_SEED=true -e SEED_CONTENT_OWNER_EMAIL=instructor@mydoctorprofessor.com mdp-backend npm run repair:seeded-mcqs",
+          ]
+          print(json.dumps({"commands": commands}))
+          PY
+          )"
+
+          COMMAND_ID="$(aws ssm send-command \
+            --region "$AWS_REGION" \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "Deploy ${GITHUB_SHA}" \
+            --parameters "$PARAMETERS" \
+            --query Command.CommandId --output text)"
+
+          if ! aws ssm wait command-executed --region "$AWS_REGION" --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID"; then
+            aws ssm get-command-invocation --region "$AWS_REGION" --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID"
+            exit 1
+          fi
+
+          aws ssm get-command-invocation --region "$AWS_REGION" --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID"
