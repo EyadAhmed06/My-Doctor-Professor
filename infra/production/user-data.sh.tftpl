@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update
+apt-get install -y ca-certificates curl docker.io docker-compose-v2 awscli
+systemctl enable --now docker
+systemctl enable --now amazon-ssm-agent 2>/dev/null || true
+snap start amazon-ssm-agent 2>/dev/null || true
+
+install -d -m 0750 /opt/mdp /opt/mdp/config /opt/mdp/config/rds-certs
+install -d -m 0700 /opt/mdp/data/uploads /opt/mdp/data/backups
+install -d -m 0750 /opt/mdp/data/caddy /opt/mdp/config/caddy
+chown -R 1001:1001 /opt/mdp/data/uploads /opt/mdp/data/backups
+
+curl --fail --silent --show-error --location \
+  https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem \
+  -o /opt/mdp/config/rds-certs/global-bundle.pem
+chmod 0644 /opt/mdp/config/rds-certs/global-bundle.pem
+
+echo '${compose_b64}' | base64 --decode > /opt/mdp/compose.production.yml
+echo '${caddy_b64}' | base64 --decode > /opt/mdp/Caddyfile
+
+cat > /opt/mdp/deploy.env <<'ENV'
+APP_HOST=${app_host}
+AWS_REGION=${aws_region}
+BACKEND_IMAGE=${backend_image}:latest
+FRONTEND_IMAGE=${frontend_image}:latest
+APP_ENV_PARAMETER=${app_parameter_name}
+DATABASE_ENV_PARAMETER=${database_parameter_name}
+ENV
+chmod 0600 /opt/mdp/deploy.env
+
+cat > /usr/local/bin/mdp-refresh-env <<'SCRIPT'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+set -a
+. /opt/mdp/deploy.env
+set +a
+aws ssm get-parameter --region "$AWS_REGION" --with-decryption --name "$APP_ENV_PARAMETER" \
+  --query Parameter.Value --output text > /opt/mdp/app.env
+aws ssm get-parameter --region "$AWS_REGION" --with-decryption --name "$DATABASE_ENV_PARAMETER" \
+  --query Parameter.Value --output text > /opt/mdp/database.env
+chmod 0600 /opt/mdp/app.env /opt/mdp/database.env
+SCRIPT
+chmod 0750 /usr/local/bin/mdp-refresh-env
+
+cat > /usr/local/bin/mdp-deploy <<'SCRIPT'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+cd /opt/mdp
+/usr/local/bin/mdp-refresh-env
+set -a
+. /opt/mdp/deploy.env
+set +a
+registry="$${BACKEND_IMAGE%%/*}"
+aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$registry"
+compose=(docker compose --env-file /opt/mdp/deploy.env --env-file /opt/mdp/app.env --env-file /opt/mdp/database.env -f /opt/mdp/compose.production.yml)
+"$${compose[@]}" pull
+"$${compose[@]}" run --rm backend node node_modules/typeorm/cli.js migration:run -d dist/database/data-source.js
+"$${compose[@]}" up -d --remove-orphans
+for attempt in $(seq 1 30); do
+  if curl --fail --silent --show-error "https://$APP_HOST/api/v1/health/live" >/dev/null; then
+    "$${compose[@]}" ps
+    exit 0
+  fi
+  sleep 10
+done
+"$${compose[@]}" logs --tail=150
+exit 1
+SCRIPT
+chmod 0750 /usr/local/bin/mdp-deploy
+
+cat > /usr/local/bin/mdp-backup <<'SCRIPT'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+/usr/local/bin/mdp-refresh-env
+set -a
+. /opt/mdp/database.env
+set +a
+stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+
+docker run --rm --network host \
+  -e PGPASSWORD="$DB_PASSWORD" \
+  -e PGSSLMODE=verify-full \
+  -e PGSSLROOTCERT=/certs/global-bundle.pem \
+  -v /opt/mdp/config/rds-certs:/certs:ro \
+  postgres:17-bookworm \
+  pg_dump --clean --if-exists --no-owner \
+    -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -d "$DB_NAME" |
+  gzip |
+  aws s3 cp - "s3://${backup_bucket}/database/$stamp.sql.gz" --sse AES256
+
+aws s3 sync /opt/mdp/data/uploads "s3://${backup_bucket}/uploads/" --delete --sse AES256
+SCRIPT
+chmod 0750 /usr/local/bin/mdp-backup
+
+cat > /etc/systemd/system/mdp-backup.service <<'UNIT'
+[Unit]
+Description=My Doctor Professor production backup
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/mdp-backup
+UNIT
+
+cat > /etc/systemd/system/mdp-backup.timer <<'UNIT'
+[Unit]
+Description=Daily My Doctor Professor production backup
+
+[Timer]
+OnCalendar=*-*-* 02:00:00 UTC
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable --now mdp-backup.timer
