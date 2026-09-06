@@ -85,7 +85,7 @@ docker run --rm --network host \
   -e PGSSLMODE=verify-full \
   -e PGSSLROOTCERT=/certs/global-bundle.pem \
   -v /opt/mdp/config/rds-certs:/certs:ro \
-  postgres:17-bookworm \
+  postgres:18-bookworm \
   pg_dump --clean --if-exists --no-owner \
     -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -d "$DB_NAME" |
   gzip |
