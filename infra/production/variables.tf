@@ -20,6 +20,12 @@ variable "instance_type" {
   default     = "c7i-flex.large"
 }
 
+variable "app_availability_zone" {
+  description = "Availability Zone used by the production EC2 host and its dedicated PostgreSQL EBS volume. c7i-flex.large is offered in eu-south-1b/eu-south-1c, not eu-south-1a."
+  type        = string
+  default     = "eu-south-1b"
+}
+
 variable "root_volume_gb" {
   description = "Root gp3 volume for the OS, Docker images, and application runtime."
   type        = number
