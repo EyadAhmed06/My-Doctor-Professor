@@ -6,6 +6,7 @@ param(
     [string]$AwsProfile = 'mdp-new-account',
     [string]$StateRegion = 'us-east-1',
     [string]$WorkloadRegion = 'eu-south-1',
+    [string]$AvailabilityZone = 'eu-south-1b',
     [string]$ProjectName = 'my-doctor-professor',
     [string]$BudgetEmail = 'eyad.elmaleh1@gmail.com',
     [string]$InstanceType = 'c7i-flex.large'
@@ -38,7 +39,12 @@ Assert-Command terraform
 Write-Host "AWS profile: $AwsProfile" -ForegroundColor Cyan
 Write-Host "Terraform state Region: $StateRegion" -ForegroundColor Cyan
 Write-Host "Production workload Region: $WorkloadRegion" -ForegroundColor Cyan
+Write-Host "Production Availability Zone: $AvailabilityZone" -ForegroundColor Cyan
 Write-Host "Production EC2 instance type: $InstanceType" -ForegroundColor Cyan
+
+if (-not $AvailabilityZone.StartsWith($WorkloadRegion)) {
+    throw "Availability Zone '$AvailabilityZone' does not belong to workload Region '$WorkloadRegion'."
+}
 
 & aws sts get-caller-identity --profile $AwsProfile --output json
 if ($LASTEXITCODE -ne 0) {
@@ -65,6 +71,14 @@ if ($Action -ne 'Outputs') {
         throw "EC2 instance type '$InstanceType' is not Free-Tier-eligible in $WorkloadRegion for this account. Eligible types reported by AWS: $EligibleTypes"
     }
     Write-Host "EC2 instance type '$InstanceType' is Free-Tier-eligible." -ForegroundColor Green
+
+    Write-Host "Checking whether '$InstanceType' is offered in $AvailabilityZone..." -ForegroundColor Cyan
+    $Offering = (& aws ec2 describe-instance-type-offerings --profile $AwsProfile --region $WorkloadRegion --location-type availability-zone --filters "Name=instance-type,Values=$InstanceType" "Name=location,Values=$AvailabilityZone" --query 'InstanceTypeOfferings[0].InstanceType' --output text 2>$null).Trim()
+    if ($LASTEXITCODE -ne 0 -or $Offering -ne $InstanceType) {
+        $OfferedZones = (& aws ec2 describe-instance-type-offerings --profile $AwsProfile --region $WorkloadRegion --location-type availability-zone --filters "Name=instance-type,Values=$InstanceType" --query 'sort_by(InstanceTypeOfferings,&Location)[].Location' --output text 2>$null)
+        throw "EC2 instance type '$InstanceType' is not offered in $AvailabilityZone. Offered Availability Zones reported by AWS: $OfferedZones"
+    }
+    Write-Host "EC2 instance type '$InstanceType' is offered in $AvailabilityZone." -ForegroundColor Green
 }
 
 $StateBucket = "$ProjectName-terraform-state-$AccountId"
@@ -77,6 +91,7 @@ $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $ProductionDir = Join-Path $RepoRoot 'infra\production'
 
 $env:TF_VAR_aws_region = $WorkloadRegion
+$env:TF_VAR_app_availability_zone = $AvailabilityZone
 $env:TF_VAR_project_name = $ProjectName
 $env:TF_VAR_budget_email = $BudgetEmail
 $env:TF_VAR_instance_type = $InstanceType
@@ -126,6 +141,7 @@ $SnapshotPolicyId = (& terraform "-chdir=$ProductionDir" output -raw database_sn
 Write-Host "`nNext deployment values:" -ForegroundColor Green
 Write-Host "AWS_DEPLOY_ROLE_ARN=$DeployRoleArn"
 Write-Host "AWS_WORKLOAD_REGION=$WorkloadRegion"
+Write-Host "AWS_AVAILABILITY_ZONE=$AvailabilityZone"
 Write-Host "APPLICATION_URL=$ApplicationUrl"
 Write-Host "INSTANCE_ID=$InstanceId"
 Write-Host "DATABASE_VOLUME_ID=$DatabaseVolumeId"
