@@ -34,14 +34,17 @@ jobs:
       - name: Validate required configuration
         env:
           ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
           PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
         run: |
           set -euo pipefail
           test -n "$ROLE_ARN" || { echo "Missing repository variable AWS_DEPLOY_ROLE_ARN"; exit 1; }
+          test -n "$PUBLIC_GOOGLE_CLIENT_ID" || { echo "Missing repository variable NEXT_PUBLIC_GOOGLE_CLIENT_ID"; exit 1; }
           test -n "$PRODUCTION_ENV_FILE" || { echo "Missing repository secret PRODUCTION_ENV_FILE"; exit 1; }
 
       - name: Validate authentication configuration
         env:
+          PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
           PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
         shell: bash
         run: |
@@ -56,6 +59,7 @@ jobs:
           FRONTEND_URL="$(read_value FRONTEND_URL)"
 
           [[ "$GOOGLE_CLIENT_ID" =~ ^[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$ ]] || { echo "PRODUCTION_ENV_FILE contains an invalid GOOGLE_CLIENT_ID"; exit 1; }
+          [[ "$PUBLIC_GOOGLE_CLIENT_ID" == "$GOOGLE_CLIENT_ID" ]] || { echo "NEXT_PUBLIC_GOOGLE_CLIENT_ID must exactly match backend GOOGLE_CLIENT_ID"; exit 1; }
           test -n "$SMTP_HOST" && test -n "$SMTP_PORT" && test -n "$SMTP_USER" && test -n "$SMTP_PASSWORD" && test -n "$SMTP_FROM" || { echo "SMTP configuration is incomplete"; exit 1; }
           [[ "$SMTP_HOST" != "127.0.0.1" && "$SMTP_HOST" != "localhost" && "$SMTP_HOST" != "::1" ]] || { echo "SMTP_HOST must point to the external mail provider"; exit 1; }
           [[ "$SMTP_PORT" =~ ^[0-9]+$ ]] || { echo "SMTP_PORT must be numeric"; exit 1; }
@@ -86,6 +90,7 @@ jobs:
           push: true
           build-args: |
             NEXT_PUBLIC_API_URL=/api/v1
+            NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
             NEXT_PUBLIC_ANATOMY_ASSET_BASE=${{ vars.NEXT_PUBLIC_ANATOMY_ASSET_BASE }}
           tags: |
             ${{ steps.ecr.outputs.registry }}/${{ env.FRONTEND_REPOSITORY }}:latest
@@ -125,11 +130,19 @@ jobs:
 
           backend = os.environ['BACKEND_IMAGE']
           frontend = os.environ['FRONTEND_IMAGE']
+          smtp_check = (
+              "sudo docker exec mdp-backend node -e '"
+              "const n=require(\"nodemailer\");"
+              "const t=n.createTransport({host:process.env.SMTP_HOST,port:Number(process.env.SMTP_PORT||587),"
+              "secure:process.env.SMTP_SECURE===\"true\",auth:{user:process.env.SMTP_USER,pass:process.env.SMTP_PASSWORD}});"
+              "t.verify().then(()=>console.log(\"SMTP transport verified\")).catch(e=>{console.error(e.message);process.exit(1)})'"
+          )
           commands = [
               f"sudo sed -i 's|^BACKEND_IMAGE=.*|BACKEND_IMAGE={backend}|' /opt/mdp/deploy.env",
               f"sudo sed -i 's|^FRONTEND_IMAGE=.*|FRONTEND_IMAGE={frontend}|' /opt/mdp/deploy.env",
               "sudo /usr/local/bin/mdp-deploy",
               "sudo docker exec mdp-backend node -e 'fetch(\"http://127.0.0.1:3000/api/v1/health/ready\").then(async r=>{console.log(await r.text());if(!r.ok)process.exit(1)}).catch(e=>{console.error(e);process.exit(1)})'",
+              smtp_check,
               "sudo docker exec -e ALLOW_CONTENT_SEED=true -e SEED_CONTENT_OWNER_EMAIL=instructor@mydoctorprofessor.com mdp-backend npm run repair:seeded-mcqs",
           ]
           print(json.dumps({"commands": commands}))
