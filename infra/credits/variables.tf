@@ -1,7 +1,7 @@
 variable "aws_region" {
-  description = "Region for EC2/RDS/Lambda workload resources. Bahrain is the selected Middle East Region for the Egypt-facing deployment."
+  description = "Region for EC2/RDS/Lambda workload resources. Europe (Milan) is selected for the Egypt-facing deployment."
   type        = string
-  default     = "me-south-1"
+  default     = "eu-south-1"
 }
 
 variable "project_name" {
