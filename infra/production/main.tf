@@ -40,20 +40,6 @@ resource "aws_subnet" "public_a" {
   tags                    = { Name = "${local.name}-public-a" }
 }
 
-resource "aws_subnet" "db_a" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = "10.24.11.0/24"
-  availability_zone = data.aws_availability_zones.available.names[0]
-  tags              = { Name = "${local.name}-db-a" }
-}
-
-resource "aws_subnet" "db_b" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = "10.24.12.0/24"
-  availability_zone = data.aws_availability_zones.available.names[1]
-  tags              = { Name = "${local.name}-db-b" }
-}
-
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
 
@@ -99,29 +85,6 @@ resource "aws_security_group" "web" {
   }
 
   tags = { Name = "${local.name}-web" }
-}
-
-resource "aws_security_group" "rds" {
-  name        = "${local.name}-rds"
-  description = "PostgreSQL is reachable only from the application EC2 security group."
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    description     = "PostgreSQL from application EC2"
-    from_port       = 5432
-    to_port         = 5432
-    protocol        = "tcp"
-    security_groups = [aws_security_group.web.id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = { Name = "${local.name}-rds" }
 }
 
 resource "aws_eip" "app" {
@@ -222,56 +185,101 @@ resource "random_password" "database" {
   special = false
 }
 
-resource "aws_db_subnet_group" "main" {
-  name       = "${local.name}-rds"
-  subnet_ids = [aws_subnet.db_a.id, aws_subnet.db_b.id]
-
-  tags = { Name = "${local.name}-rds" }
-}
-
-resource "aws_db_instance" "postgres" {
-  identifier = "${local.name}-postgres"
-
-  engine         = "postgres"
-  instance_class = var.db_instance_class
-
-  allocated_storage = var.db_allocated_storage_gb
-  storage_type      = "gp3"
-  storage_encrypted = true
-
-  db_name  = var.db_name
-  username = var.db_username
-  password = random_password.database.result
-  port     = 5432
-
-  db_subnet_group_name   = aws_db_subnet_group.main.name
-  vpc_security_group_ids = [aws_security_group.rds.id]
-  publicly_accessible    = false
-  multi_az               = false
-
-  backup_retention_period    = var.rds_backup_retention_days
-  auto_minor_version_upgrade = true
-  deletion_protection        = false
-  skip_final_snapshot        = true
-  apply_immediately          = true
-
-  tags = { Name = "${local.name}-postgres" }
-}
-
 resource "aws_ssm_parameter" "database_env" {
   name        = local.database_parameter_name
-  description = "Generated production RDS connection settings for the application host."
+  description = "Generated production PostgreSQL settings for the local database container."
   type        = "SecureString"
   value = join("\n", [
-    "DB_HOST=${aws_db_instance.postgres.address}",
+    "DB_HOST=postgres",
     "DB_PORT=5432",
     "DB_NAME=${var.db_name}",
     "DB_USERNAME=${var.db_username}",
     "DB_PASSWORD=${random_password.database.result}",
-    "DB_SSL_ENABLED=true",
-    "DB_SSL_REJECT_UNAUTHORIZED=true",
-    "DB_SSL_CA_PATH=/run/rds-certs/global-bundle.pem",
+    "DB_SSL_ENABLED=false",
+    "DB_SSL_REJECT_UNAUTHORIZED=false",
   ])
+}
+
+resource "aws_ebs_volume" "database" {
+  availability_zone = aws_subnet.public_a.availability_zone
+  size              = var.db_volume_gb
+  type              = "gp3"
+  encrypted         = true
+
+  tags = {
+    Name   = "${local.name}-database"
+    Backup = "${local.name}-database"
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_iam_role" "dlm" {
+  name = "${local.name}-dlm"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "dlm.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "dlm" {
+  name = "${local.name}-database-snapshots"
+  role = aws_iam_role.dlm.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "ec2:CreateSnapshot",
+        "ec2:CreateSnapshots",
+        "ec2:DeleteSnapshot",
+        "ec2:DescribeInstances",
+        "ec2:DescribeSnapshots",
+        "ec2:DescribeVolumes",
+        "ec2:CreateTags",
+      ]
+      Resource = "*"
+    }]
+  })
+}
+
+resource "aws_dlm_lifecycle_policy" "database" {
+  description        = "Daily crash-consistent snapshots for the production PostgreSQL EBS volume."
+  execution_role_arn = aws_iam_role.dlm.arn
+  state              = "ENABLED"
+
+  policy_details {
+    resource_types = ["VOLUME"]
+    target_tags = {
+      Backup = "${local.name}-database"
+    }
+
+    schedule {
+      name = "Daily PostgreSQL volume snapshots"
+
+      create_rule {
+        interval      = 24
+        interval_unit = "HOURS"
+        times         = ["03:00"]
+      }
+
+      retain_rule {
+        count = var.db_snapshot_retention_count
+      }
+
+      copy_tags = true
+    }
+  }
+
+  depends_on = [aws_iam_role_policy.dlm]
 }
 
 resource "aws_iam_role" "instance" {
@@ -362,7 +370,7 @@ resource "aws_instance" "app" {
   }
 
   user_data = templatefile("${path.module}/user-data.sh.tftpl", {
-    compose_b64             = filebase64("${path.module}/../../deploy/compose.aws-rds.yml")
+    compose_b64             = filebase64("${path.module}/../../deploy/compose.aws.yml")
     caddy_b64               = filebase64("${path.module}/../../deploy/Caddyfile")
     app_host                = local.temporary_domain
     aws_region              = var.aws_region
@@ -371,6 +379,7 @@ resource "aws_instance" "app" {
     backup_bucket           = aws_s3_bucket.backups.id
     app_parameter_name      = local.app_parameter_name
     database_parameter_name = local.database_parameter_name
+    db_volume_id            = aws_ebs_volume.database.id
   })
 
   user_data_replace_on_change = true
@@ -380,6 +389,12 @@ resource "aws_instance" "app" {
     aws_iam_role_policy_attachment.ssm_core,
     aws_ssm_parameter.database_env,
   ]
+}
+
+resource "aws_volume_attachment" "database" {
+  device_name = "/dev/sdf"
+  volume_id   = aws_ebs_volume.database.id
+  instance_id = aws_instance.app.id
 }
 
 resource "aws_eip_association" "app" {
