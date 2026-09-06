@@ -8,8 +8,8 @@ systemctl enable --now docker
 systemctl enable --now amazon-ssm-agent 2>/dev/null || true
 snap start amazon-ssm-agent 2>/dev/null || true
 
-# t3.small gives the production host 2 GiB RAM. Builds happen in GitHub Actions,
-# so runtime memory is the concern; a small swap file gives the host headroom for
+# c7i-flex.large provides 4 GiB RAM. Builds happen in GitHub Actions, so runtime
+# memory is the concern; a small swap file gives the host extra headroom for
 # transient Next.js/NestJS/PostgreSQL spikes without adding another AWS resource.
 if [ ! -f /swapfile ]; then
   fallocate -l 2G /swapfile
