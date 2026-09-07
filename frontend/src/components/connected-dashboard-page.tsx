@@ -10,6 +10,7 @@ import {
   FiClipboard,
   FiClock,
   FiRefreshCw,
+  FiStar,
   FiUsers,
 } from "react-icons/fi";
 import { useAuth } from "./auth-provider";
@@ -74,8 +75,6 @@ type AdminDashboard = {
   flashcard_decks: number;
 };
 
-type NotebookPage = { data: Array<{ id: string; title: string; content: string }> };
-
 const number = (value: string | number | null | undefined) => Number(value || 0);
 const clamp = (value: number) => Math.max(0, Math.min(100, value));
 
@@ -96,7 +95,6 @@ export function ConnectedDashboardPage() {
   const { user, request } = useAuth();
   const { translate } = useLocale();
   const [data, setData] = useState<StudentDashboard | InstructorDashboard | AdminDashboard | null>(null);
-  const [pearl, setPearl] = useState<NotebookPage["data"][number] | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,10 +108,6 @@ export function ConnectedDashboardPage() {
     try {
       const dashboard = await request<StudentDashboard | InstructorDashboard | AdminDashboard>(endpoint);
       setData(dashboard);
-      if (user.role === "STUDENT") {
-        const notes = await request<NotebookPage>("/notebook/notes?note_type=PEARL&limit=1").catch(() => ({ data: [] }));
-        setPearl(notes.data[0] || null);
-      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : translate("Unable to load your dashboard."));
     } finally {
@@ -131,7 +125,6 @@ export function ConnectedDashboardPage() {
   if (user?.role === "STUDENT") {
     return <StudentDashboardScreen
       data={data as StudentDashboard | null}
-      pearl={pearl}
       loading={loading}
       refreshing={refreshing}
       error={error}
@@ -144,14 +137,12 @@ export function ConnectedDashboardPage() {
 
 function StudentDashboardScreen({
   data,
-  pearl,
   loading,
   refreshing,
   error,
   reload,
 }: {
   data: StudentDashboard | null;
-  pearl: NotebookPage["data"][number] | null;
   loading: boolean;
   refreshing: boolean;
   error: string | null;
@@ -221,6 +212,10 @@ function StudentDashboardScreen({
 
       {loading && !data ? <PageSkeleton variant="workspace" label={translate("Loading your dashboard")} /> : <div className="main-grid">
         <div className="column-main">
+          <Card title={translate("Studio")} subtitle={translate("Your hard-question review queue")} action={<Link href="/studio">{translate("Open Studio")} →</Link>} className="studio-dashboard-card">
+            <p>{translate("Questions you mark as Hard during quizzes are collected here after the attempt closes, so you can review the correct answer and reasoning again.")}</p>
+            <button type="button" className="pp-button secondary" onClick={() => navigate("/studio")}><FiStar /> {translate("Review hard questions")}</button>
+          </Card>
           <Card title={translate("Weekly Activity")} action={<Link href="/analytics">{translate("Open analytics")} →</Link>} className="activity-card">
             <div className="chart-legend"><span><i />{translate("Learning interactions")}</span></div><div className="bar-chart">{activity.map((item) => <div key={item.label}><span title={translate(`${item.value} interactions: ${number(item.detail?.questions)} MCQs, ${number(item.detail?.essay_cases)} essay cases, ${number(item.detail?.flashcards)} flashcards, ${number(item.detail?.lectures)} lectures, ${number(item.detail?.plan_sessions)} plan sessions`)} style={{ height: `${Math.max(2, Math.round(item.value / maxActivity * 92))}px` }} /><small>{item.label}</small></div>)}</div>
           </Card>
@@ -229,7 +224,6 @@ function StudentDashboardScreen({
         <aside className="column-side">
           <Card title={translate("Your Progress")} action={<span>{progressLabel}</span>} className="progress-card"><div className="progress-content"><div className="level-badge large">{level}</div><div><strong>{translate(`Level ${level}`)} <small>{translate("Clinical Learner")}</small></strong><span>{translate(`${levelProgress} / 100 XP to next level`)}</span><div className="xp-bar" role="progressbar" aria-label={translate("XP toward next level")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={levelProgress}><i style={{ width: `${levelProgress}%` }} /></div><small>{lectureProgressLabel}</small></div></div></Card>
           <Card title={translate("Topic Mastery")} action={<Link href="/analytics">{translate("View analytics")} →</Link>} className="mastery-card"><div className="mastery-list">{data?.topic_mastery.length ? data.topic_mastery.slice(0, 6).map((item) => <button type="button" onClick={() => navigate("/analytics")} key={item.id}><span><FiActivity /><span data-academic-content>{item.course_name}</span></span><b>{clamp(number(item.mastery))}%</b><div><i style={{ width: `${clamp(number(item.mastery))}%` }} /></div><small>{translate(`${item.questions_attempted} graded answers`)}</small></button>) : <p>{translate("Answer graded questions to build topic mastery.")}</p>}</div></Card>
-          <Card title={translate("Professor's Pearls")} action={<Link href="/notebook">{translate("More pearls")} →</Link>} className="pearl-card"><blockquote data-academic-content>{pearl?.content || translate("Save a PEARL note in your notebook and it will appear here.")}</blockquote>{pearl && <cite data-academic-content>— {pearl.title}</cite>}</Card>
         </aside>
       </div>}
     </main>
