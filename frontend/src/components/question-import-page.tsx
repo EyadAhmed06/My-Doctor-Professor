@@ -123,6 +123,19 @@ function hasLegacyInspectorContract(result: Inspection) {
   );
 }
 
+function isBulkPublishable(candidate: Candidate) {
+  const cleanOptions = candidate.options.length === 5
+    && candidate.options.every((option) => option.option_text.trim().length > 0)
+    && candidate.options.filter((option) => option.is_correct).length === 1;
+  const topicResolved = candidate.topic_confidence >= 0.08 || Boolean(candidate.allow_topic_override);
+  const duplicateResolved = !candidate.duplicate || Boolean(candidate.reuse_question_id) || Boolean(candidate.allow_duplicate);
+  return candidate.status !== "INVALID"
+    && candidate.question_text.trim().length > 0
+    && cleanOptions
+    && topicResolved
+    && duplicateResolved;
+}
+
 export function QuestionImportPage() {
   const { user, loading: authLoading, request } = useAuth();
   const { notify } = useUx();
@@ -260,6 +273,22 @@ export function QuestionImportPage() {
     }));
   }
 
+  function approveAllPublishable() {
+    let approved = 0;
+    setCandidates((current) => current.map((candidate) => {
+      if (!isBulkPublishable(candidate)) return candidate;
+      approved += 1;
+      return { ...candidate, approved: true };
+    }));
+    notify({
+      title: "Bulk approval applied",
+      description: approved > 0
+        ? `${approved} publishable question(s) approved. Blocking invalid, unresolved duplicate, or topic-mismatch items were left for review.`
+        : "No additional questions can be safely bulk-approved yet.",
+      tone: approved > 0 ? "success" : "info",
+    });
+  }
+
   async function publishApproved() {
     if (!inspection) return;
     const approved = candidates.filter((candidate) => candidate.approved);
@@ -305,6 +334,7 @@ export function QuestionImportPage() {
   const topics = useMemo(() => flattenTopics(course), [course]);
   const approvedCount = candidates.filter((candidate) => candidate.approved).length;
   const exceptionCount = candidates.filter((candidate) => candidate.status !== "VALID" || Boolean(candidate.duplicate)).length;
+  const bulkPublishableCount = candidates.filter(isBulkPublishable).length;
 
   if (authLoading || loading) {
     return <ProductShell><main className="pp-page"><PageSkeleton variant="workspace" label="Loading question importer" /></main></ProductShell>;
@@ -320,9 +350,9 @@ export function QuestionImportPage() {
           <Link href={user.role === "SYSTEM_ADMIN" ? "/admin/questions" : "/instructor/questions"} className="question-import-back"><FiArrowLeft /> Question bank</Link>
           <span className="page-eyebrow">INSTRUCTOR · AUTOMATED INGESTION</span>
           <h1>PDF Question Inspector</h1>
-          <p>Extract and validate MCQs automatically, match source answer keys, estimate difficulty, and generate concise explanations. You review exceptions before publication.</p>
+          <p>Extract and validate MCQs automatically, match source answer keys, then edit every stem, answer option, correct answer, explanation, difficulty, and mark before publication.</p>
         </div>
-        <div className="question-import-trust"><FiShield /><span><strong>Review by exception</strong><small>Source answer keys stay authoritative. Publication still requires instructor approval.</small></span></div>
+        <div className="question-import-trust"><FiShield /><span><strong>Editable before publication</strong><small>Source answer keys stay authoritative. Nothing is published until instructor approval.</small></span></div>
       </header>
 
       <Panel className="question-import-upload-panel">
@@ -353,7 +383,7 @@ export function QuestionImportPage() {
         {inspection.issues.length > 0 && <Panel title="Batch checks" className="question-import-batch-issues">{inspection.issues.map((issue, issueIndex) => <div className={`question-import-issue ${issue.severity.toLowerCase()}`} key={`${issue.code}-${issueIndex}`}><span>{issue.severity === "ERROR" ? <FiXCircle /> : <FiAlertTriangle />}</span><div><strong>{issue.code.replaceAll("_", " ")}</strong><p>{issue.message}</p></div></div>)}</Panel>}
 
         {candidates.length > 0 && <section className="question-import-review">
-          <div className="question-import-review-heading"><div><span className="page-eyebrow">REVIEW BY EXCEPTION</span><h2>Review only what needs attention</h2><p>Clean questions are pre-approved automatically. Focus on the {exceptionCount} warning/invalid/duplicate candidate(s), then bulk publish the ready set.</p></div><div><strong>{approvedCount}</strong><span>ready to publish</span></div></div>
+          <div className="question-import-review-heading"><div><span className="page-eyebrow">REVIEW & EDIT</span><h2>Edit inspected MCQs before publication</h2><p>Every extracted stem and answer option below is editable. Clean questions start pre-approved; review the {exceptionCount} warning/invalid/duplicate candidate(s) or use bulk approval for the resolved set.</p></div><div className="question-import-bulk-actions"><strong>{approvedCount}</strong><span>ready to publish</span><button type="button" className="pp-button secondary" onClick={approveAllPublishable} disabled={bulkPublishableCount === 0}><FiCheckCircle /> Approve all publishable</button></div></div>
 
           {candidates.map((candidate, candidateIndex) => <article className={`question-import-candidate ${candidate.approved ? "approved" : ""}`} key={`${candidate.candidate_id}-${candidateIndex}`}>
             <header>
@@ -365,9 +395,9 @@ export function QuestionImportPage() {
 
             {candidate.duplicate && <div className="question-import-duplicate"><FiSearch /><div><strong>{candidate.duplicate.exact ? "Exact question already exists" : `Possible duplicate · ${percent(candidate.duplicate.similarity)}`}</strong><p>{candidate.duplicate.question_text}</p></div><div className="question-import-duplicate-actions"><button type="button" onClick={() => updateCandidate(candidateIndex, (current) => ({ ...current, reuse_question_id: current.duplicate?.question_id, allow_duplicate: false, approved: true }))}><FiCheckCircle /> Reuse existing</button><button type="button" onClick={() => updateCandidate(candidateIndex, (current) => ({ ...current, reuse_question_id: undefined, allow_duplicate: true }))}>Create separate copy</button></div></div>}
 
-            <label className="question-import-stem"><span>Question stem</span><textarea value={candidate.question_text} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, question_text: event.target.value, reuse_question_id: undefined }))} /></label>
+            <label className="question-import-stem"><span>Question stem · editable</span><textarea value={candidate.question_text} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, question_text: event.target.value, reuse_question_id: undefined }))} /></label>
 
-            <div className="question-import-options"><span>Answer options</span>{candidate.options.map((option, optionIndex) => <label className={option.is_correct ? "correct" : ""} key={`${candidate.candidate_id}-${candidateIndex}-${option.label}-${optionIndex}`}><input type="radio" name={`correct-${candidateIndex}-${candidate.candidate_id}`} checked={option.is_correct} onChange={() => setCorrectOption(candidateIndex, optionIndex)} /><strong>{option.label}</strong><input value={option.option_text} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, reuse_question_id: undefined, options: current.options.map((value, index) => index === optionIndex ? { ...value, option_text: event.target.value } : value) }))} /></label>)}</div>
+            <div className="question-import-options"><span>Answer options · edit text and choose the single correct answer</span>{candidate.options.map((option, optionIndex) => <label className={option.is_correct ? "correct" : ""} key={`${candidate.candidate_id}-${candidateIndex}-${option.label}-${optionIndex}`}><input type="radio" name={`correct-${candidateIndex}-${candidate.candidate_id}`} checked={option.is_correct} onChange={() => setCorrectOption(candidateIndex, optionIndex)} /><strong>{option.label}</strong><input value={option.option_text} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, reuse_question_id: undefined, options: current.options.map((value, index) => index === optionIndex ? { ...value, option_text: event.target.value } : value) }))} /></label>)}</div>
 
             <label><span>Explanation</span><textarea value={candidate.explanation || ""} placeholder="Automatically generated as 4–7 concise lines when enrichment succeeds; still editable before publish." onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, explanation: event.target.value }))} /></label>
 
@@ -378,7 +408,7 @@ export function QuestionImportPage() {
             <footer><label className="question-import-approve"><input type="checkbox" checked={Boolean(candidate.approved)} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, approved: event.target.checked }))} /><span>{candidate.reuse_question_id ? "Approve reuse" : "Approve for publication"}</span></label>{candidate.reuse_question_id && <span className="question-import-reuse-chip"><FiCheckCircle /> Existing question will be reused; no duplicate will be created.</span>}</footer>
           </article>)}
 
-          <div className="question-import-publish-bar"><div><strong>{approvedCount} ready</strong><span>Publication re-validates exactly 5 options (A–E), one correct answer, topic overrides, duplicate policy, and access permissions on the server.</span></div><button type="button" className="pp-button" onClick={() => void publishApproved()} disabled={publishing || approvedCount === 0}>{publishing ? <><FiRefreshCw className="spin" /> Publishing…</> : <><FiCheck /> Publish ready questions</>}</button></div>
+          <div className="question-import-publish-bar"><div><strong>{approvedCount} ready</strong><span>Publication re-validates exactly 5 options (A–E), one correct answer, topic overrides, duplicate policy, and access permissions on the server.</span></div><div className="question-import-publish-actions"><button type="button" className="pp-button secondary" onClick={approveAllPublishable} disabled={bulkPublishableCount === 0}><FiCheckCircle /> Approve all</button><button type="button" className="pp-button" onClick={() => void publishApproved()} disabled={publishing || approvedCount === 0}>{publishing ? <><FiRefreshCw className="spin" /> Publishing…</> : <><FiCheck /> Publish approved questions</>}</button></div></div>
         </section>}
       </>}
     </main>
