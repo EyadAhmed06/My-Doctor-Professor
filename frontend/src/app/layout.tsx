@@ -54,6 +54,7 @@ import "@/components/requested-ui-alignment-fixes.css";
 import "@/components/authenticated-mobile-rendering-fix.css";
 import "@/components/public-home-viewport-fix.css";
 import "@/components/student-navbar-spacing-fix.css";
+import "@/components/requested-product-polish.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
