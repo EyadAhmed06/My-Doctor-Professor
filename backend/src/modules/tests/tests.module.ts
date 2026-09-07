@@ -22,6 +22,7 @@ import { EssayPracticeService } from './essay-practice.service';
 import { McqPracticeCatalogService } from './mcq-practice-catalog.service';
 import { McqPracticeController } from './mcq-practice.controller';
 import { McqPracticeService } from './mcq-practice.service';
+import { StudentStudioController } from './student-studio.controller';
 import { TestLaunchController } from './test-launch.controller';
 import { TestsController } from './tests.controller';
 import { TestsService } from './tests.service';
@@ -35,7 +36,7 @@ import { TestsService } from './tests.service';
    Question,McqOption,EssayConfiguration,Course,Week,Lecture,Student,
   ]),
  ],
- controllers:[TestsController,TestLaunchController,McqPracticeController,EssayPracticeController],
+ controllers:[TestsController,TestLaunchController,McqPracticeController,EssayPracticeController,StudentStudioController],
  providers:[TestsService,AssessmentAttemptService,AssessmentAuthoringService,McqPracticeService,McqPracticeCatalogService,EssayPracticeService],
  exports:[TestsService,AssessmentAttemptService,TypeOrmModule],
 })
