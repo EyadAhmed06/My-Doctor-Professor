@@ -101,8 +101,11 @@ export function GoogleSignInButton({
     return <button className="google-button" disabled aria-busy="true"><b>G</b> {locale === "ar" ? "جارٍ تحميل Google…" : "Loading Google…"}</button>;
   }
 
+  // Google is an optional provider. When production has no client ID, do not
+  // leave a dead "Google unavailable" control in the authentication UI. The
+  // marker lets the surrounding auth card also suppress its "or" divider.
   if (!clientId) {
-    return <button className="google-button" disabled title={error || "Google authentication is unavailable"}><b>G</b> {locale === "ar" ? "Google غير متاح" : "Google unavailable"}</button>;
+    return <span className="google-auth-unavailable-marker" hidden data-error={error || undefined} />;
   }
 
   return <div className={`google-signin-shell ${disabled ? "disabled" : ""}`} aria-busy={!ready && !disabled}>
