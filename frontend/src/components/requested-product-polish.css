@@ -6,16 +6,19 @@
   display: none !important;
 }
 
-/* Homepage content decisions: keep the existing Why Choose Us section and remove
-   the generic About/Goal sections and the Clinical Years curriculum card. */
-.public-home #about,
-.public-home #goal,
-.public-home .year-grid > :nth-child(4) {
-  display: none !important;
+/* Year-grid: 3 academic years (Years 1, 2, 3) */
+.public-home .year-grid {
+  grid-template-columns: repeat(3, 1fr) !important;
 }
-.public-nav nav a[href="#about"],
-.public-nav nav a[href="#goal"] {
-  display: none !important;
+@media (max-width: 1050px) {
+  .public-home .year-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+@media (max-width: 720px) {
+  .public-home .year-grid {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 /* Professor's Pearl has been removed from the dashboard source; keep this as a
