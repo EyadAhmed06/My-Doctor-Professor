@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, DragEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FiBookOpen, FiCheckCircle, FiFile, FiImage, FiRefreshCw, FiTrash2, FiUploadCloud, FiVideo } from "react-icons/fi";
+import { FiBookOpen, FiCheckCircle, FiEdit3, FiFile, FiImage, FiRefreshCw, FiTrash2, FiUploadCloud, FiVideo } from "react-icons/fi";
 import { apiBaseUrl } from "@/lib/api";
 import { useAuth } from "./auth-provider";
 import { EmptyState, ErrorState, PageSkeleton } from "./async-state";
@@ -38,7 +38,7 @@ export function ResourceUploadPage(){
   const inputRef=useRef<HTMLInputElement>(null);
   const [courses,setCourses]=useState<Course[]>([]),[courseId,setCourseId]=useState(""),[course,setCourse]=useState<Course|null>(null),[lectureId,setLectureId]=useState("");
   const [resources,setResources]=useState<Resource[]>([]),[file,setFile]=useState<File|null>(null),[name,setName]=useState(""),[description,setDescription]=useState("");
-  const [dragging,setDragging]=useState(false),[loading,setLoading]=useState(true),[detailLoading,setDetailLoading]=useState(false),[uploading,setUploading]=useState(false),[progress,setProgress]=useState(0),[error,setError]=useState<string|null>(null);
+  const [dragging,setDragging]=useState(false),[loading,setLoading]=useState(true),[detailLoading,setDetailLoading]=useState(false),[uploading,setUploading]=useState(false),[changingPublication,setChangingPublication]=useState(false),[progress,setProgress]=useState(0),[error,setError]=useState<string|null>(null);
 
   const allowed=user?.role==="INSTRUCTOR"||user?.role==="SYSTEM_ADMIN";
   const lectures=useMemo(()=>course?.weeks?.flatMap(week=>week.lectures.map(lecture=>({...lecture,week})))||[],[course]);
@@ -49,14 +49,15 @@ export function ResourceUploadPage(){
     try{
       const rows=await request<PageResponse<Course>>("/academic/courses?limit=100");
       setCourses(rows.data);
-      setCourseId(current=>current||rows.data[0]?.id||"");
+      const requestedCourseId=new URLSearchParams(window.location.search).get("course_id");
+      setCourseId(current=>requestedCourseId&&rows.data.some(item=>item.id===requestedCourseId)?requestedCourseId:current||rows.data[0]?.id||"");
     }
     catch(cause){setError(cause instanceof Error?cause.message:"Unable to load courses.");}
     finally{setLoading(false);}
   },[allowed,request]);
   useEffect(()=>{void loadCourses();},[loadCourses]);
 
-  useEffect(()=>{if(!courseId)return;let active=true;setDetailLoading(true);setError(null);void request<Course>(`/academic/courses/${courseId}`).then(value=>{if(!active)return;setCourse(value);const first=value.weeks?.flatMap(week=>week.lectures)[0];setLectureId(current=>value.weeks?.some(week=>week.lectures.some(lecture=>lecture.id===current))?current:first?.id||"");}).catch(cause=>{if(active)setError(cause instanceof Error?cause.message:"Unable to load course hierarchy.");}).finally(()=>{if(active)setDetailLoading(false);});return()=>{active=false};},[courseId,request]);
+  useEffect(()=>{if(!courseId)return;let active=true;setDetailLoading(true);setError(null);void request<Course>(`/academic/courses/${courseId}`).then(value=>{if(!active)return;setCourse(value);const allLectures=value.weeks?.flatMap(week=>week.lectures)||[];const first=allLectures[0];const requestedLectureId=new URLSearchParams(window.location.search).get("lecture_id");setLectureId(current=>requestedLectureId&&allLectures.some(lecture=>lecture.id===requestedLectureId)?requestedLectureId:allLectures.some(lecture=>lecture.id===current)?current:first?.id||"");}).catch(cause=>{if(active)setError(cause instanceof Error?cause.message:"Unable to load course hierarchy.");}).finally(()=>{if(active)setDetailLoading(false);});return()=>{active=false};},[courseId,request]);
 
   const loadResources=useCallback(async()=>{if(!lectureId)return;try{setResources(await request<Resource[]>(`/academic/lectures/${lectureId}/resources`));}catch(cause){setError(cause instanceof Error?cause.message:"Unable to load lecture resources.");}},[lectureId,request]);
   useEffect(()=>{void loadResources();},[loadResources]);
@@ -82,6 +83,18 @@ export function ResourceUploadPage(){
     xhr.onload=()=>resolve({status:xhr.status,message:uploadMessage(xhr)});
     xhr.send(body);
   }),[lectureId]);
+
+  async function returnSelectedLectureToDraft(){
+    if(!selectedLecture||changingPublication)return;
+    setChangingPublication(true);setError(null);
+    try{
+      const lectureToUpdate=selectedLecture.id;
+      await request(`/academic/lectures/${lectureToUpdate}`,{method:"PUT",body:{is_published:false}});
+      setCourse(current=>current?{...current,weeks:current.weeks?.map(week=>({...week,lectures:week.lectures.map(lecture=>lecture.id===lectureToUpdate?{...lecture,isPublished:false}:lecture)}))}:current);
+      notify({title:"Lecture returned to draft",description:"Your selected file, resource name, and description were preserved. You can upload now.",tone:"success"});
+    }catch(cause){setError(cause instanceof Error?cause.message:"Unable to return the lecture to draft.");}
+    finally{setChangingPublication(false);}
+  }
 
   async function upload(event:FormEvent){
     event.preventDefault();if(!file||!lectureId||uploading)return;
@@ -116,7 +129,7 @@ export function ResourceUploadPage(){
     <header className="pp-title hero"><div><small className="page-eyebrow">CONTENT DELIVERY</small><h1>Resource upload</h1><p>Upload verified PDFs, images, and videos into an unpublished lecture, then preview them through the student Study Guides workflow.</p></div><button className="pp-button secondary" onClick={()=>void loadCourses()}><FiRefreshCw/> Refresh</button></header>
     {error&&<p className="form-error" role="alert">{error}</p>}
     {loading?<PageSkeleton variant="workspace" label="Loading resource workspace"/>:<div className="resource-upload-layout">
-      <Panel title="Destination"><div className="resource-destination-grid"><label>Course<select value={courseId} onChange={event=>setCourseId(event.target.value)}>{courses.map(item=><option key={item.id} value={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label><label>Lecture<select value={lectureId} onChange={event=>setLectureId(event.target.value)} disabled={detailLoading}>{lectures.map(item=><option key={item.id} value={item.id}>Week {item.week.weekNumber} · {item.lectureNumber}. {item.title}{item.isPublished?" · published":""}</option>)}</select></label></div>{selectedLecture?.isPublished&&<div className="resource-publish-warning"><FiBookOpen/><div><b>Lecture is published</b><p>Return it to draft in Course Studio before changing resources. This prevents students from seeing a content set mutate underneath an active lecture.</p></div></div>}</Panel>
+      <Panel title="Destination"><div className="resource-destination-grid"><label>Course<select value={courseId} onChange={event=>setCourseId(event.target.value)}>{courses.map(item=><option key={item.id} value={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label><label>Lecture<select value={lectureId} onChange={event=>setLectureId(event.target.value)} disabled={detailLoading}>{lectures.map(item=><option key={item.id} value={item.id}>Week {item.week.weekNumber} · {item.lectureNumber}. {item.title}{item.isPublished?" · published":""}</option>)}</select></label></div>{selectedLecture?.isPublished&&<div className="resource-publish-warning"><FiBookOpen/><div><b>Lecture is published</b><p>Resources are locked while students can access this lecture. Return it to draft here; your selected file and all upload fields will stay exactly as they are.</p></div><button className="pp-button secondary resource-draft-action" type="button" disabled={changingPublication} onClick={()=>void returnSelectedLectureToDraft()}><FiEdit3/>{changingPublication?"Changing status…":"Return to draft & continue"}</button></div>}</Panel>
       <Panel title="Upload managed file"><form onSubmit={upload} className="resource-upload-form"><div className={`resource-dropzone ${dragging?"dragging":""}`} onDragOver={event=>{event.preventDefault();setDragging(true)}} onDragLeave={()=>setDragging(false)} onDrop={drop} onClick={()=>inputRef.current?.click()} role="button" tabIndex={0} onKeyDown={event=>{if(event.key==="Enter"||event.key===" ")inputRef.current?.click()}}><FiUploadCloud/><b>{file?file.name:"Drop a resource here or browse"}</b><small>{file?`${typeFor(file)} · ${sizeLabel(file.size)}`:"PDF · PNG/JPEG/WebP · MP4/WebM · max 50 MB"}</small><input ref={inputRef} hidden type="file" accept={accept} onChange={browse}/></div><div className="resource-upload-fields"><label>Resource name<input required maxLength={200} value={name} onChange={event=>setName(event.target.value)}/></label><label>Description<textarea maxLength={5000} rows={3} value={description} onChange={event=>setDescription(event.target.value)}/></label></div>{(uploading||progress>0)&&<div className="resource-upload-progress"><Progress value={progress}/><span>{progress}% {uploading?"uploading":"uploaded"}</span></div>}<button className="pp-button" disabled={!file||!name.trim()||uploading||Boolean(selectedLecture?.isPublished)}><FiUploadCloud/> {uploading?"Uploading…":"Upload resource"}</button></form></Panel>
       <Panel title={`Lecture resources · ${resources.length}`}><div className="resource-managed-list">{resources.length?resources.map(resource=>{const Icon=resource.resourceType==="IMAGE"?FiImage:resource.resourceType==="VIDEO"?FiVideo:FiFile;return <article key={resource.id}><span><Icon/></span><div><b>{resource.resourceName}</b><small>{resource.resourceType} · {resource.mimeType||"external"} · {resource.fileSize?sizeLabel(Number(resource.fileSize)):"size unavailable"}</small><p>{resource.description||resource.originalFilename||"No description"}</p></div><span className="resource-upload-status"><FiCheckCircle/> {resource.uploadStatus}</span><button className="danger" disabled={Boolean(selectedLecture?.isPublished)} onClick={()=>void remove(resource)} title="Delete resource"><FiTrash2/></button></article>;}):<EmptyState title="No resources in this lecture" description="Upload the first managed file above."/>}</div></Panel>
     </div>}
