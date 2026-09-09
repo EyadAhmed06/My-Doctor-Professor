@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
+import "@/components/product-pages.css";
 import { AppThemeProvider } from "@/components/app-theme";
 import { AchievementFeedbackBridge } from "@/components/achievement-feedback-bridge";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/components/brand";

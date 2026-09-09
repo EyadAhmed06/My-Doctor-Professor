@@ -7,7 +7,6 @@ import { useAuth } from "./auth-provider";
 import { EmptyState, ErrorState, PageSkeleton } from "./async-state";
 import { Panel, ProductShell, Progress } from "./product-shell";
 import { useUx } from "./ux-provider";
-import "./product-pages.css";
 
 type ResourceType="PDF"|"IMAGE"|"VIDEO";
 type Resource={id:string;resourceName:string;resourceType:ResourceType;uploadStatus:string;fileSize:string|null;mimeType:string|null;description:string|null;originalFilename:string|null};
