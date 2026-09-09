@@ -38,6 +38,8 @@ describe('EssayQuestionImportService PDF parsing', () => {
     expect(candidates[0].model_answer).toContain('Urinalysis');
     expect(candidates[1].model_answer).toContain('Prostate cancer');
     expect(candidates[2].model_answer).toContain('imaging');
+    expect(candidates.map((candidate: any) => candidate.question_number)).toEqual([1, 2, 1]);
+    expect(candidates.every((candidate: any) => candidate.answer_origin === 'SOURCE')).toBe(true);
     expect(candidates.every((candidate: any) => candidate.status === 'VALID')).toBe(true);
   });
 
@@ -95,6 +97,7 @@ describe('EssayQuestionImportService PDF parsing', () => {
       'Generated answer for Q2',
     ]);
     expect(enriched.every((candidate: any) => candidate.status === 'NEEDS_REVIEW')).toBe(true);
+    expect(enriched.every((candidate: any) => candidate.answer_origin === 'AI')).toBe(true);
     expect(enriched.every((candidate: any) => candidate.issues.some((issue: any) => issue.code === 'AI_MODEL_ANSWER_GENERATED'))).toBe(true);
   });
 });
