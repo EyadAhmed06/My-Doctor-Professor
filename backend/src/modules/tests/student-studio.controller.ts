@@ -43,10 +43,10 @@ export class StudentStudioController {
         test.title AS test_title,
         latest.attempt_id,
         latest.flagged_at,
-        course.id AS course_id,
-        course.course_name,
-        lecture.id AS lecture_id,
-        lecture.title AS lecture_title,
+        COALESCE(course.id, test_course.id) AS course_id,
+        COALESCE(course.course_name, test_course.course_name) AS course_name,
+        COALESCE(lecture.id, test_lecture.id) AS lecture_id,
+        COALESCE(lecture.title, test_lecture.title) AS lecture_title,
         answer.selected_option_id,
         answer.is_correct AS student_was_correct,
         COALESCE(
@@ -72,14 +72,27 @@ export class StudentStudioController {
       LEFT JOIN lectures lecture ON lecture.id = topic.lecture_id
       LEFT JOIN weeks week ON week.id = lecture.week_id
       LEFT JOIN courses course ON course.id = week.course_id
+      LEFT JOIN courses test_course ON test_course.id = test.course_id
+      LEFT JOIN lectures test_lecture ON test_lecture.id = test.lecture_id
       LEFT JOIN mcq_options option ON option.question_id = question.id
       GROUP BY
         question.id,
+        question.question_text,
+        question.explanation,
+        question.difficulty,
+        question.marks,
         test.id,
+        test.title,
         latest.attempt_id,
         latest.flagged_at,
         course.id,
+        course.course_name,
+        test_course.id,
+        test_course.course_name,
         lecture.id,
+        lecture.title,
+        test_lecture.id,
+        test_lecture.title,
         answer.selected_option_id,
         answer.is_correct
       ORDER BY latest.flagged_at DESC

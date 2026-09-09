@@ -49,6 +49,7 @@ type Page<T> = { data: T[] };
 const studentNav: NavItem[] = [
   { label: "My Bundles", href: "/bundles" },
   { label: "Questions", href: "/assessments" },
+  { label: "Studio", href: "/studio" },
   { label: "Mock Exams", href: "/past-exams" },
   { label: "Flashcards", href: "/flashcards" },
   { label: "Essay Cases", href: "/essay-practice" },
@@ -325,7 +326,13 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
       <nav id="product-navigation" className={open ? "open" : ""} aria-label={translate("Primary navigation")}>
         <button className="pp-nav-close" type="button" onClick={() => setOpen(false)} aria-label={translate("Close menu")}><FiX /></button>
         {nav.map(item => <Link key={item.href} prefetch={true} className={isNavActive(path, item.href) ? "active" : ""} href={item.href} onClick={() => { if (open) setOpen(false); }}>{translate(item.label)}</Link>)}
+        <Link className={`pp-mobile-nav-link${path.startsWith("/notifications") ? " active" : ""}`} href="/notifications" prefetch={true} onClick={() => setOpen(false)}><FiBell />{translate("Notifications")}{unread > 0 && <span>{unread > 99 ? "99+" : unread}</span>}</Link>
         <Link href="/settings" prefetch={true} className={path.startsWith("/settings") ? "active" : ""} onClick={() => { if (open) setOpen(false); }}>{translate("Settings")}</Link>
+        <div className="pp-mobile-tools" aria-label={translate("Workspace tools")}>
+          <button type="button" onClick={() => { setOpen(false); setHelpOpen(true); setAchievementsOpen(false); setProgressOpen(false); }}>{translate("Help")}</button>
+          <button type="button" onClick={() => { setOpen(false); setAchievementsOpen(true); setHelpOpen(false); setProgressOpen(false); }}>{translate("Achievements")}</button>
+          {user.role === "STUDENT" && <button type="button" onClick={() => { setOpen(false); setProgressOpen(true); setHelpOpen(false); setAchievementsOpen(false); }}>{translate("Progress")}</button>}
+        </div>
       </nav>
       <button className="pp-search-command" type="button" onClick={openPalette} aria-label={`${translate("Open command palette")}. ${translate(search)}`}><FiSearch /><span>{translate(search)}</span><kbd>⌘ K</kbd></button>
       <div className="pp-profile">
@@ -333,7 +340,7 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
         <button className="phase5-header-action" type="button" aria-label={translate("Open contextual help")} aria-expanded={helpOpen} onClick={() => { setHelpOpen(true); setAchievementsOpen(false); setProgressOpen(false); setProfileOpen(false); setNotificationsOpen(false); }}><FiHelpCircle /></button>
         <button className="phase5-header-action" type="button" aria-label={locale === "ar" ? `${achievements.length} إنجازات مفتوحة` : `${achievements.length} unlocked achievements`} aria-expanded={achievementsOpen} onClick={() => { setAchievementsOpen(true); setHelpOpen(false); setProgressOpen(false); setProfileOpen(false); setNotificationsOpen(false); }}><FiAward />{achievements.length > 0 && <i>{achievements.length > 99 ? "99+" : achievements.length}</i>}</button>
         <div className="header-popover-anchor" ref={notificationsRef}>
-          <button className="phase5-header-action" ref={notificationsButtonRef} aria-label={locale === "ar" ? `${unread} إشعارات غير مقروءة` : `${unread} unread notifications`} aria-expanded={notificationsOpen} aria-haspopup="dialog" onClick={() => { const next = !notificationsOpen; setNotificationsOpen(next); setProfileOpen(false); setHelpOpen(false); setAchievementsOpen(false); setProgressOpen(false); if (next) void loadPreview(); }}><FiBell />{unread > 0 && <i>{unread > 99 ? "99+" : unread}</i>}</button>
+        <button className="phase5-header-action mobile-header-notifications" ref={notificationsButtonRef} aria-label={locale === "ar" ? `${unread} إشعارات غير مقروءة` : `${unread} unread notifications`} aria-expanded={notificationsOpen} aria-haspopup="dialog" onClick={() => { const next = !notificationsOpen; setNotificationsOpen(next); setProfileOpen(false); setHelpOpen(false); setAchievementsOpen(false); setProgressOpen(false); if (next) void loadPreview(); }}><FiBell />{unread > 0 && <i>{unread > 99 ? "99+" : unread}</i>}</button>
           {notificationsOpen && <section className="header-popover notification-preview" role="dialog" aria-label={translate("Notification preview")}><header><div><b>{translate("Notifications")}</b><small>{locale === "ar" ? `${unreadPreview} غير مقروء في المعاينة` : `${unreadPreview} unread in preview`}</small></div><button type="button" disabled={!unread} onClick={() => void markAllPreviewRead()}><FiCheck /> {translate("Mark all read")}</button></header>{previewLoading ? <PageSkeleton variant="list" label={translate("Loading notification preview")} /> : preview.length ? <div className="notification-preview-list">{preview.map(item => <button type="button" className={item.status === "UNREAD" ? "unread" : ""} key={item.id} onClick={() => void openNotification(item)}><span /><div><b>{item.title}</b><p>{item.message}</p><small>{new Date(item.created_at).toLocaleString(locale === "ar" ? "ar-EG" : undefined)}</small></div></button>)}</div> : <p className="header-popover-empty">{translate("No notifications yet.")}</p>}<footer><button type="button" onClick={() => navigate("/notifications")}>{translate("View all notifications")}</button></footer></section>}
         </div>
         <StudentProgressControl open={progressOpen} onOpenChange={(next) => {

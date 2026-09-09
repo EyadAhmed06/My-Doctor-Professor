@@ -90,4 +90,5 @@ export const workspaceArabic = new Map<string, string>([
   ["Import users", "استيراد المستخدمين"], ["CSV import", "استيراد CSV"], ["Preview import", "معاينة الاستيراد"], ["Import results", "نتائج الاستيراد"],
   ["Export CSV", "تصدير CSV"], ["Audit filters", "فلاتر سجل التدقيق"], ["Actor", "المنفذ"], ["Action", "الإجراء"], ["Entity", "الكيان"], ["Timestamp", "الوقت"],
   ["Essay grading queue", "قائمة تصحيح الأسئلة المقالية"], ["Pending only", "المعلق فقط"], ["Previous pending", "السابق المعلق"], ["Next pending", "التالي المعلق"], ["Save & next", "حفظ والتالي"],
+  ["Studio", "الاستوديو"], ["Open Studio", "فتح الاستوديو"], ["Review hard questions", "مراجعة الأسئلة الصعبة"], ["Review Flagged Hard Questions", "مراجعة الأسئلة الصعبة المميزة"], ["Your hard-question review queue", "قائمة مراجعة أسئلتك الصعبة"],
 ]);

@@ -17,6 +17,7 @@ import {
   FiPlus,
   FiSettings,
   FiShield,
+  FiStar,
   FiUploadCloud,
   FiUsers,
 } from "react-icons/fi";
@@ -37,6 +38,7 @@ type Command = {
 
 const commands: Command[] = [
   { label: "Open bundles", description: "Browse enrolled or managed learning bundles", href: "/bundles", icon: FiLayers, keywords: ["courses", "curriculum", "bundle"] },
+  { label: "Studio (Hard questions)", description: "Review questions marked as hard during quizzes", href: "/studio", icon: FiStar, keywords: ["studio", "hard", "flagged", "questions", "quiz", "review"], roles: ["STUDENT"] },
   { label: "Review flashcards", description: "Continue the due spaced-repetition queue", href: "/flashcards", icon: FiBookOpen, keywords: ["cards", "review", "spaced repetition"], roles: ["STUDENT"] },
   { label: "Open notebook", description: "Browse explanations, pearls, and personal notes", href: "/notebook", icon: FiFileText, keywords: ["notes", "pearls", "cases"] },
   { label: "Create a note", description: "Start a private notebook note", href: "/notebook/new", icon: FiPlus, keywords: ["new", "write", "capture"], roles: ["STUDENT"] },

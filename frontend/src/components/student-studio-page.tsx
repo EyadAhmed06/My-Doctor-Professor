@@ -98,9 +98,9 @@ export function StudentStudioPage() {
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translate("Search question, course, lecture, or quiz…")} aria-label={translate("Search Studio")}/>
       </section>
 
-      {error && <ErrorState title={translate("Studio could not load")} description={error} action={<button className="pp-button secondary" onClick={() => void load()}>{translate("Retry")}</button>} />}
+      {error && <ErrorState title={translate("Studio could not load")} description={error} onRetry={() => void load()} />}
       {loading && !rows.length ? <PageSkeleton variant="workspace" label={translate("Loading your hard questions")} /> : null}
-      {!loading && !error && !rows.length ? <EmptyState icon={<FiCheckCircle/>} title={translate("No hard questions yet")} description={translate("During a quiz, mark a question as Hard. Once that attempt is submitted or expires, the question will appear here for review.")} action={<Link className="pp-button" href="/assessments">{translate("Open questions")}</Link>} /> : null}
+      {!loading && !error && !rows.length ? <EmptyState title={translate("No hard questions yet")} description={translate("During a quiz, mark a question as Hard. Once that attempt is submitted or expires, the question will appear here for review.")} action={<Link className="pp-button" href="/assessments">{translate("Open questions")}</Link>} /> : null}
 
       {visible.length > 0 && <section className="studio-list">
         {visible.map((row, index) => {

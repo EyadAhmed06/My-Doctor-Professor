@@ -154,15 +154,15 @@ function StudentDashboardScreen({
   const { startNavigation } = useUx();
   const displayName = user?.fullName || user?.full_name || user?.email || "Student";
   const firstName = displayName.trim().split(/\s+/)[0];
-  const accuracy = clamp(number(data?.questions.accuracy));
-  const completedLectures = data?.courses.reduce((sum, item) => sum + item.lecturesCompleted, 0) || 0;
-  const totalLectures = data?.courses.reduce((sum, item) => sum + item.totalLectures, 0) || 0;
+  const accuracy = clamp(number(data?.questions?.accuracy));
+  const completedLectures = data?.courses?.reduce((sum, item) => sum + item.lecturesCompleted, 0) || 0;
+  const totalLectures = data?.courses?.reduce((sum, item) => sum + item.totalLectures, 0) || 0;
   const hasCurriculumProgress = totalLectures > 0;
   const overallProgress = hasCurriculumProgress ? clamp(Math.round(completedLectures * 100 / totalLectures)) : 0;
-  const streak = number(data?.clinical_momentum.study_streak);
-  const studyMinutes = number(data?.clinical_momentum.study_minutes);
-  const level = Math.max(1, number(data?.clinical_momentum.level));
-  const levelProgress = clamp(number(data?.clinical_momentum.level_progress));
+  const streak = number(data?.clinical_momentum?.study_streak);
+  const studyMinutes = number(data?.clinical_momentum?.study_minutes);
+  const level = Math.max(1, number(data?.clinical_momentum?.level));
+  const levelProgress = clamp(number(data?.clinical_momentum?.level_progress));
 
   const activity = useMemo(() => {
     const byDate = new Map((data?.weekly_activity || []).map((item) => [String(item.date).slice(0, 10), item]));
@@ -177,7 +177,7 @@ function StudentDashboardScreen({
     });
   }, [data?.weekly_activity, locale]);
   const maxActivity = Math.max(1, ...activity.map((item) => item.value));
-  const continueCourse = data?.courses.find((item) => number(item.completionPercentage) < 100) || data?.courses[0];
+  const continueCourse = data?.courses?.find((item) => number(item.completionPercentage) < 100) || data?.courses?.[0];
 
   function navigate(href: string) {
     startNavigation();
@@ -213,8 +213,20 @@ function StudentDashboardScreen({
       {loading && !data ? <PageSkeleton variant="workspace" label={translate("Loading your dashboard")} /> : <div className="main-grid">
         <div className="column-main">
           <Card title={translate("Studio")} subtitle={translate("Your hard-question review queue")} action={<Link href="/studio">{translate("Open Studio")} →</Link>} className="studio-dashboard-card">
-            <p>{translate("Questions you mark as Hard during quizzes are collected here after the attempt closes, so you can review the correct answer and reasoning again.")}</p>
-            <button type="button" className="pp-button secondary" onClick={() => navigate("/studio")}><FiStar /> {translate("Review hard questions")}</button>
+            <div className="studio-card-content" onClick={() => navigate("/studio")} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate("/studio"); } }}>
+              <div className="studio-card-lead">
+                <span className="studio-icon-badge"><FiStar /></span>
+                <div>
+                  <strong>{translate("Review Flagged Hard Questions")}</strong>
+                  <p>{translate("Questions you mark as Hard during quizzes are collected here after the attempt closes, so you can review the correct answer and reasoning again.")}</p>
+                </div>
+              </div>
+              <div className="studio-card-actions">
+                <button type="button" className="pp-button" onClick={(e) => { e.stopPropagation(); navigate("/studio"); }}>
+                  <FiStar /> {translate("Review hard questions")}
+                </button>
+              </div>
+            </div>
           </Card>
           <Card title={translate("Weekly Activity")} action={<Link href="/analytics">{translate("Open analytics")} →</Link>} className="activity-card">
             <div className="chart-legend"><span><i />{translate("Learning interactions")}</span></div><div className="bar-chart">{activity.map((item) => <div key={item.label}><span title={translate(`${item.value} interactions: ${number(item.detail?.questions)} MCQs, ${number(item.detail?.essay_cases)} essay cases, ${number(item.detail?.flashcards)} flashcards, ${number(item.detail?.lectures)} lectures, ${number(item.detail?.plan_sessions)} plan sessions`)} style={{ height: `${Math.max(2, Math.round(item.value / maxActivity * 92))}px` }} /><small>{item.label}</small></div>)}</div>
@@ -223,7 +235,7 @@ function StudentDashboardScreen({
 
         <aside className="column-side">
           <Card title={translate("Your Progress")} action={<span>{progressLabel}</span>} className="progress-card"><div className="progress-content"><div className="level-badge large">{level}</div><div><strong>{translate(`Level ${level}`)} <small>{translate("Clinical Learner")}</small></strong><span>{translate(`${levelProgress} / 100 XP to next level`)}</span><div className="xp-bar" role="progressbar" aria-label={translate("XP toward next level")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={levelProgress}><i style={{ width: `${levelProgress}%` }} /></div><small>{lectureProgressLabel}</small></div></div></Card>
-          <Card title={translate("Topic Mastery")} action={<Link href="/analytics">{translate("View analytics")} →</Link>} className="mastery-card"><div className="mastery-list">{data?.topic_mastery.length ? data.topic_mastery.slice(0, 6).map((item) => <button type="button" onClick={() => navigate("/analytics")} key={item.id}><span><FiActivity /><span data-academic-content>{item.course_name}</span></span><b>{clamp(number(item.mastery))}%</b><div><i style={{ width: `${clamp(number(item.mastery))}%` }} /></div><small>{translate(`${item.questions_attempted} graded answers`)}</small></button>) : <p>{translate("Answer graded questions to build topic mastery.")}</p>}</div></Card>
+          <Card title={translate("Topic Mastery")} action={<Link href="/analytics">{translate("View analytics")} →</Link>} className="mastery-card"><div className="mastery-list">{data?.topic_mastery?.length ? data.topic_mastery.slice(0, 6).map((item) => <button type="button" onClick={() => navigate("/analytics")} key={item.id}><span><FiActivity /><span data-academic-content>{item.course_name}</span></span><b>{clamp(number(item.mastery))}%</b><div><i style={{ width: `${clamp(number(item.mastery))}%` }} /></div><small>{translate(`${item.questions_attempted} graded answers`)}</small></button>) : <p>{translate("Answer graded questions to build topic mastery.")}</p>}</div></Card>
         </aside>
       </div>}
     </main>
