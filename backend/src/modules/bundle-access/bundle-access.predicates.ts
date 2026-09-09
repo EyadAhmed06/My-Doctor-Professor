@@ -159,7 +159,6 @@ export function buildDeckAccessExistsSql(
     + ` FROM flashcard_decks deck`
     + ` JOIN courses course ON course.id = deck.course_id`
     + ` LEFT JOIN lectures lecture ON lecture.id = deck.lecture_id`
-    + ` LEFT JOIN weeks week ON week.id = lecture.week_id`
     + ` JOIN bundle_courses bundle_course ON bundle_course.course_id = course.id`
     + ` JOIN bundles bundle ON bundle.id = bundle_course.bundle_id`
     + ` JOIN bundle_enrollments enrollment ON enrollment.bundle_id = bundle.id AND enrollment.student_id = ${studentIdParam}`
@@ -169,8 +168,8 @@ export function buildDeckAccessExistsSql(
     + ` AND (lecture.id IS NULL OR lecture.is_published = TRUE)`
     + ` AND ${buildActiveEnrollmentSql('enrollment', 'bundle')}`
     + ` AND (`
-    + `   (deck.lecture_id IS NOT NULL AND ${buildBundleWeekFallbackSql('bundle', 'week.id', 'course.id')})`
-    + `   OR (deck.lecture_id IS NULL)`
+    + `   ((deck.week_id IS NOT NULL OR deck.lecture_id IS NOT NULL) AND ${buildBundleWeekFallbackSql('bundle', 'COALESCE(deck.week_id, lecture.week_id)', 'course.id')})`
+    + `   OR (deck.week_id IS NULL AND deck.lecture_id IS NULL)`
     + ` )`
     + `)`;
 }
