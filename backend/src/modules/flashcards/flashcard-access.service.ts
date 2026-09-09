@@ -36,6 +36,7 @@ export class FlashcardAccessService {
     const limit = query.limit ?? 20;
     const builder = this.decks.createQueryBuilder('deck')
       .leftJoinAndSelect('deck.course', 'course')
+      .leftJoinAndSelect('deck.week', 'deckWeek')
       .leftJoinAndSelect('deck.lecture', 'lecture')
       .leftJoinAndSelect('lecture.week', 'week')
       .leftJoinAndSelect('deck.topic', 'topic')
@@ -50,6 +51,7 @@ export class FlashcardAccessService {
     this.bundleAccess.applyStudentAccessScope(builder, 'deck', actor.userId);
 
     if (query.course_id) builder.andWhere('deck.course_id = :courseId', { courseId: query.course_id });
+    if (query.week_id) builder.andWhere('deck.week_id = :weekId', { weekId: query.week_id });
     if (query.lecture_id) builder.andWhere('deck.lecture_id = :lectureId', { lectureId: query.lecture_id });
     if (query.topic_id) builder.andWhere('deck.topic_id = :topicId', { topicId: query.topic_id });
     if (query.search) {
