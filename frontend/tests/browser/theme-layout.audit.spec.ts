@@ -215,6 +215,29 @@ test('instructor lecture card fills its row without clipping its status', async 
   await expectNoHorizontalOverflow(page);
 });
 
+test('resource upload keeps product controls styled on a direct load', async ({ page }) => {
+  await installApi(page, 'INSTRUCTOR', 'dark');
+  await page.goto('/resources/upload');
+  await expect(page.getByRole('heading', { name: 'Resource upload' })).toBeVisible();
+
+  const styles = await page.locator('.resource-upload-layout > .pp-panel').first().evaluate(element => {
+    const panel = getComputedStyle(element);
+    const input = getComputedStyle(document.querySelector('.resource-upload-fields input')!);
+    const button = getComputedStyle(document.querySelector('.resource-upload-form .pp-button')!);
+    return {
+      panelBackground: panel.backgroundColor,
+      panelBorder: panel.borderTopWidth,
+      inputBorder: input.borderTopWidth,
+      buttonDisplay: button.display,
+    };
+  });
+  expect(styles.panelBackground).not.toBe('rgba(0, 0, 0, 0)');
+  expect(styles.panelBorder).not.toBe('0px');
+  expect(styles.inputBorder).not.toBe('0px');
+  expect(styles.buttonDisplay).toBe('inline-flex');
+  await expectNoHorizontalOverflow(page);
+});
+
 test('mobile workspace menu keeps essential tools reachable', async ({ page }) => {
   test.skip((page.viewportSize()?.width || 1280) > 820, 'Mobile navigation contract');
   await installApi(page, 'STUDENT', 'light');
