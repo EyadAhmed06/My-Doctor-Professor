@@ -328,6 +328,7 @@ export default function AnatomyViewer({
   const [isolatedId, setIsolatedId] = useState<string | null>(null);
   const [stats, setStats] = useState({ triangles: 0, drawCalls: 0, fps: 0, memory: 0 });
   const [pointer, setPointer] = useState({ x: 0, y: 0 });
+  const [pixelRatioCap, setPixelRatioCap] = useState(2);
 
   const focusRef = useRef<((id: string | null) => void) | null>(null);
 
@@ -342,6 +343,14 @@ export default function AnatomyViewer({
   }, []);
 
   useEffect(() => () => { useGLTF.clear(url); }, [url]);
+
+  useEffect(() => {
+    const mobile = window.matchMedia("(max-width: 700px), (pointer: coarse)");
+    const updatePixelRatio = () => setPixelRatioCap(mobile.matches ? 1.25 : 2);
+    updatePixelRatio();
+    mobile.addEventListener("change", updatePixelRatio);
+    return () => mobile.removeEventListener("change", updatePixelRatio);
+  }, []);
 
   const view: ViewState = useMemo(() => ({
     selectedId: selected?.id ?? null,
@@ -373,7 +382,7 @@ export default function AnatomyViewer({
         }}
       >
         <Canvas
-          dpr={[1, 2]}
+          dpr={[1, pixelRatioCap]}
           camera={{ position: [0, 0, 3], fov: 40, near: 0.01, far: 500 }}
           gl={{ antialias: true, toneMappingExposure: 1.05 }}
           onCreated={({ gl, scene }) => {

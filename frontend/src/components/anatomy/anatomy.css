@@ -80,6 +80,8 @@
 
 .anatomy-viewer--fallback img { max-width: 100%; height: auto; border-radius: 8px; }
 .anatomy-viewer__notice { margin: 0; font-size: 0.85rem; color: var(--muted, #5b6672); text-align: center; max-width: 46ch; }
+.anatomy-viewer__load { min-height: 46px; padding: 0 18px; border: 1px solid #18b59b; border-radius: 9px; background: #18b59b; color: #06231e; font: 700 0.95rem/1 Arial, sans-serif; cursor: pointer; }
+.anatomy-viewer__load:focus-visible { outline: 3px solid color-mix(in srgb, #18b59b 45%, transparent); outline-offset: 3px; }
 
 /* Loading ------------------------------------------------------------------ */
 
@@ -277,4 +279,7 @@
   /* Portrait phones get a taller stage; 4:3 leaves structures too small to tap. */
   .anatomy-viewer__stage { aspect-ratio: 3 / 4; min-height: 400px; }
   .anatomy-viewer__list { max-height: 240px; }
+  .anatomy-page { padding-inline: 12px; }
+  .anatomy-viewer__toolbar button, .anatomy-viewer__list button, .anatomy-layers__opacity button { min-height: 44px; font-size: 0.875rem; }
+  .anatomy-search input { min-height: 46px; font-size: 1rem; }
 }

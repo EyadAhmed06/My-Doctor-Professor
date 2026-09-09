@@ -146,7 +146,7 @@ export function RegisterPage() {
     <section className="registration-story auth-motion-story">
       <Brand />
       <figure className="auth-organ-visual lungs-story-image">
-        <img src="/media/register-lungs-reference.png" alt="Luminous respiratory system anatomy illustration" />
+        <img src="/media/register-lungs-reference.webp" alt="Luminous respiratory system anatomy illustration" width={1122} height={1402} decoding="async" fetchPriority="low" />
       </figure>
     </section>
     <section className="registration-form-side auth-motion-form">
