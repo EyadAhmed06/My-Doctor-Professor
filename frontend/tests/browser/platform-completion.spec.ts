@@ -35,7 +35,7 @@ async function routeApi(page: Page, handler: (requestEndpoint: string, method: s
     const isApi = url.pathname.includes('/api/v1') || url.port === '3000';
     if (!isApi) return route.fallback();
     const headers = {
-      'access-control-allow-origin': frontendOrigin,
+      'access-control-allow-origin': request.headers()['origin'] || frontendOrigin,
       'access-control-allow-credentials': 'true',
       'access-control-allow-headers': 'authorization,content-type',
       'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
@@ -149,13 +149,16 @@ test('settings exposes session security and keyboard manual navigation', async (
 test('instructor can upload a managed lecture resource with progress-aware workspace', async ({ page }) => {
   const user = await authenticated(page, 'INSTRUCTOR');
   let uploaded = false;
+  let returnedToDraft = false;
   const resource = { id: 'resource-1', resourceName: 'Cardiac physiology notes', resourceType: 'PDF', uploadStatus: 'COMPLETED', fileSize: '120', mimeType: 'application/pdf', description: 'Lecture handout', originalFilename: 'cardiac.pdf' };
   await routeApi(page, async (path, method) => {
+    if (path === '/auth/refresh') return { body: { access_token: 'platform-test-access', user } };
     if (path === '/auth/me') return { body: user };
     if (path === '/notifications/unread/count') return { body: { count: 0 } };
     if (path === '/notifications') return { body: { data: [] } };
     if (path === '/academic/courses') return { body: { data: [{ id: 'course-1', courseCode: 'MED101', courseName: 'Medicine I' }] } };
-    if (path === '/academic/courses/course-1') return { body: { id: 'course-1', courseCode: 'MED101', courseName: 'Medicine I', weeks: [{ id: 'week-1', weekNumber: 1, title: 'Cardiac', lectures: [{ id: 'lecture-1', lectureNumber: 1, title: 'Cardiac cycle', isPublished: false }] }] } };
+    if (path === '/academic/courses/course-1') return { body: { id: 'course-1', courseCode: 'MED101', courseName: 'Medicine I', weeks: [{ id: 'week-1', weekNumber: 1, title: 'Cardiac', lectures: [{ id: 'lecture-1', lectureNumber: 1, title: 'Cardiac cycle', isPublished: !returnedToDraft }] }] } };
+    if (path === '/academic/lectures/lecture-1' && method === 'PUT') { returnedToDraft = true; return { body: { id: 'lecture-1', isPublished: false } }; }
     if (path === '/academic/lectures/lecture-1/resources' && method === 'GET') return { body: uploaded ? [resource] : [] };
     if (path === '/academic/lectures/lecture-1/resources/upload' && method === 'POST') { uploaded = true; return { body: resource }; }
     return null;
@@ -165,7 +168,8 @@ test('instructor can upload a managed lecture resource with progress-aware works
   await expect(page.getByRole('heading', { name: 'Resource upload' })).toBeVisible();
   await page.locator('input[type="file"]').setInputFiles({ name: 'cardiac.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%test\n') });
   await expect(page.getByRole('textbox', { name: 'Resource name' })).toHaveValue('cardiac');
-  await page.getByRole('button', { name: /Upload resource/i }).click();
+  await page.getByRole('button', { name: /Return to draft & upload/i }).click();
+  expect(returnedToDraft).toBe(true);
   await expect(page.getByText('Cardiac physiology notes')).toBeVisible();
 });
 
