@@ -4,15 +4,18 @@ import { Course } from './course.entity';
 import { Flashcard } from './flashcard.entity';
 import { Lecture } from './lecture.entity';
 import { Topic } from './topic.entity';
+import { Week } from './week.entity';
 
 @Entity('flashcard_decks')
 @Index('idx_flashcard_decks_course',['courseId'])
+@Index('idx_flashcard_decks_week',['weekId'])
 @Index('idx_flashcard_decks_topic',['topicId'])
 @Index('idx_flashcard_decks_lecture',['lectureId'])
 @Index('idx_flashcard_decks_created_by',['createdBy'])
 export class FlashcardDeck {
  @PrimaryGeneratedColumn('uuid') id:string;
  @Column('uuid',{name:'course_id',nullable:true}) courseId:string|null;
+ @Column('uuid',{name:'week_id',nullable:true}) weekId:string|null;
  @Column('uuid',{name:'topic_id',nullable:true}) topicId:string|null;
  @Column('uuid',{name:'lecture_id',nullable:true}) lectureId:string|null;
  @Column('uuid',{name:'created_by'}) createdBy:string;
@@ -23,6 +26,7 @@ export class FlashcardDeck {
  @CreateDateColumn({name:'created_at'}) createdAt:Date;
  @UpdateDateColumn({name:'updated_at'}) updatedAt:Date;
  @ManyToOne(()=>Course,{onDelete:'RESTRICT',nullable:true}) @JoinColumn({name:'course_id'}) course:Course|null;
+ @ManyToOne(()=>Week,{onDelete:'SET NULL',nullable:true}) @JoinColumn({name:'week_id'}) week:Week|null;
  @ManyToOne(()=>Topic,{onDelete:'SET NULL',nullable:true}) @JoinColumn({name:'topic_id'}) topic:Topic|null;
  @ManyToOne(()=>Lecture,{onDelete:'SET NULL',nullable:true}) @JoinColumn({name:'lecture_id'}) lecture:Lecture|null;
  @ManyToOne(()=>User,{onDelete:'RESTRICT'}) @JoinColumn({name:'created_by'}) creator:User;
