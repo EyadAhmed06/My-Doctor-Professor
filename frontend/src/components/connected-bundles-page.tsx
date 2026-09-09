@@ -18,6 +18,7 @@ import { useAuth } from "./auth-provider";
 import { PageSkeleton } from "./async-state";
 import { Panel, ProductShell } from "./product-shell";
 import { useUx } from "./ux-provider";
+import { resolveBundleSemester } from "./advanced-bundles-page";
 import "./product-pages.css";
 import "./role-workspace.css";
 import "./bundle-management.css";
@@ -28,6 +29,8 @@ type Bundle = {
   slug: string;
   description: string | null;
   academicYear: number;
+  semesterNumber?: number | null;
+  semester_number?: number | null;
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   isFree: boolean;
   priceAmount?: string | null;
@@ -130,22 +133,41 @@ export function ConnectedBundlesPage() {
     [pathname, router, searchParams, startNavigation],
   );
 
+  const studentSemester = user?.role === "STUDENT"
+    ? (user.currentSemester ?? user.current_semester ?? null)
+    : null;
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const owned = await request<Bundle[]>(manager ? "/bundles/managed" : "/bundles/mine");
-      setBundles(owned);
+      const filteredOwned = studentSemester
+        ? owned.filter((item) => {
+            const sem = resolveBundleSemester(item);
+            return sem === null || sem === studentSemester;
+          })
+        : owned;
+      setBundles(filteredOwned);
       if (!manager) {
-        const publicItems = await request<Bundle[]>("/catalog/bundles");
-        setCatalog(publicItems.filter((item) => !owned.some((ownedItem) => ownedItem.id === item.id)));
+        const catalogPath = studentSemester
+          ? `/catalog/bundles?semester=${studentSemester}`
+          : "/catalog/bundles";
+        const publicItems = await request<Bundle[]>(catalogPath);
+        const filteredCatalog = studentSemester
+          ? publicItems.filter((item) => {
+              const sem = resolveBundleSemester(item);
+              return sem === null || sem === studentSemester;
+            })
+          : publicItems;
+        setCatalog(filteredCatalog.filter((item) => !filteredOwned.some((ownedItem) => ownedItem.id === item.id)));
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to load bundles.");
     } finally {
       setLoading(false);
     }
-  }, [manager, request]);
+  }, [manager, request, studentSemester]);
 
   useEffect(() => {
     void load();
@@ -255,6 +277,8 @@ export function ConnectedBundlesPage() {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
+    const semesterVal = Number(data.get("semester") || data.get("year")) || 1;
+    const academicYear = Math.ceil(semesterVal / 2) || 1;
     setCreating(true);
     try {
       const created = await request<Bundle>("/bundles", {
@@ -263,7 +287,8 @@ export function ConnectedBundlesPage() {
           title: String(data.get("title")),
           slug: String(data.get("slug")),
           description: String(data.get("description") || ""),
-          academic_year: Number(data.get("year")),
+          academic_year: academicYear,
+          semester: semesterVal,
           access_mode: "PUBLIC",
           is_free: true,
         },
@@ -334,11 +359,11 @@ export function ConnectedBundlesPage() {
                 <input name="slug" minLength={3} required />
               </label>
               <label>
-                Academic year
-                <select name="year" defaultValue="1">
-                  {[1, 2, 3, 4, 5, 6].map((year) => (
-                    <option key={year} value={year}>
-                      Year {year}
+                Semester
+                <select name="semester" defaultValue="3">
+                  {[1, 2, 3, 4, 5, 6].map((semester) => (
+                    <option key={semester} value={semester}>
+                      Semester {semester}
                     </option>
                   ))}
                 </select>
@@ -388,7 +413,7 @@ export function ConnectedBundlesPage() {
                     <b>
                       {bundle.title}
                       <small>
-                        Year {bundle.academicYear} · {bundle.payment_required ? "Payment required" : bundle.status}
+                        {resolveBundleSemester(bundle) ? `Semester ${resolveBundleSemester(bundle)} · ` : ""}Year {bundle.academicYear} · {bundle.payment_required ? "Payment required" : bundle.status}
                       </small>
                     </b>
                     {bundle.payment_required || bundle.read_only || bundle.status === "DRAFT" ? <FiLock /> : <FiCheckCircle />}
@@ -404,7 +429,7 @@ export function ConnectedBundlesPage() {
                 <>
                   <div className="bundle-hero">
                     <div>
-                      <small>ACADEMIC YEAR {selected.bundle.academicYear}</small>
+                      <small>{resolveBundleSemester(selected.bundle) ? `SEMESTER ${resolveBundleSemester(selected.bundle)} · ` : ""}ACADEMIC YEAR {selected.bundle.academicYear}</small>
                       <h1>{selected.bundle.title}</h1>
                       <p>{selected.bundle.description || "No description has been added yet."}</p>
                     </div>
@@ -467,15 +492,18 @@ export function ConnectedBundlesPage() {
               </div>
             </div>
             <div>
-              {catalog.map((bundle) => (
-                <Panel key={bundle.id} title={bundle.title}>
-                  <small>YEAR {bundle.academicYear}</small>
-                  <p>{bundle.description || "Published learning bundle"}</p>
-                  <button className="pp-button" onClick={() => void enroll(bundle)}>
-                    Join free bundle
-                  </button>
-                </Panel>
-              ))}
+              {catalog.map((bundle) => {
+                const bundleSem = resolveBundleSemester(bundle);
+                return (
+                  <Panel key={bundle.id} title={bundle.title}>
+                    <small>{bundleSem ? `SEMESTER ${bundleSem} · ` : ""}YEAR {bundle.academicYear}</small>
+                    <p>{bundle.description || "Published learning bundle"}</p>
+                    <button className="pp-button" onClick={() => void enroll(bundle)}>
+                      Join free bundle
+                    </button>
+                  </Panel>
+                );
+              })}
             </div>
           </section>
         )}

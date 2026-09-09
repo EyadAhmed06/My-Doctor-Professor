@@ -27,6 +27,7 @@ import { Test } from '../../common/entities/test.entity';
 import { Week } from '../../common/entities/week.entity';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { NotificationsService } from '../notifications/notifications.service';
+import { Student } from '../users/entities/student.entity';
 import { User, UserRole, UserStatus } from '../users/entities/user.entity';
 import {
   ConfirmBundlePaymentDto,
@@ -58,7 +59,72 @@ export class BundlesService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  catalog(academicYear?: number) {
+  private async findStudentSafe(studentId: string): Promise<Student | null> {
+    try {
+      const repo = this.dataSource?.getRepository ? this.dataSource.getRepository(Student) : null;
+      if (repo) {
+        return await repo.findOne({ where: { userId: studentId } }).catch(() => null);
+      }
+    } catch {
+      // offline or mock fallback
+    }
+    return null;
+  }
+
+  async resolveBundleSemesters(bundleIds: string[], preloadedBundles: Bundle[] = []): Promise<Map<string, number>> {
+    const semesterMap = new Map<string, number>();
+    if (!bundleIds.length) return semesterMap;
+
+    try {
+      if (this.dataSource?.query) {
+        const courseSemesterRows = await this.dataSource.query(
+          `SELECT bc.bundle_id, s.semester_number
+           FROM bundle_courses bc
+           JOIN courses c ON c.id = bc.course_id
+           JOIN semesters s ON s.id = c.semester_id
+           WHERE bc.bundle_id = ANY($1)
+           ORDER BY bc.bundle_id, s.semester_number ASC`,
+          [bundleIds],
+        ).catch(() => [] as Array<{ bundle_id: string; semester_number: number }>);
+
+        for (const row of courseSemesterRows) {
+          if (!semesterMap.has(row.bundle_id) && row.semester_number) {
+            semesterMap.set(row.bundle_id, Number(row.semester_number));
+          }
+        }
+      }
+    } catch {
+      // Database query best-effort fallback
+    }
+
+    const bundlesById = new Map(preloadedBundles.map((b) => [b.id, b]));
+    for (const id of bundleIds) {
+      if (semesterMap.has(id)) continue;
+      let bundle = bundlesById.get(id);
+      if (!bundle && this.bundles?.findOne) {
+        bundle = await this.bundles.findOne({ where: { id } }).catch(() => null) || undefined;
+      }
+      if (bundle) {
+        const textToMatch = `${bundle.slug || ''} ${bundle.title || ''} ${bundle.description || ''}`;
+        const match = textToMatch.match(/(?:semester|sem)[-_ ]?(\d+)/i);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num >= 1 && num <= 12) {
+            semesterMap.set(id, num);
+            continue;
+          }
+        }
+        if (bundle.academicYear) {
+          const derived = (bundle.academicYear * 2) - 1;
+          semesterMap.set(id, derived);
+        }
+      }
+    }
+
+    return semesterMap;
+  }
+
+  async catalog(academicYear?: number, semester?: number) {
     const builder = this.bundles.createQueryBuilder('bundle')
       .where('bundle.status = :status', { status: BundleStatus.PUBLISHED })
       .andWhere('bundle.access_mode = :mode', { mode: BundleAccessMode.PUBLIC })
@@ -66,7 +132,29 @@ export class BundlesService {
       .orderBy('bundle.academic_year', 'ASC')
       .addOrderBy('bundle.title', 'ASC');
     if (academicYear) builder.andWhere('bundle.academic_year = :academicYear', { academicYear });
-    return builder.getMany();
+    const bundles = await builder.getMany();
+    const semesterMap = await this.resolveBundleSemesters(bundles.map((b) => b.id), bundles);
+    const enriched = bundles.map((bundle) => {
+      const semesterNumber = semesterMap.get(bundle.id) ?? (bundle.academicYear ? (bundle.academicYear * 2) - 1 : 1);
+      return {
+        ...bundle,
+        semesterNumber,
+        semester_number: semesterNumber,
+      };
+    });
+    if (semester) {
+      return enriched.filter((bundle) => bundle.semesterNumber === semester);
+    }
+    return enriched;
+  }
+
+  async studentCatalog(studentId: string, academicYear?: number, requestedSemester?: number) {
+    let semester = requestedSemester;
+    if (!semester) {
+      const student = await this.findStudentSafe(studentId);
+      if (student?.currentSemester) semester = student.currentSemester;
+    }
+    return this.catalog(academicYear, semester);
   }
 
   async create(actor: AuthenticatedUser, dto: CreateBundleDto) {
@@ -75,13 +163,19 @@ export class BundlesService {
     const isFree = dto.is_free ?? true;
     const pricing = this.resolvePricing(isFree, dto.price_amount, dto.price_currency);
     const codeHash = dto.enrollment_code ? await bcrypt.hash(dto.enrollment_code, 10) : null;
+    const requestedSemester = dto.semester ?? dto.semester_number;
+    const academicYear = dto.academic_year ?? (requestedSemester ? Math.ceil(requestedSemester / 2) : 1);
+    let description = dto.description?.trim() || null;
+    if (requestedSemester && (!description || !description.includes(`Semester ${requestedSemester}`))) {
+      description = description ? `${description} (Semester ${requestedSemester})` : `Semester ${requestedSemester} Bundle`;
+    }
     try {
       return await this.dataSource.transaction(async (manager) => {
         const bundle = await manager.save(Bundle, manager.create(Bundle, {
           title: dto.title.trim(),
           slug,
-          description: dto.description?.trim() || null,
-          academicYear: dto.academic_year,
+          description,
+          academicYear,
           status: BundleStatus.DRAFT,
           accessMode: dto.access_mode ?? BundleAccessMode.PUBLIC,
           isFree,
@@ -98,7 +192,11 @@ export class BundlesService {
             instructorId: actor.userId,
           }));
         }
-        return bundle;
+        return {
+          ...bundle,
+          semesterNumber: requestedSemester ?? (academicYear * 2 - 1),
+          semester_number: requestedSemester ?? (academicYear * 2 - 1),
+        };
       });
     } catch (error) {
       if (this.isUnique(error)) throw new ConflictException('Bundle slug already exists');
@@ -107,15 +205,26 @@ export class BundlesService {
   }
 
   async managed(actor: AuthenticatedUser) {
+    let bundlesList: Bundle[] = [];
     if (actor.role === UserRole.SYSTEM_ADMIN) {
-      return this.bundles.find({ order: { createdAt: 'DESC' } });
+      bundlesList = await this.bundles.find({ order: { createdAt: 'DESC' } });
+    } else {
+      const assignments = await this.bundleInstructors.find({ where: { instructorId: actor.userId } });
+      if (!assignments.length) return [];
+      bundlesList = await this.bundles.createQueryBuilder('bundle')
+        .where('bundle.id IN (:...ids)', { ids: assignments.map((item) => item.bundleId) })
+        .orderBy('bundle.created_at', 'DESC')
+        .getMany();
     }
-    const assignments = await this.bundleInstructors.find({ where: { instructorId: actor.userId } });
-    if (!assignments.length) return [];
-    return this.bundles.createQueryBuilder('bundle')
-      .where('bundle.id IN (:...ids)', { ids: assignments.map((item) => item.bundleId) })
-      .orderBy('bundle.created_at', 'DESC')
-      .getMany();
+    const semesterMap = await this.resolveBundleSemesters(bundlesList.map((b) => b.id), bundlesList);
+    return bundlesList.map((bundle) => {
+      const semesterNumber = semesterMap.get(bundle.id) ?? (bundle.academicYear ? (bundle.academicYear * 2) - 1 : 1);
+      return {
+        ...bundle,
+        semesterNumber,
+        semester_number: semesterNumber,
+      };
+    });
   }
 
   async mine(studentId: string) {
@@ -124,15 +233,38 @@ export class BundlesService {
       relations: { bundle: true },
       order: { createdAt: 'DESC' },
     });
-    return enrollmentRows
+    const validRows = enrollmentRows
       .filter((row) => row.bundle.status === BundleStatus.PUBLISHED
         && (row.status !== BundleEnrollmentStatus.REVOKED
-          || row.paymentStatus === BundlePaymentStatus.PENDING))
-      .map((row) => this.enrollmentView(row));
+          || row.paymentStatus === BundlePaymentStatus.PENDING));
+
+    const student = await this.findStudentSafe(studentId);
+    const studentSemester = student?.currentSemester;
+
+    const bundleIds = validRows.map((row) => row.bundle.id);
+    const semesterMap = await this.resolveBundleSemesters(bundleIds, validRows.map((r) => r.bundle));
+
+    return validRows
+      .map((row) => {
+        const semesterNumber = semesterMap.get(row.bundle.id) ?? (row.bundle.academicYear ? (row.bundle.academicYear * 2) - 1 : 1);
+        const view = this.enrollmentView(row);
+        return {
+          ...view,
+          semesterNumber,
+          semester_number: semesterNumber,
+        };
+      })
+      .filter((bundle) => {
+        if (!studentSemester) return true;
+        return bundle.semesterNumber === studentSemester;
+      });
   }
 
   async getAccessible(id: string, actor: AuthenticatedUser) {
     const bundle = await this.requireBundle(id);
+    const semesterMap = await this.resolveBundleSemesters([id], [bundle]);
+    const bundleSemester = semesterMap.get(id) ?? (bundle.academicYear ? (bundle.academicYear * 2) - 1 : 1);
+
     if (actor.role !== UserRole.STUDENT) {
       await this.assertManager(id, actor);
       return {
@@ -143,8 +275,16 @@ export class BundlesService {
         partial_access: false,
         visible_week_ids: null as string[] | null,
         essay_week_ids: null as string[] | null,
+        semesterNumber: bundleSemester,
+        semester_number: bundleSemester,
       };
     }
+
+    const student = await this.findStudentSafe(actor.userId);
+    if (student?.currentSemester && bundleSemester && bundleSemester !== student.currentSemester) {
+      throw new ForbiddenException(`This bundle is only accessible to Semester ${bundleSemester} students.`);
+    }
+
     if (bundle.status === BundleStatus.DRAFT) {
       throw new ForbiddenException('This bundle is not published');
     }
@@ -166,6 +306,8 @@ export class BundlesService {
       partial_access: false,
       visible_week_ids: null as string[] | null,
       essay_week_ids: null as string[] | null,
+      semesterNumber: bundleSemester,
+      semester_number: bundleSemester,
     };
   }
 
@@ -291,14 +433,15 @@ export class BundlesService {
   async management(id: string, actor: AuthenticatedUser) {
     await this.assertManager(id, actor);
     const bundle = await this.requireBundle(id);
-    const [courseLinks, weekLinks, testLinks, instructorLinks, enrollmentRows, planWeekLinks, planGrantRows] = await Promise.all([
-      this.bundleCourses.find({ where: { bundleId: id }, relations: { course: { weeks: true } } }),
+    const [courseLinks, weekLinks, testLinks, instructorLinks, enrollmentRows, planWeekLinks, planGrantRows, semesterMap] = await Promise.all([
+      this.bundleCourses.find({ where: { bundleId: id }, relations: { course: { weeks: true, semester: true } } }),
       this.bundleWeeks.find({ where: { bundleId: id } }),
       this.bundleTests.find({ where: { bundleId: id }, relations: { test: true } }),
       this.bundleInstructors.find({ where: { bundleId: id }, relations: { instructor: true } }),
       this.enrollments.find({ where: { bundleId: id }, relations: { student: true }, order: { createdAt: 'DESC' } }),
       this.bundlePlanWeeks.find({ where: { bundleId: id } }),
       this.planGrants.find({ where: { bundleId: id }, relations: { student: true }, order: { createdAt: 'DESC' } }),
+      this.resolveBundleSemesters([id], [bundle]),
     ]);
     const firstPlanWeekIds = new Set(planWeekLinks.filter((row) => row.plan === BundlePlan.FIRST).map((row) => row.weekId));
     const finalPlanWeekIds = new Set(planWeekLinks.filter((row) => row.plan === BundlePlan.FINAL).map((row) => row.weekId));
@@ -310,6 +453,7 @@ export class BundlesService {
 
     const candidateCourseBuilder = this.courses.createQueryBuilder('course')
       .leftJoinAndSelect('course.weeks', 'week')
+      .leftJoinAndSelect('course.semester', 'semester')
       .where('course.is_active = TRUE');
     if (actor.role === UserRole.INSTRUCTOR) {
       candidateCourseBuilder.andWhere(`(
@@ -352,12 +496,21 @@ export class BundlesService {
       .filter((row) => row.status !== BundleEnrollmentStatus.REVOKED || row.paymentStatus === BundlePaymentStatus.PENDING)
       .map((row) => row.studentId));
 
+    const bundleSemester = semesterMap.get(id) ?? (bundle.academicYear ? (bundle.academicYear * 2) - 1 : 1);
+
     return {
-      bundle,
+      bundle: {
+        ...bundle,
+        semesterNumber: bundleSemester,
+        semester_number: bundleSemester,
+      },
       courses: candidateCourses.map((course) => ({
         id: course.id,
         courseCode: course.courseCode,
         courseName: course.courseName,
+        semesterNumber: course.semester?.semesterNumber,
+        semester_number: course.semester?.semesterNumber,
+        semesterTitle: course.semester?.title,
         linked: linkedCourseIds.has(course.id),
         weeks: [...(course.weeks ?? [])]
           .sort((left, right) => left.displayOrder - right.displayOrder)
@@ -749,6 +902,7 @@ export class BundlesService {
   }
 
   async enrollByCode(studentId: string, code: string) {
+    const student = await this.findStudentSafe(studentId);
     const candidates = await this.bundles.createQueryBuilder('bundle')
       .addSelect('bundle.enrollment_code_hash')
       .where('bundle.status = :status', { status: BundleStatus.PUBLISHED })
@@ -756,6 +910,13 @@ export class BundlesService {
       .getMany();
     for (const bundle of candidates) {
       if (bundle.enrollmentCodeHash && await bcrypt.compare(code, bundle.enrollmentCodeHash)) {
+        if (student?.currentSemester) {
+          const semesterMap = await this.resolveBundleSemesters([bundle.id], [bundle]);
+          const bundleSemester = semesterMap.get(bundle.id);
+          if (bundleSemester && bundleSemester !== student.currentSemester) {
+            throw new ForbiddenException(`You can only enroll in bundles for your current semester (Semester ${student.currentSemester})`);
+          }
+        }
         return this.upsertEnrollment(
           bundle,
           studentId,
@@ -776,6 +937,14 @@ export class BundlesService {
     }
     if (bundle.availableUntil && bundle.availableUntil <= new Date()) {
       throw new ForbiddenException('This bundle has expired');
+    }
+    const student = await this.findStudentSafe(studentId);
+    if (student?.currentSemester) {
+      const semesterMap = await this.resolveBundleSemesters([bundle.id], [bundle]);
+      const bundleSemester = semesterMap.get(bundle.id);
+      if (bundleSemester && bundleSemester !== student.currentSemester) {
+        throw new ForbiddenException(`You can only enroll in bundles for your current semester (Semester ${student.currentSemester})`);
+      }
     }
     return this.upsertEnrollment(
       bundle,

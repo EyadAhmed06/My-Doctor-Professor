@@ -15,6 +15,9 @@ export type AuthUser = {
   profilePictureUrl?: string | null;
   forensic_code?: string;
   forensicCode?: string;
+  currentSemester?: number;
+  current_semester?: number;
+  studentNumber?: string;
 };
 
 export type GoogleOnboardingResult = {
@@ -94,7 +97,22 @@ async function refreshThroughBrowserLock(): Promise<AuthResponse> {
   const locks = typeof navigator === "undefined"
     ? undefined
     : (navigator as Navigator & { locks?: LockManagerLike }).locks;
-  return locks ? locks.request("mdp-auth-refresh", run) : run();
+  if (!locks) return run();
+
+  // Some mobile WebKit versions expose Web Locks but can leave a request
+  // queued indefinitely. Share one refresh operation between the lock callback
+  // and the timeout fallback so authentication cannot hang or refresh twice.
+  let refreshOperation: Promise<AuthResponse> | null = null;
+  const executeOnce = () => {
+    refreshOperation ??= run();
+    return refreshOperation;
+  };
+  const lockedOperation = locks.request("mdp-auth-refresh", executeOnce);
+  const lockFinishedPromptly = await Promise.race([
+    lockedOperation.then(() => true, () => true),
+    wait(1_000).then(() => false),
+  ]);
+  return lockFinishedPromptly ? lockedOperation : executeOnce();
 }
 
 function clearClientAuth() {

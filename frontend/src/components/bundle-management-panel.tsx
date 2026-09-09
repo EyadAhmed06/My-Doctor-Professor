@@ -20,6 +20,8 @@ import "./bundle-management.css";
 type Bundle = {
   id: string;
   title: string;
+  semesterNumber?: number | null;
+  semester_number?: number | null;
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   isFree: boolean;
   priceAmount: string | null;
@@ -27,7 +29,16 @@ type Bundle = {
   availableUntil: string | null;
 };
 type ManagedWeek = { id: string; weekNumber: number; title: string | null; linked: boolean };
-type ManagedCourse = { id: string; courseCode: string; courseName: string; linked: boolean; weeks: ManagedWeek[] };
+type ManagedCourse = {
+  id: string;
+  courseCode: string;
+  courseName: string;
+  linked: boolean;
+  semesterNumber?: number | null;
+  semester_number?: number | null;
+  semester?: { semesterNumber?: number };
+  weeks: ManagedWeek[];
+};
 type ManagedTest = { id: string; title: string; testType: string; linked: boolean };
 type Person = { id: string; fullName: string; email: string; forensicCode?: string; forensic_code?: string };
 type StudentEnrollment = {
@@ -196,7 +207,10 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
   }
 
   return <section className="bundle-management-stack">
-    <Panel title="Bundle access" className="bundle-management-policy">
+    <Panel
+      title={data.bundle.semesterNumber || data.bundle.semester_number ? `Bundle access (Semester ${data.bundle.semesterNumber ?? data.bundle.semester_number})` : "Bundle access"}
+      className="bundle-management-policy"
+    >
       <form className="bundle-policy-form" onSubmit={saveAccess}>
         <label>
           Type
@@ -261,52 +275,58 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
       </button>}
     >
       <div className="bundle-course-composer">
-        {data.courses.length ? data.courses.map((course) =>
-          <article className={`bundle-manage-course ${course.linked ? "linked" : ""}`} key={course.id}>
-            <header>
-              <div>
-                <b>{course.courseCode} · {course.courseName}</b>
-                <small>{course.linked ? "Included" : "Not included"}</small>
-              </div>
-              <button
-                className={course.linked ? "danger" : "primary"}
-                type="button"
-                disabled={busy}
-                onClick={() => void mutate(
-                  course.linked
-                    ? `/bundles/${bundleId}/courses/${course.id}`
-                    : `/bundles/${bundleId}/courses`,
-                  course.linked ? "DELETE" : "POST",
-                  course.linked ? undefined : { resource_id: course.id },
-                  course.linked ? "Course removed" : "Course added",
-                )}
-              >
-                {course.linked ? <><FiTrash2 /> Remove</> : <><FiPlus /> Add</>}
-              </button>
-            </header>
-            {course.linked && <div className="bundle-week-composer">
-              {course.weeks.map((week) =>
+        {data.courses.length ? data.courses.map((course) => {
+          const courseSem = course.semesterNumber ?? course.semester_number ?? course.semester?.semesterNumber;
+          return (
+            <article className={`bundle-manage-course ${course.linked ? "linked" : ""}`} key={course.id}>
+              <header>
+                <div>
+                  <b>{course.courseCode} · {course.courseName}</b>
+                  <small>
+                    {courseSem ? `Semester ${courseSem} · ` : ""}
+                    {course.linked ? "Included" : "Not included"}
+                  </small>
+                </div>
                 <button
+                  className={course.linked ? "danger" : "primary"}
                   type="button"
-                  key={week.id}
-                  className={week.linked ? "selected" : ""}
                   disabled={busy}
                   onClick={() => void mutate(
-                    week.linked
-                      ? `/bundles/${bundleId}/weeks/${week.id}`
-                      : `/bundles/${bundleId}/weeks`,
-                    week.linked ? "DELETE" : "POST",
-                    week.linked ? undefined : { resource_id: week.id },
-                    week.linked ? "Week removed" : "Week added",
+                    course.linked
+                      ? `/bundles/${bundleId}/courses/${course.id}`
+                      : `/bundles/${bundleId}/courses`,
+                    course.linked ? "DELETE" : "POST",
+                    course.linked ? undefined : { resource_id: course.id },
+                    course.linked ? "Course removed" : "Course added",
                   )}
                 >
-                  <span>{week.linked ? <FiCheck /> : <FiPlus />}</span>
-                  Week {week.weekNumber}{week.title ? ` · ${week.title}` : ""}
-                </button>,
-              )}
-            </div>}
-          </article>,
-        ) : <EmptyState title="No courses available" description="No active courses are assigned to you." />}
+                  {course.linked ? <><FiTrash2 /> Remove</> : <><FiPlus /> Add</>}
+                </button>
+              </header>
+              {course.linked && <div className="bundle-week-composer">
+                {course.weeks.map((week) =>
+                  <button
+                    type="button"
+                    key={week.id}
+                    className={week.linked ? "selected" : ""}
+                    disabled={busy}
+                    onClick={() => void mutate(
+                      week.linked
+                        ? `/bundles/${bundleId}/weeks/${week.id}`
+                        : `/bundles/${bundleId}/weeks`,
+                      week.linked ? "DELETE" : "POST",
+                      week.linked ? undefined : { resource_id: week.id },
+                      week.linked ? "Week removed" : "Week added",
+                    )}
+                  >
+                    <span>{week.linked ? <FiCheck /> : <FiPlus />}</span>
+                    Week {week.weekNumber}{week.title ? ` · ${week.title}` : ""}
+                  </button>,
+                )}
+              </div>}
+            </article>
+          );
+        }) : <EmptyState title="No courses available" description="No active courses are assigned to you." />}
       </div>
     </Panel>
 

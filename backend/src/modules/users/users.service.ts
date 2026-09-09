@@ -142,7 +142,19 @@ export class UsersService {
   async getUserProfile(userId:string) {
     const user=await this.findById(userId);
     if(!user) throw new NotFoundException('User not found');
-    return this.safeUser(user);
+    const safe = this.safeUser(user);
+    if (user.role === UserRole.STUDENT) {
+      const student = await this.studentsRepository.findOne({ where: { userId } });
+      if (student) {
+        return {
+          ...safe,
+          studentNumber: student.studentNumber,
+          currentSemester: student.currentSemester,
+          current_semester: student.currentSemester,
+        };
+      }
+    }
+    return safe;
   }
 
   async recordFailedLogin(userId:string) {

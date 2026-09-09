@@ -12,6 +12,7 @@ import * as bcrypt from 'bcrypt';
 import { createHash, createHmac, randomBytes, randomInt, randomUUID } from 'crypto';
 import { DataSource, IsNull, QueryFailedError } from 'typeorm';
 import { AuthSession } from '../users/entities/auth-session.entity';
+import { Student } from '../users/entities/student.entity';
 import { User, UserRole, UserStatus } from '../users/entities/user.entity';
 import { generateStudentNumber } from '../users/student-number';
 import { UsersService } from '../users/users.service';
@@ -486,6 +487,18 @@ export class AuthService {
         { secret: this.refreshSecret, expiresIn: this.refreshLifetimeSeconds },
       ),
     ]);
+    let studentInfo: { studentNumber?: string; currentSemester?: number; current_semester?: number } = {};
+    if (user.role === UserRole.STUDENT) {
+      const studentRepo = this.dataSource?.getRepository ? this.dataSource.getRepository(Student) : null;
+      const student = studentRepo ? await studentRepo.findOne({ where: { userId: user.id } }).catch(() => null) : null;
+      if (student) {
+        studentInfo = {
+          studentNumber: student.studentNumber,
+          currentSemester: student.currentSemester,
+          current_semester: student.currentSemester,
+        };
+      }
+    }
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
@@ -496,6 +509,7 @@ export class AuthService {
         role: user.role,
         status: user.status,
         forensic_code: user.forensicCode,
+        ...studentInfo,
       },
     };
   }

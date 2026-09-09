@@ -48,7 +48,29 @@ type Bundle = {
   payment_required?: boolean;
   access_status?: string;
   paymentStatus?: string;
+  semesterNumber?: number | null;
+  semester_number?: number | null;
 };
+
+export function resolveBundleSemester(bundle: {
+  semesterNumber?: number | null;
+  semester_number?: number | null;
+  title?: string;
+  slug?: string;
+  academicYear?: number;
+}): number {
+  if (bundle.semesterNumber) return bundle.semesterNumber;
+  if (bundle.semester_number) return bundle.semester_number;
+  const match = `${bundle.slug || ""} ${bundle.title || ""}`.match(/(?:semester|sem)[-_ ]?(\d+)/i);
+  if (match) {
+    const num = parseInt(match[1], 10);
+    if (num >= 1 && num <= 12) return num;
+  }
+  if (bundle.academicYear) {
+    return bundle.academicYear * 2 - 1;
+  }
+  return 1;
+}
 type Lecture = {
   id: string;
   title: string;
@@ -125,10 +147,26 @@ export function AdvancedBundlesPage() {
   const [createAccess, setCreateAccess] = useState<"FREE" | "PAID">("FREE");
   const [joining, setJoining] = useState<Set<string>>(new Set());
 
+  const studentSemester = useMemo(() => {
+    if (user?.role !== "STUDENT") return null;
+    return user.currentSemester ?? user.current_semester ?? requestedSemester ?? null;
+  }, [user, requestedSemester]);
+
   const matchesStage = useCallback((bundle: Bundle) => {
     if (!requestedStage) return true;
     return requestedStage === 4 ? bundle.academicYear >= 4 : bundle.academicYear === requestedStage;
   }, [requestedStage]);
+
+  const matchesSemester = useCallback((bundle: Bundle) => {
+    const bundleSemester = resolveBundleSemester(bundle);
+    if (studentSemester !== null) {
+      return bundleSemester === studentSemester;
+    }
+    if (requestedSemester !== null) {
+      return bundleSemester === requestedSemester;
+    }
+    return matchesStage(bundle);
+  }, [studentSemester, requestedSemester, matchesStage]);
 
   const setUrl = useCallback((bundleRef: string | null, nextTab: Tab, week: string | null = null, replace = false) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -162,14 +200,19 @@ export function AdvancedBundlesPage() {
     setError(null);
     try {
       const owned = await request<Bundle[]>(manager ? "/bundles/managed" : "/bundles/mine");
-      const scopedOwned = owned.filter(matchesStage);
+      const scopedOwned = owned.filter(manager ? matchesStage : matchesSemester);
       if (manager) {
         setBundles(scopedOwned);
       } else {
-        const publicItems = await request<Bundle[]>("/catalog/bundles");
+        const catalogPath = studentSemester
+          ? `/catalog/bundles?semester=${studentSemester}`
+          : requestedSemester
+            ? `/catalog/bundles?semester=${requestedSemester}`
+            : `/catalog/bundles`;
+        const publicItems = await request<Bundle[]>(catalogPath);
         const ownedIds = new Set(scopedOwned.map((item) => item.id));
         const lockedCatalog = publicItems
-          .filter(matchesStage)
+          .filter(matchesSemester)
           .filter((item) => !ownedIds.has(item.id))
           .map((item) => ({
             ...item,
@@ -184,7 +227,7 @@ export function AdvancedBundlesPage() {
     } finally {
       setLoading(false);
     }
-  }, [manager, matchesStage, request]);
+  }, [manager, matchesSemester, matchesStage, request, requestedSemester, studentSemester]);
 
   const refreshSelectedContent = useCallback(async (bundleId: string) => {
     try {
@@ -303,6 +346,8 @@ export function AdvancedBundlesPage() {
       notify({ title: "Price required", description: "Paid bundles need a price greater than zero.", tone: "error" });
       return;
     }
+    const semesterVal = Number(data.get("semester") || data.get("year")) || 1;
+    const academicYear = Math.ceil(semesterVal / 2) || 1;
     setCreating(true);
     try {
       const created = await request<Bundle>("/bundles", {
@@ -311,7 +356,8 @@ export function AdvancedBundlesPage() {
           title: String(data.get("title")),
           slug: String(data.get("slug")),
           description: String(data.get("description") || ""),
-          academic_year: Number(data.get("year")),
+          academic_year: academicYear,
+          semester: semesterVal,
           access_mode: "PUBLIC",
           is_free: !paid,
           price_amount: paid ? price : undefined,
@@ -347,30 +393,33 @@ export function AdvancedBundlesPage() {
   }, [needle, scopedCourses]);
   const tabCounts = selected ? { overview: null, curriculum: selected.totals.weeks, questions: selected.totals.questions, exams: selected.totals.past_exams, flashcards: selected.totals.flashcard_decks, resources: selected.totals.resources } satisfies Record<Tab, number | null> : null;
 
-  const scopeDescription = requestedSemester !== null
-    ? `Showing Semester ${requestedSemester} inside academic stage ${requestedStage ?? selectedBundle?.academicYear ?? ""}.`
-    : requestedStage
-      ? `Showing your academic stage ${requestedStage === 4 ? "4+" : requestedStage} learning access.`
-      : "Open enrolled curriculum, questions, exams, flashcards, and resources without losing context.";
+  const scopeDescription = studentSemester
+    ? `Showing your Semester ${studentSemester} curriculum and bundles.`
+    : requestedSemester !== null
+      ? `Showing Semester ${requestedSemester} inside academic stage ${requestedStage ?? selectedBundle?.academicYear ?? ""}.`
+      : requestedStage
+        ? `Showing your academic stage ${requestedStage === 4 ? "4+" : requestedStage} learning access.`
+        : "Open enrolled curriculum, questions, exams, flashcards, and resources without losing context.";
 
   return <ProductShell search="Search bundles, courses, weeks, or lectures"><main className="pp-page bundle-page advanced-bundle-page">
     <div className="pp-title hero"><div><small className="page-eyebrow">{manager ? "BUNDLE MANAGEMENT" : "YOUR LEARNING ACCESS"}</small><h1>{manager ? "Bundles" : "My Bundles"}</h1><p>{manager ? "Compose courses and weeks, attach assessments, assign people, and control free or paid access from one workspace." : scopeDescription}</p></div><button className="pp-button secondary" onClick={() => void load()}><FiRefreshCw /> Refresh</button></div>
     {error && <ErrorState description={error} onRetry={() => void load()} />}
 
-    {manager && <Panel title="Create bundle" className="bundle-create"><form onSubmit={create}><label>Title<input name="title" minLength={3} required /></label><label>Slug<input name="slug" minLength={3} required /></label><label>Semester<select name="year" defaultValue="1">{[1, 2, 3, 4, 5, 6].map((semester) => <option key={semester} value={semester}>Semester {semester}</option>)}</select></label><label>Description<input name="description" /></label><label>Access<select aria-label="Bundle access type" value={createAccess} onChange={(event) => setCreateAccess(event.target.value as "FREE" | "PAID")}><option value="FREE">FREE</option><option value="PAID">PAID</option></select></label>{createAccess === "PAID" && <><label>Price<input aria-label="Price" name="price" type="number" min="0.01" step="0.01" required /></label><label>Currency<input aria-label="Currency" name="currency" defaultValue="EGP" minLength={3} maxLength={3} required /></label></>}<label>Bundle expiry<input aria-label="Bundle expiry" name="expiry" type="datetime-local" /></label><button className="pp-button" disabled={creating}><FiPlus /> {creating ? "Creating…" : "Create draft"}</button></form></Panel>}
+    {manager && <Panel title="Create bundle" className="bundle-create"><form onSubmit={create}><label>Title<input name="title" minLength={3} required /></label><label>Slug<input name="slug" minLength={3} required /></label><label>Semester<select name="semester" defaultValue="3">{[1, 2, 3, 4, 5, 6].map((semester) => <option key={semester} value={semester}>Semester {semester}</option>)}</select></label><label>Description<input name="description" /></label><label>Access<select aria-label="Bundle access type" value={createAccess} onChange={(event) => setCreateAccess(event.target.value as "FREE" | "PAID")}><option value="FREE">FREE</option><option value="PAID">PAID</option></select></label>{createAccess === "PAID" && <><label>Price<input aria-label="Price" name="price" type="number" min="0.01" step="0.01" required /></label><label>Currency<input aria-label="Currency" name="currency" defaultValue="EGP" minLength={3} maxLength={3} required /></label></>}<label>Bundle expiry<input aria-label="Bundle expiry" name="expiry" type="datetime-local" /></label><button className="pp-button" disabled={creating}><FiPlus /> {creating ? "Creating…" : "Create draft"}</button></form></Panel>}
 
-    {loading ? <PageSkeleton variant="workspace" label="Loading bundles" /> : !bundles.length ? <EmptyState title={manager ? "No managed bundles" : requestedStage ? "No enrolled bundles for this academic stage" : "No enrolled bundles"} description={manager ? "Create a draft bundle to begin composing curriculum." : requestedStage ? "No published bundles are currently available for this academic stage." : "No published bundles are currently available."} /> : <div className="bundle-workspace">
+    {loading ? <PageSkeleton variant="workspace" label="Loading bundles" /> : !bundles.length ? <EmptyState title={manager ? "No managed bundles" : studentSemester ? `No enrolled bundles for Semester ${studentSemester}` : requestedStage ? "No enrolled bundles for this academic stage" : "No enrolled bundles"} description={manager ? "Create a draft bundle to begin composing curriculum." : studentSemester ? `No published bundles are currently available for Semester ${studentSemester}.` : requestedStage ? "No published bundles are currently available for this academic stage." : "No published bundles are currently available."} /> : <div className="bundle-workspace">
       <aside className="bundle-list" aria-label={manager ? "Managed bundles" : "Your bundles"}><h2>{manager ? "Managed bundles" : "My bundles"}</h2>{bundles.map((bundle) => {
         const badge = bundleBadge(bundle, visited);
         const accessLabel = !manager
           ? (bundle.accessible === false ? "LOCKED" : "SUBSCRIBED")
           : (bundle.isFree ? "FREE" : `${bundle.priceCurrency} ${Number(bundle.priceAmount || 0).toFixed(2)}`);
-        return <button className={selectedBundle?.id === bundle.id ? "active" : ""} key={bundle.id} onClick={() => open(bundle)}><span>{!manager && bundle.accessible === false ? <FiLock /> : <FiLayers />}</span><b>{bundle.title}<small>Year {bundle.academicYear}</small>{!manager && <em className={`bundle-status-badge ${badge.className}`}>{accessLabel}</em>}</b>{manager && <em className={`bundle-status-badge ${badge.className}`}>{badge.label}</em>}</button>;
+        const bundleSem = resolveBundleSemester(bundle);
+        return <button className={selectedBundle?.id === bundle.id ? "active" : ""} key={bundle.id} onClick={() => open(bundle)}><span>{!manager && bundle.accessible === false ? <FiLock /> : <FiLayers />}</span><b>{bundle.title}<small>{bundleSem ? `Semester ${bundleSem} · ` : ""}Year {bundle.academicYear}</small>{!manager && <em className={`bundle-status-badge ${badge.className}`}>{accessLabel}</em>}</b>{manager && <em className={`bundle-status-badge ${badge.className}`}>{badge.label}</em>}</button>;
       })}</aside>
 
       <section className={`bundle-content ${bundleLoading ? "is-loading" : ""}`} aria-busy={bundleLoading}>
         {!manager && selectedBundle?.accessible === false ? <PaymentLockedBundle bundle={selectedBundle} busy={joining.has(selectedBundle.id)} onSubscribe={() => void enroll(selectedBundle)} /> : selected ? <>
-          <div className="bundle-hero"><div><small>ACADEMIC YEAR {selected.bundle.academicYear} · {selected.bundle.isFree ? "FREE" : `${selected.bundle.priceCurrency} ${Number(selected.bundle.priceAmount || 0).toFixed(2)}`}</small><h1>{selected.bundle.title}</h1><p>{selected.bundle.description || "No description has been added yet."}</p></div><span className={selected.bundle.read_only ? "expired" : "active"}>{selected.bundle.read_only ? <><FiLock /> Read-only</> : <><FiCheckCircle /> Active access</>}</span></div>
+          <div className="bundle-hero"><div><small>{resolveBundleSemester(selected.bundle) ? `SEMESTER ${resolveBundleSemester(selected.bundle)} · ` : ""}ACADEMIC YEAR {selected.bundle.academicYear} · {selected.bundle.isFree ? "FREE" : `${selected.bundle.priceCurrency} ${Number(selected.bundle.priceAmount || 0).toFixed(2)}`}</small><h1>{selected.bundle.title}</h1><p>{selected.bundle.description || "No description has been added yet."}</p></div><span className={selected.bundle.read_only ? "expired" : "active"}>{selected.bundle.read_only ? <><FiLock /> Read-only</> : <><FiCheckCircle /> Active access</>}</span></div>
           {manager && <BundleManagementPanel bundleId={selected.bundle.id} onChanged={async () => { await load(); await refreshSelectedContent(selected.bundle.id); }} />}
           {selected.bundle.read_only && <section className="bundle-read-only-reason"><FiLock /><div><b>Browsing remains available</b><p>This enrollment is read-only. You can inspect curriculum and resources, but actions that submit or modify learning work are disabled by the server.</p></div></section>}
           <nav className="bundle-tabs" aria-label="Bundle sections">{tabs.map((value) => {

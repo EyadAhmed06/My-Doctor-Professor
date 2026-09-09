@@ -199,4 +199,62 @@ describe('BundlesService payment entitlement', () => {
       payment_required: true,
     }));
   });
+
+  it('filters catalog bundles by requested semester', async () => {
+    const { service } = build(true);
+    const bundleS3 = { id: 's3', title: 'Year 2 — Semester 3', slug: 'year-2-semester-3', academicYear: 2, status: BundleStatus.PUBLISHED, accessMode: BundleAccessMode.PUBLIC } as Bundle;
+    const bundleS4 = { id: 's4', title: 'Year 2 — Semester 4', slug: 'year-2-semester-4', academicYear: 2, status: BundleStatus.PUBLISHED, accessMode: BundleAccessMode.PUBLIC } as Bundle;
+
+    jest.spyOn(service['bundles'], 'createQueryBuilder').mockReturnValue({
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([bundleS3, bundleS4]),
+    } as any);
+
+    const result = await service.catalog(undefined, 3);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('s3');
+    expect(result[0].semesterNumber).toBe(3);
+  });
+
+  it('restricts student mine() bundles to student current semester', async () => {
+    const { service, enrollments } = build(true);
+    const bundleS3 = { id: 's3', title: 'Year 2 — Semester 3', slug: 'year-2-semester-3', academicYear: 2, status: BundleStatus.PUBLISHED, isFree: true } as Bundle;
+    const bundleS4 = { id: 's4', title: 'Year 2 — Semester 4', slug: 'year-2-semester-4', academicYear: 2, status: BundleStatus.PUBLISHED, isFree: true } as Bundle;
+
+    (enrollments.find as jest.Mock).mockResolvedValue([
+      { bundle: bundleS3, status: BundleEnrollmentStatus.ACTIVE, paymentStatus: BundlePaymentStatus.NOT_REQUIRED },
+      { bundle: bundleS4, status: BundleEnrollmentStatus.ACTIVE, paymentStatus: BundlePaymentStatus.NOT_REQUIRED },
+    ]);
+
+    // Mock student repository returning currentSemester: 3
+    service['dataSource'] = {
+      getRepository: jest.fn().mockReturnValue({
+        findOne: jest.fn().mockResolvedValue({ userId: studentId, currentSemester: 3 }),
+      }),
+      query: jest.fn().mockResolvedValue([]),
+    } as any;
+
+    const result = await service.mine(studentId);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('s3');
+    expect(result[0].semesterNumber).toBe(3);
+  });
+
+  it('rejects public enrollment for bundles not matching student semester', async () => {
+    const { service } = build(true);
+    const bundleS4 = { id: 'bundle-s4', title: 'Year 2 — Semester 4', slug: 'year-2-semester-4', academicYear: 2, status: BundleStatus.PUBLISHED, accessMode: BundleAccessMode.PUBLIC, isFree: true } as Bundle;
+
+    jest.spyOn(service, 'requireBundle').mockResolvedValue(bundleS4);
+    service['dataSource'] = {
+      getRepository: jest.fn().mockReturnValue({
+        findOne: jest.fn().mockResolvedValue({ userId: studentId, currentSemester: 3 }),
+      }),
+      query: jest.fn().mockResolvedValue([]),
+    } as any;
+
+    await expect(service.enrollPublic('bundle-s4', studentId)).rejects.toThrow('You can only enroll in bundles for your current semester');
+  });
 });

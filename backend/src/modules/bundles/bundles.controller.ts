@@ -45,7 +45,8 @@ export class PublicBundlesController {
 
   @Get()
   catalog(@Query() query: BundleCatalogQueryDto) {
-    return this.bundles.catalog(query.academic_year);
+    const semester = query.semester ?? query.semester_number;
+    return this.bundles.catalog(query.academic_year, semester);
   }
 }
 
@@ -64,6 +65,16 @@ export class BundlesController {
   @Roles(UserRole.STUDENT)
   mine(@CurrentUser() actor: AuthenticatedUser) {
     return this.bundles.mine(actor.userId);
+  }
+
+  @Get('catalog')
+  @Roles(UserRole.STUDENT)
+  studentCatalog(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Query() query: BundleCatalogQueryDto,
+  ) {
+    const semester = query.semester ?? query.semester_number;
+    return this.bundles.studentCatalog(actor.userId, query.academic_year, semester);
   }
 
   @Get('managed')

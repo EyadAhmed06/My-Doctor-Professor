@@ -7,7 +7,9 @@ export class CreateBundleDto {
  @IsString() @Length(3,180) title:string;
  @IsString() @Length(3,180) slug:string;
  @IsOptional() @IsString() description?:string;
- @Type(()=>Number) @IsInt() @Min(1) @Max(12) academic_year:number;
+ @IsOptional() @Type(()=>Number) @IsInt() @Min(1) @Max(12) academic_year?:number;
+ @IsOptional() @Type(()=>Number) @IsInt() @Min(1) @Max(12) semester?:number;
+ @IsOptional() @Type(()=>Number) @IsInt() @Min(1) @Max(12) semester_number?:number;
  @IsOptional() @IsEnum(BundleAccessMode) access_mode?:BundleAccessMode;
  @IsOptional() @IsBoolean() is_free?:boolean;
  @IsOptional() @Type(()=>Number) @IsNumber({maxDecimalPlaces:2}) @Min(0.01) @Max(99999999.99) price_amount?:number;
@@ -20,6 +22,8 @@ export class CreateBundleDto {
 export class UpdateBundleDto {
  @IsOptional() @IsString() @Length(3,180) title?:string;
  @IsOptional() @IsString() description?:string;
+ @IsOptional() @Type(()=>Number) @IsInt() @Min(1) @Max(12) semester?:number;
+ @IsOptional() @Type(()=>Number) @IsInt() @Min(1) @Max(12) semester_number?:number;
  @IsOptional() @IsEnum(BundleAccessMode) access_mode?:BundleAccessMode;
  @IsOptional() @IsBoolean() is_free?:boolean;
  @IsOptional() @Type(()=>Number) @IsNumber({maxDecimalPlaces:2}) @Min(0.01) @Max(99999999.99) price_amount?:number|null;
@@ -29,7 +33,11 @@ export class UpdateBundleDto {
  @IsOptional() @IsString() @Length(6,64) enrollment_code?:string;
 }
 
-export class BundleCatalogQueryDto { @IsOptional() @Type(()=>Number) @IsInt() @Min(1) @Max(12) academic_year?:number; }
+export class BundleCatalogQueryDto {
+ @IsOptional() @Type(()=>Number) @IsInt() @Min(1) @Max(12) academic_year?:number;
+ @IsOptional() @Type(()=>Number) @IsInt() @Min(1) @Max(12) semester?:number;
+ @IsOptional() @Type(()=>Number) @IsInt() @Min(1) @Max(12) semester_number?:number;
+}
 export class BundleResourceDto { @IsUUID('4') resource_id:string; }
 export class GrantBundleDto {
  @IsUUID('4') student_id:string;
