@@ -31,7 +31,7 @@ export class FlashcardsController {
  @Get('decks/:deckId')
  async getDeck(@Param('deckId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){await this.access.assertDeckReadable(id,actor);return this.flashcards.getDeck(id,actor);}
  @Put('decks/:deckId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
- updateDeck(@Param('deckId',uuid) id:string,@Body() dto:UpdateDeckDto,@CurrentUser() actor:AuthenticatedUser){return this.editing.updateDeck(id,dto,actor);}
+ updateDeck(@Param('deckId',uuid) id:string,@Body() dto:UpdateDeckDto,@CurrentUser() actor:AuthenticatedUser){return this.flashcards.updateDeck(id,dto,actor);}
  @Delete('decks/:deckId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) @HttpCode(HttpStatus.NO_CONTENT)
  async removeDeck(@Param('deckId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){await this.flashcards.removeDeck(id,actor);}
 
