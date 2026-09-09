@@ -279,6 +279,18 @@ html[data-theme="dark"] .home-first-load {
   transform: translate3d(0, -4px, 0);
 }
 
+
+/* Critical identity copy must never depend on IntersectionObserver to remain visible. */
+.public-home.home-motion-ready .story-section[data-home-reveal],
+.public-home.home-motion-ready .public-goal[data-home-reveal],
+.public-home.home-motion-ready .story-section [data-home-reveal-item],
+.public-home.home-motion-ready .public-goal [data-home-reveal-item] {
+  opacity: 1;
+  filter: none;
+  transform: none;
+  will-change: auto;
+}
+
 @media (max-width: 760px) {
   .home-first-load-mark {
     width: 72px;
