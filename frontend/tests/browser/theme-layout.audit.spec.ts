@@ -201,6 +201,7 @@ test('instructor lecture card fills its row without clipping its status', async 
   const status = card.locator('.role-status');
   await expect(card).toHaveCount(1);
   await expect(status).toHaveText('PUBLISHED');
+  await expect.poll(() => status.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
 
   const boxes = await Promise.all([list.boundingBox(), card.boundingBox(), status.boundingBox()]);
   const [listBox, cardBox, statusBox] = boxes;
