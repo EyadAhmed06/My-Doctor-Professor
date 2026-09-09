@@ -10,6 +10,7 @@ import {
   FiChevronUp,
   FiClipboard,
   FiCopy,
+  FiEdit3,
   FiEye,
   FiMoreVertical,
   FiPlus,
@@ -25,6 +26,7 @@ import { Panel, ProductShell } from "./product-shell";
 import { useUx } from "./ux-provider";
 import "./product-pages.css";
 import "./role-workspace.css";
+import "./flashcard-studio-scope.css";
 
 type PageResponse<T> = { data: T[]; total?: number; page?: number; limit?: number; total_pages?: number };
 type AssessmentLecture = { id: string; title: string; lectureNumber: number };
@@ -48,6 +50,8 @@ type Test = {
   description: string | null;
   testType: "LECTURE" | "WEEK" | "COURSE" | "CUSTOM" | "QUESTION_BANK";
   courseId: string | null;
+  weekId: string | null;
+  lectureId: string | null;
   durationMinutes: number | null;
   totalMarks: string | null;
   passingMarks: string | null;
@@ -126,10 +130,14 @@ export function AdvancedAssessmentsPage({ admin = false }: { admin?: boolean }) 
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [authoring, setAuthoring] = useState<AuthoringState | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [draft, setDraft] = useState<DraftForm>(initialDraft);
+  const [editForm, setEditForm] = useState<DraftForm>(initialDraft);
+  const [editCourse, setEditCourse] = useState<Course | null>(null);
+  const [editCourseLoading, setEditCourseLoading] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
   const [attachIds, setAttachIds] = useState<Set<string>>(new Set());
   const [selectedAttached, setSelectedAttached] = useState<Set<string>>(new Set());
@@ -234,6 +242,25 @@ export function AdvancedAssessmentsPage({ admin = false }: { admin?: boolean }) 
     return () => { active = false; };
   }, [draft.course_id, notify, request]);
 
+  useEffect(() => {
+    if (!editOpen || !editForm.course_id) {
+      setEditCourse(null);
+      setEditCourseLoading(false);
+      return;
+    }
+    let active = true;
+    setEditCourseLoading(true);
+    void request<Course>(`/academic/courses/${editForm.course_id}`)
+      .then((course) => { if (active) setEditCourse(course); })
+      .catch((cause) => {
+        if (!active) return;
+        setEditCourse(null);
+        notify({ title: "Could not load course structure", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+      })
+      .finally(() => { if (active) setEditCourseLoading(false); });
+    return () => { active = false; };
+  }, [editForm.course_id, editOpen, notify, request]);
+
   const selected = tests.find((test) => test.id === selectedId) || null;
   const validationErrors = authoring?.validation.issues.filter((issue) => issue.severity === "ERROR") || [];
   const validationWarnings = authoring?.validation.issues.filter((issue) => issue.severity === "WARNING") || [];
@@ -241,6 +268,10 @@ export function AdvancedAssessmentsPage({ admin = false }: { admin?: boolean }) 
   const draftWeek = draftWeeks.find((week) => week.id === draft.week_id) || null;
   const draftLectures = draftWeek?.lectures || [];
   const scopedType = draft.test_type === "LECTURE" || draft.test_type === "WEEK" || draft.test_type === "COURSE";
+  const editScopedType = editForm.test_type === "LECTURE" || editForm.test_type === "WEEK" || editForm.test_type === "COURSE";
+  const editWeeks = editCourse?.weeks || [];
+  const editWeek = editWeeks.find((week) => week.id === editForm.week_id) || null;
+  const editLectures = editWeek?.lectures || [];
   const filteredBank = useMemo(() => {
     const needle = attachSearch.trim().toLowerCase();
     const attached = new Set(testQuestions.map((item) => item.questionId));
@@ -309,6 +340,62 @@ export function AdvancedAssessmentsPage({ admin = false }: { admin?: boolean }) 
       notify({ title: "Assessment duplicated", description: "A complete unpublished copy was created with the same questions and marks.", tone: "success" });
     } catch (cause) {
       notify({ title: "Could not duplicate assessment", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function beginAssessmentEdit() {
+    if (!selected || !authoring?.permissions.mutable) return;
+    setEditForm({
+      title: selected.title,
+      description: selected.description || "",
+      test_type: selected.testType,
+      course_id: selected.courseId || "",
+      week_id: selected.weekId || "",
+      lecture_id: selected.lectureId || "",
+      duration_minutes: selected.durationMinutes || 60,
+      passing_marks: Number(selected.passingMarks || 0),
+    });
+    setEditOpen(true);
+  }
+
+  async function saveAssessmentEdit(event: FormEvent) {
+    event.preventDefault();
+    if (!selected || busy) return;
+    if (editScopedType && !editForm.course_id) {
+      notify({ title: "Choose a course", description: `${editForm.test_type} assessments require an academic scope.`, tone: "error" });
+      return;
+    }
+    if ((editForm.test_type === "LECTURE" || editForm.test_type === "WEEK") && !editForm.week_id) {
+      notify({ title: "Choose a week", tone: "error" });
+      return;
+    }
+    if (editForm.test_type === "LECTURE" && !editForm.lecture_id) {
+      notify({ title: "Choose a lecture", tone: "error" });
+      return;
+    }
+    setBusy(true);
+    try {
+      await request(`/tests/${selected.id}`, {
+        method: "PUT",
+        body: {
+          title: editForm.title.trim(),
+          description: editForm.description.trim(),
+          test_type: editForm.test_type,
+          course_id: editForm.course_id || null,
+          week_id: editForm.test_type === "LECTURE" || editForm.test_type === "WEEK" ? editForm.week_id || null : null,
+          lecture_id: editForm.test_type === "LECTURE" ? editForm.lecture_id || null : null,
+          duration_minutes: Number(editForm.duration_minutes),
+          passing_marks: Number(editForm.passing_marks),
+        },
+      });
+      setEditOpen(false);
+      await load();
+      await loadSelection(selected.id);
+      notify({ title: "Assessment updated", description: "Definition and academic scope were revalidated against the attached questions.", tone: "success" });
+    } catch (cause) {
+      notify({ title: "Could not edit assessment", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
     } finally {
       setBusy(false);
     }
@@ -441,6 +528,7 @@ export function AdvancedAssessmentsPage({ admin = false }: { admin?: boolean }) 
     <div className="pp-title hero role-heading"><div><small className="page-eyebrow">{admin ? "ADMIN · ASSESSMENT CONTROL" : "INSTRUCTOR · ASSESSMENT BUILDER"}</small><h1>Assessment builder</h1><p>Create safe drafts, assemble and reorder questions, preview the student experience, validate publishing, and monitor attempts.</p></div><div className="role-heading-actions"><button className="pp-button secondary" type="button" onClick={() => void load()}><FiRefreshCw /> Refresh</button><button className="pp-button" type="button" onClick={() => setCreateOpen(true)}><FiPlus /> New assessment</button></div></div>
 
     {error && <ErrorState description={error} onRetry={() => void load()} />}
+    {selected && <div className="assessment-definition-actions"><button className="pp-button secondary" type="button" disabled={!authoring?.permissions.mutable || busy} onClick={beginAssessmentEdit} title={!authoring?.permissions.mutable ? "Return to draft first; assessments with attempts are locked" : "Edit assessment definition"}><FiEdit3 /> Edit assessment</button></div>}
     {user?.role === "STUDENT" ? <Panel title="Instructor access required"><p>This workspace is available to instructors and system administrators.</p></Panel> : loading ? <Panel><PageSkeleton variant="list" label="Loading assessments" /></Panel> : !tests.length ? <EmptyState title="No assessments yet" description="Create a draft assessment; the form is autosaved locally while you work." /> : <div className="role-master-detail assessment-authoring-layout">
       <aside className="role-master-list"><header><b>{tests.length}</b><small>ASSESSMENTS</small></header>{tests.map((test) => <button className={selectedId === test.id ? "active" : ""} type="button" key={test.id} onClick={() => setSelectedId(test.id)}><div><b>{test.title}</b><small>{test.testType} · {test.course?.courseName || "No course"}</small></div><Status value={test.isPublished ? "PUBLISHED" : "DRAFT"} /></button>)}</aside>
 
@@ -472,5 +560,6 @@ export function AdvancedAssessmentsPage({ admin = false }: { admin?: boolean }) 
     <Modal title="Student preview" open={previewOpen} onClose={() => setPreviewOpen(false)} wide><div className="assessment-student-preview"><header><small>STUDENT VIEW · NON-SUBMITTING PREVIEW</small><h2>{selected?.title}</h2><p>{selected?.description || "No description"}</p><div><span>{selected?.durationMinutes || "—"} min</span><span>{selected?.totalMarks || 0} marks</span><span>{testQuestions.length} questions</span></div></header>{testQuestions.length ? <ol>{testQuestions.map((item) => <li key={item.id}><div><span>{item.question.questionType}</span><b>{item.question.title || `Question ${item.displayOrder}`}</b><small>{item.marks} marks</small></div><p>{item.question.questionText}</p>{item.question.questionType === "MCQ" && <div className="preview-options">{item.question.options?.map((option) => <label key={option.id}><input type="radio" disabled name={`preview-${item.id}`} />{option.optionText || option.option_text}</label>)}</div>}{item.question.questionType === "ESSAY" && <textarea rows={4} disabled placeholder="Student essay response" />}</li>)}</ol> : <EmptyState title="No questions to preview" description="Attach questions before opening the student preview." />}</div></Modal>
 
     <Modal title="Assessment activity" open={activityOpen} onClose={() => setActivityOpen(false)}><div className="assessment-activity-timeline">{authoring?.activity.length ? authoring.activity.map((item, index) => <article key={`${item.type}-${item.at}-${index}`}><i /><div><b>{item.label}</b><small>{new Date(item.at).toLocaleString()} · {item.type.replaceAll("_", " ")}</small></div></article>) : <p>No authoring activity is available.</p>}</div></Modal>
+    <Modal title="Edit assessment" open={editOpen} onClose={() => !busy && setEditOpen(false)} wide><form className="role-form" onSubmit={saveAssessmentEdit}><div className="role-form-grid"><label>Title<input required value={editForm.title} onChange={(event) => setEditForm((current) => ({ ...current, title: event.target.value }))} /></label><label>Type<select value={editForm.test_type} onChange={(event) => { const testType = event.target.value as Test["testType"]; setEditForm((current) => ({ ...current, test_type: testType, week_id: "", lecture_id: "" })); }}>{["LECTURE", "WEEK", "COURSE", "CUSTOM", "QUESTION_BANK"].map((value) => <option key={value}>{value}</option>)}</select></label><label>{editScopedType ? "Course" : "Course (optional)"}<select required={editScopedType} value={editForm.course_id} onChange={(event) => setEditForm((current) => ({ ...current, course_id: event.target.value, week_id: "", lecture_id: "" }))}><option value="">{editScopedType ? "Select course" : "No course"}</option>{courses.map((course) => <option value={course.id} key={course.id}>{course.courseCode} · {course.courseName}</option>)}</select></label>{(editForm.test_type === "LECTURE" || editForm.test_type === "WEEK") && <label>Week<select required value={editForm.week_id} disabled={!editForm.course_id || editCourseLoading} onChange={(event) => setEditForm((current) => ({ ...current, week_id: event.target.value, lecture_id: "" }))}><option value="">{editCourseLoading ? "Loading weeks…" : "Select week"}</option>{editWeeks.map((week) => <option value={week.id} key={week.id}>Week {week.weekNumber}{week.title ? ` · ${week.title}` : ""}</option>)}</select></label>}{editForm.test_type === "LECTURE" && <label>Lecture<select required value={editForm.lecture_id} disabled={!editForm.week_id || editCourseLoading} onChange={(event) => setEditForm((current) => ({ ...current, lecture_id: event.target.value }))}><option value="">Select lecture</option>{editLectures.map((lecture) => <option value={lecture.id} key={lecture.id}>{lecture.lectureNumber}. {lecture.title}</option>)}</select></label>}<label>Duration minutes<input required min={1} type="number" value={editForm.duration_minutes} onChange={(event) => setEditForm((current) => ({ ...current, duration_minutes: Number(event.target.value) }))} /></label><label>Passing marks<input required min={0} step="0.01" type="number" value={editForm.passing_marks} onChange={(event) => setEditForm((current) => ({ ...current, passing_marks: Number(event.target.value) }))} /></label><label className="wide">Description<textarea rows={3} value={editForm.description} onChange={(event) => setEditForm((current) => ({ ...current, description: event.target.value }))} /></label></div><p className="role-form-guidance">Changing scope is allowed only while the assessment is an unused draft. Attached questions must remain inside the selected course, week, or lecture.</p><footer><button className="pp-button secondary" type="button" disabled={busy} onClick={() => setEditOpen(false)}>Cancel</button><button className="pp-button" disabled={busy || editCourseLoading} type="submit"><FiSave /> {busy ? "Saving…" : "Save assessment"}</button></footer></form></Modal>
   </main></ProductShell>;
 }
