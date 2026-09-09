@@ -4,6 +4,7 @@ import { QuestionDifficulty } from '../../../common/entities/question.entity';
 
 export class CreateDeckDto {
  @IsOptional() @IsUUID() course_id?:string;
+ @IsOptional() @IsUUID() week_id?:string;
  @IsOptional() @IsUUID() topic_id?:string;
  @IsOptional() @IsUUID() lecture_id?:string;
  @IsString() @IsNotEmpty() @MaxLength(200) title:string;
@@ -15,11 +16,16 @@ export class UpdateDeckDto {
  @IsOptional() @IsString() @MaxLength(10000) description?:string;
  @IsOptional() @IsBoolean() is_published?:boolean;
  @IsOptional() @IsInt() @Min(1) display_order?:number;
+ @IsOptional() @IsUUID() course_id?:string|null;
+ @IsOptional() @IsUUID() week_id?:string|null;
+ @IsOptional() @IsUUID() lecture_id?:string|null;
+ @IsOptional() @IsUUID() topic_id?:string|null;
 }
 export class DeckQueryDto {
  @IsOptional() @Transform(({value})=>Number(value)) @IsInt() @Min(1) page?:number;
  @IsOptional() @Transform(({value})=>Number(value)) @IsInt() @Min(1) @Max(100) limit?:number;
  @IsOptional() @IsUUID() course_id?:string;
+ @IsOptional() @IsUUID() week_id?:string;
  @IsOptional() @IsUUID() lecture_id?:string;
  @IsOptional() @IsUUID() topic_id?:string;
  @IsOptional() @Transform(({value})=>value==='true'?true:value==='false'?false:value) @IsBoolean() is_published?:boolean;
