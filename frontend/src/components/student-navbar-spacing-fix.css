@@ -1,12 +1,15 @@
-/* One desktop rhythm for navigation slots and utility controls. */
+/* Final desktop navigation rhythm shared by student, instructor, and admin shells. */
 @media (min-width: 1181px) {
   .product-app .pp-topbar {
-    gap: 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 14px !important;
+    padding-inline: 24px !important;
   }
 
   .product-app .pp-topbar > .pp-brand {
-    margin-right: 8px !important;
     flex: 0 0 auto !important;
+    margin: 0 !important;
   }
 
   .product-app .pp-topbar > .pp-menu {
@@ -15,34 +18,70 @@
 
   .product-app .pp-topbar > nav {
     display: flex !important;
-    align-items: stretch !important;
-    gap: 2px !important;
-    flex: 1 1 auto !important;
     min-width: 0 !important;
+    height: 100% !important;
+    flex: 1 1 auto !important;
+    align-items: stretch !important;
+    justify-content: space-evenly !important;
+    gap: 0 !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+
+  .product-app .pp-topbar > nav::-webkit-scrollbar {
+    display: none !important;
   }
 
   .product-app .pp-topbar > nav > a {
+    display: flex !important;
     min-width: 0 !important;
-    padding-inline: clamp(6px, 0.65vw, 12px) !important;
+    height: 100% !important;
+    flex: 1 1 0 !important;
+    align-items: center !important;
     justify-content: center !important;
+    gap: 5px !important;
+    padding-inline: 6px !important;
     text-align: center !important;
     white-space: nowrap !important;
+    font-size: clamp(10px, .66vw, 12px) !important;
+  }
+
+  .product-app .pp-topbar > nav > .pp-mobile-nav-link > span {
+    display: inline-grid !important;
+    min-width: 16px !important;
+    height: 16px !important;
+    place-items: center !important;
+    border-radius: 999px !important;
+    padding-inline: 4px !important;
+    background: var(--p-teal) !important;
+    color: #fff !important;
+    font: 800 8px/1 Arial, sans-serif !important;
+  }
+
+  .product-app .pp-search-command {
+    flex: 0 0 42px !important;
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    margin-left: 0 !important;
   }
 
   .product-app .pp-profile {
-    gap: 8px !important;
+    display: flex !important;
     flex: 0 0 auto !important;
+    align-items: center !important;
+    gap: 6px !important;
+    white-space: nowrap !important;
   }
 
   .product-app .pp-profile > .global-theme-toggle.icon-only,
   .product-app .pp-profile > .phase5-header-action,
   .product-app .pp-profile > .header-popover-anchor,
   .product-app .pp-profile > .student-progress-anchor {
-    flex: 0 0 42px !important;
-    width: 42px !important;
-    min-width: 42px !important;
-    height: 42px !important;
+    flex: 0 0 38px !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 38px !important;
     margin: 0 !important;
   }
 }
-
