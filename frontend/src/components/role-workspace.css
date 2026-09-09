@@ -84,7 +84,8 @@
 
 .role-lecture-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(320px, 1fr));
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   padding: 18px;
 }
@@ -110,7 +111,8 @@
 
 .role-lecture-top {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
+  min-width: 0;
+  grid-template-columns: 40px minmax(0, 1fr) max-content;
   align-items: center;
   gap: 11px;
 }
@@ -150,7 +152,8 @@
 }
 
 .role-lecture-top .role-status {
-  flex: 0 0 auto;
+  min-width: max-content;
+  justify-self: end;
   white-space: nowrap;
 }
 

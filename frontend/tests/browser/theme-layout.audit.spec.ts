@@ -24,7 +24,7 @@ const course = {
   id: 'course-1', courseCode: 'CARD101', courseName: 'Cardiovascular Medicine',
   weeks: [{
     id: 'week-1', weekNumber: 1, title: 'Cardiac foundations',
-    lectures: [{ id: 'lecture-1', lectureNumber: 1, title: 'Cardiac cycle', description: 'Core cardiac physiology.' }],
+    lectures: [{ id: 'lecture-1', lectureNumber: 1, title: 'Cardiac cycle', description: 'Core cardiac physiology.', isPublished: true }],
   }],
 };
 
@@ -108,7 +108,9 @@ async function installApi(page: Page, role: Role, theme: 'light' | 'dark') {
     });
 
     if (endpoint === '/tests') return respond({ data: [testRecord], total: 1, page: 1, limit: 100, total_pages: 1 });
+    if (endpoint === '/academic/semesters') return respond([{ id: 'semester-1', semesterNumber: 1 }]);
     if (endpoint === '/academic/courses') return respond({ data: [course], total: 1, page: 1, limit: 100, total_pages: 1 });
+    if (endpoint === '/academic/courses/course-1') return respond(course);
     if (endpoint === '/questions') return respond({ data: [], total: 0, page: 1, limit: 100, total_pages: 0 });
     if (endpoint === '/tests/test-1/questions') return respond([]);
     if (endpoint === '/tests/test-1/attempts') return respond([]);
@@ -189,6 +191,28 @@ for (const theme of ['light', 'dark'] as const) {
     await expectNoHorizontalOverflow(page);
   });
 }
+
+test('instructor lecture card fills its row without clipping its status', async ({ page }) => {
+  await installApi(page, 'INSTRUCTOR', 'dark');
+  await page.goto('/instructor/courses');
+
+  const card = page.locator('.role-lecture-card');
+  const list = page.locator('.role-lecture-list');
+  const status = card.locator('.role-status');
+  await expect(card).toHaveCount(1);
+  await expect(status).toHaveText('PUBLISHED');
+
+  const boxes = await Promise.all([list.boundingBox(), card.boundingBox(), status.boundingBox()]);
+  const [listBox, cardBox, statusBox] = boxes;
+  expect(listBox).not.toBeNull();
+  expect(cardBox).not.toBeNull();
+  expect(statusBox).not.toBeNull();
+  if (listBox && cardBox && statusBox) {
+    expect(cardBox.width).toBeGreaterThan(listBox.width - 40);
+    expect(statusBox.x + statusBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width - 12);
+  }
+  await expectNoHorizontalOverflow(page);
+});
 
 test('mobile workspace menu keeps essential tools reachable', async ({ page }) => {
   test.skip((page.viewportSize()?.width || 1280) > 820, 'Mobile navigation contract');
