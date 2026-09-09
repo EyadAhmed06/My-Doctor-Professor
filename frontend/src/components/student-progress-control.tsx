@@ -21,6 +21,23 @@ type StudentProgressSnapshot = {
   clinical_momentum?: { level: number; level_progress: number };
 };
 
+function normalizeSnapshot(value: Partial<StudentProgressSnapshot> | null | undefined): StudentProgressSnapshot {
+  return {
+    courses: Array.isArray(value?.courses) ? value.courses : [],
+    questions: {
+      attempts: numeric(value?.questions?.attempts),
+      correct_attempts: numeric(value?.questions?.correct_attempts),
+      accuracy: String(value?.questions?.accuracy ?? "0"),
+    },
+    flashcards: {
+      reviewed: numeric(value?.flashcards?.reviewed),
+      mastered: numeric(value?.flashcards?.mastered),
+      due: numeric(value?.flashcards?.due),
+    },
+    clinical_momentum: value?.clinical_momentum,
+  };
+}
+
 function numeric(value: string | number | null | undefined) {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -44,7 +61,7 @@ export function StudentProgressControl({ open, onOpenChange }: { open: boolean; 
     setLoading(true);
     setError(null);
     try {
-      setData(await request<StudentProgressSnapshot>("/dashboard/student"));
+      setData(normalizeSnapshot(await request<Partial<StudentProgressSnapshot>>("/dashboard/student")));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : translate("Unable to load your progress."));
     } finally {
@@ -75,14 +92,14 @@ export function StudentProgressControl({ open, onOpenChange }: { open: boolean; 
   }, [onOpenChange, open]);
 
   const progress = useMemo(() => {
-    const completedLectures = data?.courses.reduce((sum, item) => sum + numeric(item.lecturesCompleted), 0) ?? 0;
-    const totalLectures = data?.courses.reduce((sum, item) => sum + numeric(item.totalLectures), 0) ?? 0;
+    const completedLectures = data?.courses?.reduce((sum, item) => sum + numeric(item.lecturesCompleted), 0) ?? 0;
+    const totalLectures = data?.courses?.reduce((sum, item) => sum + numeric(item.totalLectures), 0) ?? 0;
     const overallProgress = totalLectures ? clamp(Math.round(completedLectures * 100 / totalLectures)) : 0;
-    const mastered = numeric(data?.flashcards.mastered);
-    const progressPoints = numeric(data?.questions.correct_attempts) + mastered + 10 * completedLectures;
+    const mastered = numeric(data?.flashcards?.mastered);
+    const progressPoints = numeric(data?.questions?.correct_attempts) + mastered + 10 * completedLectures;
     const level = Math.max(1, numeric(data?.clinical_momentum?.level) || Math.floor(progressPoints / 100) + 1);
     const levelProgress = Math.round(numeric(data?.clinical_momentum?.level_progress) || progressPoints % 100);
-    const accuracy = clamp(numeric(data?.questions.accuracy));
+    const accuracy = clamp(numeric(data?.questions?.accuracy));
     return { completedLectures, totalLectures, overallProgress, mastered, level, levelProgress, accuracy };
   }, [data]);
 

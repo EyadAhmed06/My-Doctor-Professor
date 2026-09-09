@@ -33,6 +33,20 @@ type AchievementSync = {
   next_milestones: Milestone[];
 };
 
+function normalizeAchievementSync(value: Partial<AchievementSync> | null | undefined): AchievementSync {
+  const numeric = (candidate: unknown, fallback = 0) => {
+    const parsed = Number(candidate);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+  return {
+    xp: numeric(value?.xp),
+    level: Math.max(1, numeric(value?.level, 1)),
+    level_progress: Math.max(0, Math.min(100, numeric(value?.level_progress))),
+    unlocked: Array.isArray(value?.unlocked) ? value.unlocked : [],
+    next_milestones: Array.isArray(value?.next_milestones) ? value.next_milestones : [],
+  };
+}
+
 export function AchievementMilestonesPanel() {
   const { user, request } = useAuth();
   const { translate } = useLocale();
@@ -42,9 +56,9 @@ export function AchievementMilestonesPanel() {
   useEffect(() => {
     if (user?.role !== "STUDENT") return;
     let active = true;
-    void request<AchievementSync>("/progress/achievements/sync", { method: "POST" })
+    void request<Partial<AchievementSync>>("/progress/achievements/sync", { method: "POST" })
       .then((result) => {
-        if (active) setData(result);
+        if (active) setData(normalizeAchievementSync(result));
       })
       .catch(() => undefined)
       .finally(() => {
