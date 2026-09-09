@@ -86,6 +86,7 @@ export const workspaceArabic = new Map<string, string>([
   ["Academic Structure", "الهيكل الأكاديمي"], ["Audit Trail", "سجل التدقيق"], ["Create user", "إنشاء مستخدم"], ["Create semester", "إنشاء فصل دراسي"],
   ["Create week", "إنشاء أسبوع"], ["Create lecture", "إنشاء محاضرة"], ["Create topic", "إنشاء موضوع"], ["Publish lecture", "نشر المحاضرة"],
   ["Return to draft", "إرجاع إلى مسودة"], ["Activate", "تفعيل"], ["Deactivate", "تعطيل"], ["Suspend", "إيقاف مؤقت"], ["Reset password", "إعادة تعيين كلمة المرور"],
+  ["Delete user", "حذف المستخدم"], ["Account deleted", "تم حذف الحساب"], ["Could not delete account", "تعذر حذف الحساب"],
   ["Search by name or email", "بحث بالاسم أو البريد الإلكتروني"], ["All roles", "كل الأدوار"], ["All statuses", "كل الحالات"], ["Previous page", "الصفحة السابقة"], ["Next page", "الصفحة التالية"],
   ["Import users", "استيراد المستخدمين"], ["CSV import", "استيراد CSV"], ["Preview import", "معاينة الاستيراد"], ["Import results", "نتائج الاستيراد"],
   ["Export CSV", "تصدير CSV"], ["Audit filters", "فلاتر سجل التدقيق"], ["Actor", "المنفذ"], ["Action", "الإجراء"], ["Entity", "الكيان"], ["Timestamp", "الوقت"],
