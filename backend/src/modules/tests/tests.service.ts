@@ -304,6 +304,25 @@ export class TestsService implements OnModuleInit {
     const from = dto.available_from !== undefined ? dto.available_from : test.availableFrom?.toISOString();
     const until = dto.available_until !== undefined ? dto.available_until : test.availableUntil?.toISOString();
     this.assertWindow(from, until);
+    const changesScope = ['test_type', 'course_id', 'week_id', 'lecture_id']
+      .some((key) => Object.prototype.hasOwnProperty.call(dto, key));
+    if (changesScope) {
+      const scope = await this.resolveScope(
+        dto.test_type ?? test.testType,
+        dto.course_id !== undefined ? dto.course_id ?? undefined : test.courseId ?? undefined,
+        dto.week_id !== undefined ? dto.week_id ?? undefined : test.weekId ?? undefined,
+        dto.lecture_id !== undefined ? dto.lecture_id ?? undefined : test.lectureId ?? undefined,
+      );
+      test.testType = dto.test_type ?? test.testType;
+      test.courseId = scope.courseId;
+      test.weekId = scope.weekId;
+      test.lectureId = scope.lectureId;
+      const assignments = await this.testQuestions.find({
+        where: { testId: id },
+        relations: { question: { topic: { lecture: { week: true } } } },
+      });
+      for (const assignment of assignments) this.assertQuestionScope(test, assignment.question);
+    }
     if (dto.title !== undefined) test.title = dto.title.trim();
     if (dto.description !== undefined) test.description = dto.description.trim() || null;
     if (dto.duration_minutes !== undefined) test.durationMinutes = dto.duration_minutes;
