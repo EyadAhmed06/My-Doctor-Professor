@@ -1,6 +1,6 @@
 import {
-  IsDateString,IsEnum,IsNotEmpty,IsOptional,IsPhoneNumber,IsString,
-  Matches,MaxLength,MinLength,
+  IsDateString,IsEnum,IsInt,IsNotEmpty,IsOptional,IsPhoneNumber,IsString,
+  Matches,Max,MaxLength,Min,MinLength,
 } from 'class-validator';
 import { Gender } from '../entities/user.entity';
 
@@ -9,6 +9,8 @@ export class UpdateUserProfileDto {
  @IsOptional() @IsPhoneNumber() phone_number?:string;
  @IsOptional() @IsDateString() date_of_birth?:string;
  @IsOptional() @IsEnum(Gender) gender?:Gender;
+ @IsOptional() @IsInt() @Min(1) @Max(6) current_semester?:number;
+ @IsOptional() @IsInt() @Min(1) @Max(6) currentSemester?:number;
 }
 export class ChangePasswordDto {
  @IsString() @IsNotEmpty() current_password:string;

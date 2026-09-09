@@ -324,6 +324,7 @@ export class UsersService {
   async updateProfile(userId:string,input:{
     fullName?:string;phoneNumber?:string;dateOfBirth?:Date;
     gender?:Gender;profilePictureUrl?:string;
+    currentSemester?:number;
   }) {
     const user=await this.findById(userId);
     if(!user) throw new NotFoundException('User not found');
@@ -338,7 +339,17 @@ export class UsersService {
     if(input.dateOfBirth!==undefined) user.dateOfBirth=input.dateOfBirth;
     if(input.gender!==undefined) user.gender=input.gender;
     if(input.profilePictureUrl!==undefined) user.profilePictureUrl=input.profilePictureUrl.trim()||null;
-    return this.safeUser(await this.usersRepository.save(user));
+
+    if (user.role === UserRole.STUDENT && input.currentSemester !== undefined) {
+      const semester = Number(input.currentSemester);
+      if (!Number.isInteger(semester) || semester < 1 || semester > 6) {
+        throw new BadRequestException('Current semester must be an integer between 1 and 6');
+      }
+      await this.studentsRepository.update({ userId }, { currentSemester: semester });
+    }
+
+    await this.usersRepository.save(user);
+    return this.getUserProfile(userId);
   }
 
   async deactivateOwnAccount(userId:string,currentPassword:string) {

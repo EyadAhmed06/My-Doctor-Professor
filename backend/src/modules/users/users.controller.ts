@@ -39,11 +39,12 @@ export class UsersController {
  @Put(':userId')
  update(@Param('userId',uuid) id:string,@Body() dto:UpdateUserProfileDto,@CurrentUser() actor:AuthenticatedUser){
   this.assertSelf(id,actor);
-  return this.users.updateProfile(id,{
-   fullName:dto.full_name,phoneNumber:dto.phone_number,
-   dateOfBirth:dto.date_of_birth?new Date(dto.date_of_birth):undefined,
-   gender:dto.gender,
-  });
+   return this.users.updateProfile(id,{
+    fullName:dto.full_name,phoneNumber:dto.phone_number,
+    dateOfBirth:dto.date_of_birth?new Date(dto.date_of_birth):undefined,
+    gender:dto.gender,
+    currentSemester:dto.current_semester??dto.currentSemester,
+   });
  }
  @Put(':userId/profile-picture')
  @RateLimit({key:'profile-picture-write',maximum:8,windowSeconds:60,scope:'user'})

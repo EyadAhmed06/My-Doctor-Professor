@@ -14,6 +14,9 @@ type Profile = AuthUser & {
   phoneNumber?: string;
   dateOfBirth?: string | null;
   gender?: "MALE" | "FEMALE" | null;
+  studentNumber?: string;
+  currentSemester?: number;
+  current_semester?: number;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -23,6 +26,7 @@ type ProfileDraft = {
   phone: string;
   dateOfBirth: string;
   gender: "" | "MALE" | "FEMALE";
+  current_semester: number | "";
 };
 
 type FieldErrors = Partial<Record<keyof ProfileDraft | "currentPassword" | "newPassword", string>>;
@@ -57,7 +61,7 @@ export function ConnectedSettingsPage() {
   const { locale } = useLocale();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [security, setSecurity] = useState<SecurityOverview | null>(null);
-  const [draft, setDraft] = useState<ProfileDraft>({ name: "", phone: "", dateOfBirth: "", gender: "" });
+  const [draft, setDraft] = useState<ProfileDraft>({ name: "", phone: "", dateOfBirth: "", gender: "", current_semester: 1 });
   const [baseline, setBaseline] = useState<ProfileDraft | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -96,11 +100,13 @@ export function ConnectedSettingsPage() {
       request<SecurityOverview>("/auth/security"),
     ]).then(([value, securityValue]) => {
       if (!active) return;
+      const resolvedSemester = value.currentSemester ?? value.current_semester ?? user.currentSemester ?? user.current_semester ?? 1;
       const next: ProfileDraft = {
         name: value.fullName || value.full_name || "",
         phone: value.phoneNumber || "",
         dateOfBirth: value.dateOfBirth ? String(value.dateOfBirth).slice(0, 10) : "",
         gender: value.gender || "",
+        current_semester: resolvedSemester,
       };
       setProfile(value);
       setSecurity(securityValue);
@@ -142,6 +148,12 @@ export function ConnectedSettingsPage() {
     else if (draft.name.trim().length > 150) errors.name = "Full name must be 150 characters or fewer.";
     if (!/^\+[1-9]\d{6,14}$/.test(phone)) errors.phone = "Use international format, for example +201012345678.";
     if (draft.dateOfBirth && new Date(`${draft.dateOfBirth}T00:00:00`) >= new Date()) errors.dateOfBirth = "Date of birth must be in the past.";
+    if (user?.role === "STUDENT") {
+      const sem = Number(draft.current_semester);
+      if (!Number.isInteger(sem) || sem < 1 || sem > 6) {
+        errors.current_semester = locale === "ar" ? "اختر فصلاً دراسياً صحيحاً من 1 إلى 6." : "Select an academic semester from 1 to 6.";
+      }
+    }
     setFieldErrors(errors);
     return { valid: !Object.keys(errors).length, phone };
   }
@@ -156,8 +168,11 @@ export function ConnectedSettingsPage() {
       const updated = await request<Profile>(`/users/${user.id}`, {
         method: "PUT",
         body: {
-          full_name: draft.name.trim(), phone_number: validation.phone,
-          date_of_birth: draft.dateOfBirth || undefined, gender: draft.gender || undefined,
+          full_name: draft.name.trim(),
+          phone_number: validation.phone,
+          date_of_birth: draft.dateOfBirth || undefined,
+          gender: draft.gender || undefined,
+          current_semester: user.role === "STUDENT" && draft.current_semester !== "" ? Number(draft.current_semester) : undefined,
         },
       });
       const next: ProfileDraft = {
@@ -165,9 +180,10 @@ export function ConnectedSettingsPage() {
         phone: updated.phoneNumber || validation.phone,
         dateOfBirth: updated.dateOfBirth ? String(updated.dateOfBirth).slice(0, 10) : draft.dateOfBirth,
         gender: updated.gender || draft.gender,
+        current_semester: updated.currentSemester ?? updated.current_semester ?? draft.current_semester,
       };
       setProfile(updated); setDraft(next); setBaseline(next); await refreshUser();
-      setMessage("Profile saved across the workspace.");
+      setMessage(locale === "ar" ? "تم حفظ الملف الشخصي وتحديث الفصل الدراسي." : "Profile saved and semester synchronised across the workspace.");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to save your profile."); }
     finally { setSaving(false); }
   }
@@ -284,7 +300,18 @@ export function ConnectedSettingsPage() {
         <Panel id="profile" title="Profile & identity">
           <div className="profile-card settings-avatar-preview">
             <div className="settings-avatar-media">{profileImage && !imageError ? <img src={profileImage} alt={`${displayName} profile`} onError={() => setImageError(true)} /> : <span className="avatar-large">{initials}</span>}</div>
-            <div className="settings-avatar-copy"><h2>{displayName}</h2><p>{profile?.email}</p><p>{profile?.role.replaceAll("_", " ")} · {profile?.status}</p><small>JPEG, PNG, or WebP · max 5 MB. Files are renamed and stored by the server.</small></div>
+            <div className="settings-avatar-copy">
+              <h2>{displayName}</h2>
+              <p>{profile?.email}</p>
+              <p>
+                {profile?.role.replaceAll("_", " ")}
+                {user?.role === "STUDENT" && (profile?.currentSemester || profile?.current_semester || user?.currentSemester || user?.current_semester)
+                  ? ` · Semester ${profile?.currentSemester ?? profile?.current_semester ?? user?.currentSemester ?? user?.current_semester}`
+                  : ""}
+                {" · "}{profile?.status}
+              </p>
+              <small>JPEG, PNG, or WebP · max 5 MB. Files are renamed and stored by the server.</small>
+            </div>
             <div className="settings-avatar-actions">
               <label className="pp-button secondary settings-file-button"><FiCamera/> {profile?.profilePictureUrl ? "Choose replacement" : "Choose photo"}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event)=>chooseProfilePicture(event.target.files?.[0]||null)} disabled={pictureBusy}/></label>
               {pictureFile && <button type="button" className="pp-button" disabled={pictureBusy} onClick={()=>void uploadProfilePicture()}><FiUploadCloud/> {pictureBusy?"Uploading…":"Upload photo"}</button>}
@@ -297,7 +324,46 @@ export function ConnectedSettingsPage() {
             <label>Phone number<input value={draft.phone} onChange={(event) => setField("phone", event.target.value)} onBlur={() => setField("phone", normalizedPhone(draft.phone))} required type="tel" placeholder="+201012345678" />{fieldErrors.phone && <small className="field-error">{fieldErrors.phone}</small>}</label>
             <label>Date of birth<input type="date" value={draft.dateOfBirth} max={new Date().toISOString().slice(0, 10)} onChange={(event) => setField("dateOfBirth", event.target.value)} />{fieldErrors.dateOfBirth && <small className="field-error">{fieldErrors.dateOfBirth}</small>}</label>
             <label>Gender<select value={draft.gender} onChange={(event) => setField("gender", event.target.value as ProfileDraft["gender"])}><option value="">Not set</option><option value="MALE">Male</option><option value="FEMALE">Female</option></select></label>
-            <div className="settings-form-actions wide"><button type="button" className="pp-button secondary" disabled={!dirty || saving || !baseline} onClick={() => baseline && setDraft(baseline)}>Discard</button><button className="pp-button" disabled={saving || !dirty}><FiSave /> {saving ? "Saving…" : "Save profile"}</button></div>
+            {user?.role === "STUDENT" && (
+              <>
+                <label>
+                  {locale === "ar" ? "الفصل الدراسي الأكاديمي" : "Academic semester"}
+                  <select
+                    value={draft.current_semester}
+                    onChange={(event) => setField("current_semester", Number(event.target.value))}
+                  >
+                    {[1, 2, 3, 4, 5, 6].map((sem) => (
+                      <option key={sem} value={sem}>
+                        {locale === "ar"
+                          ? `الفصل الدراسي ${sem} (السنة ${Math.ceil(sem / 2)})`
+                          : `Semester ${sem} (Year ${Math.ceil(sem / 2)})`}
+                      </option>
+                    ))}
+                  </select>
+                  {fieldErrors.current_semester && <small className="field-error">{fieldErrors.current_semester}</small>}
+                  <small style={{ color: "var(--pp-text-muted, #64748b)", fontSize: "0.82rem", marginTop: 4, display: "block" }}>
+                    {locale === "ar"
+                      ? "يحدد الحزم والمقررات المتزامنة مع حسابك الدراسي."
+                      : "Controls which learning bundles, courses, and modules synchronize with your workspace."}
+                  </small>
+                </label>
+                {(profile?.studentNumber || user?.studentNumber) && (
+                  <label>
+                    {locale === "ar" ? "رقم الطالب الجامعي" : "Student number"}
+                    <input
+                      value={profile?.studentNumber || user?.studentNumber || ""}
+                      readOnly
+                      disabled
+                      style={{ opacity: 0.8, cursor: "not-allowed", backgroundColor: "var(--pp-bg-subtle, rgba(0,0,0,0.03))" }}
+                    />
+                    <small style={{ color: "var(--pp-text-muted, #64748b)", fontSize: "0.82rem", marginTop: 4, display: "block" }}>
+                      {locale === "ar" ? "الرقم التعريفي الأكاديمي الرسمي (للقراءة فقط)." : "Official university academic identifier (read-only)."}
+                    </small>
+                  </label>
+                )}
+              </>
+            )}
+            <div className="settings-form-actions wide"><button type="button" className="pp-button secondary" disabled={!dirty || saving || !baseline} onClick={() => baseline && setDraft(baseline)}>{locale === "ar" ? "إلغاء التعديلات" : "Discard"}</button><button className="pp-button" disabled={saving || !dirty}><FiSave /> {saving ? (locale === "ar" ? "جاري الحفظ…" : "Saving…") : (locale === "ar" ? "حفظ الملف الشخصي" : "Save profile")}</button></div>
           </form>
         </Panel>
 
