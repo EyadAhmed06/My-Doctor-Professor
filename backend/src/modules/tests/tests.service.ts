@@ -31,6 +31,7 @@ import { BundleAccessService } from '../bundle-access/bundle-access.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Student } from '../users/entities/student.entity';
 import { UserRole } from '../users/entities/user.entity';
+import { validateTestForPublish } from './assessment-authoring.service';
 import {
   AddTestQuestionDto,
   CreateTestDto,
@@ -782,16 +783,18 @@ export class TestsService implements OnModuleInit {
   }
 
   private async assertPublishable(test: Test): Promise<void> {
-    const items = await this.testQuestions.find({ where: { testId: test.id }, relations: { question: true } });
-    if (items.length === 0) throw new ConflictException('Add at least one question before publishing');
-    if (items.some((item) => !item.question.isActive)) {
-      throw new ConflictException('All test questions must be active before publishing');
+    const items = await this.testQuestions.find({
+      where: { testId: test.id },
+      relations: { question: { options: true } },
+    });
+    // Same validator that renders the admin "Pre-publish validation" panel
+    // (AssessmentAuthoringService.getAuthoringState) — the panel and this gate
+    // must never be able to disagree about what blocks publishing.
+    const blocking = validateTestForPublish(test, items).filter((issue) => issue.severity === 'ERROR');
+    if (blocking.length) {
+      throw new ConflictException(blocking.map((issue) => issue.message).join(' '));
     }
     const total = items.reduce((sum, item) => sum + Number(item.marks), 0);
-    if (test.passingMarks !== null && Number(test.passingMarks) > total) {
-      throw new ConflictException('Passing marks cannot exceed total marks');
-    }
-    this.assertWindow(test.availableFrom?.toISOString(), test.availableUntil?.toISOString());
     test.totalMarks = total.toFixed(2);
   }
 

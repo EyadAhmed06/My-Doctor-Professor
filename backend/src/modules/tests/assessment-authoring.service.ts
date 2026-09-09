@@ -9,11 +9,44 @@ import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
 import { ReorderTestQuestionsDto } from './dtos/tests.dto';
 
-type ValidationIssue = {
+export type ValidationIssue = {
   code: string;
   severity: 'ERROR' | 'WARNING';
   message: string;
 };
+
+// Single source of truth for "is this test allowed to publish": the admin
+// authoring panel (getAuthoringState below) and the server-side publish gate
+// (TestsService.assertPublishable) both call this function so they can never
+// disagree about which issues block publishing again.
+export function validateTestForPublish(test: Test, items: TestQuestion[]): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const total = Number(test.totalMarks || 0);
+  const passing = Number(test.passingMarks || 0);
+  if (!items.length) issues.push({ code: 'NO_QUESTIONS', severity: 'ERROR', message: 'Attach at least one active question before publishing.' });
+  if (items.some((item) => !item.question?.isActive)) issues.push({ code: 'INACTIVE_QUESTIONS', severity: 'ERROR', message: 'One or more attached questions are inactive.' });
+  const malformedMcqs = items.filter((item) => item.question?.questionType === QuestionType.MCQ && (
+    item.question.options?.length !== 5
+    || item.question.options.filter((option) => option.isCorrect).length !== 1
+  ));
+  if (malformedMcqs.length) {
+    issues.push({
+      code: 'MALFORMED_MCQS',
+      severity: 'ERROR',
+      message: `${malformedMcqs.length} MCQ question(s) must be fixed: every MCQ requires exactly five options and exactly one correct answer.`,
+    });
+  }
+  if (items.some((item) => Number(item.marks) <= 0)) issues.push({ code: 'INVALID_MARKS', severity: 'ERROR', message: 'Every attached question must award more than zero marks.' });
+  if (total <= 0) issues.push({ code: 'ZERO_TOTAL', severity: 'ERROR', message: 'Total marks must be greater than zero.' });
+  if (!test.durationMinutes || test.durationMinutes <= 0) issues.push({ code: 'INVALID_DURATION', severity: 'ERROR', message: 'Set a positive assessment duration.' });
+  if (passing > total && total > 0) issues.push({ code: 'PASS_ABOVE_TOTAL', severity: 'ERROR', message: 'Passing marks cannot exceed total marks.' });
+  if (test.availableFrom && test.availableUntil && test.availableUntil <= test.availableFrom) issues.push({ code: 'INVALID_WINDOW', severity: 'ERROR', message: 'Availability end must be after availability start.' });
+  if (!test.courseId && !test.weekId && !test.lectureId) issues.push({ code: 'UNSCOPED', severity: 'WARNING', message: 'This assessment is not linked to a course, week, or lecture.' });
+  const order = items.map((item) => item.displayOrder);
+  const expected = Array.from({ length: items.length }, (_, index) => index + 1);
+  if ([...order].sort((a, b) => a - b).some((value, index) => value !== expected[index])) issues.push({ code: 'ORDER_GAPS', severity: 'WARNING', message: 'Question order has gaps. Reorder before publishing for predictable navigation.' });
+  return issues;
+}
 
 @Injectable()
 export class AssessmentAuthoringService {
@@ -32,7 +65,7 @@ export class AssessmentAuthoringService {
       order: { displayOrder: 'ASC' },
     });
     const attemptCount = await this.attempts.count({ where: { testId } });
-    const issues = this.validate(test, items);
+    const issues = validateTestForPublish(test, items);
     return {
       validation: {
         publishable: !issues.some((issue) => issue.severity === 'ERROR'),
@@ -123,35 +156,6 @@ export class AssessmentAuthoringService {
       relations: { question: { options: true, essayConfiguration: true } },
       order: { displayOrder: 'ASC' },
     });
-  }
-
-  private validate(test: Test, items: TestQuestion[]): ValidationIssue[] {
-    const issues: ValidationIssue[] = [];
-    const total = Number(test.totalMarks || 0);
-    const passing = Number(test.passingMarks || 0);
-    if (!items.length) issues.push({ code: 'NO_QUESTIONS', severity: 'ERROR', message: 'Attach at least one active question before publishing.' });
-    if (items.some((item) => !item.question?.isActive)) issues.push({ code: 'INACTIVE_QUESTIONS', severity: 'ERROR', message: 'One or more attached questions are inactive.' });
-    const malformedMcqs = items.filter((item) => item.question?.questionType === QuestionType.MCQ && (
-      item.question.options?.length !== 5
-      || item.question.options.filter((option) => option.isCorrect).length !== 1
-    ));
-    if (malformedMcqs.length) {
-      issues.push({
-        code: 'MALFORMED_MCQS',
-        severity: 'ERROR',
-        message: `${malformedMcqs.length} MCQ question(s) must be fixed: every MCQ requires exactly five options and exactly one correct answer.`,
-      });
-    }
-    if (items.some((item) => Number(item.marks) <= 0)) issues.push({ code: 'INVALID_MARKS', severity: 'ERROR', message: 'Every attached question must award more than zero marks.' });
-    if (total <= 0) issues.push({ code: 'ZERO_TOTAL', severity: 'ERROR', message: 'Total marks must be greater than zero.' });
-    if (!test.durationMinutes || test.durationMinutes <= 0) issues.push({ code: 'INVALID_DURATION', severity: 'ERROR', message: 'Set a positive assessment duration.' });
-    if (passing > total && total > 0) issues.push({ code: 'PASS_ABOVE_TOTAL', severity: 'ERROR', message: 'Passing marks cannot exceed total marks.' });
-    if (test.availableFrom && test.availableUntil && test.availableUntil <= test.availableFrom) issues.push({ code: 'INVALID_WINDOW', severity: 'ERROR', message: 'Availability end must be after availability start.' });
-    if (!test.courseId && !test.weekId && !test.lectureId) issues.push({ code: 'UNSCOPED', severity: 'WARNING', message: 'This assessment is not linked to a course, week, or lecture.' });
-    const order = items.map((item) => item.displayOrder);
-    const expected = Array.from({ length: items.length }, (_, index) => index + 1);
-    if ([...order].sort((a, b) => a - b).some((value, index) => value !== expected[index])) issues.push({ code: 'ORDER_GAPS', severity: 'WARNING', message: 'Question order has gaps. Reorder before publishing for predictable navigation.' });
-    return issues;
   }
 
   private async requireOwnedTest(id: string, actor: AuthenticatedUser) {
