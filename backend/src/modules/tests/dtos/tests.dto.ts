@@ -25,6 +25,10 @@ export class CreateTestDto {
 export class UpdateTestDto {
  @IsOptional() @IsString() @IsNotEmpty() @MaxLength(200) title?:string;
  @IsOptional() @IsString() description?:string;
+ @IsOptional() @IsEnum(TestType) test_type?:TestType;
+ @IsOptional() @IsUUID() course_id?:string|null;
+ @IsOptional() @IsUUID() week_id?:string|null;
+ @IsOptional() @IsUUID() lecture_id?:string|null;
  @IsOptional() @IsInt() @Min(1) duration_minutes?:number;
  @IsOptional() @IsNumber({maxDecimalPlaces:2}) @Min(0) passing_marks?:number;
  @IsOptional() @IsBoolean() is_published?:boolean;
