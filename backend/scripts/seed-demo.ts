@@ -4,7 +4,6 @@ import { AppDataSource } from "../src/database/data-source";
 import { generateForensicCode } from "../src/modules/users/forensic-code";
 
 const ids = {
-  semester: "10000000-0000-4000-8000-000000000001",
   course: "20000000-0000-4000-8000-000000000001",
   bundle: "30000000-0000-4000-8000-000000000001",
   weeks: [1, 2, 3].map(
@@ -114,12 +113,17 @@ async function main() {
     );
 
     await manager.query(
-      `INSERT INTO semesters(id,semester_number,title,description) VALUES($1,5,'Clinical Foundations','A transition semester connecting systems knowledge to clinical reasoning.') ON CONFLICT(id) DO UPDATE SET title=EXCLUDED.title,description=EXCLUDED.description`,
-      [ids.semester],
+      `INSERT INTO semesters(semester_number,title,description)
+       SELECT semester_number, 'Semester ' || semester_number, 'Semester ' || semester_number || ' medical curriculum.'
+       FROM generate_series(1,6) AS semester_number
+       ON CONFLICT(semester_number) DO UPDATE SET title=EXCLUDED.title`,
+    );
+    const [semesterFive] = await manager.query(
+      `SELECT id FROM semesters WHERE semester_number = 5`,
     );
     await manager.query(
       `INSERT INTO courses(id,semester_id,course_code,course_name,slug,description,credit_hours,is_active,display_order) VALUES($1,$2,'CVS-301','Cardiovascular Medicine','cardiovascular-medicine','Cardiovascular foundations, clinical presentations, investigations, and initial management.',6,TRUE,1) ON CONFLICT(id) DO UPDATE SET course_name=EXCLUDED.course_name,description=EXCLUDED.description,is_active=TRUE`,
-      [ids.course, ids.semester],
+      [ids.course, semesterFive.id],
     );
     await manager.query(
       `INSERT INTO course_instructors(course_id,instructor_id) VALUES($1,$2) ON CONFLICT DO NOTHING`,
