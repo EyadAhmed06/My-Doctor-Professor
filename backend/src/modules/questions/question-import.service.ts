@@ -22,6 +22,7 @@ import {
   PublishImportedQuestionDto,
   PublishQuestionImportDto,
 } from './dtos/questions.dto';
+import { detectQuestionDocumentType, QuestionDocumentType } from './question-document-type';
 
 type ImportIssueSeverity = 'INFO' | 'WARNING' | 'ERROR';
 
@@ -46,7 +47,10 @@ type DuplicateMatch = {
 
 type ImportCandidate = {
   candidate_id: string;
+  question_number: number;
   source_page: number | null;
+  answer_key_label: string | null;
+  answer_key_page: number | null;
   source_section: string | null;
   question_text: string;
   options: ExtractedOption[];
@@ -70,7 +74,9 @@ type ParsedPdf = {
 };
 
 type ParsedQuestion = {
+  questionNumber: number;
   sourcePage: number | null;
+  answerKeyPage: number | null;
   sourceSection: string | null;
   questionText: string;
   options: Array<{ label: string; text: string }>;
@@ -82,6 +88,13 @@ type ParsingSection = {
   title: string | null;
   text: string;
   offset: number;
+};
+
+type AnswerKeyEntry = { label: string; page: number | null };
+type ParsedQuestionDocument = {
+  documentType: QuestionDocumentType;
+  answerKey: Map<number, AnswerKeyEntry>;
+  questions: ParsedQuestion[];
 };
 
 const MAX_PDF_BYTES = 25 * 1024 * 1024;
@@ -156,9 +169,19 @@ export class QuestionImportService {
               'The PDF appears scanned or its text encoding is not safely extractable. OCR is required before questions can be reviewed.',
           },
         ],
+        parser: {
+          schema_version: '2.0', requested_document_type: 'MCQ',
+          detected_document_type: 'UNKNOWN' as QuestionDocumentType,
+          answer_key: {} as Record<string, { answer: string; page: number | null }>, mapped_answers: 0,
+        },
         sections: [] as Array<{ title: string; questions: number }>,
         candidates: [] as ImportCandidate[],
       };
+    }
+
+    const documentType = detectQuestionDocumentType(pdf.text);
+    if (documentType === 'ESSAY_CASES') {
+      throw new BadRequestException('This file contains essay cases, not MCQs. Use the Essay PDF Inspector for this document.');
     }
 
     const existing = await this.questions.find({
@@ -174,7 +197,8 @@ export class QuestionImportService {
       ...existing.slice(0, 100).map((question) => question.questionText),
     ].join(' ');
 
-    const parsed = this.parseQuestions(pdf);
+    const parsedDocument = this.parseQuestions(pdf, documentType);
+    const parsed = parsedDocument.questions;
     const candidates = parsed.slice(0, MAX_IMPORT_CANDIDATES).map((candidate, index) =>
       this.evaluateCandidate(candidate, index, topicCorpus, existing),
     );
@@ -231,6 +255,13 @@ export class QuestionImportService {
         needs_review: needsReview,
         invalid,
         duplicates: candidates.filter((candidate) => candidate.duplicate).length,
+      },
+      parser: {
+        schema_version: '2.0', requested_document_type: 'MCQ',
+        detected_document_type: parsedDocument.documentType,
+        answer_key: Object.fromEntries(Array.from(parsedDocument.answerKey.entries()).map(([questionNumber, entry]) => [String(questionNumber), { answer: entry.label, page: entry.page }])),
+        mapped_answers: candidates.filter((candidate) => candidate.answer_key_label).length,
+        unmapped_question_numbers: candidates.filter((candidate) => !candidate.answer_key_label).map((candidate) => candidate.question_number),
       },
       sections: Array.from(sectionCounts.entries()).map(([title, questions]) => ({ title, questions })),
       issues,
@@ -545,7 +576,10 @@ export class QuestionImportService {
     return output;
   }
 
-  private parseQuestions(pdf: ParsedPdf): ParsedQuestion[] {
+  private parseQuestions(
+    pdf: ParsedPdf,
+    documentType: QuestionDocumentType = detectQuestionDocumentType(pdf.text),
+  ): ParsedQuestionDocument {
     const preparedPages = pdf.pages.map((page) => ({
       page: page.page,
       text: this.prepareForParsing(page.text),
@@ -553,8 +587,13 @@ export class QuestionImportService {
     const combined = preparedPages
       .map((page) => `\n[[MDP_PAGE_${page.page}]]\n${page.text}`)
       .join('\n');
+    const answerKey = this.extractAnswerKey(combined);
     const sections = this.splitLectureSections(combined);
-    return sections.flatMap((section) => this.parseSectionQuestions(section, combined));
+    return {
+      documentType,
+      answerKey,
+      questions: sections.flatMap((section) => this.parseSectionQuestions(section, combined, answerKey)),
+    };
   }
 
   private splitLectureSections(combined: string): ParsingSection[] {
@@ -578,8 +617,11 @@ export class QuestionImportService {
     return sections;
   }
 
-  private parseSectionQuestions(section: ParsingSection, combined: string): ParsedQuestion[] {
-    const answerKey = this.extractCompactAnswerKey(section.text);
+  private parseSectionQuestions(
+    section: ParsingSection,
+    combined: string,
+    answerKey: Map<number, AnswerKeyEntry>,
+  ): ParsedQuestion[] {
     const starts = Array.from(
       section.text.matchAll(/^\s*(?:Q(?:uestion)?\s*)?(\d{1,3})[.)]\s+(.+)$/gim),
     ).filter((match) => !this.isCompactAnswerKeyLine(match[0]));
@@ -604,13 +646,16 @@ export class QuestionImportService {
       const optionArea = block.slice(firstOption);
       const options = this.parseOptions(optionArea);
       const inlineAnswer = block.match(/(?:Correct\s+Answer|Answer)\s*[:-]\s*([A-F])\b/i)?.[1]?.toUpperCase() || null;
-      const correctLabel = inlineAnswer || answerKey.get(questionNumber) || null;
+      const answerKeyEntry = answerKey.get(questionNumber) || null;
+      const correctLabel = inlineAnswer || answerKeyEntry?.label || null;
       const explanation = block.match(/(?:Explanation|Rationale)\s*:\s*([\s\S]+?)(?=$)/i)?.[1]
         ?.replace(/\s+/g, ' ')
         .trim() || null;
       if (stem) {
         candidates.push({
+          questionNumber,
           sourcePage,
+          answerKeyPage: inlineAnswer ? sourcePage : answerKeyEntry?.page ?? null,
           sourceSection: section.title,
           questionText: stem,
           options,
@@ -670,31 +715,36 @@ export class QuestionImportService {
       .trim();
   }
 
-  private extractCompactAnswerKey(value: string): Map<number, string> {
-    const result = new Map<number, string>();
-    const lines = value.split('\n');
-    for (const line of lines) {
-      const pairs = Array.from(line.matchAll(/(?:^|\s|\()(\d{1,3})\s*[.)-]?\s*([A-F])\b/gi));
-      if (pairs.length < 2) continue;
-      for (const pair of pairs) {
-        result.set(Number(pair[1]), pair[2].toUpperCase());
+  private extractAnswerKey(value: string): Map<number, AnswerKeyEntry> {
+    const result = new Map<number, AnswerKeyEntry>();
+    let offset = 0;
+    let inExplicitAnswerKey = false;
+    for (const line of value.split('\n')) {
+      if (/answer\s*key/i.test(line)) inExplicitAnswerKey = true;
+      const pairs = Array.from(line.matchAll(/(?:^|\s|\||\()(\d{1,3})\s*[.)\-:]?\s*([A-F])(?=\s|$|\|)/gi));
+      if (inExplicitAnswerKey || this.isCompactAnswerKeyLine(line)) {
+        for (const pair of pairs) {
+          const questionNumber = Number(pair[1]);
+          const entry = { label: pair[2].toUpperCase(), page: this.pageBefore(value, offset + (pair.index || 0)) };
+          const existing = result.get(questionNumber);
+          if (!existing || existing.label === entry.label) result.set(questionNumber, entry);
+        }
       }
-    }
-
-    const marker = value.search(/answer\s*key/i);
-    if (marker >= 0) {
-      const tail = value.slice(marker);
-      const pattern = /(?:^|\s|\()(\d{1,3})\s*[.):-]?\s*([A-F])\b/gim;
-      let match: RegExpExecArray | null;
-      while ((match = pattern.exec(tail)) !== null) {
-        result.set(Number(match[1]), match[2].toUpperCase());
-      }
+      offset += line.length + 1;
     }
     return result;
   }
 
   private isCompactAnswerKeyLine(value: string): boolean {
-    return Array.from(value.matchAll(/(?:^|\s|\()\d{1,3}\s*[.)-]?\s*[A-F]\b/gi)).length >= 2;
+    const line = value.replace(/\[\[MDP_PAGE_\d+\]\]/g, '').trim();
+    if (!line) return false;
+    const pairs = Array.from(line.matchAll(/(?:^|\s|\||\()(\d{1,3})\s*[.)\-:]?\s*([A-F])(?=\s|$|\|)/gi));
+    if (!pairs.length) return false;
+    const remainder = line
+      .replace(/(?:^|\s|\||\()\d{1,3}\s*[.)\-:]?\s*[A-F](?=\s|$|\|)/gi, ' ')
+      .replace(/[|,;]+/g, ' ')
+      .trim();
+    return remainder.length === 0;
   }
 
   private findCompactAnswerKeyOffset(value: string): number {
@@ -776,7 +826,10 @@ export class QuestionImportService {
     );
     return {
       candidate_id: `candidate-${index + 1}`,
+      question_number: candidate.questionNumber,
       source_page: candidate.sourcePage,
+      answer_key_label: candidate.correctLabel,
+      answer_key_page: candidate.answerKeyPage,
       source_section: candidate.sourceSection,
       question_text: candidate.questionText,
       options: candidate.options.map((option) => ({

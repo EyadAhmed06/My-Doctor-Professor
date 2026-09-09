@@ -10,6 +10,7 @@ import { AcademicAccessService } from '../academic/academic-access.service';
 import type { UploadedResourceFile } from '../academic/resource-storage.service';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { PublishEssayQuestionImportDto } from './dtos/essay-question-import.dto';
+import { detectQuestionDocumentType, QuestionDocumentType } from './question-document-type';
 
 const MAX_PDF_BYTES = 25 * 1024 * 1024;
 const MAX_PDF_PAGES = 200;
@@ -32,6 +33,7 @@ type EssayCandidate = {
   question_number: number;
   question_text: string;
   model_answer: string | null;
+  answer_origin: 'SOURCE' | 'AI' | 'MISSING';
   source_page: number | null;
   answer_page: number | null;
   extraction_confidence: number;
@@ -72,12 +74,21 @@ export class EssayQuestionImportService {
         extraction_confidence: pdf.extractionConfidence,
         status: 'NEEDS_OCR',
         summary: { cases: 0, extracted: 0, valid: 0, needs_review: 0, invalid: 0 },
+        parser: {
+          schema_version: '2.0', requested_document_type: 'ESSAY_CASES',
+          detected_document_type: 'UNKNOWN' as QuestionDocumentType, answer_key: {}, mapped_answers: 0,
+        },
         issues: [{
           code: 'NO_USABLE_TEXT_LAYER', severity: 'ERROR',
           message: 'The PDF appears scanned or its text layer is not safely extractable. OCR is required before essay questions can be reviewed.',
         }] as EssayIssue[],
         candidates: [] as EssayCandidate[],
       };
+    }
+
+    const documentType = detectQuestionDocumentType(pdf.text);
+    if (documentType === 'MCQ') {
+      throw new BadRequestException('This file contains MCQs, not essay cases. Use the MCQ PDF Inspector for this document.');
     }
 
     const extracted = this.parseEssayCases(pdf, sha256).slice(0, MAX_CANDIDATES);
@@ -109,6 +120,19 @@ export class EssayQuestionImportService {
       extraction_confidence: pdf.extractionConfidence,
       status: parsed.length ? 'REVIEW_REQUIRED' : 'NO_QUESTIONS',
       summary: { cases, extracted: parsed.length, valid, needs_review: needsReview, invalid },
+      parser: {
+        schema_version: '2.0', requested_document_type: 'ESSAY_CASES',
+        detected_document_type: documentType,
+        answer_key: parsed.reduce<Record<string, Record<string, string>>>((result, candidate) => {
+          if (candidate.answer_origin !== 'SOURCE' || !candidate.model_answer) return result;
+          const caseKey = `${candidate.section}::case_${candidate.case_number}`;
+          result[caseKey] = { ...(result[caseKey] || {}), [String(candidate.question_number)]: candidate.model_answer };
+          return result;
+        }, {}),
+        mapped_answers: parsed.filter((candidate) => candidate.answer_origin === 'SOURCE').length,
+        generated_answers: parsed.filter((candidate) => candidate.answer_origin === 'AI').length,
+        unmapped_keys: parsed.filter((candidate) => candidate.answer_origin === 'MISSING').map((candidate) => ({ section: candidate.section, case_number: candidate.case_number, question_number: candidate.question_number })),
+      },
       issues,
       candidates: parsed,
     };
@@ -274,6 +298,7 @@ export class EssayQuestionImportService {
           question_number: questionNumber,
           question_text: questionText,
           model_answer: model,
+          answer_origin: model ? 'SOURCE' : 'MISSING',
           source_page: sourcePage ?? casePage,
           answer_page: answerPage,
           extraction_confidence: Math.max(0.5, Math.min(1, pdf.extractionConfidence * (model ? 1 : 0.7))),
@@ -336,7 +361,7 @@ export class EssayQuestionImportService {
           message: `${ESSAY_ANSWER_MODEL} generated this model answer because no matching answer was recovered from the PDF. Instructor review is required before publication.`,
         },
       ];
-      return { ...candidate, model_answer: answer, issues, status: 'NEEDS_REVIEW' as const };
+      return { ...candidate, model_answer: answer, answer_origin: 'AI' as const, issues, status: 'NEEDS_REVIEW' as const };
     });
   }
 
