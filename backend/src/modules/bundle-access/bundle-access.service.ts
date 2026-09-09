@@ -196,8 +196,8 @@ export class BundleAccessService {
           + ` WHERE bundle_course.course_id = deck.course_id`
           + ` AND ${buildActiveEnrollmentSql('enrollment', 'bundle')}`
           + ` AND (`
-          + `   (deck.lecture_id IS NOT NULL AND ${buildBundleWeekFallbackSql('bundle', 'week.id', 'deck.course_id')})`
-          + `   OR (deck.lecture_id IS NULL)`
+          + `   ((deck.week_id IS NOT NULL OR deck.lecture_id IS NOT NULL) AND ${buildBundleWeekFallbackSql('bundle', 'COALESCE(deck.week_id, lecture.week_id)', 'deck.course_id')})`
+          + `   OR (deck.week_id IS NULL AND deck.lecture_id IS NULL)`
           + ` )`
           + `)`,
           { studentId },
@@ -212,8 +212,8 @@ export class BundleAccessService {
           + ` WHERE bundle_course.course_id = deck.course_id`
           + ` AND ${buildActiveEnrollmentSql('enrollment', 'bundle')}`
           + ` AND (`
-          + `   (deck.lecture_id IS NOT NULL AND ${buildBundleWeekFallbackSql('bundle', 'lecture.week_id', 'deck.course_id')})`
-          + `   OR (deck.lecture_id IS NULL)`
+          + `   ((deck.week_id IS NOT NULL OR deck.lecture_id IS NOT NULL) AND ${buildBundleWeekFallbackSql('bundle', 'COALESCE(deck.week_id, lecture.week_id)', 'deck.course_id')})`
+          + `   OR (deck.week_id IS NULL AND deck.lecture_id IS NULL)`
           + ` )`
           + `)`,
           { studentId },
