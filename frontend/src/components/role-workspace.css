@@ -150,7 +150,17 @@
 }
 
 .role-lecture-top .role-status {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 88px;
   flex: 0 0 auto;
+  justify-self: end;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--p-teal) 24%, transparent);
+  padding: 6px 9px;
+  font: 800 10px/1 Arial, sans-serif !important;
+  letter-spacing: .025em !important;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
