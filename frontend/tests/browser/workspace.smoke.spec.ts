@@ -2,6 +2,13 @@ import { expect, Page, test } from '@playwright/test';
 
 const frontendOrigin = 'http://127.0.0.1:3001';
 
+function recentDate(daysAgo: number) {
+  const value = new Date();
+  value.setHours(12, 0, 0, 0);
+  value.setDate(value.getDate() - daysAgo);
+  return value.toISOString().slice(0, 10);
+}
+
 const student = {
   id: 'student-1',
   email: 'student@example.test',
@@ -55,13 +62,13 @@ const bundleContent = {
 const analytics = {
   summary: { questions_answered: 120, accuracy: 68, bookmarked: 4, calibrated_confidence: 61, flashcards_mastered: 33, flashcards_due: 7 },
   accuracy_over_time: [
-    { date: '2026-08-01', answered: 20, accuracy: 60 },
-    { date: '2026-08-02', answered: 30, accuracy: 72 },
+    { date: recentDate(1), answered: 20, accuracy: 60 },
+    { date: recentDate(0), answered: 30, accuracy: 72 },
   ],
   topic_mastery: [{ id: 'topic-1', name: 'Cardiac physiology', course: 'Medicine I', mastery: 54, confidence: 59, questions_attempted: 18 }],
   study_activity: [
-    { date: '2026-08-01', completed: 2, skipped: 1, planned: 3 },
-    { date: '2026-08-02', completed: 3, skipped: 0, planned: 3 },
+    { date: recentDate(1), completed: 2, skipped: 1, planned: 3 },
+    { date: recentDate(0), completed: 3, skipped: 0, planned: 3 },
   ],
   readiness: { score: 63, band: 'ON_TRACK', components: { accuracy: 68, curriculum: 55, flashcards: 70, consistency: 61 } },
 };
@@ -75,8 +82,10 @@ function apiEndpoint(requestUrl: string) {
 }
 
 function isMockedEndpoint(endpoint: string) {
-  return endpoint === '/auth/me'
+  return endpoint === '/auth/refresh'
+    || endpoint === '/auth/me'
     || endpoint === '/auth/security'
+    || endpoint === '/dashboard/student'
     || endpoint.startsWith('/notifications')
     || endpoint.startsWith('/users/')
     || endpoint.startsWith('/bundles')
@@ -86,7 +95,8 @@ function isMockedEndpoint(endpoint: string) {
 
 async function mockApi(page: Page) {
   await page.addInitScript(() => {
-    localStorage.setItem('mdp_access_token', 'browser-test-token');
+    localStorage.removeItem('mdp_logged_out_at');
+    localStorage.removeItem('mdp_access_token');
     localStorage.removeItem('mdp_refresh_token');
     localStorage.setItem('mdp-theme', 'light');
     localStorage.setItem('mdp-locale', 'en');
@@ -119,6 +129,7 @@ async function mockApi(page: Page) {
 
     const respond = async (body: unknown, status = 200) => route.fulfill({ status, headers, contentType: 'application/json', body: JSON.stringify(body) });
 
+    if (endpoint === '/auth/refresh') return respond({ access_token: 'browser-test-token', user: student });
     if (endpoint === '/auth/me') return respond(student);
     if (endpoint === '/auth/security') {
       return respond({
@@ -204,7 +215,7 @@ test('Bundle curriculum preserves hierarchy and canonical deep links', async ({ 
   await expectNoHorizontalOverflow(page);
 });
 
-test('Analytics counters and chart points expose real values to keyboard users', async ({ page }) => {
+test('Analytics counters and study-consistency chart expose real values to keyboard users', async ({ page }) => {
   await mockApi(page);
   await page.goto('/analytics');
   await expect(page.getByRole('heading', { name: 'Analytics Dashboard' })).toBeVisible();
@@ -215,7 +226,7 @@ test('Analytics counters and chart points expose real values to keyboard users',
   const chartPoint = page.locator('.chart-bar-point').first();
   await chartPoint.focus();
   await expect(chartPoint).toBeFocused();
-  await expect(chartPoint).toHaveAttribute('data-tooltip', /accuracy across 20 answered/);
+  await expect(chartPoint).toHaveAttribute('data-tooltip', /2 completed, 1 skipped, 3 planned/);
   await expectNoHorizontalOverflow(page);
 });
 

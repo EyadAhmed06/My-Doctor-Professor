@@ -13,7 +13,11 @@ const studentDashboard = {
     test_id: 'test-1', title: 'Week 1 Cardiovascular Review', total_marks: '20', passing_marks: '10',
   }],
   questions: { attempts: 8, correct_attempts: 6, accuracy: '75', bookmarked: 1 },
+  essay_cases: { solved: 2 },
   flashcards: { reviewed: 18, mastered: 9, due: 5 },
+  clinical_momentum: { study_streak: 4, study_minutes: 210, completed_sessions: 12, xp: 640, level: 3, level_progress: 48 },
+  weekly_activity: [{ date: '2026-08-06', questions: 8, essay_cases: 1, flashcards: 18, lectures: 1, plan_sessions: 2, total: 30 }],
+  topic_mastery: [{ id: 'topic-1', course_name: 'Cardiovascular Medicine', mastery: 68, questions_attempted: 8 }],
 };
 
 const course = {
@@ -40,7 +44,8 @@ function endpointOf(url: string) {
 
 async function installApi(page: Page, role: Role, theme: 'light' | 'dark') {
   await page.addInitScript(({ selectedTheme }) => {
-    localStorage.setItem('mdp_access_token', 'browser-audit-token');
+    localStorage.removeItem('mdp_logged_out_at');
+    localStorage.removeItem('mdp_access_token');
     localStorage.setItem('mdp-theme', selectedTheme);
   }, { selectedTheme: theme });
 
@@ -62,12 +67,14 @@ async function installApi(page: Page, role: Role, theme: 'light' | 'dark') {
       status, headers, contentType: 'application/json', body: JSON.stringify(body),
     });
 
-    if (endpoint === '/auth/me') return respond({
+    const authenticatedUser = {
       id: role === 'STUDENT' ? 'student-1' : 'instructor-1',
       email: `${role.toLowerCase()}@example.test`,
       full_name: role === 'STUDENT' ? 'Eyad Student' : 'Doctor Instructor',
       role, status: 'ACTIVE', emailVerified: true,
-    });
+    };
+    if (endpoint === '/auth/refresh') return respond({ access_token: 'browser-audit-token', user: authenticatedUser });
+    if (endpoint === '/auth/me') return respond(authenticatedUser);
     if (endpoint === '/notifications/unread/count') return respond({ count: 0 });
     if (endpoint.startsWith('/notifications')) return respond({ data: [] });
     if (endpoint === '/dashboard/student') return respond(studentDashboard);
@@ -181,3 +188,18 @@ for (const theme of ['light', 'dark'] as const) {
     await expectNoHorizontalOverflow(page);
   });
 }
+
+test('mobile workspace menu keeps essential tools reachable', async ({ page }) => {
+  test.skip((page.viewportSize()?.width || 1280) > 820, 'Mobile navigation contract');
+  await installApi(page, 'STUDENT', 'light');
+  await page.goto('/guidelines?course=course-1&lecture=lecture-1');
+  await expect(page.getByRole('heading', { name: 'Study Guides' })).toBeVisible();
+  await page.getByRole('button', { name: 'Open menu' }).click();
+  const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
+  await expect(navigation).toBeVisible();
+  await expect(navigation.getByRole('link', { name: /Notifications/ })).toBeVisible();
+  await expect(navigation.getByRole('button', { name: 'Help' })).toBeVisible();
+  await expect(navigation.getByRole('button', { name: 'Achievements' })).toBeVisible();
+  await expect(navigation.getByRole('button', { name: 'Progress' })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
