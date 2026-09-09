@@ -262,6 +262,13 @@ export class QuestionImportService {
         answer_key: Object.fromEntries(Array.from(parsedDocument.answerKey.entries()).map(([questionNumber, entry]) => [String(questionNumber), { answer: entry.label, page: entry.page }])),
         mapped_answers: candidates.filter((candidate) => candidate.answer_key_label).length,
         unmapped_question_numbers: candidates.filter((candidate) => !candidate.answer_key_label).map((candidate) => candidate.question_number),
+        question_answer_pairs: candidates.map((candidate) => ({
+          section: candidate.source_section,
+          question_number: candidate.question_number,
+          answer: candidate.answer_key_label,
+          question_page: candidate.source_page,
+          answer_page: candidate.answer_key_page,
+        })),
       },
       sections: Array.from(sectionCounts.entries()).map(([title, questions]) => ({ title, questions })),
       issues,
@@ -592,7 +599,13 @@ export class QuestionImportService {
     return {
       documentType,
       answerKey,
-      questions: sections.flatMap((section) => this.parseSectionQuestions(section, combined, answerKey)),
+      questions: sections.flatMap((section) => {
+        const scopedAnswerKey = new Map(answerKey);
+        for (const [number, entry] of this.extractAnswerKey(section.text)) {
+          scopedAnswerKey.set(number, entry);
+        }
+        return this.parseSectionQuestions(section, combined, scopedAnswerKey);
+      }),
     };
   }
 
