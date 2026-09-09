@@ -46,7 +46,6 @@ function buildContentSecurityPolicy({ wasm = false, extraConnect = "" } = {}) {
     "font-src 'self' data:",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
-    ...(process.env.NODE_ENV === "production" ? ["upgrade-insecure-requests"] : []),
   ].join("; ");
 }
 
