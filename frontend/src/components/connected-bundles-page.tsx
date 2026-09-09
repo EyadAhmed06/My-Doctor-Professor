@@ -554,7 +554,7 @@ function PlanPickerModal({
                     { name: "Mastercard", detail: "Card payment" },
                     { name: "Telda", detail: "Pay with Telda" },
                   ].map((method) => (
-                    <button className="bundle-plan-option" type="button" aria-disabled="true" title="Checkout flow will be connected later" key={method.name}>
+                    <button className="bundle-plan-option" type="button" disabled title="Checkout flow will be connected later" key={method.name}>
                       <span><b>{method.name}</b><small>{method.detail}</small></span>
                       <em>Preview</em>
                     </button>

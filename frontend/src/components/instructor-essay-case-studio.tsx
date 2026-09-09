@@ -266,10 +266,9 @@ export function InstructorEssayCaseStudio() {
               <div className="instructor-case-list">
                 {week.cases.map((item, itemIndex) => (
                   <div className="case-position" key={item.id}>
-                    <button
+                    <div
                       className="case-drop-zone"
-                      type="button"
-                      aria-label={`Move dragged case before ${item.title}`}
+                      aria-hidden="true"
                       onDragOver={(event) => event.preventDefault()}
                       onDrop={(event) => drop(event, week.id, itemIndex)}
                     />
@@ -345,15 +344,14 @@ export function InstructorEssayCaseStudio() {
                     </article>
                   </div>
                 ))}
-                <button
+                <div
                   className="case-drop-zone end"
-                  type="button"
-                  aria-label={`Move dragged case to the end of Week ${week.weekNumber}`}
+                  aria-hidden="true"
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={(event) => drop(event, week.id, week.cases.length)}
                 >
                   {draggingId ? "Drop at end of week" : ""}
-                </button>
+                </div>
               </div>
               <button
                 className="pp-button secondary"
