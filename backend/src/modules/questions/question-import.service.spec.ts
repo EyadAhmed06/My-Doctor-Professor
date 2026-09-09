@@ -65,7 +65,8 @@ BT
 (C. Right ventricle) Tj
 (D. Pulmonary trunk) Tj
 (E. Left ventricle) Tj
-(1) B 2) E) Tj
+(1) B) Tj
+(2) E) Tj
 ET
 endstream
 endobj
@@ -203,6 +204,13 @@ describe('QuestionImportService', () => {
     expect(result.candidates[0].options).toHaveLength(5);
     expect(result.candidates[0].options.find((option) => option.is_correct)?.label).toBe('B');
     expect(result.candidates[1].options.find((option) => option.is_correct)?.label).toBe('E');
+    expect(result.candidates.map((candidate) => candidate.question_number)).toEqual([1, 2]);
+    expect(result.parser.detected_document_type).toBe('MCQ');
+    expect(result.parser.answer_key).toEqual({
+      '1': expect.objectContaining({ answer: 'B' }),
+      '2': expect.objectContaining({ answer: 'E' }),
+    });
+    expect(result.parser.mapped_answers).toBe(2);
     expect(result.candidates[0].issues.some((issue) => issue.code === 'MISSING_EXPLANATION')).toBe(false);
     expect(result.candidates[0].issues).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: 'NO_SOURCE_EXPLANATION', severity: 'INFO' }),
