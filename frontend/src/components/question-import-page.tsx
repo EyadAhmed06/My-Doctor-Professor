@@ -44,7 +44,10 @@ type DuplicateMatch = {
 
 type Candidate = {
   candidate_id: string;
+  question_number?: number;
   source_page: number | null;
+  answer_key_label?: string | null;
+  answer_key_page?: number | null;
   question_text: string;
   options: Array<{ label: string; option_text: string; is_correct: boolean }>;
   explanation: string | null;
@@ -227,6 +230,8 @@ export function QuestionImportPage() {
   const [inspecting, setInspecting] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [candidateSearch, setCandidateSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | Candidate["status"]>("ALL");
 
   const loadCourses = useCallback(async () => {
     if (!user || user.role === "STUDENT") return;
@@ -389,7 +394,10 @@ export function QuestionImportPage() {
   function addManualCandidate() {
     const newCandidate: Candidate = recalculateCandidate({
       candidate_id: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      question_number: candidates.length + 1,
       source_page: null,
+      answer_key_label: null,
+      answer_key_page: null,
       question_text: "",
       options: [
         { label: "A", option_text: "", is_correct: true },
@@ -557,6 +565,32 @@ export function QuestionImportPage() {
   const exceptionCount = candidates.filter(
     (candidate) => candidate.status !== "VALID" || Boolean(candidate.duplicate),
   ).length;
+  const statusCounts = useMemo(() => ({
+    ALL: candidates.length,
+    VALID: candidates.filter((candidate) => candidate.status === "VALID").length,
+    NEEDS_REVIEW: candidates.filter((candidate) => candidate.status === "NEEDS_REVIEW").length,
+    INVALID: candidates.filter((candidate) => candidate.status === "INVALID").length,
+  }), [candidates]);
+  const visibleCandidates = useMemo(() => {
+    const query = candidateSearch.trim().toLowerCase();
+    return candidates
+      .map((candidate, index) => ({ candidate, index }))
+      .filter(({ candidate }) => {
+        if (statusFilter !== "ALL" && candidate.status !== statusFilter) return false;
+        if (!query) return true;
+        const correct = candidate.options.find((option) => option.is_correct);
+        return [
+          candidate.question_number,
+          candidate.question_text,
+          candidate.status,
+          candidate.answer_key_label,
+          correct?.label,
+          correct?.option_text,
+          ...candidate.options.map((option) => option.option_text),
+          ...candidate.issues.flatMap((issue) => [issue.code, issue.message]),
+        ].some((value) => String(value ?? "").toLowerCase().includes(query));
+      });
+  }, [candidateSearch, candidates, statusFilter]);
 
   if (authLoading || loading) {
     return (
@@ -759,23 +793,59 @@ export function QuestionImportPage() {
                   </div>
                 </div>
 
+                <div className="question-import-filterbar">
+                  <label className="question-import-search">
+                    <FiSearch />
+                    <input
+                      type="search"
+                      value={candidateSearch}
+                      onChange={(event) => setCandidateSearch(event.target.value)}
+                      placeholder="Search question number, text, option, answer, issue…"
+                      aria-label="Search inspected questions"
+                    />
+                  </label>
+                  <div className="question-import-status-filters" role="group" aria-label="Filter by review status">
+                    {([
+                      ["ALL", "All"],
+                      ["VALID", "Ready"],
+                      ["NEEDS_REVIEW", "Needs review"],
+                      ["INVALID", "Invalid"],
+                    ] as const).map(([value, label]) => (
+                      <button
+                        type="button"
+                        key={value}
+                        className={statusFilter === value ? "active" : ""}
+                        onClick={() => setStatusFilter(value)}
+                      >
+                        {label} <span>{statusCounts[value]}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="question-import-add-question-bar">
                   <button type="button" className="question-import-add-question-btn" onClick={addManualCandidate}>
                     <FiPlus /> Add MCQ question manually
                   </button>
                 </div>
 
-                {candidates.map((candidate, candidateIndex) => (
+                {visibleCandidates.length === 0 && (
+                  <div className="question-import-empty-filter">No questions match this search and status filter.</div>
+                )}
+                {visibleCandidates.map(({ candidate, index: candidateIndex }) => (
                   <article
                     className={`question-import-candidate ${candidate.approved ? "approved" : ""}`}
                     key={`${candidate.candidate_id}-${candidateIndex}`}
                   >
                     <header>
                       <div className="question-import-candidate-number">
-                        <span>{candidateIndex + 1}</span>
+                        <span>{candidate.question_number ?? candidateIndex + 1}</span>
                         <div>
-                          <strong>Question {candidateIndex + 1}</strong>
-                          <small>{candidate.source_page ? `Source page ${candidate.source_page}` : "Source page unresolved"}</small>
+                          <strong>Question {candidate.question_number ?? candidateIndex + 1}</strong>
+                          <small>
+                            {candidate.source_page ? `Question page ${candidate.source_page}` : "Question page unresolved"}
+                            {candidate.answer_key_label ? ` · Answer key ${candidate.question_number ?? candidateIndex + 1} → ${candidate.answer_key_label}${candidate.answer_key_page ? ` (page ${candidate.answer_key_page})` : ""}` : " · Answer key not mapped"}
+                          </small>
                         </div>
                       </div>
                       <div className="question-import-candidate-status">
