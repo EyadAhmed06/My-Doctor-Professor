@@ -5,7 +5,7 @@ import { ProtectedRoute } from "@/components/protected-route";
 
 export default function Page() {
   return (
-    <ProtectedRoute label="Verifying learning access">
+    <ProtectedRoute roles={["STUDENT", "INSTRUCTOR"]} label="Verifying bundle access">
       <BundleQuizAvailabilityGuard />
       <Suspense fallback={<div className="product-auth-loading">Loading bundles…</div>}>
         <AuthenticatedBundlesPage />

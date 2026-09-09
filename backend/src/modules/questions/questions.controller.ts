@@ -18,6 +18,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { AcademicAccessService } from '../academic/academic-access.service';
 import type { UploadedResourceFile } from '../academic/resource-storage.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { DeniedRoles } from '../auth/decorators/denied-roles.decorator';
 import { RateLimit } from '../auth/decorators/rate-limit.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -47,6 +48,7 @@ const PDF_INSPECTOR_CONTRACT_VERSION = 3;
 
 @Controller('questions')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@DeniedRoles(UserRole.SYSTEM_ADMIN)
 export class QuestionsController {
   constructor(
     private readonly questions: QuestionsService,

@@ -1,5 +1,5 @@
-import { AdvancedAssessmentsPage } from "@/components/advanced-assessments-page";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <AdvancedAssessmentsPage admin />;
+  redirect("/admin");
 }

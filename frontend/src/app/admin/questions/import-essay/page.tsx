@@ -1,5 +1,5 @@
-import { EssayQuestionImportPage } from "@/components/essay-question-import-page";
+import { redirect } from "next/navigation";
 
 export default function AdminEssayImportPage() {
-  return <EssayQuestionImportPage />;
+  redirect("/admin");
 }

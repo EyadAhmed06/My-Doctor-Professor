@@ -6,6 +6,7 @@ import { TestAttempt, TestAttemptStatus } from '../../common/entities/test-attem
 import { TestQuestion } from '../../common/entities/test-question.entity';
 import { TestType } from '../../common/entities/test.entity';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { DeniedRoles } from '../auth/decorators/denied-roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
@@ -18,6 +19,7 @@ const PRACTICE_QUESTION_COUNT = 40;
 
 @Controller('test-launch')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@DeniedRoles(UserRole.SYSTEM_ADMIN)
 export class TestLaunchController {
   constructor(
     private readonly tests: TestsService,

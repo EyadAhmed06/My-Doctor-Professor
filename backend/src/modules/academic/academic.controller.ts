@@ -17,6 +17,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { DeniedRoles } from '../auth/decorators/denied-roles.decorator';
 import { RateLimit } from '../auth/decorators/rate-limit.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -46,6 +47,7 @@ const uuid = new ParseUUIDPipe({ version: '4' });
 
 @Controller('academic')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@DeniedRoles(UserRole.SYSTEM_ADMIN)
 export class AcademicController {
   constructor(
     private readonly academic: AcademicService,

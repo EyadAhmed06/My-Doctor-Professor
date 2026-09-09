@@ -13,6 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { DeniedRoles } from '../auth/decorators/denied-roles.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -52,6 +53,7 @@ export class PublicBundlesController {
 
 @Controller('bundles')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@DeniedRoles(UserRole.SYSTEM_ADMIN)
 export class BundlesController {
   constructor(private readonly bundles: BundlesService) {}
 

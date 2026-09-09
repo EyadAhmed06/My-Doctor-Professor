@@ -73,13 +73,9 @@ const instructorNav: NavItem[] = [
 const adminNav: NavItem[] = [
   { label: "Overview", href: "/admin" },
   { label: "Users", href: "/admin/users" },
-  { label: "Academics", href: "/admin/academics" },
-  { label: "Resources", href: "/resources/upload" },
-  { label: "Questions", href: "/admin/questions" },
-  { label: "Assessments", href: "/admin/assessments" },
-  { label: "Flashcards", href: "/admin/flashcards" },
-  { label: "Bundles", href: "/bundles" },
   { label: "Audit", href: "/admin/audit" },
+  { label: "Notifications", href: "/notifications" },
+  { label: "Settings", href: "/settings" },
 ];
 
 function navigationFor(role: UserRole): NavItem[] {
@@ -326,8 +322,8 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
       <nav id="product-navigation" className={open ? "open" : ""} aria-label={translate("Primary navigation")}>
         <button className="pp-nav-close" type="button" onClick={() => setOpen(false)} aria-label={translate("Close menu")}><FiX /></button>
         {nav.map(item => <Link key={item.href} prefetch={true} className={isNavActive(path, item.href) ? "active" : ""} href={item.href} onClick={() => { if (open) setOpen(false); }}>{translate(item.label)}</Link>)}
-        <Link className={`pp-mobile-nav-link${path.startsWith("/notifications") ? " active" : ""}`} href="/notifications" prefetch={true} onClick={() => setOpen(false)}><FiBell />{translate("Notifications")}{unread > 0 && <span>{unread > 99 ? "99+" : unread}</span>}</Link>
-        <Link href="/settings" prefetch={true} className={path.startsWith("/settings") ? "active" : ""} onClick={() => { if (open) setOpen(false); }}>{translate("Settings")}</Link>
+        {!nav.some(item => item.href === "/notifications") && <Link className={`pp-mobile-nav-link${path.startsWith("/notifications") ? " active" : ""}`} href="/notifications" prefetch={true} onClick={() => setOpen(false)}><FiBell />{translate("Notifications")}{unread > 0 && <span>{unread > 99 ? "99+" : unread}</span>}</Link>}
+        {!nav.some(item => item.href === "/settings") && <Link href="/settings" prefetch={true} className={path.startsWith("/settings") ? "active" : ""} onClick={() => { if (open) setOpen(false); }}>{translate("Settings")}</Link>}
         <div className="pp-mobile-tools" aria-label={translate("Workspace tools")}>
           <button type="button" onClick={() => { setOpen(false); setHelpOpen(true); setAchievementsOpen(false); setProgressOpen(false); }}>{translate("Help")}</button>
           <button type="button" onClick={() => { setOpen(false); setAchievementsOpen(true); setHelpOpen(false); setProgressOpen(false); }}>{translate("Achievements")}</button>

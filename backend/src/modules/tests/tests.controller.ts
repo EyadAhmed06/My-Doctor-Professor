@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { DeniedRoles } from '../auth/decorators/denied-roles.decorator';
 import { RateLimit } from '../auth/decorators/rate-limit.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -20,6 +21,7 @@ const uuid = new ParseUUIDPipe();
 
 @Controller('tests')
 @UseGuards(JwtAuthGuard,RolesGuard)
+@DeniedRoles(UserRole.SYSTEM_ADMIN)
 export class TestsController {
  constructor(
   private readonly tests:TestsService,

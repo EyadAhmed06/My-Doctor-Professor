@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { DeniedRoles } from '../auth/decorators/denied-roles.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -13,6 +14,7 @@ const uuid=new ParseUUIDPipe({version:'4'});
 
 @Controller('flashcards')
 @UseGuards(JwtAuthGuard,RolesGuard)
+@DeniedRoles(UserRole.SYSTEM_ADMIN)
 export class FlashcardsController {
  constructor(
   private readonly flashcards:FlashcardsService,

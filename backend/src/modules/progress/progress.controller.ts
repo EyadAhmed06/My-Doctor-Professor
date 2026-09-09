@@ -44,11 +44,11 @@ export class ProgressController {
  @Get('dashboard/admin') @Roles(UserRole.SYSTEM_ADMIN)
  adminDashboard(){return this.progress.adminDashboard();}
 
- @Get('analytics/questions') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
+ @Get('analytics/questions') @Roles(UserRole.INSTRUCTOR)
  questionAnalytics(@Query() query:AnalyticsQueryDto,@CurrentUser() actor:AuthenticatedUser){return this.progress.questionAnalytics(actor,query);}
- @Get('analytics/tests') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
+ @Get('analytics/tests') @Roles(UserRole.INSTRUCTOR)
  testAnalytics(@Query() query:AnalyticsQueryDto,@CurrentUser() actor:AuthenticatedUser){return this.progress.testAnalytics(actor,query);}
- @Get('analytics/performance') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
+ @Get('analytics/performance') @Roles(UserRole.INSTRUCTOR)
  performanceAnalytics(@Query() query:AnalyticsQueryDto,@CurrentUser() actor:AuthenticatedUser){return this.progress.performanceAnalytics(actor,query);}
  @Get('analytics/student') @Roles(UserRole.STUDENT)
  studentAnalytics(@CurrentUser() actor:AuthenticatedUser,@Query() query:AnalyticsQueryDto){return this.progress.studentAnalytics(actor.userId,query);}

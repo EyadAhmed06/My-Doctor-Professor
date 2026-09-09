@@ -136,7 +136,7 @@ export class WorkspaceController {
   }
 
   @Post('notebook/notes/:noteId/flashcard')
-  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  @Roles(UserRole.INSTRUCTOR)
   convertToFlashcard(
     @CurrentUser() actor: AuthenticatedUser,
     @Param('noteId', uuid) id: string,
@@ -243,13 +243,13 @@ export class WorkspaceController {
   }
 
   @Post('drug-references')
-  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  @Roles(UserRole.INSTRUCTOR)
   createDrug(@CurrentUser() actor: AuthenticatedUser, @Body() dto: SaveDrugReferenceDto) {
     return this.workspace.createDrug(actor, dto);
   }
 
   @Put('drug-references/:drugId')
-  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  @Roles(UserRole.INSTRUCTOR)
   updateDrug(
     @CurrentUser() actor: AuthenticatedUser,
     @Param('drugId', uuid) id: string,

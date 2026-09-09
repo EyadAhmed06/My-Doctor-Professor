@@ -1,5 +1,5 @@
-import { AdminAcademicsPage } from "@/components/management-workspaces";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <AdminAcademicsPage />;
+  redirect("/admin");
 }

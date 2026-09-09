@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FiActivity,
   FiAward,
+  FiBell,
   FiBookOpen,
   FiCheck,
   FiChevronRight,
@@ -49,7 +50,7 @@ const roleDock: Record<UserRole, DockItem[]> = {
   SYSTEM_ADMIN: [
     { label: "Home", href: "/admin", Icon: FiHome },
     { label: "Users", href: "/admin/users", Icon: FiUsers },
-    { label: "Academics", href: "/admin/academics", Icon: FiBookOpen },
+    { label: "Notifications", href: "/notifications", Icon: FiBell },
     { label: "Audit", href: "/admin/audit", Icon: FiShield },
   ],
 };
@@ -177,11 +178,11 @@ export function AchievementDrawer({ open, onClose }: { open: boolean; onClose: (
 function coachSteps(role: UserRole, stats: RoleStats): CoachStep[] {
   const value = (key: string) => Number(stats[key] || 0);
   if (role === "SYSTEM_ADMIN") return [
-    { id: "accounts", label: "Establish the team", description: "Create the student, instructor, and administrative accounts needed to operate.", href: "/admin/users", complete: value("users") >= 3 },
-    { id: "academics", label: "Build academic structure", description: "Create at least one active course and its hierarchy.", href: "/admin/academics", complete: value("courses") > 0 },
-    { id: "questions", label: "Create assessment content", description: "Add reviewed questions to the shared bank.", href: "/admin/questions", complete: value("questions") > 0 },
-    { id: "tests", label: "Publish delivery", description: "Create the first assessment students can eventually take.", href: "/admin/assessments", complete: value("tests") > 0 },
-    { id: "evidence", label: "Close the operating loop", description: "Reach real student attempts and preserve governance evidence.", href: "/admin/audit", complete: value("attempts") > 0 },
+    { id: "overview", label: "Review platform status", description: "Check the operational totals and account health signals.", href: "/admin", complete: true },
+    { id: "accounts", label: "Maintain user access", description: "Create accounts, manage roles, and resolve access issues.", href: "/admin/users", complete: value("users") >= 3 },
+    { id: "notifications", label: "Review notifications", description: "Read operational alerts and account updates.", href: "/notifications", complete: false },
+    { id: "evidence", label: "Inspect audit evidence", description: "Review privileged actions and governance events.", href: "/admin/audit", complete: false },
+    { id: "settings", label: "Confirm administrator settings", description: "Keep identity, security, language, and appearance current.", href: "/settings", complete: false },
   ];
   return [
     { id: "questions", label: "Create reusable questions", description: "Write the first reviewed question in the correct topic.", href: "/instructor/questions", complete: value("questions") > 0 },

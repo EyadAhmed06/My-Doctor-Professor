@@ -37,7 +37,7 @@ type Command = {
 };
 
 const commands: Command[] = [
-  { label: "Open bundles", description: "Browse enrolled or managed learning bundles", href: "/bundles", icon: FiLayers, keywords: ["courses", "curriculum", "bundle"] },
+  { label: "Open bundles", description: "Browse enrolled or managed learning bundles", href: "/bundles", icon: FiLayers, keywords: ["courses", "curriculum", "bundle"], roles: ["STUDENT", "INSTRUCTOR"] },
   { label: "Studio (Hard questions)", description: "Review questions marked as hard during quizzes", href: "/studio", icon: FiStar, keywords: ["studio", "hard", "flagged", "questions", "quiz", "review"], roles: ["STUDENT"] },
   { label: "Review flashcards", description: "Continue the due spaced-repetition queue", href: "/flashcards", icon: FiBookOpen, keywords: ["cards", "review", "spaced repetition"], roles: ["STUDENT"] },
   { label: "Open notebook", description: "Browse explanations, pearls, and personal notes", href: "/notebook", icon: FiFileText, keywords: ["notes", "pearls", "cases"] },
@@ -47,17 +47,13 @@ const commands: Command[] = [
   { label: "Open study plan", description: "Review or regenerate your learning calendar", href: "/study-plan", icon: FiCalendar, keywords: ["schedule", "exam", "calendar"], roles: ["STUDENT"] },
   { label: "Instructor overview", description: "Open the teaching control center", href: "/instructor", icon: FiBarChart2, keywords: ["dashboard", "teaching"], roles: ["INSTRUCTOR"] },
   { label: "Course studio", description: "Build weeks, lectures, topics, and published curriculum", href: "/instructor/courses", icon: FiBookOpen, keywords: ["academic", "lecture", "topic"], roles: ["INSTRUCTOR"] },
-  { label: "Upload lecture resources", description: "Upload verified PDFs, images, and videos to draft lectures", href: "/resources/upload", icon: FiUploadCloud, keywords: ["resource", "upload", "pdf", "video", "image"], roles: ["INSTRUCTOR", "SYSTEM_ADMIN"] },
+  { label: "Upload lecture resources", description: "Upload verified PDFs, images, and videos to draft lectures", href: "/resources/upload", icon: FiUploadCloud, keywords: ["resource", "upload", "pdf", "video", "image"], roles: ["INSTRUCTOR"] },
   { label: "Instructor question bank", description: "Create MCQ and essay questions", href: "/instructor/questions", icon: FiEdit3, keywords: ["questions", "mcq", "essay"], roles: ["INSTRUCTOR"] },
   { label: "Assessment builder", description: "Create, assemble, and publish assessments", href: "/instructor/assessments", icon: FiClipboard, keywords: ["tests", "quizzes", "attempts"], roles: ["INSTRUCTOR"] },
   { label: "Essay grading", description: "Review attempts and grade submitted essays", href: "/instructor/grading", icon: FiCheckCircle, keywords: ["grade", "feedback", "answers"], roles: ["INSTRUCTOR"] },
   { label: "Instructor flashcard studio", description: "Create and publish teaching decks", href: "/instructor/flashcards", icon: FiLayers, keywords: ["cards", "decks", "publish"], roles: ["INSTRUCTOR"] },
   { label: "Admin overview", description: "Open the platform control center", href: "/admin", icon: FiShield, keywords: ["dashboard", "system"], roles: ["SYSTEM_ADMIN"] },
   { label: "Manage users", description: "Create accounts and control platform access", href: "/admin/users", icon: FiUsers, keywords: ["students", "instructors", "roles", "status"], roles: ["SYSTEM_ADMIN"] },
-  { label: "Manage academic structure", description: "Create semesters, courses, and instructor assignments", href: "/admin/academics", icon: FiBookOpen, keywords: ["semester", "course", "lecture"], roles: ["SYSTEM_ADMIN"] },
-  { label: "Admin question bank", description: "Moderate platform questions", href: "/admin/questions", icon: FiEdit3, keywords: ["content", "mcq", "essay"], roles: ["SYSTEM_ADMIN"] },
-  { label: "Admin assessments", description: "Manage and publish platform assessments", href: "/admin/assessments", icon: FiClipboard, keywords: ["tests", "attempts"], roles: ["SYSTEM_ADMIN"] },
-  { label: "Admin flashcard studio", description: "Manage teaching decks and cards", href: "/admin/flashcards", icon: FiLayers, keywords: ["decks", "cards"], roles: ["SYSTEM_ADMIN"] },
   { label: "Audit trail", description: "Inspect privileged platform events", href: "/admin/audit", icon: FiShield, keywords: ["logs", "governance", "security"], roles: ["SYSTEM_ADMIN"] },
   { label: "Open notifications", description: "Read your notification inbox", href: "/notifications", icon: FiBell, keywords: ["inbox", "alerts", "updates"] },
   { label: "Open settings", description: "Manage identity, sessions, language, and appearance", href: "/settings", icon: FiSettings, keywords: ["profile", "password", "theme", "language", "sessions"] },

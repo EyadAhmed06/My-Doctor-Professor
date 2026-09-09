@@ -1,5 +1,5 @@
-import { QuestionImportPage } from "@/components/question-import-page";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <QuestionImportPage />;
+  redirect("/admin");
 }

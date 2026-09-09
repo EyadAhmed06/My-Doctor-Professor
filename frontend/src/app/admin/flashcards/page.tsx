@@ -1,5 +1,5 @@
-import { FlashcardStudioPage } from "@/components/flashcard-studio-page";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <FlashcardStudioPage admin />;
+  redirect("/admin");
 }

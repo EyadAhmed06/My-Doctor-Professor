@@ -45,13 +45,13 @@ export class SubscriptionsController {
   }
 
   @Get('bundles/:bundleId/allowed-plans')
-  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  @Roles(UserRole.INSTRUCTOR)
   getAllowedPlans(@Param('bundleId', uuid) bundleId: string) {
     return this.subscriptions.allowedPlansFor(bundleId);
   }
 
   @Put('bundles/:bundleId/allowed-plans')
-  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  @Roles(UserRole.INSTRUCTOR)
   setAllowedPlans(
     @Param('bundleId', uuid) bundleId: string,
     @CurrentUser() actor: AuthenticatedUser,

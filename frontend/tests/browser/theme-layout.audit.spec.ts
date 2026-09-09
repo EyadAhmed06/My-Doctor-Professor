@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-type Role = 'STUDENT' | 'INSTRUCTOR';
+type Role = 'STUDENT' | 'INSTRUCTOR' | 'SYSTEM_ADMIN';
 
 const studentDashboard = {
   courses: [{
@@ -57,7 +57,7 @@ async function installApi(page: Page, role: Role, theme: 'light' | 'dark') {
 
     const endpoint = endpointOf(request.url());
     const headers = {
-      'access-control-allow-origin': 'http://127.0.0.1:3001',
+      'access-control-allow-origin': request.headers()['origin'] || 'http://127.0.0.1:3001',
       'access-control-allow-credentials': 'true',
       'access-control-allow-headers': 'authorization,content-type',
       'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
@@ -68,9 +68,9 @@ async function installApi(page: Page, role: Role, theme: 'light' | 'dark') {
     });
 
     const authenticatedUser = {
-      id: role === 'STUDENT' ? 'student-1' : 'instructor-1',
+      id: role === 'STUDENT' ? 'student-1' : role === 'INSTRUCTOR' ? 'instructor-1' : 'admin-1',
       email: `${role.toLowerCase()}@example.test`,
-      full_name: role === 'STUDENT' ? 'Eyad Student' : 'Doctor Instructor',
+      full_name: role === 'STUDENT' ? 'Eyad Student' : role === 'INSTRUCTOR' ? 'Doctor Instructor' : 'System Administrator',
       role, status: 'ACTIVE', emailVerified: true,
     };
     if (endpoint === '/auth/refresh') return respond({ access_token: 'browser-audit-token', user: authenticatedUser });
@@ -82,6 +82,7 @@ async function installApi(page: Page, role: Role, theme: 'light' | 'dark') {
       questions: 10, tests: 1, decks: 2, attempts: 1, students: 12,
       average_score: '75', pending_essay_answers: 0,
     });
+    if (endpoint === '/dashboard/admin') return respond({ users: 30, active_users: 28, audit_events: 120 });
     if (endpoint.startsWith('/notebook/notes')) return respond({ data: [] });
     if (endpoint === '/study-plan/calendar') return respond({
       from: '2026-08-07', to: '2026-08-13',
@@ -202,4 +203,31 @@ test('mobile workspace menu keeps essential tools reachable', async ({ page }) =
   await expect(navigation.getByRole('button', { name: 'Achievements' })).toBeVisible();
   await expect(navigation.getByRole('button', { name: 'Progress' })).toBeVisible();
   await expectNoHorizontalOverflow(page);
+});
+
+test('administrator navigation is limited to operational tools', async ({ page }) => {
+  await installApi(page, 'SYSTEM_ADMIN', 'light');
+  await page.goto('/admin');
+  const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
+  for (const label of ['Overview', 'Users', 'Audit', 'Notifications', 'Settings']) {
+    await expect(navigation.getByRole('link', { name: label, exact: true })).toBeVisible();
+  }
+  for (const label of ['Academics', 'Resources', 'Questions', 'Assessments', 'Flashcards', 'Bundles']) {
+    await expect(navigation.getByRole('link', { name: label, exact: true })).toHaveCount(0);
+  }
+  await expect(page.getByRole('link', { name: 'User administration' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Audit trail' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Academic structure' })).toHaveCount(0);
+
+  for (const restrictedPath of [
+    '/admin/academics',
+    '/admin/questions',
+    '/admin/assessments',
+    '/admin/flashcards',
+    '/bundles',
+    '/resources/upload',
+  ]) {
+    await page.goto(restrictedPath);
+    await expect(page).toHaveURL(/\/admin$/);
+  }
 });
