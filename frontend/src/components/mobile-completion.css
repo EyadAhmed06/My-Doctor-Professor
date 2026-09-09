@@ -5,6 +5,7 @@ html,body{max-width:100%;overflow-x:hidden}
 .product-app img,.product-app video,.product-app iframe,.product-app canvas,.product-app svg{max-width:100%}
 .product-app table{max-width:100%}
 .pp-panel,.dash-card,.role-detail,.role-master-list,.role-stack-row,.guide-resource-card{min-width:0}
+.pp-mobile-nav-link,.pp-mobile-tools{display:none}
 
 @media(max-width:1180px){
   .pp-topbar{height:64px;padding-inline:16px;gap:12px}
@@ -14,6 +15,10 @@ html,body{max-width:100%;overflow-x:hidden}
   html[dir="rtl"] .pp-topbar>nav{left:auto;right:0;border-inline-end:0;border-inline-start:1px solid var(--p-line);transform:translateX(105%)}
   html[dir="rtl"] .pp-topbar>nav.open{transform:translateX(0)}
   .pp-topbar>nav a{min-height:46px;padding:0 14px;border:0;border-radius:10px;font-size:14px;flex:none}
+  .pp-topbar>nav .pp-mobile-nav-link{display:flex;align-items:center;gap:10px}
+  .pp-mobile-nav-link>span{margin-inline-start:auto;min-width:24px;padding:3px 6px;border-radius:999px;background:var(--p-teal);color:#fff;text-align:center;font-size:11px}
+  .pp-mobile-tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px;padding-top:14px;border-top:1px solid var(--p-line)}
+  .pp-mobile-tools button{min-width:0;min-height:44px;padding:8px;border:1px solid var(--p-line);border-radius:10px;background:var(--p-panel2);color:var(--p-text);font-size:12px;font-weight:700;cursor:pointer}
   .pp-topbar>nav a.active{border:0}
   .pp-nav-close{display:grid;place-items:center;position:absolute;top:14px;right:14px;width:40px;height:40px;border:1px solid var(--p-line);border-radius:10px;background:var(--p-panel2);cursor:pointer}
   html[dir="rtl"] .pp-nav-close{right:auto;left:14px}
@@ -65,6 +70,9 @@ html,body{max-width:100%;overflow-x:hidden}
 
   .dashboard-welcome-actions{flex-direction:column!important;align-items:stretch!important}
   .dashboard-welcome-actions>.pp-button{align-self:flex-start}
+  .dashboard-embedded .welcome{position:static!important;width:100%!important;margin:0 0 14px!important;padding:0!important}
+  .dashboard-embedded .momentum-card{margin-left:0!important}
+  .dashboard-embedded .dashboard-embedded-content{padding:14px 12px 88px!important}
   .momentum-card .metrics{grid-template-columns:1fr 1fr!important;gap:10px!important}
   .momentum-card .metric{min-height:132px!important}
   .main-grid{gap:12px!important}
@@ -95,6 +103,29 @@ html,body{max-width:100%;overflow-x:hidden}
   .question-order-actions{grid-column:3!important;justify-content:flex-end}
   .assessment-student-preview>ol{padding-inline-start:20px!important}
 
+  .assessment-tabs,.bundle-tabs{display:flex!important;max-width:100%;overflow-x:auto!important;overscroll-behavior-inline:contain;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+  .assessment-tabs button,.bundle-tabs button{flex:none;min-height:44px;scroll-snap-align:start}
+  .assessment-reference-page .question-bank-layout,.real-exams-layout{grid-template-columns:1fr!important}
+  .assessment-reference-page .academic-filter,.real-exams-layout>.panel{position:static!important;max-height:none!important}
+  .bundle-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .bundle-row{min-height:58px}
+
+  .flashcards-simplified .flashcards-main-header,.flashcard-queue-heading,.review-heading{align-items:flex-start!important;flex-direction:column!important}
+  .flashcards-simplified .flashcards-header-actions,.flashcards-simplified .flashcard-queue-actions,.flashcards-simplified .flashcard-session-toolbar{width:100%}
+  .flashcards-simplified .flashcard-session-toolbar button{flex:1 1 130px;justify-content:center}
+  .flashcards-review-layout,.flashcards-simplified .review-workspace{min-width:0}
+
+  .simple-notebook-main-head{align-items:flex-start;flex-direction:column}
+  .simple-notebook-main-head small{white-space:normal}
+  .simple-note-editor-footer{padding:12px}
+
+  .advanced-study-plan-page .study-calendar.phase3-calendar{grid-template-columns:1fr!important}
+  .advanced-study-plan-page .session-controls>button,.advanced-study-plan-page .session-controls>label{min-height:44px!important;height:auto!important}
+  .advanced-study-plan-page .session-controls input,.advanced-study-plan-page .session-controls select{min-height:38px!important;font-size:16px!important}
+  .advanced-study-plan-page .session-main b{font-size:14px!important}
+  .advanced-study-plan-page .session-main small,.advanced-study-plan-page .session-rationale summary,.advanced-study-plan-page .session-rationale p{font-size:12px!important}
+  .plan-target-form input,.plan-target-form select{min-height:44px;font-size:16px}
+
   .resource-upload-layout{display:block!important}
   .resource-upload-layout>.pp-panel{margin-bottom:14px}
   .resource-managed-list article{grid-template-columns:auto minmax(0,1fr) auto!important}
@@ -104,6 +135,17 @@ html,body{max-width:100%;overflow-x:hidden}
   .settings-profile-form .wide{grid-column:auto!important}
   .settings-security-actions{justify-content:stretch!important}
   .settings-security-actions .pp-button{width:100%}
+
+  .role-table-scroll,.admin-import-preview{width:100%;max-width:100%;overflow-x:auto!important;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch}
+  .role-table-scroll{border-radius:10px}
+  .role-filter-panel,.role-filters,.audit-filter-grid{min-width:0}
+  .role-course-list,.builder-decks,.deck-management,.plan-dashboard>aside{position:static!important;top:auto!important}
+  .role-modal-backdrop{padding:8px!important}
+  .role-modal{width:100%!important;max-width:min(100%,860px)!important;max-height:calc(100dvh - 16px)!important}
+  .instructor-tool-tabs{display:flex;max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch}
+  .instructor-tool-tabs a{flex:none;min-height:44px;display:flex;align-items:center}
+  .instructor-case-list article{align-items:flex-start;flex-wrap:wrap}
+  .case-actions{width:100%;justify-content:flex-start}
 
   .calendar-head,.calendar-grid{min-width:650px}
   .calendar{overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -118,7 +160,11 @@ html,body{max-width:100%;overflow-x:hidden}
   .product-app{padding-bottom:70px}
 
   button,a,input,select,textarea{touch-action:manipulation}
-  .product-app button,.product-app a[role="button"],.product-app input,.product-app select{min-height:42px}
+  .product-app button,.product-app a[role="button"],.product-app input,.product-app select{min-height:44px}
+  .product-app input:not([type="checkbox"]):not([type="radio"]),.product-app select,.product-app textarea{font-size:16px}
+  .product-app .pp-page label{font-size:14px;line-height:1.4}
+  .product-app .pp-page p{font-size:max(14px,1em)}
+  .role-modal,.editor-modal,.phase5-drawer,.command-palette{max-height:calc(100dvh - 16px)}
 }
 
 @media(max-width:560px){
@@ -128,7 +174,8 @@ html,body{max-width:100%;overflow-x:hidden}
   .pp-menu{width:38px;height:38px}
   .pp-search-command{max-width:none;min-width:44px;flex:1}
   .pp-search-command span{font-size:12px}
-  .phase5-header-action{display:none!important}
+  .product-app .pp-profile .phase5-header-action:not(.mobile-header-notifications){display:none!important}
+  .product-app .pp-profile>.global-theme-toggle,.product-app .student-progress-anchor{display:none!important}
   .profile-menu-trigger>svg{display:none}
   .avatar-fallback{width:34px!important;height:34px!important}
   .pp-page{padding:12px 10px 82px}
@@ -140,6 +187,8 @@ html,body{max-width:100%;overflow-x:hidden}
   .momentum-card .metric{min-height:112px!important}
   .welcome h1{font-size:clamp(30px,10vw,44px)!important}
   .welcome strong{font-size:14px!important}
+  .dashboard-embedded .activity-card{height:auto!important;min-height:220px}
+  .dashboard-embedded .bar-chart{min-width:0;padding-inline:10px!important}
   .workspace-resume-strip{grid-template-columns:auto minmax(0,1fr) auto!important;gap:10px!important;padding:12px!important}
   .workspace-resume-action{grid-column:2!important;justify-self:start}
   .workspace-resume-dismiss{grid-column:3;grid-row:1}
@@ -150,6 +199,55 @@ html,body{max-width:100%;overflow-x:hidden}
   .drag-handle{display:none}
   .question-order-actions{grid-column:2!important}
   .assessment-bulk-bar,.attempt-filters{display:grid!important;grid-template-columns:1fr!important}
+  .assessment-summary{grid-template-columns:1fr!important}
+  .assessment-summary>div{border-left:0!important;border-top:1px solid var(--p-line,var(--line))}
+  .assessment-summary>div:first-child{border-top:0}
+  .bank-heading>div:last-child{width:100%}
+  .limit-options button{min-height:44px}
+
+  .bundle-summary-grid{grid-template-columns:1fr!important}
+  .bundle-row{align-items:flex-start;flex-wrap:wrap}
+  .bundle-row>span{min-width:calc(100% - 40px)}
+  .bundle-row>.pp-button,.bundle-row>a:last-child,.bundle-row>button:last-child{width:100%;justify-content:center}
+
+  .flashcards-simplified .flashcard-queue-actions{display:grid!important;grid-template-columns:1fr!important}
+  .flashcards-simplified .flashcard-queue-actions .pp-button{width:100%}
+  .review-heading>div:last-child{width:100%}
+  .study-card,.card-face{min-height:340px!important}
+  .card-face,.card-answer{padding:22px 16px!important}
+  .card-face h2{font-size:21px!important;line-height:1.35!important}
+  .review-rating{grid-template-columns:1fr 1fr!important}
+  .review-rating button{min-height:58px}
+
+  .simple-notebook-main{padding:12px}
+  .simple-note-row{gap:10px;padding:15px 4px}
+  .simple-note-editor-footer,.simple-note-collection{align-items:stretch;width:100%}
+  .simple-note-collection{display:grid;grid-template-columns:1fr}
+  .simple-note-collection select,.simple-note-new-collection-button,.simple-note-attachment-button{width:100%;min-width:0;justify-content:center}
+  .simple-note-editor-status{white-space:normal}
+
+  .advanced-study-plan-page .study-calendar.phase3-calendar>article{padding:11px!important}
+  .advanced-study-plan-page .session-controls{grid-template-columns:44px minmax(0,1fr)!important}
+  .advanced-study-plan-page .session-controls>label:last-child{grid-column:1/-1!important}
+  .day-detail-drawer{width:100%!important;padding:16px 14px calc(20px + env(safe-area-inset-bottom))!important}
+  .plan-metrics{grid-template-columns:1fr!important}
+  .plan-metric{min-height:72px}
+
+  .role-metric-grid,.role-command-grid,.role-content-grid{grid-template-columns:1fr!important}
+  .role-filters,.audit-filter-grid,.card-editor-meta{grid-template-columns:1fr!important}
+  .role-filters label:first-child{grid-column:auto!important}
+  .role-heading-actions,.editor-actions,.case-actions,.admin-import-workspace>footer,.role-form footer{display:grid!important;grid-template-columns:1fr!important;width:100%}
+  .role-heading-actions .pp-button,.editor-actions .pp-button,.case-actions button,.admin-import-workspace>footer button,.role-form footer button{width:100%;justify-content:center}
+  .role-row-actions button,.role-icon-button,.instructor-case-list article button{min-width:44px!important;min-height:44px!important}
+  .role-workspace small,.advanced-admin-users small,.advanced-admin-audit small,.instructor-flashcards small{font-size:12px;line-height:1.4}
+  .role-status{font-size:11px!important}
+  .role-table{min-width:760px}
+  .admin-import-drop{padding:16px 12px}
+  .admin-pagination{grid-template-columns:1fr!important}
+  .admin-pagination>span,.admin-pagination>b{grid-column:auto!important}
+  .case-drag-handle{display:none}
+  .case-summary{min-width:100%}
+  .case-actions{padding-left:0!important}
 
   .resource-managed-list article{grid-template-columns:auto minmax(0,1fr)!important}
   .resource-managed-list article>.danger{grid-column:2;justify-self:end}
@@ -175,6 +273,7 @@ html,body{max-width:100%;overflow-x:hidden}
   .featured-note,.featured-quiz{grid-template-columns:1fr!important}
   .image-placeholders{grid-template-columns:1fr!important}
   .day-hours{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .pp-mobile-tools{grid-template-columns:1fr}
 }
 
 @media(max-width:380px){
