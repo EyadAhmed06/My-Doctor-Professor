@@ -17,8 +17,10 @@ html,body{max-width:100%;overflow-x:hidden}
   .pp-topbar>nav a{min-height:46px;padding:0 14px;border:0;border-radius:10px;font-size:14px;flex:none}
   .pp-topbar>nav .pp-mobile-nav-link{display:flex;align-items:center;gap:10px}
   .pp-mobile-nav-link>span{margin-inline-start:auto;min-width:24px;padding:3px 6px;border-radius:999px;background:var(--p-teal);color:#fff;text-align:center;font-size:11px}
-  .pp-mobile-tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px;padding-top:14px;border-top:1px solid var(--p-line)}
-  .pp-mobile-tools button{min-width:0;min-height:44px;padding:8px;border:1px solid var(--p-line);border-radius:10px;background:var(--p-panel2);color:var(--p-text);font-size:12px;font-weight:700;cursor:pointer}
+  .pp-mobile-tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px;padding-top:14px;border-top:1px solid var(--p-line)}
+  .pp-mobile-tools button{min-width:0;min-height:44px;height:44px;padding:8px 10px;border:1px solid var(--p-line);border-radius:10px;background:var(--p-panel2);color:var(--p-text);font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1;box-sizing:border-box;transition:background .15s ease,border-color .15s ease,color .15s ease}
+  .pp-mobile-tools button:hover{background:color-mix(in srgb,var(--p-teal) 12%,var(--p-panel2));border-color:var(--p-teal);color:var(--p-teal)}
+  .pp-mobile-tools button:nth-child(3):last-child{grid-column:1/-1}
   .pp-topbar>nav a.active{border:0}
   .pp-nav-close{display:grid;place-items:center;position:absolute;top:14px;right:14px;width:40px;height:40px;border:1px solid var(--p-line);border-radius:10px;background:var(--p-panel2);cursor:pointer}
   html[dir="rtl"] .pp-nav-close{right:auto;left:14px}
@@ -273,7 +275,7 @@ html,body{max-width:100%;overflow-x:hidden}
   .featured-note,.featured-quiz{grid-template-columns:1fr!important}
   .image-placeholders{grid-template-columns:1fr!important}
   .day-hours{grid-template-columns:repeat(2,minmax(0,1fr))!important}
-  .pp-mobile-tools{grid-template-columns:1fr}
+  .pp-mobile-tools{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
 @media(max-width:380px){
