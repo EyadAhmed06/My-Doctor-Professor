@@ -21,7 +21,7 @@ export class AddFlashcardBundleDistribution2130000000000 implements MigrationInt
       END $$
     `);
 
-    -- Collapse the old Topic deck scope into its canonical Lecture scope.
+    // Collapse the old Topic deck scope into its canonical Lecture scope.
     await queryRunner.query(`
       UPDATE "flashcard_decks" deck
       SET
