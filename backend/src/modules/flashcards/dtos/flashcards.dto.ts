@@ -10,6 +10,8 @@ export class CreateDeckDto {
  @IsUUID() course_id:string;
  @IsOptional() @IsUUID() week_id?:string;
  @IsOptional() @IsUUID() lecture_id?:string;
+ /** @deprecated Topic is no longer a public deck scope; retained for service compatibility during migration. */
+ @IsOptional() @IsUUID() topic_id?:string;
  @IsOptional() @IsEnum(FlashcardDeckBundleAccessMode) bundle_access_mode?:FlashcardDeckBundleAccessMode;
  @IsOptional() @IsArray() @ArrayUnique() @IsUUID('4',{each:true}) bundle_ids?:string[];
  @IsString() @IsNotEmpty() @MaxLength(200) title:string;
@@ -25,7 +27,13 @@ export class UpdateDeckDto {
  @IsOptional() @IsUUID() course_id?:string|null;
  @IsOptional() @IsUUID() week_id?:string|null;
  @IsOptional() @IsUUID() lecture_id?:string|null;
+ /** @deprecated Topic is no longer a public deck scope; retained for service compatibility during migration. */
+ @IsOptional() @IsUUID() topic_id?:string|null;
  @IsOptional() @IsEnum(FlashcardDeckBundleAccessMode) bundle_access_mode?:FlashcardDeckBundleAccessMode;
+ @IsOptional() @IsArray() @ArrayUnique() @IsUUID('4',{each:true}) bundle_ids?:string[];
+}
+export class UpdateDeckDistributionDto {
+ @IsEnum(FlashcardDeckBundleAccessMode) bundle_access_mode:FlashcardDeckBundleAccessMode;
  @IsOptional() @IsArray() @ArrayUnique() @IsUUID('4',{each:true}) bundle_ids?:string[];
 }
 export class DeckQueryDto {
