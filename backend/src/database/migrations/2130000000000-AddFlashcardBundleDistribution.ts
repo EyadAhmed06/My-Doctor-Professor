@@ -21,9 +21,7 @@ export class AddFlashcardBundleDistribution2130000000000 implements MigrationInt
       END $$
     `);
 
-    -- Topic was previously offered as a separate deck scope. Keep the legacy
-    -- column for backwards compatibility, but normalize existing topic decks to
-    -- their lecture/week/course hierarchy and stop using topic as a new scope.
+    -- Collapse the old Topic deck scope into its canonical Lecture scope.
     await queryRunner.query(`
       UPDATE "flashcard_decks" deck
       SET
@@ -34,6 +32,50 @@ export class AddFlashcardBundleDistribution2130000000000 implements MigrationInt
       JOIN "lectures" lecture ON lecture."id" = topic."lecture_id"
       JOIN "weeks" week ON week."id" = lecture."week_id"
       WHERE deck."topic_id" = topic."id"
+    `);
+    await queryRunner.query(`UPDATE "flashcard_decks" SET "topic_id" = NULL WHERE "topic_id" IS NOT NULL`);
+
+    await queryRunner.query(`
+      CREATE OR REPLACE FUNCTION validate_flashcard_deck_scope_hierarchy()
+      RETURNS trigger AS $$
+      DECLARE
+        resolved_week uuid;
+        resolved_course uuid;
+      BEGIN
+        IF NEW.course_id IS NULL THEN
+          RAISE EXCEPTION 'Flashcard deck requires a course';
+        END IF;
+        IF NEW.topic_id IS NOT NULL THEN
+          RAISE EXCEPTION 'Topic is not a flashcard deck scope; use its parent lecture';
+        END IF;
+        IF NEW.lecture_id IS NOT NULL AND NEW.week_id IS NULL THEN
+          RAISE EXCEPTION 'Lecture-scoped flashcard deck requires its parent week';
+        END IF;
+
+        IF NEW.week_id IS NOT NULL THEN
+          SELECT course_id INTO resolved_course FROM weeks WHERE id = NEW.week_id;
+          IF resolved_course IS NULL THEN RAISE EXCEPTION 'Flashcard deck week does not exist'; END IF;
+          IF resolved_course <> NEW.course_id THEN
+            RAISE EXCEPTION 'Flashcard deck week does not belong to selected course';
+          END IF;
+        END IF;
+
+        IF NEW.lecture_id IS NOT NULL THEN
+          SELECT week_id INTO resolved_week FROM lectures WHERE id = NEW.lecture_id;
+          IF resolved_week IS NULL THEN RAISE EXCEPTION 'Flashcard deck lecture does not exist'; END IF;
+          IF resolved_week <> NEW.week_id THEN
+            RAISE EXCEPTION 'Flashcard deck lecture does not belong to selected week';
+          END IF;
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql
+    `);
+    await queryRunner.query(`DROP TRIGGER IF EXISTS "TRG_flashcard_deck_scope_hierarchy" ON "flashcard_decks"`);
+    await queryRunner.query(`
+      CREATE TRIGGER "TRG_flashcard_deck_scope_hierarchy"
+      BEFORE INSERT OR UPDATE OF course_id,week_id,lecture_id,topic_id ON "flashcard_decks"
+      FOR EACH ROW EXECUTE FUNCTION validate_flashcard_deck_scope_hierarchy()
     `);
 
     await queryRunner.query(`
@@ -57,6 +99,8 @@ export class AddFlashcardBundleDistribution2130000000000 implements MigrationInt
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP INDEX IF EXISTS "idx_flashcard_bundle_restrictions_bundle"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "flashcard_deck_bundle_restrictions"`);
+    await queryRunner.query(`DROP TRIGGER IF EXISTS "TRG_flashcard_deck_scope_hierarchy" ON "flashcard_decks"`);
+    await queryRunner.query(`DROP FUNCTION IF EXISTS validate_flashcard_deck_scope_hierarchy()`);
     await queryRunner.query(`ALTER TABLE "flashcard_decks" DROP CONSTRAINT IF EXISTS "CHK_flashcard_decks_bundle_access_mode"`);
     await queryRunner.query(`ALTER TABLE "flashcard_decks" DROP COLUMN IF EXISTS "bundle_access_mode"`);
   }
