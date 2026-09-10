@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FiAlertCircle, FiBookOpen, FiCheckCircle, FiRefreshCw, FiStar } from "react-icons/fi";
+import { FiAlertCircle, FiBookOpen, FiCheckCircle, FiFlag, FiRefreshCw, FiStar } from "react-icons/fi";
 import { useAuth } from "./auth-provider";
 import { EmptyState, ErrorState, PageSkeleton } from "./async-state";
 import { useLocale } from "./locale-provider";
 import { ProductShell } from "./product-shell";
 import "./student-studio.css";
+
+type StudioFilter = "ALL" | "FLAGGED" | "HARD";
 
 type StudioOption = {
   id: string;
@@ -26,7 +28,10 @@ type StudioQuestion = {
   test_id: string;
   test_title: string;
   attempt_id: string;
+  saved_at: string;
   flagged_at: string;
+  is_flagged: boolean;
+  is_hard: boolean;
   course_id: string | null;
   course_name: string | null;
   lecture_id: string | null;
@@ -36,7 +41,7 @@ type StudioQuestion = {
   options: StudioOption[];
 };
 
-type StudioResponse = { data: StudioQuestion[]; total: number };
+type StudioResponse = { data: StudioQuestion[]; total: number; filter: StudioFilter };
 
 function optionLabel(index: number) {
   return String.fromCharCode(65 + index);
@@ -50,13 +55,14 @@ export function StudentStudioPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<StudioFilter>("ALL");
   const [open, setOpen] = useState<Set<string>>(new Set());
 
   const load = useCallback(async (background = false) => {
     background ? setRefreshing(true) : setLoading(true);
     setError(null);
     try {
-      const result = await request<StudioResponse>("/tests/studio/hard-questions");
+      const result = await request<StudioResponse>("/tests/studio/questions");
       setRows(result.data || []);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : translate("Unable to load Studio."));
@@ -68,11 +74,15 @@ export function StudentStudioPage() {
 
   useEffect(() => { void load(); }, [load]);
 
+  const flaggedCount = useMemo(() => rows.filter((row) => row.is_flagged).length, [rows]);
+  const hardCount = useMemo(() => rows.filter((row) => row.is_hard).length, [rows]);
+
   const visible = useMemo(() => {
+    const byType = rows.filter((row) => filter === "ALL" || (filter === "FLAGGED" ? row.is_flagged : row.is_hard));
     const needle = query.trim().toLowerCase();
-    if (!needle) return rows;
-    return rows.filter((row) => `${row.question_text} ${row.course_name || ""} ${row.lecture_title || ""} ${row.test_title || ""}`.toLowerCase().includes(needle));
-  }, [query, rows]);
+    if (!needle) return byType;
+    return byType.filter((row) => `${row.question_text} ${row.course_name || ""} ${row.lecture_title || ""} ${row.test_title || ""}`.toLowerCase().includes(needle));
+  }, [filter, query, rows]);
 
   function toggle(id: string) {
     setOpen((current) => {
@@ -82,25 +92,38 @@ export function StudentStudioPage() {
     });
   }
 
-  return <ProductShell search={translate("Search your hard questions")}>
+  const filteredEmptyTitle = filter === "FLAGGED"
+    ? translate("No review-later questions")
+    : filter === "HARD"
+      ? translate("No hard questions")
+      : translate("No saved questions");
+
+  return <ProductShell search={translate("Search saved questions")}>
     <main className="pp-page student-studio-page">
       <header className="studio-heading">
         <div>
           <span className="page-eyebrow">{translate("STUDENT · REVIEW STUDIO")}</span>
           <h1>{translate("Studio")}</h1>
-          <p>{translate("Return to the questions you marked as hard after a quiz closes, review the correct reasoning, and turn difficult questions into revision targets.")}</p>
+          <p>{translate("Questions you deliberately saved while solving. Flag means review later; Hard means you personally struggled with it. Answers appear here only after the attempt closes and while you still have access to the content.")}</p>
         </div>
         <button className="pp-button secondary" type="button" disabled={refreshing} onClick={() => void load(true)}><FiRefreshCw className={refreshing ? "is-spinning" : ""}/> {translate(refreshing ? "Refreshing" : "Refresh")}</button>
       </header>
 
       <section className="studio-toolbar">
-        <div><FiStar/><strong>{rows.length}</strong><span>{translate("hard questions saved from completed quizzes")}</span></div>
+        <div className="studio-toolbar-summary"><FiBookOpen/><strong>{rows.length}</strong><span>{translate("unique questions saved from completed attempts")}</span></div>
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translate("Search question, course, lecture, or quiz…")} aria-label={translate("Search Studio")}/>
       </section>
 
+      <section className="studio-filters" aria-label={translate("Saved question filters")}>
+        <button type="button" className={filter === "ALL" ? "active" : ""} onClick={() => setFilter("ALL")}><FiBookOpen/><span>{translate("All saved")}</span><b>{rows.length}</b></button>
+        <button type="button" className={filter === "FLAGGED" ? "active" : ""} onClick={() => setFilter("FLAGGED")}><FiFlag/><span>{translate("Review later")}</span><b>{flaggedCount}</b></button>
+        <button type="button" className={filter === "HARD" ? "active" : ""} onClick={() => setFilter("HARD")}><FiStar/><span>{translate("Hard")}</span><b>{hardCount}</b></button>
+      </section>
+
       {error && <ErrorState title={translate("Studio could not load")} description={error} onRetry={() => void load()} />}
-      {loading && !rows.length ? <PageSkeleton variant="workspace" label={translate("Loading your hard questions")} /> : null}
-      {!loading && !error && !rows.length ? <EmptyState title={translate("No hard questions yet")} description={translate("During a quiz, mark a question as Hard. Once that attempt is submitted or expires, the question will appear here for review.")} action={<Link className="pp-button" href="/assessments">{translate("Open questions")}</Link>} /> : null}
+      {loading && !rows.length ? <PageSkeleton variant="workspace" label={translate("Loading your saved questions")} /> : null}
+      {!loading && !error && !rows.length ? <EmptyState title={translate("No saved questions yet")} description={translate("While solving, use Flag when you want to revisit a question or Hard when you personally struggle with it. It will enter Studio after that attempt is submitted or expires.")} action={<Link className="pp-button" href="/assessments">{translate("Open questions")}</Link>} /> : null}
+      {!loading && !error && rows.length > 0 && !visible.length ? <EmptyState title={query.trim() ? translate("No saved questions match your search") : filteredEmptyTitle} description={query.trim() ? translate("Try a different question, course, lecture, or quiz term.") : translate("Questions with this marker will appear here after their attempt closes.")} /> : null}
 
       {visible.length > 0 && <section className="studio-list">
         {visible.map((row, index) => {
@@ -111,7 +134,11 @@ export function StudentStudioPage() {
               <span className="studio-summary-copy">
                 <small>{[row.course_name, row.lecture_title, row.test_title].filter(Boolean).join(" · ") || translate("Completed quiz")}</small>
                 <strong data-academic-content>{row.question_text}</strong>
-                <em className={row.student_was_correct ? "correct" : "review"}>{row.student_was_correct ? translate("You answered correctly") : translate("Review this one")}</em>
+                <span className="studio-markers">
+                  {row.is_flagged && <span className="flagged"><FiFlag/> {translate("Review later")}</span>}
+                  {row.is_hard && <span className="hard"><FiStar/> {translate("Hard")}</span>}
+                  <em className={row.student_was_correct ? "correct" : "review"}>{row.student_was_correct ? translate("You answered correctly") : translate("Review this one")}</em>
+                </span>
               </span>
               <FiBookOpen/>
             </button>
@@ -129,7 +156,7 @@ export function StudentStudioPage() {
                 })}
               </div>
               {row.explanation && <section className="studio-explanation"><FiAlertCircle/><div><strong>{translate("Why")}</strong><p data-academic-content>{row.explanation}</p></div></section>}
-              <footer><span>{translate("Flagged")} {new Date(row.flagged_at).toLocaleDateString(locale === "ar" ? "ar-EG" : undefined)}</span></footer>
+              <footer><span>{translate("Last saved")} {new Date(row.saved_at || row.flagged_at).toLocaleDateString(locale === "ar" ? "ar-EG" : undefined)}</span></footer>
             </div>}
           </article>;
         })}
