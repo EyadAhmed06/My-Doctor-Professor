@@ -40,6 +40,9 @@ services:
       PORT: "3000"
       DB_HOST: postgres
       DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:?DB_NAME must be supplied through the production database env file}
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME must be supplied through the production database env file}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be supplied through the production database env file}
       DB_SSL_ENABLED: "true"
       DB_SSL_REJECT_UNAUTHORIZED: "true"
       DB_SSL_CA_PATH: /run/postgres-ca.crt
