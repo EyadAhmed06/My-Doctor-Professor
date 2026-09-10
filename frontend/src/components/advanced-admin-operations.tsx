@@ -177,8 +177,8 @@ function validateImportedUser(user: UserDraft, index: number) {
 
 export function AdvancedAdminUsersPage() {
   const { user, request } = useAuth();
-  const { notify } = useUx();
-  const { t } = useLocale();
+  const { notify, confirm } = useUx();
+  const { locale } = useLocale();
   const [rows, setRows] = useState<ManagedUser[]>([]);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -210,7 +210,7 @@ export function AdvancedAdminUsersPage() {
     if (role) query.set("role", role);
     if (status) query.set("status", status);
     try {
-      const response = await request<PageResponse<ManagedUser>>(`/admin/users?${query}`);
+      const response = await request<PageResponse<ManagedUser>>(`/admin/users?${query}`, { cache: "no-store" });
       setRows(response.data);
       setTotal(response.total);
       setTotalPages(Math.max(1, response.total_pages));
@@ -270,13 +270,30 @@ export function AdvancedAdminUsersPage() {
   }
 
   async function removeUser(target: ManagedUser) {
-    if (!window.confirm(t(`Permanently delete ${target.full_name}? This action cannot be undone and will remove the account completely.`, `هل أنت متأكد من حذف حساب ${target.full_name} نهائياً؟ لا يمكن التراجع عن هذا الإجراء وسيتم حذف الحساب بالكامل.`))) return;
+    if (busy) return;
+    const accepted = await confirm({
+      title: locale === "ar" ? "حذف الحساب نهائياً؟" : "Permanently delete account?",
+      description: locale === "ar" ? `سيتم حذف حساب ${target.full_name} من الموقع ولن يتمكن من تسجيل الدخول مرة أخرى. لا يمكن التراجع عن هذا الإجراء.` : `${target.full_name} will be removed from the site and cannot sign in again. This action cannot be undone.`,
+      confirmLabel: locale === "ar" ? "حذف نهائي" : "Delete permanently",
+      cancelLabel: locale === "ar" ? "إلغاء" : "Cancel",
+      tone: "danger",
+    });
+    if (!accepted) return;
+    setBusy(true);
     try {
       await request(`/admin/users/${target.id}`, { method: "DELETE" });
-      notify({ title: t("Account deleted", "تم حذف الحساب"), description: t(`${target.full_name} has been permanently deleted.`, `تم حذف حساب ${target.full_name} نهائياً.`), tone: "success" });
-      await load();
+      const nextTotal = Math.max(0, total - 1);
+      const nextTotalPages = Math.max(1, Math.ceil(nextTotal / limit));
+      setRows((current) => current.filter((item) => item.id !== target.id));
+      setTotal(nextTotal);
+      setTotalPages(nextTotalPages);
+      notify({ title: locale === "ar" ? "تم حذف الحساب" : "Account deleted", description: locale === "ar" ? `تم حذف حساب ${target.full_name} نهائياً.` : `${target.full_name} has been permanently deleted.`, tone: "success" });
+      if (page > nextTotalPages) setPage(nextTotalPages);
+      else await load();
     } catch (cause) {
-      notify({ title: t("Could not delete account", "تعذر حذف الحساب"), description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+      notify({ title: locale === "ar" ? "تعذر حذف الحساب" : "Could not delete account", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -329,7 +346,7 @@ export function AdvancedAdminUsersPage() {
     {user?.role !== "SYSTEM_ADMIN" ? <Panel title="Administrator access required"><p>This workspace is restricted to system administrators.</p></Panel> : <>
       <Panel className="role-filter-panel"><div className="role-filters"><label><span>Search</span><div className="role-search"><FiSearch /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name, email, or phone" /></div></label><label><span>Role</span><select value={role} onChange={(event) => setRole(event.target.value)}><option value="">All roles</option><option value="STUDENT">Students</option><option value="INSTRUCTOR">Instructors</option><option value="SYSTEM_ADMIN">Administrators</option></select></label><label><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">All statuses</option><option value="ACTIVE">Active</option><option value="PENDING_VERIFICATION">Pending verification</option><option value="SUSPENDED">Suspended</option><option value="DEACTIVATED">Deactivated</option></select></label><label><span>Rows</span><select value={limit} onChange={(event) => setLimit(Number(event.target.value))}>{[10, 20, 50, 100].map((value) => <option value={value} key={value}>{value}</option>)}</select></label></div></Panel>
       {error && <ErrorState description={error} onRetry={() => void load()} />}
-      {loading ? <PageSkeleton variant="list" label="Loading users" /> : rows.length ? <Panel title={`${total} accounts`} className="role-table-panel"><div className="role-table-scroll"><table className="role-table"><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Role profile</th><th>Last login</th><th>Actions</th></tr></thead><tbody>{rows.map((target) => <tr key={target.id}><td><div className="role-person"><span>{target.full_name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}</span><div><b>{target.full_name}</b><small>{target.email}<br />{target.phone_number}</small></div></div></td><td><Status value={target.role} /></td><td><select className="role-inline-select" value={target.status} disabled={target.id === user.id || busy} onChange={(event) => void changeStatus(target, event.target.value as ManagedUser["status"])}><option value="ACTIVE">Active</option><option value="SUSPENDED">Suspended</option><option value="DEACTIVATED">Deactivated</option>{target.status === "PENDING_VERIFICATION" && <option value="PENDING_VERIFICATION">Pending verification</option>}</select></td><td><small>{target.role === "STUDENT" ? `${target.student_number || "No number"} · Semester ${target.current_semester || "—"}` : target.role === "INSTRUCTOR" ? `${target.specialization || "No specialization"}${target.office_location ? ` · ${target.office_location}` : ""}` : `${target.employee_number || "No employee number"}${target.is_super_admin ? " · Super admin" : ""}`}{target.forensic_code ? ` · ${target.forensic_code}` : ""}</small></td><td><small>{target.last_login_at ? new Date(target.last_login_at).toLocaleString() : "Never"}</small></td><td><div className="role-row-actions"><button type="button" onClick={() => void resetPassword(target)} title="Reset password"><FiShield /></button><button type="button" className="danger" disabled={target.id === user.id} onClick={() => void removeUser(target)} title={t("Delete user", "حذف المستخدم")}><FiTrash2 /></button></div></td></tr>)}</tbody></table></div><Pagination page={page} totalPages={totalPages} total={total} limit={limit} onPage={setPage} /></Panel> : <EmptyState title="No accounts match these filters" description="Adjust the filters, move to another page, import a CSV, or create a new account." />}
+      {loading ? <PageSkeleton variant="list" label="Loading users" /> : rows.length ? <Panel title={`${total} accounts`} className="role-table-panel"><div className="role-table-scroll"><table className="role-table"><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Role profile</th><th>Last login</th><th>Actions</th></tr></thead><tbody>{rows.map((target) => <tr key={target.id}><td><div className="role-person"><span>{target.full_name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}</span><div><b>{target.full_name}</b><small>{target.email}<br />{target.phone_number}</small></div></div></td><td><Status value={target.role} /></td><td><select className="role-inline-select" value={target.status} disabled={target.id === user.id || busy} onChange={(event) => void changeStatus(target, event.target.value as ManagedUser["status"])}><option value="ACTIVE">Active</option><option value="SUSPENDED">Suspended</option><option value="DEACTIVATED">Deactivated</option>{target.status === "PENDING_VERIFICATION" && <option value="PENDING_VERIFICATION">Pending verification</option>}</select></td><td><small>{target.role === "STUDENT" ? `${target.student_number || "No number"} · Semester ${target.current_semester || "—"}` : target.role === "INSTRUCTOR" ? `${target.specialization || "No specialization"}${target.office_location ? ` · ${target.office_location}` : ""}` : `${target.employee_number || "No employee number"}${target.is_super_admin ? " · Super admin" : ""}`}{target.forensic_code ? ` · ${target.forensic_code}` : ""}</small></td><td><small>{target.last_login_at ? new Date(target.last_login_at).toLocaleString() : "Never"}</small></td><td><div className="role-row-actions"><button type="button" disabled={busy} onClick={() => void resetPassword(target)} title="Reset password"><FiShield /></button><button type="button" className="danger" data-phase5-confirmed="true" disabled={target.id === user.id || busy} onClick={() => void removeUser(target)} title={locale === "ar" ? "حذف المستخدم" : "Delete user"}><FiTrash2 /></button></div></td></tr>)}</tbody></table></div><Pagination page={page} totalPages={totalPages} total={total} limit={limit} onPage={setPage} /></Panel> : <EmptyState title="No accounts match these filters" description="Adjust the filters, move to another page, import a CSV, or create a new account." />}
     </>}
 
     <Modal title="Create managed account" open={createOpen} onClose={() => setCreateOpen(false)} wide><form className="role-form" onSubmit={createUser}><div className="role-form-grid"><label>Full name<input required value={draft.full_name} onChange={(event) => setDraft((current) => ({ ...current, full_name: event.target.value }))} /></label><label>Email<input required type="email" value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} /></label><label>Phone number<input required placeholder="+201000000000" value={draft.phone_number} onChange={(event) => setDraft((current) => ({ ...current, phone_number: event.target.value }))} /></label><label>Initial password<input required minLength={12} type="password" value={draft.password} onChange={(event) => setDraft((current) => ({ ...current, password: event.target.value }))} /></label><label>Role<select value={draft.role} onChange={(event) => setDraft((current) => ({ ...current, role: event.target.value as UserRole }))}><option value="STUDENT">Student</option><option value="INSTRUCTOR">Instructor</option><option value="SYSTEM_ADMIN">System administrator</option></select></label>{draft.role === "STUDENT" && <><label>Student number<input required value={draft.student_number || ""} onChange={(event) => setDraft((current) => ({ ...current, student_number: event.target.value }))} /></label><label>Current semester<input required min={1} type="number" value={draft.current_semester || 1} onChange={(event) => setDraft((current) => ({ ...current, current_semester: Number(event.target.value) }))} /></label></>}{draft.role === "INSTRUCTOR" && <><label>Specialization<input value={draft.specialization || ""} onChange={(event) => setDraft((current) => ({ ...current, specialization: event.target.value }))} /></label><label>Office location<input value={draft.office_location || ""} onChange={(event) => setDraft((current) => ({ ...current, office_location: event.target.value }))} /></label></>}{draft.role === "SYSTEM_ADMIN" && <><label>Employee number<input required value={draft.employee_number || ""} onChange={(event) => setDraft((current) => ({ ...current, employee_number: event.target.value }))} /></label><label className="role-checkbox"><input type="checkbox" checked={Boolean(draft.is_super_admin)} onChange={(event) => setDraft((current) => ({ ...current, is_super_admin: event.target.checked }))} /> Grant super-administrator authority</label></>}</div><footer><button className="pp-button secondary" type="button" onClick={() => setCreateOpen(false)}>Cancel</button><button className="pp-button" disabled={busy} type="submit">{busy ? "Creating…" : "Create account"}</button></footer></form></Modal>
