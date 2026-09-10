@@ -62,7 +62,7 @@ export function StudentStudioPage() {
     background ? setRefreshing(true) : setLoading(true);
     setError(null);
     try {
-      const result = await request<StudioResponse>("/tests/studio/questions");
+      const result = await request<StudioResponse>("/student/studio/questions");
       setRows(result.data || []);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : translate("Unable to load Studio."));
