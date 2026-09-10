@@ -6,8 +6,9 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
-import { CardQueryDto, CreateDeckDto, CreateFlashcardDto, DeckQueryDto, ReviewFlashcardDto, UpdateDeckDto, UpdateFlashcardDto } from './dtos/flashcards.dto';
+import { CardQueryDto, CreateDeckDto, CreateFlashcardDto, DeckQueryDto, ReviewFlashcardDto, UpdateDeckDistributionDto, UpdateDeckDto, UpdateFlashcardDto } from './dtos/flashcards.dto';
 import { FlashcardAccessService } from './flashcard-access.service';
+import { FlashcardDistributionService } from './flashcard-distribution.service';
 import { FlashcardEditingService } from './flashcard-editing.service';
 import { FlashcardsService } from './flashcards.service';
 const uuid=new ParseUUIDPipe({version:'4'});
@@ -19,6 +20,7 @@ export class FlashcardsController {
  constructor(
   private readonly flashcards:FlashcardsService,
   private readonly access:FlashcardAccessService,
+  private readonly distribution:FlashcardDistributionService,
   private readonly editing:FlashcardEditingService,
  ){}
 
@@ -32,6 +34,10 @@ export class FlashcardsController {
  async getDeck(@Param('deckId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){await this.access.assertDeckReadable(id,actor);return this.flashcards.getDeck(id,actor);}
  @Put('decks/:deckId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
  updateDeck(@Param('deckId',uuid) id:string,@Body() dto:UpdateDeckDto,@CurrentUser() actor:AuthenticatedUser){return this.flashcards.updateDeck(id,dto,actor);}
+ @Get('decks/:deckId/distribution') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
+ getDistribution(@Param('deckId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.distribution.get(id,actor);}
+ @Put('decks/:deckId/distribution') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN)
+ updateDistribution(@Param('deckId',uuid) id:string,@Body() dto:UpdateDeckDistributionDto,@CurrentUser() actor:AuthenticatedUser){return this.distribution.update(id,dto,actor);}
  @Delete('decks/:deckId') @Roles(UserRole.INSTRUCTOR,UserRole.SYSTEM_ADMIN) @HttpCode(HttpStatus.NO_CONTENT)
  async removeDeck(@Param('deckId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){await this.flashcards.removeDeck(id,actor);}
 
