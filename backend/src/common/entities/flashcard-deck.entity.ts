@@ -6,6 +6,11 @@ import { Lecture } from './lecture.entity';
 import { Topic } from './topic.entity';
 import { Week } from './week.entity';
 
+export enum FlashcardDeckBundleAccessMode {
+ INHERIT='INHERIT',
+ RESTRICTED='RESTRICTED',
+}
+
 @Entity('flashcard_decks')
 @Index('idx_flashcard_decks_course',['courseId'])
 @Index('idx_flashcard_decks_week',['weekId'])
@@ -22,6 +27,7 @@ export class FlashcardDeck {
  @Column({type:'varchar',length:200}) title:string;
  @Column({type:'text',nullable:true}) description:string|null;
  @Column({type:'boolean',default:false,name:'is_published'}) isPublished:boolean;
+ @Column({type:'varchar',length:20,name:'bundle_access_mode',default:FlashcardDeckBundleAccessMode.INHERIT}) bundleAccessMode:FlashcardDeckBundleAccessMode;
  @Column({type:'int',default:1,name:'display_order'}) displayOrder:number;
  @CreateDateColumn({name:'created_at'}) createdAt:Date;
  @UpdateDateColumn({name:'updated_at'}) updatedAt:Date;
