@@ -381,8 +381,8 @@ export class ProgressService {
     if(query.date_until){params.push(query.date_until);dateClauses.push(`answer.answered_at < ($${params.length}::date + INTERVAL '1 day')`);}
     const answerFilter=dateClauses.length?`AND ${dateClauses.join(' AND ')}`:'';
     const planDateClauses:string[]=[];
-    if(query.date_from) planDateClauses.push(`scheduled_date >= ${params.indexOf(query.date_from)+1}::date`);
-    if(query.date_until) planDateClauses.push(`scheduled_date <= ${params.indexOf(query.date_until)+1}::date`);
+    if(query.date_from) planDateClauses.push(`scheduled_date >= $${params.indexOf(query.date_from)+1}::date`);
+    if(query.date_until) planDateClauses.push(`scheduled_date <= $${params.indexOf(query.date_until)+1}::date`);
     const planFilter=planDateClauses.length?`AND ${planDateClauses.join(' AND ')}`:'';
     const [summary,accuracyTrend,topics,activity]=await Promise.all([
       this.dataSource.query(`
