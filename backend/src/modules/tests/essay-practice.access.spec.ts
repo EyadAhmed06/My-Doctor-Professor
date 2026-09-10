@@ -19,9 +19,14 @@ describe('EssayPracticeService bundle access', () => {
   function harness() {
     const query = jest.fn().mockResolvedValue([]);
     const service = new EssayPracticeService(
-      {} as never, {} as never,
+      {} as never,
+      {} as never,
       { exists: jest.fn().mockResolvedValue(true) } as never,
-      {} as never, {} as never, {} as never, {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
       { query } as never,
     );
     return { query, service };
