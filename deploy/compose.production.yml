@@ -30,6 +30,29 @@ services:
       retries: 10
     networks: [internal]
 
+  migrate:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be supplied through the deployment env file}
+    container_name: mdp-migrate
+    restart: "no"
+    env_file: /opt/mdp/app.env
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:?DB_NAME must be supplied through the production database env file}
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME must be supplied through the production database env file}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be supplied through the production database env file}
+      DB_SSL_ENABLED: "true"
+      DB_SSL_REJECT_UNAUTHORIZED: "true"
+      DB_SSL_CA_PATH: /run/postgres-ca.crt
+    volumes:
+      - /opt/mdp/config/postgres-certs/ca.crt:/run/postgres-ca.crt:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["npm", "run", "migration:run:prod"]
+    networks: [internal]
+
   backend:
     image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be supplied through the deployment env file}
     container_name: mdp-backend
@@ -53,8 +76,8 @@ services:
       - /opt/mdp/data/uploads:/app/uploads
       - /opt/mdp/data/backups:/app/backups
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/v1/health/live').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 15s
