@@ -453,6 +453,7 @@ describe('Single Active Session Policy', () => {
       {} as never,
       { findOne: jest.fn().mockResolvedValue({ userId: adminUser.id, isSuperAdmin: true }) } as never,
       usersService as never,
+      {} as never,
       authService as never,
       adminDataSource as never,
       { get: jest.fn(() => undefined) } as never,
