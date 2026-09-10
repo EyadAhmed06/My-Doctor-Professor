@@ -1,4 +1,4 @@
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, ObjectLiteral, Repository } from 'typeorm';
 import { Course } from '../../common/entities/course.entity';
 import { Lecture } from '../../common/entities/lecture.entity';
 import { Question } from '../../common/entities/question.entity';
@@ -13,7 +13,7 @@ import { ProgressService } from './progress.service';
 describe('ProgressService student analytics SQL contract', () => {
   const studentId = '11111111-1111-4111-8111-111111111111';
 
-  function repository<T>(): Repository<T> {
+  function repository<T extends ObjectLiteral>(): Repository<T> {
     return {} as Repository<T>;
   }
 
