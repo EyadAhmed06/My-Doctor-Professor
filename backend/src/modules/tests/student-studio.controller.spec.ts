@@ -64,10 +64,10 @@ describe('StudentStudioController saved-question workspace', () => {
     expect(query.mock.calls[0][1]).toEqual([actor.userId, 'HARD']);
   });
 
-  it('rejects unknown Studio filters', async () => {
+  it('rejects unknown Studio filters', () => {
     const { controller, query } = setup();
 
-    await expect(controller.questions(actor, 'WRONG')).rejects.toBeInstanceOf(BadRequestException);
+    expect(() => controller.questions(actor, 'WRONG')).toThrow(BadRequestException);
     expect(query).not.toHaveBeenCalled();
   });
 });
