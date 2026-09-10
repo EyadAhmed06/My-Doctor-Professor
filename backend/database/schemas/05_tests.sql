@@ -41,7 +41,7 @@ CREATE TABLE test_attempts (
 CREATE UNIQUE INDEX uq_active_student_test_attempt ON test_attempts(student_id, test_id) WHERE status = 'IN_PROGRESS';
 CREATE TABLE student_answers (
  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), attempt_id UUID NOT NULL, question_id UUID NOT NULL,
- selected_option_id UUID, essay_answer TEXT, awarded_marks NUMERIC(5,2), is_correct BOOLEAN,
+ selected_option_id UUID, essay_answer TEXT, confidence_level VARCHAR(12), awarded_marks NUMERIC(5,2), is_correct BOOLEAN,
  feedback TEXT, graded_by UUID, graded_at TIMESTAMP, answered_at TIMESTAMP,
  FOREIGN KEY (attempt_id) REFERENCES test_attempts(id) ON DELETE CASCADE,
  FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE RESTRICT,
@@ -49,14 +49,16 @@ CREATE TABLE student_answers (
  FOREIGN KEY (graded_by) REFERENCES users(id) ON DELETE SET NULL,
  CONSTRAINT uq_attempt_question_answer UNIQUE(attempt_id, question_id),
  CONSTRAINT chk_answer_shape CHECK (NOT (selected_option_id IS NOT NULL AND essay_answer IS NOT NULL)),
+ CONSTRAINT chk_student_answer_confidence CHECK (confidence_level IS NULL OR confidence_level IN ('LOW', 'MEDIUM', 'HIGH')),
  CONSTRAINT chk_awarded_marks CHECK (awarded_marks IS NULL OR awarded_marks >= 0)
 );
 CREATE TABLE question_flags (
  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), attempt_id UUID NOT NULL, question_id UUID NOT NULL,
- created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ flag_type VARCHAR(10) NOT NULL DEFAULT 'NORMAL', created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
  FOREIGN KEY (attempt_id) REFERENCES test_attempts(id) ON DELETE CASCADE,
  FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE RESTRICT,
- CONSTRAINT uq_flag UNIQUE(attempt_id, question_id)
+ CONSTRAINT chk_question_flag_type CHECK (flag_type IN ('NORMAL', 'HARD')),
+ CONSTRAINT uq_flag_type UNIQUE(attempt_id, question_id, flag_type)
 );
 CREATE TABLE question_notes (
  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), attempt_id UUID NOT NULL, question_id UUID NOT NULL,
