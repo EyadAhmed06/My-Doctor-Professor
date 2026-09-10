@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { ArrayUnique, IsArray, IsBoolean, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { ArrayUnique, IsArray, IsBoolean, IsEmpty, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 import { FlashcardDeckBundleAccessMode } from '../../../common/entities/flashcard-deck.entity';
 import { QuestionDifficulty } from '../../../common/entities/question.entity';
 
@@ -8,10 +8,12 @@ export enum FlashcardDeckAcademicScope { COURSE='COURSE', WEEK='WEEK', LECTURE='
 export class CreateDeckDto {
  @IsEnum(FlashcardDeckAcademicScope) scope_type:FlashcardDeckAcademicScope;
  @IsUUID() course_id:string;
- @IsOptional() @IsUUID() week_id?:string;
- @IsOptional() @IsUUID() lecture_id?:string;
- /** @deprecated Topic is no longer a public deck scope; retained for service compatibility during migration. */
- @IsOptional() @IsUUID() topic_id?:string;
+ @ValidateIf((dto:CreateDeckDto)=>dto.scope_type!==FlashcardDeckAcademicScope.COURSE) @IsUUID() week_id?:string;
+ @ValidateIf((dto:CreateDeckDto)=>dto.scope_type===FlashcardDeckAcademicScope.COURSE) @IsEmpty() private course_scope_week_guard?:never;
+ @ValidateIf((dto:CreateDeckDto)=>dto.scope_type===FlashcardDeckAcademicScope.LECTURE) @IsUUID() lecture_id?:string;
+ @ValidateIf((dto:CreateDeckDto)=>dto.scope_type!==FlashcardDeckAcademicScope.LECTURE) @IsEmpty() private non_lecture_guard?:never;
+ /** Legacy field kept only so older service code compiles. New requests may not use topic scope. */
+ @IsOptional() @IsEmpty({message:'Topic is not a deck scope; use the parent lecture'}) topic_id?:string;
  @IsOptional() @IsEnum(FlashcardDeckBundleAccessMode) bundle_access_mode?:FlashcardDeckBundleAccessMode;
  @IsOptional() @IsArray() @ArrayUnique() @IsUUID('4',{each:true}) bundle_ids?:string[];
  @IsString() @IsNotEmpty() @MaxLength(200) title:string;
@@ -27,8 +29,8 @@ export class UpdateDeckDto {
  @IsOptional() @IsUUID() course_id?:string|null;
  @IsOptional() @IsUUID() week_id?:string|null;
  @IsOptional() @IsUUID() lecture_id?:string|null;
- /** @deprecated Topic is no longer a public deck scope; retained for service compatibility during migration. */
- @IsOptional() @IsUUID() topic_id?:string|null;
+ /** Legacy field kept only so older service code compiles. */
+ @IsOptional() @IsEmpty({message:'Topic is not a deck scope; use the parent lecture'}) topic_id?:string|null;
  @IsOptional() @IsEnum(FlashcardDeckBundleAccessMode) bundle_access_mode?:FlashcardDeckBundleAccessMode;
  @IsOptional() @IsArray() @ArrayUnique() @IsUUID('4',{each:true}) bundle_ids?:string[];
 }
