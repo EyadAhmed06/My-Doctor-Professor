@@ -42,11 +42,11 @@ services:
       DB_PORT: "5432"
       DB_SSL_ENABLED: "true"
       DB_SSL_REJECT_UNAUTHORIZED: "true"
-      DB_SSL_CA_PATH: /run/postgres-certs/ca.crt
+      DB_SSL_CA_PATH: /run/postgres-ca.crt
       TRUST_PROXY_HOPS: "1"
       FILE_UPLOAD_PATH: /app/uploads
     volumes:
-      - /opt/mdp/config/postgres-certs:/run/postgres-certs:ro
+      - /opt/mdp/config/postgres-certs/ca.crt:/run/postgres-ca.crt:ro
       - /opt/mdp/data/uploads:/app/uploads
       - /opt/mdp/data/backups:/app/backups
     depends_on:
