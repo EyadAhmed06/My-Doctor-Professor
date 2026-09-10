@@ -19,7 +19,7 @@ describe('ProgressService student analytics SQL contract', () => {
 
   function setup() {
     const managerQuery = jest.fn().mockResolvedValue([]);
-    const dataSourceQuery = jest.fn(async (sql: string) => {
+    const dataSourceQuery = jest.fn(async (sql: string, _params?: unknown[]) => {
       if (sql.includes('SELECT DISTINCT bundle_course.course_id')) return [];
       if (sql.includes('AS questions_answered')) {
         return [{
