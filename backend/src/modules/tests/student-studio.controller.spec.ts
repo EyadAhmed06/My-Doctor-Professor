@@ -1,7 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
+import { MODULE_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { DataSource } from 'typeorm';
 import { UserRole } from '../users/entities/user.entity';
 import { StudentStudioController } from './student-studio.controller';
+import { TestsController } from './tests.controller';
+import { TestsModule } from './tests.module';
 
 describe('StudentStudioController saved-question workspace', () => {
   const actor = {
@@ -16,6 +19,14 @@ describe('StudentStudioController saved-question workspace', () => {
     const controller = new StudentStudioController({ query } as unknown as DataSource);
     return { controller, query };
   }
+
+  it('uses a collision-proof canonical route and registers the legacy static alias before UUID test routes', () => {
+    const paths = Reflect.getMetadata(PATH_METADATA, StudentStudioController) as string[];
+    expect(paths).toEqual(expect.arrayContaining(['student/studio', 'tests/studio']));
+
+    const controllers = Reflect.getMetadata(MODULE_METADATA.CONTROLLERS, TestsModule) as unknown[];
+    expect(controllers.indexOf(StudentStudioController)).toBeLessThan(controllers.indexOf(TestsController));
+  });
 
   it('combines review-later and hard markers without exposing open attempts', async () => {
     const { controller, query } = setup();
