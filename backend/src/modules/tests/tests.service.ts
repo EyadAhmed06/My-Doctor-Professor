@@ -1,9 +1,11 @@
+import { randomInt } from 'crypto';
 import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -12,7 +14,7 @@ import { Course } from '../../common/entities/course.entity';
 import { Lecture } from '../../common/entities/lecture.entity';
 import { McqOption } from '../../common/entities/mcq-option.entity';
 import { NotificationType } from '../../common/entities/notification.entity';
-import { QuestionFlag } from '../../common/entities/question-flag.entity';
+import { QuestionFlag, QuestionFlagType } from '../../common/entities/question-flag.entity';
 import { QuestionNote } from '../../common/entities/question-note.entity';
 import { Question, QuestionType } from '../../common/entities/question.entity';
 import { StudentAnswer } from '../../common/entities/student-answer.entity';
@@ -25,9 +27,11 @@ import { TestQuestion } from '../../common/entities/test-question.entity';
 import { Test, TestType } from '../../common/entities/test.entity';
 import { Week } from '../../common/entities/week.entity';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { BundleAccessService } from '../bundle-access/bundle-access.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Student } from '../users/entities/student.entity';
 import { UserRole } from '../users/entities/user.entity';
+import { validateTestForPublish } from './assessment-authoring.service';
 import {
   AddTestQuestionDto,
   CreateTestDto,
@@ -41,7 +45,7 @@ import {
 } from './dtos/tests.dto';
 
 @Injectable()
-export class TestsService {
+export class TestsService implements OnModuleInit {
   constructor(
     @InjectRepository(Test) private readonly tests: Repository<Test>,
     @InjectRepository(TestQuestion) private readonly testQuestions: Repository<TestQuestion>,
@@ -57,7 +61,61 @@ export class TestsService {
     @InjectRepository(Student) private readonly students: Repository<Student>,
     private readonly dataSource: DataSource,
     private readonly notifications: NotificationsService,
+    private readonly bundleAccess: BundleAccessService,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    // The migration is canonical, but local databases can have a stale or
+    // partially-applied migration history. Every statement here is idempotent
+    // so restarting Nest never crashes on an already-created constraint/index.
+    await this.dataSource.transaction(async manager => {
+      await manager.query(`SELECT pg_advisory_xact_lock(hashtext('mdp_tests_runtime_schema'))`);
+      await manager.query(`
+        ALTER TABLE student_answers
+        ADD COLUMN IF NOT EXISTS confidence_level varchar(12)
+      `);
+      await manager.query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'chk_student_answer_confidence'
+              AND conrelid = 'student_answers'::regclass
+          ) THEN
+            ALTER TABLE student_answers
+            ADD CONSTRAINT chk_student_answer_confidence
+            CHECK (confidence_level IS NULL OR confidence_level IN ('LOW', 'MEDIUM', 'HIGH'));
+          END IF;
+        END $$;
+      `);
+      await manager.query(`
+        ALTER TABLE question_flags
+        ADD COLUMN IF NOT EXISTS flag_type varchar(10) NOT NULL DEFAULT 'NORMAL'
+      `);
+      await manager.query(`ALTER TABLE question_flags DROP CONSTRAINT IF EXISTS uq_flag`);
+      await manager.query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'chk_question_flag_type'
+              AND conrelid = 'question_flags'::regclass
+          ) THEN
+            ALTER TABLE question_flags
+            ADD CONSTRAINT chk_question_flag_type
+            CHECK (flag_type IN ('NORMAL', 'HARD'));
+          END IF;
+        END $$;
+      `);
+      // A unique constraint is backed by an index with this name. CREATE INDEX
+      // handles both a previously-created constraint index and a standalone one.
+      await manager.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_flag_type
+        ON question_flags (attempt_id, question_id, flag_type)
+      `);
+
+    });
+  }
 
   async create(dto: CreateTestDto, actor: AuthenticatedUser) {
     const scope = await this.resolveScope(dto.test_type, dto.course_id, dto.week_id, dto.lecture_id);
@@ -98,9 +156,13 @@ export class TestsService {
             INNER JOIN bundles bundle ON bundle.id = bundle_test.bundle_id
             WHERE bundle_test.test_id = test.id
               AND enrollment.student_id = :actorId
-              AND enrollment.status <> 'REVOKED'
-              AND bundle.status IN ('PUBLISHED', 'ARCHIVED')
+              AND enrollment.status = 'ACTIVE'
+              AND (enrollment.starts_at IS NULL OR enrollment.starts_at <= :now)
+              AND (enrollment.expires_at IS NULL OR enrollment.expires_at > :now)
+              AND enrollment.payment_status IN ('NOT_REQUIRED', 'PAID')
+              AND bundle.status = 'PUBLISHED'
               AND (bundle.available_from IS NULL OR bundle.available_from <= :now)
+              AND (bundle.available_until IS NULL OR bundle.available_until > :now)
           )`, { actorId: actor.userId });
     } else if (actor.role === UserRole.INSTRUCTOR) {
       builder.andWhere('test.created_by = :actorId', { actorId: actor.userId });
@@ -140,6 +202,15 @@ export class TestsService {
       .addSelect('COUNT(question.id)::integer', 'question_count')
       .where('question.is_active = TRUE')
       .andWhere('question.is_question_bank = TRUE')
+      .andWhere('question.question_type = :mcqType', { mcqType: QuestionType.MCQ })
+      .andWhere(`(
+        SELECT COUNT(*) FROM mcq_options option
+        WHERE option.question_id = question.id
+      ) = 5`)
+      .andWhere(`(
+        SELECT COUNT(*) FROM mcq_options option
+        WHERE option.question_id = question.id AND option.is_correct = TRUE
+      ) = 1`)
       .andWhere('topic.lecture_id IN (:...lectureIds)', {
         lectureIds: weeks.flatMap((week) => week.lectures.map((lecture) => lecture.id)).length
           ? weeks.flatMap((week) => week.lectures.map((lecture) => lecture.id)) : ['00000000-0000-0000-0000-000000000000'],
@@ -155,8 +226,13 @@ export class TestsService {
     if (!(await this.students.exists({ where: { userId: actor.userId } }))) {
       throw new ForbiddenException('Student profile is required to generate a practice test');
     }
-    if (dto.test_mode === TestMode.TIMED && !dto.duration_minutes) {
-      throw new BadRequestException('Timed practice requires duration_minutes');
+    if (![40, 200].includes(dto.question_count)) {
+      throw new BadRequestException('Practice exams must contain either 40 or 200 MCQs');
+    }
+    if (dto.test_mode === TestMode.TIMED && dto.duration_minutes !== dto.question_count) {
+      throw new BadRequestException(
+        `A timed ${dto.question_count}-MCQ exam must last exactly ${dto.question_count} minutes`,
+      );
     }
     await this.requireBundleLectureAccess(
       dto.bundle_id, actor.userId, dto.lecture_ids, true,
@@ -173,14 +249,15 @@ export class TestsService {
       .leftJoinAndSelect('question.options', 'options')
       .leftJoinAndSelect('question.essayConfiguration', 'essayConfiguration')
       .where('topic.lecture_id IN (:...lectureIds)', { lectureIds: dto.lecture_ids })
-      .andWhere('question.is_active = TRUE').andWhere('question.is_question_bank = TRUE');
+      .andWhere('question.is_active = TRUE').andWhere('question.is_question_bank = TRUE')
+      .andWhere('question.question_type = :mcqType', { mcqType: QuestionType.MCQ });
     if (dto.difficulty) builder.andWhere('question.difficulty = :difficulty', { difficulty: dto.difficulty });
     const eligible = await builder.getMany();
     if (eligible.length < dto.question_count) {
       throw new BadRequestException(`Only ${eligible.length} eligible questions are available for this selection`);
     }
     for (let index = eligible.length - 1; index > 0; index -= 1) {
-      const target = Math.floor(Math.random() * (index + 1));
+      const target = randomInt(index + 1);
       [eligible[index], eligible[target]] = [eligible[target], eligible[index]];
     }
     const selected = eligible.slice(0, dto.question_count);
@@ -227,6 +304,25 @@ export class TestsService {
     const from = dto.available_from !== undefined ? dto.available_from : test.availableFrom?.toISOString();
     const until = dto.available_until !== undefined ? dto.available_until : test.availableUntil?.toISOString();
     this.assertWindow(from, until);
+    const changesScope = ['test_type', 'course_id', 'week_id', 'lecture_id']
+      .some((key) => Object.prototype.hasOwnProperty.call(dto, key));
+    if (changesScope) {
+      const scope = await this.resolveScope(
+        dto.test_type ?? test.testType,
+        dto.course_id !== undefined ? dto.course_id ?? undefined : test.courseId ?? undefined,
+        dto.week_id !== undefined ? dto.week_id ?? undefined : test.weekId ?? undefined,
+        dto.lecture_id !== undefined ? dto.lecture_id ?? undefined : test.lectureId ?? undefined,
+      );
+      test.testType = dto.test_type ?? test.testType;
+      test.courseId = scope.courseId;
+      test.weekId = scope.weekId;
+      test.lectureId = scope.lectureId;
+      const assignments = await this.testQuestions.find({
+        where: { testId: id },
+        relations: { question: { topic: { lecture: { week: true } } } },
+      });
+      for (const assignment of assignments) this.assertQuestionScope(test, assignment.question);
+    }
     if (dto.title !== undefined) test.title = dto.title.trim();
     if (dto.description !== undefined) test.description = dto.description.trim() || null;
     if (dto.duration_minutes !== undefined) test.durationMinutes = dto.duration_minutes;
@@ -363,8 +459,8 @@ export class TestsService {
     let selectedOption: McqOption | null = null;
     let essayAnswer: string | null = null;
     if (question.questionType === QuestionType.MCQ) {
-      if (!dto.selected_option_id || dto.essay_answer !== undefined) {
-        throw new BadRequestException('MCQ answers require selected_option_id only');
+      if (!dto.selected_option_id || dto.essay_answer !== undefined || !dto.confidence_level) {
+        throw new BadRequestException('MCQ answers require selected_option_id and confidence_level');
       }
       selectedOption = await this.options.findOne({ where: { id: dto.selected_option_id, questionId } });
       if (!selectedOption) throw new BadRequestException('Selected option does not belong to this question');
@@ -386,6 +482,7 @@ export class TestsService {
     answer ??= this.answers.create({ attemptId, questionId });
     answer.selectedOptionId = selectedOption?.id ?? null;
     answer.essayAnswer = essayAnswer;
+    answer.confidenceLevel = question.questionType === QuestionType.MCQ ? dto.confidence_level! : null;
     answer.answeredAt = new Date();
     answer.feedback = null; answer.gradedBy = null; answer.gradedAt = null;
     if (question.questionType === QuestionType.MCQ && attempt.testMode === TestMode.TUTOR) {
@@ -403,6 +500,22 @@ export class TestsService {
 
   async submit(id: string, actor: AuthenticatedUser) {
     const attempt = await this.requireStudentOpenAttempt(id, actor);
+    const [assignments, attemptAnswers] = await Promise.all([
+      this.testQuestions.find({ where: { testId: attempt.testId }, relations: { question: true } }),
+      this.answers.find({ where: { attemptId: id } }),
+    ]);
+    const byQuestion = new Map(attemptAnswers.map((answer) => [answer.questionId, answer]));
+    const incomplete = assignments.filter((assignment) => {
+      const answer = byQuestion.get(assignment.questionId);
+      if (!answer) return true;
+      if (assignment.question.questionType === QuestionType.MCQ) {
+        return !answer.selectedOptionId || !answer.confidenceLevel;
+      }
+      return !answer.essayAnswer?.trim();
+    });
+    if (attempt.testMode === TestMode.TUTOR && incomplete.length) {
+      throw new BadRequestException(`Answer every question and choose a confidence level for every MCQ before submitting. ${incomplete.length} question(s) remain incomplete.`);
+    }
     await this.finalizeAttempt(attempt, false);
     return this.attemptView(attempt);
   }
@@ -420,7 +533,8 @@ export class TestsService {
       attempt: this.attemptView(attempt),
       answers: actor.role === UserRole.STUDENT && attempt.status === TestAttemptStatus.IN_PROGRESS
         ? answers.map((answer) => this.hideGrade(answer)) : answers,
-      flagged_question_ids: flags.map((flag) => flag.questionId),
+      flagged_question_ids: flags.filter((flag) => flag.flagType === QuestionFlagType.NORMAL).map((flag) => flag.questionId),
+      hard_question_ids: flags.filter((flag) => flag.flagType === QuestionFlagType.HARD).map((flag) => flag.questionId),
       notes: notes.map((note) => ({ question_id: note.questionId, note: note.note })),
     };
   }
@@ -459,16 +573,16 @@ export class TestsService {
     };
   }
 
-  async flag(attemptId: string, questionId: string, actor: AuthenticatedUser) {
+  async flag(attemptId: string, questionId: string, actor: AuthenticatedUser, flagType = QuestionFlagType.NORMAL) {
     const attempt = await this.requireStudentOpenAttempt(attemptId, actor);
     await this.requireAssignedQuestion(attempt.testId, questionId);
-    const existing = await this.flags.findOne({ where: { attemptId, questionId } });
-    return existing ?? this.flags.save(this.flags.create({ attemptId, questionId }));
+    const existing = await this.flags.findOne({ where: { attemptId, questionId, flagType } });
+    return existing ?? this.flags.save(this.flags.create({ attemptId, questionId, flagType }));
   }
 
-  async unflag(attemptId: string, questionId: string, actor: AuthenticatedUser): Promise<void> {
+  async unflag(attemptId: string, questionId: string, actor: AuthenticatedUser, flagType = QuestionFlagType.NORMAL): Promise<void> {
     await this.requireStudentOpenAttempt(attemptId, actor);
-    const flag = await this.flags.findOne({ where: { attemptId, questionId } });
+    const flag = await this.flags.findOne({ where: { attemptId, questionId, flagType } });
     if (!flag) throw new NotFoundException('Question flag not found');
     await this.flags.remove(flag);
   }
@@ -556,67 +670,33 @@ export class TestsService {
     studentId: string,
     requireWritable: boolean,
   ): Promise<void> {
-    const rows = await this.dataSource.query<Array<{ read_only: boolean }>>(`
-      SELECT (
-        bundle.status = 'ARCHIVED'
-        OR enrollment.status = 'EXPIRED'
-        OR (enrollment.expires_at IS NOT NULL AND enrollment.expires_at <= CURRENT_TIMESTAMP)
-        OR (bundle.available_until IS NOT NULL AND bundle.available_until <= CURRENT_TIMESTAMP)
-      ) AS read_only
-      FROM bundle_tests bundle_test
-      INNER JOIN bundles bundle ON bundle.id = bundle_test.bundle_id
-      INNER JOIN bundle_enrollments enrollment
-        ON enrollment.bundle_id = bundle.id AND enrollment.student_id = $2
-      WHERE bundle_test.test_id = $1
-        AND enrollment.status <> 'REVOKED'
-        AND bundle.status IN ('PUBLISHED', 'ARCHIVED')
-        AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
-      LIMIT 1
-    `, [test.id, studentId]);
-    if (!rows.length) throw new ForbiddenException('This test is not available in your bundles');
-    if (requireWritable && rows[0].read_only) {
-      throw new ForbiddenException('This bundle is read-only');
-    }
+    await this.bundleAccess.assertTestAccess(
+      test.id,
+      { role: UserRole.STUDENT, userId: studentId } as AuthenticatedUser,
+      { throwForbidden: requireWritable },
+    );
   }
 
   private async requireBundleLectureAccess(
     bundleId: string,
     studentId: string,
     lectureIds?: string[],
-    requireWritable = false,
+    _requireWritable = false,
     courseId?: string,
   ): Promise<string[]> {
-    const rows = await this.dataSource.query<Array<{ lecture_id:string; read_only:boolean }>>(`
-      SELECT lecture.id AS lecture_id, (
-        bundle.status = 'ARCHIVED'
-        OR enrollment.status = 'EXPIRED'
-        OR (enrollment.expires_at IS NOT NULL AND enrollment.expires_at <= CURRENT_TIMESTAMP)
-        OR (bundle.available_until IS NOT NULL AND bundle.available_until <= CURRENT_TIMESTAMP)
-      ) AS read_only
-      FROM bundles bundle
-      INNER JOIN bundle_enrollments enrollment
-        ON enrollment.bundle_id = bundle.id AND enrollment.student_id = $2
-      INNER JOIN bundle_courses bundle_course ON bundle_course.bundle_id = bundle.id
-      INNER JOIN bundle_weeks bundle_week ON bundle_week.bundle_id = bundle.id
-      INNER JOIN weeks week
-        ON week.id = bundle_week.week_id AND week.course_id = bundle_course.course_id
-      INNER JOIN lectures lecture ON lecture.week_id = week.id
-      WHERE bundle.id = $1
-        AND enrollment.status <> 'REVOKED'
-        AND bundle.status IN ('PUBLISHED', 'ARCHIVED')
-        AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
-        AND ($3::uuid IS NULL OR bundle_course.course_id = $3::uuid)
-        AND lecture.is_published = TRUE
-    `, [bundleId, studentId, courseId ?? null]);
-    if (!rows.length) throw new ForbiddenException('This bundle does not grant access to the selected content');
-    if (requireWritable && rows[0].read_only) {
-      throw new ForbiddenException('This bundle is read-only');
+    const accessibleLectureIds = await this.bundleAccess.getAccessibleLectureIdsInBundle(
+      bundleId,
+      studentId,
+      courseId,
+    );
+    if (!accessibleLectureIds.length) {
+      throw new ForbiddenException('This bundle does not grant access to the selected content');
     }
-    const accessible = new Set(rows.map((row) => row.lecture_id));
+    const accessible = new Set(accessibleLectureIds);
     if (lectureIds?.some((lectureId) => !accessible.has(lectureId))) {
       throw new ForbiddenException('One or more lectures are outside this bundle');
     }
-    return [...accessible];
+    return accessibleLectureIds;
   }
 
   private assertAvailable(test: Test): void {
@@ -722,16 +802,18 @@ export class TestsService {
   }
 
   private async assertPublishable(test: Test): Promise<void> {
-    const items = await this.testQuestions.find({ where: { testId: test.id }, relations: { question: true } });
-    if (items.length === 0) throw new ConflictException('Add at least one question before publishing');
-    if (items.some((item) => !item.question.isActive)) {
-      throw new ConflictException('All test questions must be active before publishing');
+    const items = await this.testQuestions.find({
+      where: { testId: test.id },
+      relations: { question: { options: true } },
+    });
+    // Same validator that renders the admin "Pre-publish validation" panel
+    // (AssessmentAuthoringService.getAuthoringState) — the panel and this gate
+    // must never be able to disagree about what blocks publishing.
+    const blocking = validateTestForPublish(test, items).filter((issue) => issue.severity === 'ERROR');
+    if (blocking.length) {
+      throw new ConflictException(blocking.map((issue) => issue.message).join(' '));
     }
     const total = items.reduce((sum, item) => sum + Number(item.marks), 0);
-    if (test.passingMarks !== null && Number(test.passingMarks) > total) {
-      throw new ConflictException('Passing marks cannot exceed total marks');
-    }
-    this.assertWindow(test.availableFrom?.toISOString(), test.availableUntil?.toISOString());
     test.totalMarks = total.toFixed(2);
   }
 
@@ -787,10 +869,12 @@ export class TestsService {
   }
 
   private questionView(question: Question, revealAnswers: boolean) {
-    const options = question.options?.map((option) => revealAnswers ? option : ({
+    const options = [...(question.options ?? [])]
+      .sort((left, right) => left.displayOrder - right.displayOrder)
+      .map((option) => revealAnswers ? option : ({
       id: option.id, questionId: option.questionId, optionText: option.optionText,
       displayOrder: option.displayOrder, createdAt: option.createdAt,
-    }));
+      }));
     const essayConfiguration = question.essayConfiguration && revealAnswers
       ? question.essayConfiguration
       : question.essayConfiguration ? {

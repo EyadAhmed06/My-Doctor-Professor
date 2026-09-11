@@ -9,6 +9,10 @@ export class AuthResponseDto {
     full_name: string;
     role: UserRole;
     status: UserStatus;
+    forensic_code: string;
+    studentNumber?: string;
+    currentSemester?: number;
+    current_semester?: number;
   };
 }
 
@@ -23,6 +27,10 @@ export class UserProfileDto {
   dateOfBirth: Date | null;
   gender: Gender | null;
   emailVerified: boolean;
+  forensicCode: string;
+  studentNumber?: string;
+  currentSemester?: number;
+  current_semester?: number;
   createdAt: Date;
   updatedAt: Date;
 }

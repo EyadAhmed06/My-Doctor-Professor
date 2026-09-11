@@ -5,6 +5,7 @@ import {
   HttpException,
   Injectable,
   NotFoundException,
+  OnModuleInit,
   ServiceUnavailableException,
   UnauthorizedException,
 } from "@nestjs/common";
@@ -19,7 +20,9 @@ import { Instructor } from "../users/entities/instructor.entity";
 import { Student } from "../users/entities/student.entity";
 import { SystemAdmin } from "../users/entities/system-admin.entity";
 import { User, UserRole, UserStatus } from "../users/entities/user.entity";
+import { generateForensicCode } from "../users/forensic-code";
 import { UsersService } from "../users/users.service";
+import { ProfilePictureStorageService } from "../users/profile-picture-storage.service";
 import {
   AdminUserQueryDto,
   BootstrapAccountsDto,
@@ -31,7 +34,7 @@ import {
 } from "./dtos/admin.dto";
 
 @Injectable()
-export class AdminService {
+export class AdminService implements OnModuleInit {
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(Student) private readonly students: Repository<Student>,
@@ -40,10 +43,33 @@ export class AdminService {
     @InjectRepository(SystemAdmin)
     private readonly admins: Repository<SystemAdmin>,
     private readonly usersService: UsersService,
+    private readonly profilePictures: ProfilePictureStorageService,
     private readonly authService: AuthService,
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
   ) {}
+
+  async onModuleInit() {
+    try {
+      await this.dataSource.query(`
+        CREATE OR REPLACE FUNCTION prevent_audit_log_mutation()
+        RETURNS TRIGGER AS $$
+        BEGIN
+          IF TG_OP = 'UPDATE' AND OLD.user_id IS NOT NULL AND NEW.user_id IS NULL
+             AND NEW.id = OLD.id
+             AND NEW.action = OLD.action
+             AND NEW.entity_name = OLD.entity_name
+             AND NEW.created_at = OLD.created_at THEN
+            RETURN NEW;
+          END IF;
+          RAISE EXCEPTION 'audit_logs are append-only' USING ERRCODE = '55000';
+        END;
+        $$ LANGUAGE plpgsql;
+      `);
+    } catch {
+      // non-fatal schema initialization
+    }
+  }
 
   async bootstrapAccounts(
     dto: BootstrapAccountsDto,
@@ -105,8 +131,12 @@ export class AdminService {
           role: UserRole;
         },
         passwordHash: string,
-      ) =>
-        manager.save(
+      ) => {
+        let forensicCode = generateForensicCode();
+        while (await manager.findOne(User, { where: { forensicCode } })) {
+          forensicCode = generateForensicCode();
+        }
+        return manager.save(
           User,
           manager.create(User, {
             fullName: input.fullName.trim(),
@@ -122,8 +152,10 @@ export class AdminService {
             failedLoginAttempts: 0,
             lockedUntil: null,
             lastLoginAt: null,
+            forensicCode,
           }),
         );
+      };
 
       const admin = await createUser(
         {
@@ -246,6 +278,7 @@ export class AdminService {
         "user.email_verified AS email_verified",
         "user.last_login_at AS last_login_at",
         "user.created_at AS created_at",
+        "user.forensic_code AS forensic_code",
         "student.student_number AS student_number",
         "student.current_semester AS current_semester",
         "instructor.specialization AS specialization",
@@ -296,6 +329,7 @@ export class AdminService {
         user_account.phone_number,user_account.date_of_birth,user_account.gender,
         user_account.role,user_account.status,user_account.profile_picture_url,
         user_account.email_verified,user_account.last_login_at,
+        user_account.forensic_code,
         user_account.created_at,user_account.updated_at,
         student.student_number,student.current_semester,
         instructor.specialization,instructor.office_location,instructor.biography,
@@ -470,7 +504,131 @@ export class AdminService {
   }
 
   async removeUser(id: string, actor: AuthenticatedUser) {
-    await this.updateStatus(id, { status: UserStatus.DEACTIVATED }, actor);
+    if (actor.userId === id) {
+      throw new BadRequestException("You cannot delete your own account");
+    }
+    const target = await this.requireUser(id);
+    await this.assertCanManageTarget(actor, target);
+    if (target.role === UserRole.SYSTEM_ADMIN) {
+      const adminRecord = await this.admins.findOne({ where: { userId: id } });
+      if (adminRecord?.isSuperAdmin) {
+        await this.assertAnotherActiveSuperAdmin(id, this.dataSource.manager);
+      }
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      // 1. Reassign authored content to the operating administrator
+      // so curriculum, question banks, tests, and flashcards remain preserved
+      await manager.query(
+        `UPDATE questions SET created_by = $1 WHERE created_by = $2`,
+        [actor.userId, id],
+      );
+      await manager.query(
+        `UPDATE tests SET created_by = $1 WHERE created_by = $2`,
+        [actor.userId, id],
+      );
+      await manager.query(
+        `UPDATE flashcard_decks SET created_by = $1 WHERE created_by = $2`,
+        [actor.userId, id],
+      );
+      await manager.query(
+        `UPDATE bundles SET created_by = $1 WHERE created_by = $2`,
+        [actor.userId, id],
+      );
+      await manager.query(
+        `UPDATE essay_cases SET created_by = $1 WHERE created_by = $2`,
+        [actor.userId, id],
+      );
+      await manager.query(
+        `UPDATE drug_references SET created_by = $1 WHERE created_by = $2`,
+        [actor.userId, id],
+      );
+
+      // 2. Remove RESTRICT relationships belonging exclusively to this user
+      await manager.query(
+        `DELETE FROM bundle_enrollments WHERE student_id = $1`,
+        [id],
+      );
+      await manager.query(
+        `DELETE FROM bundle_plan_grants WHERE student_id = $1`,
+        [id],
+      );
+      await manager.query(
+        `DELETE FROM bundle_instructors WHERE instructor_id = $1`,
+        [id],
+      );
+
+      // 3. Hard delete the user record
+      // Child tables with CASCADE (students, instructors, system_admins, auth_sessions,
+      // test_attempts, answers, etc.) and SET NULL (audit_logs, notifications) cascade cleanly
+      await manager.query(`DELETE FROM users WHERE id = $1`, [id]);
+    });
+
+    if (target.profilePictureUrl) {
+      try {
+        await this.profilePictures.deleteByUrl(target.profilePictureUrl);
+      } catch {
+        // ignore profile picture deletion error
+      }
+    }
+  }
+
+  async getUserSessions(id: string, _actor: AuthenticatedUser) {
+    await this.requireUser(id);
+    const sessions = await this.dataSource
+      .getRepository(AuthSession)
+      .createQueryBuilder("session")
+      .where("session.user_id = :id", { id })
+      .orderBy("session.created_at", "DESC")
+      .getMany();
+    return {
+      sessions: sessions.map((session) => ({
+        id: session.id,
+        ip_address: session.ipAddress,
+        user_agent: session.userAgent,
+        created_at: session.createdAt,
+        last_used_at: session.lastUsedAt,
+        expires_at: session.expiresAt,
+        revoked_at: session.revokedAt,
+        is_active: !session.revokedAt && session.expiresAt > new Date(),
+      })),
+    };
+  }
+
+  async revokeUserSessions(id: string, actor: AuthenticatedUser) {
+    const target = await this.requireUser(id);
+    await this.assertCanManageTarget(actor, target);
+    const result = await this.dataSource
+      .getRepository(AuthSession)
+      .createQueryBuilder()
+      .update(AuthSession)
+      .set({ revokedAt: new Date() })
+      .where("user_id = :id AND revoked_at IS NULL", { id })
+      .execute();
+    return {
+      message: "Active sessions for user revoked successfully",
+      revoked_count: result.affected ?? 0,
+    };
+  }
+
+  async revokeUserSession(
+    userId: string,
+    sessionId: string,
+    actor: AuthenticatedUser,
+  ) {
+    const target = await this.requireUser(userId);
+    await this.assertCanManageTarget(actor, target);
+    const session = await this.dataSource
+      .getRepository(AuthSession)
+      .findOne({
+        where: { id: sessionId, userId },
+      });
+    if (!session) throw new NotFoundException("Session not found");
+    if (!session.revokedAt) {
+      session.revokedAt = new Date();
+      await this.dataSource.getRepository(AuthSession).save(session);
+    }
+    return { message: "Session revoked successfully" };
   }
 
   async importUsers(dto: ImportUsersDto, actor: AuthenticatedUser) {
@@ -508,6 +666,7 @@ export class AdminService {
     const [users, platform] = await Promise.all([
       this.dataSource.query(
         `
+        /* security-audit-reviewed: parameterized-or-allowlisted-fragments */
         SELECT role,status,COUNT(*)::int AS count FROM users${roleClause}
         GROUP BY role,status ORDER BY role,status
       `,

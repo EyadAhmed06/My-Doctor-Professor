@@ -1,0 +1,84 @@
+/* Final hero contract: render the selected uploaded artwork directly from the figure.
+   This deliberately bypasses the legacy <img> sources and CSS content:url fallbacks. */
+
+.public-home .hero-duo {
+  position: relative !important;
+  min-height: clamp(470px, 43vw, 650px) !important;
+  width: 100% !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  isolation: isolate;
+}
+
+.public-home .hero-duo > img {
+  display: none !important;
+}
+
+.public-home .hero-duo::before {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  inset: -5% -8% -5% -8% !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+  background-size: contain !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+
+html[data-theme="dark"] .public-home .hero-duo::before {
+  background-image: url('/media/hero-doctor-professor-v2-dark.svg') !important;
+  mix-blend-mode: normal !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+html[data-theme="light"] .public-home .hero-duo::before {
+  background-image: url('/media/hero-doctor-professor-v2-light.svg') !important;
+  mix-blend-mode: multiply !important;
+  filter: saturate(1.04) contrast(1.02) !important;
+  opacity: 1 !important;
+}
+
+/* Remove the older decorative glow that competed with the supplied artwork. */
+.public-home .public-hero::before {
+  opacity: .34 !important;
+}
+
+html[data-theme="light"] .public-home .public-hero::before {
+  opacity: .16 !important;
+}
+
+@media (min-width: 1051px) {
+  .public-home .public-hero {
+    grid-template-columns: minmax(0, .94fr) minmax(540px, 1.06fr) !important;
+    gap: clamp(34px, 4vw, 62px) !important;
+  }
+
+  .public-home .hero-duo::before {
+    inset: -8% -11% -8% -6% !important;
+  }
+}
+
+@media (max-width: 1050px) {
+  .public-home .hero-duo {
+    min-height: min(68vw, 600px) !important;
+  }
+
+  .public-home .hero-duo::before {
+    inset: -3% !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .public-home .hero-duo {
+    min-height: min(78vw, 440px) !important;
+  }
+
+  .public-home .hero-duo::before {
+    inset: -2% !important;
+  }
+}

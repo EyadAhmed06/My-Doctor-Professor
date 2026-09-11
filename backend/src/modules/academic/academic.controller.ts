@@ -17,11 +17,14 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { DeniedRoles } from '../auth/decorators/denied-roles.decorator';
+import { RateLimit } from '../auth/decorators/rate-limit.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
+import { AcademicAccessService } from './academic-access.service';
 import { AcademicService } from './academic.service';
 import {
   CourseQueryDto,
@@ -44,8 +47,12 @@ const uuid = new ParseUUIDPipe({ version: '4' });
 
 @Controller('academic')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@DeniedRoles(UserRole.SYSTEM_ADMIN)
 export class AcademicController {
-  constructor(private readonly academic: AcademicService) {}
+  constructor(
+    private readonly academic: AcademicService,
+    private readonly access: AcademicAccessService,
+  ) {}
 
   @Post('semesters')
   @Roles(UserRole.SYSTEM_ADMIN)
@@ -63,7 +70,7 @@ export class AcademicController {
     @Param('semesterId', uuid) id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.academic.getSemester(id, user.role);
+    return this.academic.getSemester(id, user);
   }
 
   @Put('semesters/:semesterId')
@@ -97,15 +104,16 @@ export class AcademicController {
     @Query() query: CourseQueryDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.academic.listCourses(query, user.role);
+    return this.academic.listCourses(query, user);
   }
 
   @Get('courses/:courseId')
-  getCourse(
+  async getCourse(
     @Param('courseId', uuid) id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.academic.getCourse(id, user.role);
+    await this.access.assertCourseReadable(id, user);
+    return this.academic.getCourse(id, user.role, user.userId);
   }
 
   @Get('courses/:courseId/instructors')
@@ -164,18 +172,20 @@ export class AcademicController {
   }
 
   @Get('courses/:courseId/weeks')
-  listWeeks(
+  async listWeeks(
     @Param('courseId', uuid) courseId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.academic.listWeeks(courseId, user.role);
+    await this.access.assertCourseReadable(courseId, user);
+    return this.academic.listWeeks(courseId, user.role, user.userId);
   }
 
   @Get('weeks/:weekId')
-  getWeek(
+  async getWeek(
     @Param('weekId', uuid) id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    await this.access.assertWeekReadable(id, user);
     return this.academic.getWeek(id, user.role);
   }
 
@@ -210,18 +220,20 @@ export class AcademicController {
   }
 
   @Get('weeks/:weekId/lectures')
-  listLectures(
+  async listLectures(
     @Param('weekId', uuid) weekId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    await this.access.assertWeekReadable(weekId, user);
     return this.academic.listLectures(weekId, user.role);
   }
 
   @Get('lectures/:lectureId')
-  getLecture(
+  async getLecture(
     @Param('lectureId', uuid) id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    await this.access.assertLectureReadable(id, user);
     return this.academic.getLecture(id, user.role);
   }
 
@@ -256,18 +268,20 @@ export class AcademicController {
   }
 
   @Get('lectures/:lectureId/topics')
-  listTopics(
+  async listTopics(
     @Param('lectureId', uuid) lectureId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    await this.access.assertLectureReadable(lectureId, user);
     return this.academic.listTopics(lectureId, user.role);
   }
 
   @Get('topics/:topicId')
-  getTopic(
+  async getTopic(
     @Param('topicId', uuid) id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    await this.access.assertTopicReadable(id, user);
     return this.academic.getTopic(id, user.role);
   }
 
@@ -301,6 +315,7 @@ export class AcademicController {
     return this.academic.createResource(lectureId, dto, user);
   }
 
+  @RateLimit({ key: 'resource-upload', maximum: 20, windowSeconds: 3600 })
   @Post('lectures/:lectureId/resources/upload')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   @UseInterceptors(FileInterceptor('file', {
@@ -320,19 +335,21 @@ export class AcademicController {
     @Param('resourceId', uuid) resourceId: string,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<StreamableFile> {
+    await this.access.assertResourceReadable(resourceId, user);
     const file = await this.academic.openResourceFile(resourceId, user.role);
     return new StreamableFile(file.stream, {
       type: file.mimeType,
-      disposition: `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
       length: file.size === null ? undefined : Number(file.size),
     });
   }
 
   @Get('lectures/:lectureId/resources')
-  listResources(
+  async listResources(
     @Param('lectureId', uuid) lectureId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    await this.access.assertLectureReadable(lectureId, user);
     return this.academic.listResources(lectureId, user.role);
   }
 

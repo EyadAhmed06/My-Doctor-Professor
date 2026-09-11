@@ -1,0 +1,126 @@
+name: my-doctor-professor
+
+services:
+  postgres:
+    image: postgres:17-bookworm
+    container_name: mdp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:?DB_NAME must be supplied through the production app env file}
+      POSTGRES_USER: ${DB_USERNAME:?DB_USERNAME must be supplied through the production app env file}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be supplied through the production app env file}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - /opt/mdp/data/postgres:/var/lib/postgresql/data
+      - /opt/mdp/config/postgres-certs:/certs:ro
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/certs/server.crt
+      - -c
+      - ssl_key_file=/certs/server.key
+      - -c
+      - ssl_ca_file=/certs/ca.crt
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:?DB_USERNAME is required} -d ${DB_NAME:?DB_NAME is required}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+
+  migrate:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be supplied through the deployment env file}
+    container_name: mdp-migrate
+    restart: "no"
+    env_file: /opt/mdp/app.env
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:?DB_NAME must be supplied through the production database env file}
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME must be supplied through the production database env file}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be supplied through the production database env file}
+      DB_SSL_ENABLED: "true"
+      DB_SSL_REJECT_UNAUTHORIZED: "true"
+      DB_SSL_CA_PATH: /run/postgres-ca.crt
+    volumes:
+      - /opt/mdp/config/postgres-certs/ca.crt:/run/postgres-ca.crt:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["npm", "run", "migration:run:prod"]
+    networks: [internal]
+
+  backend:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be supplied through the deployment env file}
+    container_name: mdp-backend
+    restart: unless-stopped
+    env_file: /opt/mdp/app.env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:?DB_NAME must be supplied through the production database env file}
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME must be supplied through the production database env file}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be supplied through the production database env file}
+      DB_SSL_ENABLED: "true"
+      DB_SSL_REJECT_UNAUTHORIZED: "true"
+      DB_SSL_CA_PATH: /run/postgres-ca.crt
+      TRUST_PROXY_HOPS: "1"
+      FILE_UPLOAD_PATH: /app/uploads
+    volumes:
+      - /opt/mdp/config/postgres-certs/ca.crt:/run/postgres-ca.crt:ro
+      - /opt/mdp/data/uploads:/app/uploads
+      - /opt/mdp/data/backups:/app/backups
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/v1/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+
+  frontend:
+    image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE must be supplied through the deployment env file}
+    container_name: mdp-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      HOSTNAME: 0.0.0.0
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+
+  caddy:
+    image: caddy:2.10-alpine
+    container_name: mdp-caddy
+    restart: unless-stopped
+    environment:
+      APP_HOST: ${APP_HOST:?APP_HOST must be supplied through the deployment env file}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /opt/mdp/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /opt/mdp/data/caddy:/data
+      - /opt/mdp/config/caddy:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+    networks: [internal]
+
+networks:
+  internal:
+    driver: bridge

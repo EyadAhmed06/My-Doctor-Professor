@@ -1,62 +1,1232 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';import * as bcrypt from 'bcrypt';import { DataSource, In, Repository } from 'typeorm';
-import { BundleCourse } from '../../common/entities/bundle-course.entity';import { BundleEnrollment, BundleEnrollmentSource, BundleEnrollmentStatus } from '../../common/entities/bundle-enrollment.entity';import { BundleInstructor } from '../../common/entities/bundle-instructor.entity';import { BundleTest } from '../../common/entities/bundle-test.entity';import { BundleWeek } from '../../common/entities/bundle-week.entity';import { Bundle, BundleAccessMode, BundleStatus } from '../../common/entities/bundle.entity';import { Course } from '../../common/entities/course.entity';import { Test } from '../../common/entities/test.entity';import { Week } from '../../common/entities/week.entity';import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';import { User, UserRole, UserStatus } from '../users/entities/user.entity';import { CreateBundleDto, GrantBundleDto, UpdateBundleDto } from './dtos/bundle.dto';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import * as bcrypt from 'bcrypt';
+import { DataSource, In, Repository } from 'typeorm';
+import { BundleCourse } from '../../common/entities/bundle-course.entity';
+import { NotificationType } from '../../common/entities/notification.entity';
+import {
+  BundleEnrollment,
+  BundleEnrollmentSource,
+  BundleEnrollmentStatus,
+  BundlePaymentStatus,
+} from '../../common/entities/bundle-enrollment.entity';
+import { BundleInstructor } from '../../common/entities/bundle-instructor.entity';
+import { BundlePlanGrant, BundlePlanTier } from '../../common/entities/bundle-plan-grant.entity';
+import { BundlePlan, BundlePlanWeek } from '../../common/entities/bundle-plan-week.entity';
+import { BundleTest } from '../../common/entities/bundle-test.entity';
+import { BundleWeek } from '../../common/entities/bundle-week.entity';
+import { Bundle, BundleAccessMode, BundleStatus } from '../../common/entities/bundle.entity';
+import { Course } from '../../common/entities/course.entity';
+import { Test } from '../../common/entities/test.entity';
+import { Week } from '../../common/entities/week.entity';
+import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { NotificationsService } from '../notifications/notifications.service';
+import { Student } from '../users/entities/student.entity';
+import { User, UserRole, UserStatus } from '../users/entities/user.entity';
+import {
+  ConfirmBundlePaymentDto,
+  CreateBundleDto,
+  EnrollPlanDto,
+  GrantBundleDto,
+  GrantPlanDto,
+  SetPlanWeeksDto,
+  UpdateBundleDto,
+  UpdateBundlePlansDto,
+} from './dtos/bundle.dto';
 
-@Injectable() export class BundlesService {
- constructor(@InjectRepository(Bundle) private readonly bundles:Repository<Bundle>,@InjectRepository(BundleCourse) private readonly bundleCourses:Repository<BundleCourse>,@InjectRepository(BundleWeek) private readonly bundleWeeks:Repository<BundleWeek>,@InjectRepository(BundleTest) private readonly bundleTests:Repository<BundleTest>,@InjectRepository(BundleInstructor) private readonly bundleInstructors:Repository<BundleInstructor>,@InjectRepository(BundleEnrollment) private readonly enrollments:Repository<BundleEnrollment>,@InjectRepository(Course) private readonly courses:Repository<Course>,@InjectRepository(Week) private readonly weeks:Repository<Week>,@InjectRepository(Test) private readonly tests:Repository<Test>,@InjectRepository(User) private readonly users:Repository<User>,private readonly dataSource:DataSource){}
+@Injectable()
+export class BundlesService {
+  constructor(
+    @InjectRepository(Bundle) private readonly bundles: Repository<Bundle>,
+    @InjectRepository(BundleCourse) private readonly bundleCourses: Repository<BundleCourse>,
+    @InjectRepository(BundleWeek) private readonly bundleWeeks: Repository<BundleWeek>,
+    @InjectRepository(BundleTest) private readonly bundleTests: Repository<BundleTest>,
+    @InjectRepository(BundleInstructor) private readonly bundleInstructors: Repository<BundleInstructor>,
+    @InjectRepository(BundleEnrollment) private readonly enrollments: Repository<BundleEnrollment>,
+    @InjectRepository(BundlePlanWeek) private readonly bundlePlanWeeks: Repository<BundlePlanWeek>,
+    @InjectRepository(BundlePlanGrant) private readonly planGrants: Repository<BundlePlanGrant>,
+    @InjectRepository(Course) private readonly courses: Repository<Course>,
+    @InjectRepository(Week) private readonly weeks: Repository<Week>,
+    @InjectRepository(Test) private readonly tests: Repository<Test>,
+    @InjectRepository(User) private readonly users: Repository<User>,
+    private readonly dataSource: DataSource,
+    private readonly notifications: NotificationsService,
+  ) {}
 
- catalog(academicYear?:number){const where:Record<string,unknown>={status:BundleStatus.PUBLISHED,isFree:true};if(academicYear)where.academicYear=academicYear;return this.bundles.find({where,order:{academicYear:'ASC',title:'ASC'}});}
- async create(actor:AuthenticatedUser,dto:CreateBundleDto){this.validateWindow(dto.available_from,dto.available_until);const slug=this.slug(dto.slug);const codeHash=dto.enrollment_code?await bcrypt.hash(dto.enrollment_code,10):null;try{return await this.dataSource.transaction(async manager=>{const bundle=await manager.save(Bundle,manager.create(Bundle,{title:dto.title.trim(),slug,description:dto.description?.trim()||null,academicYear:dto.academic_year,status:BundleStatus.DRAFT,accessMode:dto.access_mode??BundleAccessMode.PUBLIC,isFree:dto.is_free??true,enrollmentCodeHash:codeHash,availableFrom:dto.available_from?new Date(dto.available_from):null,availableUntil:dto.available_until?new Date(dto.available_until):null,createdBy:actor.userId}));if(actor.role===UserRole.INSTRUCTOR)await manager.save(BundleInstructor,manager.create(BundleInstructor,{bundleId:bundle.id,instructorId:actor.userId}));return bundle;});}catch(error){if(this.isUnique(error))throw new ConflictException('Bundle slug already exists');throw error;}}
- async managed(actor:AuthenticatedUser){if(actor.role===UserRole.SYSTEM_ADMIN)return this.bundles.find({order:{createdAt:'DESC'}});const assignments=await this.bundleInstructors.find({where:{instructorId:actor.userId}});if(!assignments.length)return [];return this.bundles.createQueryBuilder('bundle').where('bundle.id IN (:...ids)',{ids:assignments.map(item=>item.bundleId)}).orderBy('bundle.created_at','DESC').getMany();}
- async mine(studentId:string){const rows=await this.enrollments.find({where:{studentId},relations:{bundle:true},order:{createdAt:'DESC'}});return rows.filter(row=>row.status!==BundleEnrollmentStatus.REVOKED).map(row=>this.enrollmentView(row));}
- async getAccessible(id:string,actor:AuthenticatedUser){const bundle=await this.requireBundle(id);if(actor.role!==UserRole.STUDENT){await this.assertManager(id,actor);return {...bundle,read_only:false};}const enrollment=await this.requireEnrollment(id,actor.userId);if(bundle.availableFrom&&bundle.availableFrom>new Date())throw new ForbiddenException('Bundle access has not started yet');return {...bundle,...this.accessState(enrollment,bundle)};}
- async getContent(id:string,actor:AuthenticatedUser){
-  const access=await this.getAccessible(id,actor);
-  const [courseLinks,weekLinks,testLinks,lectureStats]=await Promise.all([
-   this.bundleCourses.find({where:{bundleId:id},relations:{course:{semester:true}},order:{course:{displayOrder:'ASC'}}}),
-   this.bundleWeeks.find({where:{bundleId:id},relations:{week:{lectures:true}},order:{week:{displayOrder:'ASC'}}}),
-   this.bundleTests.find({where:{bundleId:id},relations:{test:true},order:{test:{createdAt:'DESC'}}}),
-   this.dataSource.query(`
-    SELECT lecture.id,
-      COUNT(DISTINCT question.id)::int AS question_count,
-      COUNT(DISTINCT deck.id)::int AS flashcard_deck_count,
-      COUNT(DISTINCT resource.id)::int AS resource_count
-    FROM bundle_weeks bundle_week JOIN weeks week ON week.id=bundle_week.week_id
-    JOIN lectures lecture ON lecture.week_id=week.id
-    LEFT JOIN topics topic ON topic.lecture_id=lecture.id
-    LEFT JOIN questions question ON question.topic_id=topic.id AND question.is_active=TRUE
-    LEFT JOIN flashcard_decks deck ON deck.lecture_id=lecture.id AND deck.is_published=TRUE
-    LEFT JOIN resources resource ON resource.lecture_id=lecture.id
-    WHERE bundle_week.bundle_id=$1 GROUP BY lecture.id`,[id]),
-  ]);
-  const stats=new Map((lectureStats as {id:string;question_count:number;flashcard_deck_count:number;resource_count:number}[]).map(row=>[row.id,row]));
-  const courses=courseLinks.map(link=>({...link.course,weeks:weekLinks.filter(item=>item.week.courseId===link.courseId).map(item=>({...item.week,lectures:item.week.lectures.filter(lecture=>actor.role!==UserRole.STUDENT||lecture.isPublished).map(lecture=>({...lecture,...(stats.get(lecture.id)??{question_count:0,flashcard_deck_count:0,resource_count:0})}))}))}));
-  return {bundle:access,courses,past_exams:testLinks.map(link=>link.test),selected_week_count:weekLinks.length,
-   totals:{courses:courses.length,weeks:weekLinks.length,lectures:courses.flatMap(course=>course.weeks).flatMap(week=>week.lectures).length,
-    questions:[...stats.values()].reduce((sum,row)=>sum+Number(row.question_count),0),flashcard_decks:[...stats.values()].reduce((sum,row)=>sum+Number(row.flashcard_deck_count),0),resources:[...stats.values()].reduce((sum,row)=>sum+Number(row.resource_count),0),past_exams:testLinks.length}};
- }
- async update(id:string,actor:AuthenticatedUser,dto:UpdateBundleDto){await this.assertManager(id,actor);const bundle=await this.requireBundleWithSecret(id);this.validateWindow(dto.available_from??bundle.availableFrom?.toISOString(),dto.available_until??bundle.availableUntil?.toISOString());if(dto.title!==undefined)bundle.title=dto.title.trim();if(dto.description!==undefined)bundle.description=dto.description.trim()||null;if(dto.access_mode!==undefined)bundle.accessMode=dto.access_mode;if(dto.is_free!==undefined)bundle.isFree=dto.is_free;if(dto.available_from!==undefined)bundle.availableFrom=dto.available_from?new Date(dto.available_from):null;if(dto.available_until!==undefined)bundle.availableUntil=dto.available_until?new Date(dto.available_until):null;if(dto.enrollment_code!==undefined)bundle.enrollmentCodeHash=await bcrypt.hash(dto.enrollment_code,10);return this.bundles.save(bundle);}
- async changeStatus(id:string,actor:AuthenticatedUser,status:BundleStatus){await this.assertManager(id,actor);const bundle=await this.requireBundle(id);if(status===BundleStatus.PUBLISHED){const count=await this.bundleCourses.count({where:{bundleId:id}});if(count===0)throw new ConflictException('A bundle needs at least one course before publishing');}bundle.status=status;return this.bundles.save(bundle);}
- async addCourse(id:string,actor:AuthenticatedUser,courseId:string){await this.assertManager(id,actor);if(!await this.courses.exists({where:{id:courseId}}))throw new NotFoundException('Course not found');return this.saveLink(()=>this.bundleCourses.save(this.bundleCourses.create({bundleId:id,courseId})),'Course already belongs to this bundle');}
- async removeCourse(id:string,actor:AuthenticatedUser,courseId:string){await this.assertManager(id,actor);await this.dataSource.transaction(async manager=>{const weeks=await manager.find(Week,{where:{courseId},select:{id:true}});if(weeks.length)await manager.delete(BundleWeek,{bundleId:id,weekId:In(weeks.map(item=>item.id))});await manager.delete(BundleCourse,{bundleId:id,courseId});});}
- async addWeek(id:string,actor:AuthenticatedUser,weekId:string){await this.assertManager(id,actor);const week=await this.weeks.findOne({where:{id:weekId}});if(!week)throw new NotFoundException('Week not found');if(!await this.bundleCourses.exists({where:{bundleId:id,courseId:week.courseId}}))throw new BadRequestException('Add the parent course to the bundle first');return this.saveLink(()=>this.bundleWeeks.save(this.bundleWeeks.create({bundleId:id,weekId})),'Week already belongs to this bundle');}
- async removeWeek(id:string,actor:AuthenticatedUser,weekId:string){await this.assertManager(id,actor);await this.bundleWeeks.delete({bundleId:id,weekId});}
- async addTest(id:string,actor:AuthenticatedUser,testId:string){await this.assertManager(id,actor);if(!await this.tests.exists({where:{id:testId}}))throw new NotFoundException('Test not found');return this.saveLink(()=>this.bundleTests.save(this.bundleTests.create({bundleId:id,testId})),'Exam already belongs to this bundle');}
- async removeTest(id:string,actor:AuthenticatedUser,testId:string){await this.assertManager(id,actor);await this.bundleTests.delete({bundleId:id,testId});}
- async assignInstructor(id:string,actor:AuthenticatedUser,instructorId:string){await this.assertManager(id,actor);const user=await this.users.findOne({where:{id:instructorId,role:UserRole.INSTRUCTOR,status:UserStatus.ACTIVE}});if(!user)throw new NotFoundException('Active instructor not found');return this.saveLink(()=>this.bundleInstructors.save(this.bundleInstructors.create({bundleId:id,instructorId})),'Instructor already manages this bundle');}
- async grant(id:string,actor:AuthenticatedUser,dto:GrantBundleDto){await this.assertManager(id,actor);const student=await this.users.findOne({where:{id:dto.student_id,role:UserRole.STUDENT,status:UserStatus.ACTIVE}});if(!student)throw new NotFoundException('Active student not found');return this.upsertEnrollment(id,dto.student_id,BundleEnrollmentSource.MANUAL,actor.userId,dto.expires_at?new Date(dto.expires_at):null);}
- async revoke(id:string,actor:AuthenticatedUser,studentId:string){await this.assertManager(id,actor);const enrollment=await this.enrollments.findOne({where:{bundleId:id,studentId}});if(!enrollment)throw new NotFoundException('Bundle enrollment not found');enrollment.status=BundleEnrollmentStatus.REVOKED;await this.enrollments.save(enrollment);}
- async enrollByCode(studentId:string,code:string){const candidates=await this.bundles.createQueryBuilder('bundle').addSelect('bundle.enrollment_code_hash').where('bundle.status = :status',{status:BundleStatus.PUBLISHED}).andWhere('bundle.access_mode = :mode',{mode:BundleAccessMode.CODE}).getMany();for(const bundle of candidates)if(bundle.enrollmentCodeHash&&await bcrypt.compare(code,bundle.enrollmentCodeHash))return this.upsertEnrollment(bundle.id,studentId,BundleEnrollmentSource.CODE,null,bundle.availableUntil);throw new NotFoundException('Enrollment code is invalid or inactive');}
- async enrollPublic(id:string,studentId:string){const bundle=await this.requireBundle(id);if(bundle.status!==BundleStatus.PUBLISHED||bundle.accessMode!==BundleAccessMode.PUBLIC||!bundle.isFree)throw new ForbiddenException('This bundle is not open for free enrollment');return this.upsertEnrollment(id,studentId,BundleEnrollmentSource.PUBLIC,null,bundle.availableUntil);}
- private async upsertEnrollment(bundleId:string,studentId:string,source:BundleEnrollmentSource,grantedBy:string|null,expiresAt:Date|null){let item=await this.enrollments.findOne({where:{bundleId,studentId}});if(!item)item=this.enrollments.create({bundleId,studentId,source,grantedBy,expiresAt,status:BundleEnrollmentStatus.ACTIVE});else{item.status=BundleEnrollmentStatus.ACTIVE;item.source=source;item.grantedBy=grantedBy;item.expiresAt=expiresAt;}return this.enrollments.save(item);}
- private async requireEnrollment(bundleId:string,studentId:string){const item=await this.enrollments.findOne({where:{bundleId,studentId}});if(!item||item.status===BundleEnrollmentStatus.REVOKED)throw new ForbiddenException('You do not have access to this bundle');return item;}
- private enrollmentView(row:BundleEnrollment){return {...row.bundle,...this.accessState(row,row.bundle),enrollment_source:row.source};}
- private accessState(row:BundleEnrollment,bundle:Bundle){const now=new Date();const expired=bundle.status===BundleStatus.ARCHIVED||row.status===BundleEnrollmentStatus.EXPIRED||Boolean(row.expiresAt&&row.expiresAt<=now)||Boolean(bundle.availableUntil&&bundle.availableUntil<=now);return {read_only:expired,access_status:expired?BundleEnrollmentStatus.EXPIRED:BundleEnrollmentStatus.ACTIVE,expires_at:row.expiresAt};}
- private async assertManager(id:string,actor:AuthenticatedUser){await this.requireBundle(id);if(actor.role===UserRole.SYSTEM_ADMIN)return;if(actor.role!==UserRole.INSTRUCTOR||!await this.bundleInstructors.exists({where:{bundleId:id,instructorId:actor.userId}}))throw new ForbiddenException('You do not manage this bundle');}
- private async requireBundle(id:string){const item=await this.bundles.findOne({where:{id}});if(!item)throw new NotFoundException('Bundle not found');return item;}
- private async requireBundleWithSecret(id:string){const item=await this.bundles.createQueryBuilder('bundle').addSelect('bundle.enrollment_code_hash').where('bundle.id = :id',{id}).getOne();if(!item)throw new NotFoundException('Bundle not found');return item;}
- private validateWindow(from?:string|null,to?:string|null){if(from&&to&&new Date(from)>=new Date(to))throw new BadRequestException('available_until must be after available_from');}
- private slug(value:string){const normalized=value.trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');if(!normalized)throw new BadRequestException('Bundle slug is invalid');return normalized;}
- private isUnique(error:unknown){return typeof error==='object'&&error!==null&&'code' in error&&(error as {code?:string}).code==='23505';}
- private async saveLink<T>(operation:()=>Promise<T>,message:string){try{return await operation();}catch(error){if(this.isUnique(error))throw new ConflictException(message);throw error;}}
+  private async findStudentSafe(studentId: string): Promise<Student | null> {
+    try {
+      const repo = this.dataSource?.getRepository ? this.dataSource.getRepository(Student) : null;
+      if (repo) {
+        return await repo.findOne({ where: { userId: studentId } }).catch(() => null);
+      }
+    } catch {
+      // offline or mock fallback
+    }
+    return null;
+  }
+
+  async resolveBundleSemesters(bundleIds: string[], preloadedBundles: Bundle[] = []): Promise<Map<string, number>> {
+    const semesterMap = new Map<string, number>();
+    if (!bundleIds.length) return semesterMap;
+
+    try {
+      if (this.dataSource?.query) {
+        const courseSemesterRows = await this.dataSource.query(
+          `SELECT bc.bundle_id, s.semester_number
+           FROM bundle_courses bc
+           JOIN courses c ON c.id = bc.course_id
+           JOIN semesters s ON s.id = c.semester_id
+           WHERE bc.bundle_id = ANY($1)
+           ORDER BY bc.bundle_id, s.semester_number ASC`,
+          [bundleIds],
+        ).catch(() => [] as Array<{ bundle_id: string; semester_number: number }>);
+
+        for (const row of courseSemesterRows) {
+          if (!semesterMap.has(row.bundle_id) && row.semester_number) {
+            semesterMap.set(row.bundle_id, Number(row.semester_number));
+          }
+        }
+      }
+    } catch {
+      // Database query best-effort fallback
+    }
+
+    const bundlesById = new Map(preloadedBundles.map((b) => [b.id, b]));
+    for (const id of bundleIds) {
+      if (semesterMap.has(id)) continue;
+      let bundle = bundlesById.get(id);
+      if (!bundle && this.bundles?.findOne) {
+        bundle = await this.bundles.findOne({ where: { id } }).catch(() => null) || undefined;
+      }
+      if (bundle) {
+        const textToMatch = `${bundle.slug || ''} ${bundle.title || ''} ${bundle.description || ''}`;
+        const match = textToMatch.match(/(?:semester|sem)[-_ ]?(\d+)/i);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num >= 1 && num <= 12) {
+            semesterMap.set(id, num);
+            continue;
+          }
+        }
+        if (bundle.academicYear) {
+          const derived = (bundle.academicYear * 2) - 1;
+          semesterMap.set(id, derived);
+        }
+      }
+    }
+
+    return semesterMap;
+  }
+
+  async catalog(academicYear?: number, semester?: number) {
+    const builder = this.bundles.createQueryBuilder('bundle')
+      .where('bundle.status = :status', { status: BundleStatus.PUBLISHED })
+      .andWhere('bundle.access_mode = :mode', { mode: BundleAccessMode.PUBLIC })
+      .andWhere('(bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)')
+      .orderBy('bundle.academic_year', 'ASC')
+      .addOrderBy('bundle.title', 'ASC');
+    if (academicYear) builder.andWhere('bundle.academic_year = :academicYear', { academicYear });
+    const bundles = await builder.getMany();
+    const semesterMap = await this.resolveBundleSemesters(bundles.map((b) => b.id), bundles);
+    const enriched = bundles.map((bundle) => {
+      const semesterNumber = semesterMap.get(bundle.id) ?? (bundle.academicYear ? (bundle.academicYear * 2) - 1 : 1);
+      return {
+        ...bundle,
+        semesterNumber,
+        semester_number: semesterNumber,
+      };
+    });
+    if (semester) {
+      return enriched.filter((bundle) => bundle.semesterNumber === semester);
+    }
+    return enriched;
+  }
+
+  async studentCatalog(studentId: string, academicYear?: number, requestedSemester?: number) {
+    let semester = requestedSemester;
+    if (!semester) {
+      const student = await this.findStudentSafe(studentId);
+      if (student?.currentSemester) semester = student.currentSemester;
+    }
+    return this.catalog(academicYear, semester);
+  }
+
+  async create(actor: AuthenticatedUser, dto: CreateBundleDto) {
+    this.validateWindow(dto.available_from, dto.available_until);
+    const slug = this.slug(dto.slug);
+    const isFree = dto.is_free ?? true;
+    const pricing = this.resolvePricing(isFree, dto.price_amount, dto.price_currency);
+    const codeHash = dto.enrollment_code ? await bcrypt.hash(dto.enrollment_code, 10) : null;
+    const requestedSemester = dto.semester ?? dto.semester_number;
+    const academicYear = dto.academic_year ?? (requestedSemester ? Math.ceil(requestedSemester / 2) : 1);
+    let description = dto.description?.trim() || null;
+    if (requestedSemester && (!description || !description.includes(`Semester ${requestedSemester}`))) {
+      description = description ? `${description} (Semester ${requestedSemester})` : `Semester ${requestedSemester} Bundle`;
+    }
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        const bundle = await manager.save(Bundle, manager.create(Bundle, {
+          title: dto.title.trim(),
+          slug,
+          description,
+          academicYear,
+          status: BundleStatus.DRAFT,
+          accessMode: dto.access_mode ?? BundleAccessMode.PUBLIC,
+          isFree,
+          priceAmount: pricing.priceAmount,
+          priceCurrency: pricing.priceCurrency,
+          enrollmentCodeHash: codeHash,
+          availableFrom: dto.available_from ? new Date(dto.available_from) : null,
+          availableUntil: dto.available_until ? new Date(dto.available_until) : null,
+          createdBy: actor.userId,
+        }));
+        if (actor.role === UserRole.INSTRUCTOR) {
+          await manager.save(BundleInstructor, manager.create(BundleInstructor, {
+            bundleId: bundle.id,
+            instructorId: actor.userId,
+          }));
+        }
+        return {
+          ...bundle,
+          semesterNumber: requestedSemester ?? (academicYear * 2 - 1),
+          semester_number: requestedSemester ?? (academicYear * 2 - 1),
+        };
+      });
+    } catch (error) {
+      if (this.isUnique(error)) throw new ConflictException('Bundle slug already exists');
+      throw error;
+    }
+  }
+
+  async managed(actor: AuthenticatedUser) {
+    let bundlesList: Bundle[] = [];
+    if (actor.role === UserRole.SYSTEM_ADMIN) {
+      bundlesList = await this.bundles.find({ order: { createdAt: 'DESC' } });
+    } else {
+      const assignments = await this.bundleInstructors.find({ where: { instructorId: actor.userId } });
+      if (!assignments.length) return [];
+      bundlesList = await this.bundles.createQueryBuilder('bundle')
+        .where('bundle.id IN (:...ids)', { ids: assignments.map((item) => item.bundleId) })
+        .orderBy('bundle.created_at', 'DESC')
+        .getMany();
+    }
+    const semesterMap = await this.resolveBundleSemesters(bundlesList.map((b) => b.id), bundlesList);
+    return bundlesList.map((bundle) => {
+      const semesterNumber = semesterMap.get(bundle.id) ?? (bundle.academicYear ? (bundle.academicYear * 2) - 1 : 1);
+      return {
+        ...bundle,
+        semesterNumber,
+        semester_number: semesterNumber,
+      };
+    });
+  }
+
+  async mine(studentId: string) {
+    const enrollmentRows = await this.enrollments.find({
+      where: { studentId },
+      relations: { bundle: true },
+      order: { createdAt: 'DESC' },
+    });
+    const validRows = enrollmentRows
+      .filter((row) => row.bundle.status === BundleStatus.PUBLISHED
+        && (row.status !== BundleEnrollmentStatus.REVOKED
+          || row.paymentStatus === BundlePaymentStatus.PENDING));
+
+    const student = await this.findStudentSafe(studentId);
+    const studentSemester = student?.currentSemester;
+
+    const bundleIds = validRows.map((row) => row.bundle.id);
+    const semesterMap = await this.resolveBundleSemesters(bundleIds, validRows.map((r) => r.bundle));
+
+    return validRows
+      .map((row) => {
+        const semesterNumber = semesterMap.get(row.bundle.id) ?? (row.bundle.academicYear ? (row.bundle.academicYear * 2) - 1 : 1);
+        const view = this.enrollmentView(row);
+        return {
+          ...view,
+          semesterNumber,
+          semester_number: semesterNumber,
+        };
+      })
+      .filter((bundle) => {
+        if (!studentSemester) return true;
+        return bundle.semesterNumber === studentSemester;
+      });
+  }
+
+  async getAccessible(id: string, actor: AuthenticatedUser) {
+    const bundle = await this.requireBundle(id);
+    const semesterMap = await this.resolveBundleSemesters([id], [bundle]);
+    const bundleSemester = semesterMap.get(id) ?? (bundle.academicYear ? (bundle.academicYear * 2) - 1 : 1);
+
+    if (actor.role !== UserRole.STUDENT) {
+      await this.assertManager(id, actor);
+      return {
+        ...bundle,
+        read_only: false,
+        accessible: true,
+        payment_required: false,
+        partial_access: false,
+        visible_week_ids: null as string[] | null,
+        essay_week_ids: null as string[] | null,
+        semesterNumber: bundleSemester,
+        semester_number: bundleSemester,
+      };
+    }
+
+    const student = await this.findStudentSafe(actor.userId);
+    if (student?.currentSemester && bundleSemester && bundleSemester !== student.currentSemester) {
+      throw new ForbiddenException(`This bundle is only accessible to Semester ${bundleSemester} students.`);
+    }
+
+    if (bundle.status === BundleStatus.DRAFT) {
+      throw new ForbiddenException('This bundle is not published');
+    }
+    if (bundle.status === BundleStatus.ARCHIVED
+      || (bundle.availableUntil && bundle.availableUntil <= new Date())) {
+      throw new ForbiddenException('This bundle has expired');
+    }
+
+    const enrollment = await this.requireEnrollment(id, actor.userId);
+    if (!bundle.isFree && enrollment.paymentStatus !== BundlePaymentStatus.PAID) {
+      throw new ForbiddenException('This bundle is locked until you subscribe in it');
+    }
+    if (bundle.availableFrom && bundle.availableFrom > new Date()) {
+      throw new ForbiddenException('Bundle access has not started yet');
+    }
+    return {
+      ...bundle,
+      ...this.accessState(enrollment, bundle),
+      partial_access: false,
+      visible_week_ids: null as string[] | null,
+      essay_week_ids: null as string[] | null,
+      semesterNumber: bundleSemester,
+      semester_number: bundleSemester,
+    };
+  }
+
+  async getContent(id: string, actor: AuthenticatedUser) {
+    const access = await this.getAccessible(id, actor);
+    const visibleWeekIds = access.visible_week_ids ? new Set(access.visible_week_ids) : null;
+    const essayWeekIds = access.essay_week_ids ? new Set(access.essay_week_ids) : null;
+    const [courseLinks, weekLinksAll, testLinks, lectureStats] = await Promise.all([
+      this.bundleCourses.find({
+        where: { bundleId: id },
+        relations: { course: { semester: true, weeks: { lectures: true } } },
+        order: { course: { displayOrder: 'ASC' } },
+      }),
+      this.bundleWeeks.find({
+        where: { bundleId: id },
+        relations: { week: { lectures: true } },
+        order: { week: { displayOrder: 'ASC' } },
+      }),
+      this.bundleTests.find({
+        where: { bundleId: id },
+        relations: { test: true },
+        order: { test: { createdAt: 'DESC' } },
+      }),
+      this.dataSource.query(`
+        SELECT lecture.id,
+          COUNT(DISTINCT question.id)::int AS question_count,
+          COUNT(DISTINCT question.id) FILTER (
+            WHERE question.question_type = 'MCQ'
+              AND question.is_question_bank = TRUE
+              AND (SELECT COUNT(*) FROM mcq_options option WHERE option.question_id = question.id) = 5
+              AND (SELECT COUNT(*) FROM mcq_options option WHERE option.question_id = question.id AND option.is_correct = TRUE) = 1
+          )::int AS mcq_count,
+          COUNT(DISTINCT deck.id)::int AS flashcard_deck_count,
+          COUNT(DISTINCT resource.id)::int AS resource_count
+        FROM bundle_courses bundle_course
+        JOIN courses course ON course.id = bundle_course.course_id
+        JOIN weeks week ON week.course_id = course.id
+        JOIN lectures lecture ON lecture.week_id = week.id
+        LEFT JOIN topics topic ON topic.lecture_id = lecture.id
+        LEFT JOIN questions question ON question.topic_id = topic.id AND question.is_active = TRUE
+        LEFT JOIN flashcard_decks deck ON deck.course_id = course.id AND deck.is_published = TRUE
+          AND (
+            deck.lecture_id = lecture.id
+            OR (deck.lecture_id IS NULL AND lecture.id = (
+              SELECT first_lecture.id FROM weeks first_week
+              JOIN lectures first_lecture ON first_lecture.week_id=first_week.id
+              WHERE first_week.course_id=course.id
+              ORDER BY first_week.display_order,first_week.week_number,first_lecture.display_order,first_lecture.lecture_number
+              LIMIT 1
+            ))
+          )
+        LEFT JOIN resources resource ON resource.lecture_id = lecture.id
+        WHERE bundle_course.bundle_id = $1
+          AND (
+            EXISTS (SELECT 1 FROM bundle_weeks selected WHERE selected.bundle_id=$1 AND selected.week_id=week.id)
+            OR NOT EXISTS (
+              SELECT 1 FROM bundle_weeks selected
+              JOIN weeks selected_week ON selected_week.id=selected.week_id
+              WHERE selected.bundle_id=$1 AND selected_week.course_id=course.id
+            )
+          )
+        GROUP BY lecture.id`, [id]),
+    ]);
+    const weekLinks = visibleWeekIds ? weekLinksAll.filter((item) => visibleWeekIds.has(item.weekId)) : weekLinksAll;
+    const stats = new Map((lectureStats as Array<{
+      id: string;
+      question_count: number;
+      mcq_count: number;
+      flashcard_deck_count: number;
+      resource_count: number;
+    }>).map((row) => [row.id, row]));
+    const courses = courseLinks.map((link) => {
+      const explicitlyLinked = weekLinks.filter((item) => item.week.courseId === link.courseId);
+      const effectiveWeeks = explicitlyLinked.length
+        ? explicitlyLinked
+        : (link.course.weeks || [])
+            .filter((week) => !visibleWeekIds || visibleWeekIds.has(week.id))
+            .map((week) => ({ weekId: week.id, week }));
+      return ({
+      ...link.course,
+      weeks: effectiveWeeks
+        .map((item) => {
+          const essayVisible = !essayWeekIds || essayWeekIds.has(item.weekId);
+          return {
+            ...item.week,
+            lectures: item.week.lectures
+              .filter((lecture) => actor.role !== UserRole.STUDENT || lecture.isPublished)
+              .map((lecture) => {
+                const raw = stats.get(lecture.id) ?? {
+                  question_count: 0,
+                  mcq_count: 0,
+                  flashcard_deck_count: 0,
+                  resource_count: 0,
+                };
+                return {
+                  ...lecture,
+                  ...raw,
+                  question_count: essayVisible ? raw.question_count : raw.mcq_count,
+                };
+              }),
+          };
+        }),
+    }); });
+    const visibleWeeks = courses.flatMap((course) => course.weeks);
+    const visibleLectures = visibleWeeks.flatMap((week) => week.lectures);
+    return {
+      bundle: access,
+      courses,
+      past_exams: testLinks.map((link) => link.test),
+      selected_week_count: visibleWeeks.length,
+      totals: {
+        courses: courses.length,
+        weeks: visibleWeeks.length,
+        lectures: visibleLectures.length,
+        questions: visibleLectures.reduce((sum, lecture) => sum + Number(lecture.question_count), 0),
+        flashcard_decks: visibleLectures.reduce((sum, lecture) => sum + Number(lecture.flashcard_deck_count), 0),
+        resources: visibleLectures.reduce((sum, lecture) => sum + Number(lecture.resource_count), 0),
+        past_exams: testLinks.length,
+      },
+    };
+  }
+
+  async management(id: string, actor: AuthenticatedUser) {
+    await this.assertManager(id, actor);
+    const bundle = await this.requireBundle(id);
+    const [courseLinks, weekLinks, testLinks, instructorLinks, enrollmentRows, planWeekLinks, planGrantRows, semesterMap] = await Promise.all([
+      this.bundleCourses.find({ where: { bundleId: id }, relations: { course: { weeks: true, semester: true } } }),
+      this.bundleWeeks.find({ where: { bundleId: id } }),
+      this.bundleTests.find({ where: { bundleId: id }, relations: { test: true } }),
+      this.bundleInstructors.find({ where: { bundleId: id }, relations: { instructor: true } }),
+      this.enrollments.find({ where: { bundleId: id }, relations: { student: true }, order: { createdAt: 'DESC' } }),
+      this.bundlePlanWeeks.find({ where: { bundleId: id } }),
+      this.planGrants.find({ where: { bundleId: id }, relations: { student: true }, order: { createdAt: 'DESC' } }),
+      this.resolveBundleSemesters([id], [bundle]),
+    ]);
+    const firstPlanWeekIds = new Set(planWeekLinks.filter((row) => row.plan === BundlePlan.FIRST).map((row) => row.weekId));
+    const finalPlanWeekIds = new Set(planWeekLinks.filter((row) => row.plan === BundlePlan.FINAL).map((row) => row.weekId));
+
+    const linkedCourseIds = new Set(courseLinks.map((link) => link.courseId));
+    const linkedWeekIds = new Set(weekLinks.map((link) => link.weekId));
+    const linkedTestIds = new Set(testLinks.map((link) => link.testId));
+    const linkedInstructorIds = new Set(instructorLinks.map((link) => link.instructorId));
+
+    const candidateCourseBuilder = this.courses.createQueryBuilder('course')
+      .leftJoinAndSelect('course.weeks', 'week')
+      .leftJoinAndSelect('course.semester', 'semester')
+      .where('course.is_active = TRUE');
+    if (actor.role === UserRole.INSTRUCTOR) {
+      candidateCourseBuilder.andWhere(`(
+        course.id IN (
+          SELECT assignment.course_id FROM course_instructors assignment
+          WHERE assignment.instructor_id = :instructorId
+        ) OR course.id IN (:...linkedCourseIds)
+      )`, {
+        instructorId: actor.userId,
+        linkedCourseIds: linkedCourseIds.size ? [...linkedCourseIds] : ['00000000-0000-4000-8000-000000000000'],
+      });
+    }
+    const candidateCourses = await candidateCourseBuilder
+      .orderBy('course.display_order', 'ASC')
+      .addOrderBy('week.display_order', 'ASC')
+      .getMany();
+
+    const candidateTestBuilder = this.tests.createQueryBuilder('test')
+      .where('test.is_published = TRUE');
+    if (actor.role === UserRole.INSTRUCTOR) {
+      candidateTestBuilder.andWhere('(test.created_by = :actorId OR test.id IN (:...linkedTestIds))', {
+        actorId: actor.userId,
+        linkedTestIds: linkedTestIds.size ? [...linkedTestIds] : ['00000000-0000-4000-8000-000000000000'],
+      });
+    }
+    const candidateTests = await candidateTestBuilder.orderBy('test.created_at', 'DESC').getMany();
+
+    const [instructors, students] = await Promise.all([
+      this.users.find({
+        where: { role: UserRole.INSTRUCTOR, status: UserStatus.ACTIVE },
+        order: { fullName: 'ASC' },
+      }),
+      this.users.find({
+        where: { role: UserRole.STUDENT, status: UserStatus.ACTIVE },
+        order: { fullName: 'ASC' },
+      }),
+    ]);
+
+    const activeEnrollmentStudentIds = new Set(enrollmentRows
+      .filter((row) => row.status !== BundleEnrollmentStatus.REVOKED || row.paymentStatus === BundlePaymentStatus.PENDING)
+      .map((row) => row.studentId));
+
+    const bundleSemester = semesterMap.get(id) ?? (bundle.academicYear ? (bundle.academicYear * 2) - 1 : 1);
+
+    return {
+      bundle: {
+        ...bundle,
+        semesterNumber: bundleSemester,
+        semester_number: bundleSemester,
+      },
+      courses: candidateCourses.map((course) => ({
+        id: course.id,
+        courseCode: course.courseCode,
+        courseName: course.courseName,
+        semesterNumber: course.semester?.semesterNumber,
+        semester_number: course.semester?.semesterNumber,
+        semesterTitle: course.semester?.title,
+        linked: linkedCourseIds.has(course.id),
+        weeks: [...(course.weeks ?? [])]
+          .sort((left, right) => left.displayOrder - right.displayOrder)
+          .map((week) => ({
+            id: week.id,
+            weekNumber: week.weekNumber,
+            title: week.title,
+            linked: linkedWeekIds.has(week.id),
+            inFirstPlan: firstPlanWeekIds.has(week.id),
+            inFinalPlan: finalPlanWeekIds.has(week.id),
+          })),
+      })),
+      tests: candidateTests.map((test) => ({
+        id: test.id,
+        title: test.title,
+        testType: test.testType,
+        courseId: test.courseId,
+        linked: linkedTestIds.has(test.id),
+      })),
+      instructors: {
+        assigned: instructorLinks.map((link) => this.userView(link.instructor)),
+        available: instructors.filter((item) => !linkedInstructorIds.has(item.id)).map((item) => this.userView(item)),
+      },
+      plans: {
+        first: {
+          enabled: bundle.firstPlanEnabled,
+          price_mcq: bundle.firstPlanPriceMcq === null ? null : Number(bundle.firstPlanPriceMcq),
+          price_mcq_essay: bundle.firstPlanPriceMcqEssay === null ? null : Number(bundle.firstPlanPriceMcqEssay),
+          week_ids: [...firstPlanWeekIds],
+        },
+        final: {
+          enabled: bundle.finalPlanEnabled,
+          price_mcq: bundle.finalPlanPriceMcq === null ? null : Number(bundle.finalPlanPriceMcq),
+          price_mcq_essay: bundle.finalPlanPriceMcqEssay === null ? null : Number(bundle.finalPlanPriceMcqEssay),
+          week_ids: [...finalPlanWeekIds],
+        },
+      },
+      students: {
+        enrollments: enrollmentRows.map((row) => ({
+          id: row.id,
+          student: this.userView(row.student),
+          status: row.status,
+          paymentStatus: row.paymentStatus,
+          paidAt: row.paidAt,
+          paymentReference: row.paymentReference,
+          enrolled_at: row.createdAt,
+          ...this.accessState(row, bundle),
+        })),
+        planGrants: planGrantRows.map((row) => ({
+          id: row.id,
+          student: this.userView(row.student),
+          plan: row.plan,
+          tier: row.tier,
+          status: row.status,
+          paymentStatus: row.paymentStatus,
+          paidAt: row.paidAt,
+          paymentReference: row.paymentReference,
+        })),
+        available: students.filter((item) => !activeEnrollmentStudentIds.has(item.id)).map((item) => this.userView(item)),
+      },
+    };
+  }
+
+  async update(id: string, actor: AuthenticatedUser, dto: UpdateBundleDto) {
+    await this.assertManager(id, actor);
+    const bundle = await this.requireBundleWithSecret(id);
+    this.validateWindow(
+      dto.available_from ?? bundle.availableFrom?.toISOString(),
+      dto.available_until ?? bundle.availableUntil?.toISOString(),
+    );
+    const nextIsFree = dto.is_free ?? bundle.isFree;
+    const priceInput = dto.price_amount !== undefined
+      ? dto.price_amount ?? undefined
+      : bundle.priceAmount === null ? undefined : Number(bundle.priceAmount);
+    const pricing = this.resolvePricing(nextIsFree, priceInput, dto.price_currency ?? bundle.priceCurrency);
+    const policyChanged = nextIsFree !== bundle.isFree;
+    if (dto.title !== undefined) bundle.title = dto.title.trim();
+    if (dto.description !== undefined) bundle.description = dto.description.trim() || null;
+    if (dto.access_mode !== undefined) bundle.accessMode = dto.access_mode;
+    bundle.isFree = nextIsFree;
+    bundle.priceAmount = pricing.priceAmount;
+    bundle.priceCurrency = pricing.priceCurrency;
+    if (dto.available_from !== undefined) bundle.availableFrom = dto.available_from ? new Date(dto.available_from) : null;
+    if (dto.available_until !== undefined) bundle.availableUntil = dto.available_until ? new Date(dto.available_until) : null;
+    if (dto.enrollment_code !== undefined) bundle.enrollmentCodeHash = await bcrypt.hash(dto.enrollment_code, 10);
+    const saved = await this.bundles.save(bundle);
+    if (policyChanged) await this.synchronizeEnrollmentPolicy(saved);
+    return saved;
+  }
+
+  async changeStatus(id: string, actor: AuthenticatedUser, status: BundleStatus) {
+    await this.assertManager(id, actor);
+    const bundle = await this.requireBundle(id);
+    const previousStatus=bundle.status;
+    if (status === BundleStatus.PUBLISHED) {
+      const count = await this.bundleCourses.count({ where: { bundleId: id } });
+      if (count === 0) throw new ConflictException('A bundle needs at least one course before publishing');
+      if (!bundle.isFree && (!bundle.priceAmount || Number(bundle.priceAmount) <= 0)) {
+        throw new ConflictException('Paid bundles require a valid price before publishing');
+      }
+    }
+    bundle.status = status;
+    const saved=await this.bundles.save(bundle);
+    if(previousStatus!==BundleStatus.PUBLISHED&&saved.status===BundleStatus.PUBLISHED) {
+      await this.notifications.notifyBundleStudents(saved.id,{
+        title:'Bundle published',
+        message:`${saved.title} is now available. Open it to view the latest curriculum.`,
+        target_url:`/bundles?bundle=${saved.slug}&tab=overview`,
+        notification_type:NotificationType.COURSE,
+      },actor);
+    }
+    return saved;
+  }
+
+  async addCourse(id: string, actor: AuthenticatedUser, courseId: string) {
+    await this.assertManager(id, actor);
+    await this.assertCourseAttachable(courseId, actor);
+    return this.saveLink(
+      () => this.bundleCourses.save(this.bundleCourses.create({ bundleId: id, courseId })),
+      'Course already belongs to this bundle',
+    );
+  }
+
+  async removeCourse(id: string, actor: AuthenticatedUser, courseId: string) {
+    await this.assertManager(id, actor);
+    await this.dataSource.transaction(async (manager) => {
+      const weeks = await manager.find(Week, { where: { courseId }, select: { id: true } });
+      if (weeks.length) {
+        await manager.delete(BundleWeek, { bundleId: id, weekId: In(weeks.map((item) => item.id)) });
+      }
+      await manager.delete(BundleCourse, { bundleId: id, courseId });
+    });
+  }
+
+  async addWeek(id: string, actor: AuthenticatedUser, weekId: string) {
+    await this.assertManager(id, actor);
+    const [week,bundle]=await Promise.all([
+      this.weeks.findOne({ where: { id: weekId } }),
+      this.requireBundle(id),
+    ]);
+    if (!week) throw new NotFoundException('Week not found');
+    await this.assertCourseAttachable(week.courseId, actor);
+    if (!await this.bundleCourses.exists({ where: { bundleId: id, courseId: week.courseId } })) {
+      throw new BadRequestException('Add the parent course to the bundle first');
+    }
+    const link=await this.saveLink(
+      () => this.bundleWeeks.save(this.bundleWeeks.create({ bundleId: id, weekId })),
+      'Week already belongs to this bundle',
+    );
+    if(bundle.status===BundleStatus.PUBLISHED) {
+      await this.notifications.notifyBundleStudents(id,{
+        title:'New week added',
+        message:`${week.title||`Week ${week.weekNumber}`} was added to ${bundle.title}.`,
+        target_url:`/bundles?bundle=${bundle.slug}&tab=curriculum`,
+        notification_type:NotificationType.COURSE,
+      },actor);
+    }
+    return link;
+  }
+
+  async removeWeek(id: string, actor: AuthenticatedUser, weekId: string) {
+    await this.assertManager(id, actor);
+    await this.bundleWeeks.delete({ bundleId: id, weekId });
+  }
+
+  async addTest(id: string, actor: AuthenticatedUser, testId: string) {
+    await this.assertManager(id, actor);
+    const test = await this.tests.findOne({ where: { id: testId } });
+    if (!test) throw new NotFoundException('Test not found');
+    if (!test.isPublished) throw new BadRequestException('Publish the assessment before adding it to a bundle');
+    if (actor.role === UserRole.INSTRUCTOR && test.createdBy !== actor.userId) {
+      throw new ForbiddenException('You can attach only assessments you created');
+    }
+    return this.saveLink(
+      () => this.bundleTests.save(this.bundleTests.create({ bundleId: id, testId })),
+      'Exam already belongs to this bundle',
+    );
+  }
+
+  async removeTest(id: string, actor: AuthenticatedUser, testId: string) {
+    await this.assertManager(id, actor);
+    await this.bundleTests.delete({ bundleId: id, testId });
+  }
+
+  async assignInstructor(id: string, actor: AuthenticatedUser, instructorId: string) {
+    await this.assertManager(id, actor);
+    const user = await this.users.findOne({
+      where: { id: instructorId, role: UserRole.INSTRUCTOR, status: UserStatus.ACTIVE },
+    });
+    if (!user) throw new NotFoundException('Active instructor not found');
+    return this.saveLink(
+      () => this.bundleInstructors.save(this.bundleInstructors.create({ bundleId: id, instructorId })),
+      'Instructor already manages this bundle',
+    );
+  }
+
+  async removeInstructor(id: string, actor: AuthenticatedUser, instructorId: string) {
+    await this.assertManager(id, actor);
+    const assignment = await this.bundleInstructors.findOne({ where: { bundleId: id, instructorId } });
+    if (!assignment) throw new NotFoundException('Instructor is not assigned to this bundle');
+    if (actor.role === UserRole.INSTRUCTOR && instructorId === actor.userId) {
+      const managerCount = await this.bundleInstructors.count({ where: { bundleId: id } });
+      if (managerCount <= 1) {
+        throw new ConflictException('Assign another instructor before removing your own bundle access');
+      }
+    }
+    await this.bundleInstructors.delete({ bundleId: id, instructorId });
+  }
+
+  async grant(id: string, actor: AuthenticatedUser, dto: GrantBundleDto) {
+    await this.assertManager(id, actor);
+    const [student, bundle] = await Promise.all([
+      this.users.findOne({ where: { id: dto.student_id, role: UserRole.STUDENT, status: UserStatus.ACTIVE } }),
+      this.requireBundle(id),
+    ]);
+    if (!student) throw new NotFoundException('Active student not found');
+    return this.upsertEnrollment(
+      bundle,
+      dto.student_id,
+      BundleEnrollmentSource.MANUAL,
+      actor.userId,
+      dto.expires_at ? new Date(dto.expires_at) : null,
+      dto.payment_confirmed ?? false,
+      dto.payment_reference,
+    );
+  }
+
+  async confirmPayment(
+    id: string,
+    actor: AuthenticatedUser,
+    studentId: string,
+    dto: ConfirmBundlePaymentDto,
+  ) {
+    await this.assertManager(id, actor);
+    const bundle = await this.requireBundle(id);
+    if (bundle.isFree) throw new BadRequestException('Free bundles do not require payment confirmation');
+    const enrollment = await this.enrollments.findOne({ where: { bundleId: id, studentId } });
+    if (!enrollment) throw new NotFoundException('Bundle enrollment not found');
+    if (enrollment.paymentStatus === BundlePaymentStatus.PAID && enrollment.status !== BundleEnrollmentStatus.REVOKED) {
+      return enrollment;
+    }
+    if (enrollment.paymentStatus !== BundlePaymentStatus.PENDING) {
+      throw new ConflictException('This enrollment is not awaiting payment');
+    }
+    enrollment.paymentStatus = BundlePaymentStatus.PAID;
+    enrollment.paidAt = new Date();
+    enrollment.paymentReference = dto.payment_reference?.trim() || null;
+    enrollment.status = BundleEnrollmentStatus.ACTIVE;
+    return this.enrollments.save(enrollment);
+  }
+
+  async revoke(id: string, actor: AuthenticatedUser, studentId: string) {
+    await this.assertManager(id, actor);
+    const enrollment = await this.enrollments.findOne({ where: { bundleId: id, studentId } });
+    if (!enrollment) throw new NotFoundException('Bundle enrollment not found');
+    enrollment.status = BundleEnrollmentStatus.REVOKED;
+    if (enrollment.paymentStatus === BundlePaymentStatus.PENDING) {
+      enrollment.paymentStatus = BundlePaymentStatus.CANCELLED;
+    }
+    await this.enrollments.save(enrollment);
+  }
+
+  async updatePlans(id: string, actor: AuthenticatedUser, dto: UpdateBundlePlansDto) {
+    await this.assertManager(id, actor);
+    const bundle = await this.requireBundle(id);
+    const nextFirstEnabled = dto.first_plan_enabled ?? bundle.firstPlanEnabled;
+    const nextFinalEnabled = dto.final_plan_enabled ?? bundle.finalPlanEnabled;
+    const firstMcq = this.resolvePlanPriceInput(dto.first_plan_price_mcq, bundle.firstPlanPriceMcq);
+    const firstEssay = this.resolvePlanPriceInput(dto.first_plan_price_mcq_essay, bundle.firstPlanPriceMcqEssay);
+    const finalMcq = this.resolvePlanPriceInput(dto.final_plan_price_mcq, bundle.finalPlanPriceMcq);
+    const finalEssay = this.resolvePlanPriceInput(dto.final_plan_price_mcq_essay, bundle.finalPlanPriceMcqEssay);
+
+    if (nextFirstEnabled) {
+      if (firstMcq === null || firstEssay === null) {
+        throw new BadRequestException('The First plan needs both an MCQ price and an MCQ + Essay price before it can be enabled');
+      }
+      if (firstEssay <= firstMcq) {
+        throw new BadRequestException('The First plan MCQ + Essay price must be higher than its MCQ-only price');
+      }
+    }
+    if (nextFinalEnabled) {
+      if (finalMcq === null || finalEssay === null) {
+        throw new BadRequestException('The Final plan needs both an MCQ price and an MCQ + Essay price before it can be enabled');
+      }
+      if (finalEssay <= finalMcq) {
+        throw new BadRequestException('The Final plan MCQ + Essay price must be higher than its MCQ-only price');
+      }
+    }
+
+    bundle.firstPlanEnabled = nextFirstEnabled;
+    bundle.firstPlanPriceMcq = firstMcq === null ? null : firstMcq.toFixed(2);
+    bundle.firstPlanPriceMcqEssay = firstEssay === null ? null : firstEssay.toFixed(2);
+    bundle.finalPlanEnabled = nextFinalEnabled;
+    bundle.finalPlanPriceMcq = finalMcq === null ? null : finalMcq.toFixed(2);
+    bundle.finalPlanPriceMcqEssay = finalEssay === null ? null : finalEssay.toFixed(2);
+    return this.bundles.save(bundle);
+  }
+
+  async setPlanWeeks(id: string, plan: BundlePlan, actor: AuthenticatedUser, dto: SetPlanWeeksDto) {
+    await this.assertManager(id, actor);
+    await this.requireBundle(id);
+    const linked = await this.bundleWeeks.find({ where: { bundleId: id } });
+    const linkedIds = new Set(linked.map((item) => item.weekId));
+    const uniqueWeekIds = [...new Set(dto.week_ids)];
+    if (uniqueWeekIds.some((weekId) => !linkedIds.has(weekId))) {
+      throw new BadRequestException('A plan can only include weeks already attached to this bundle');
+    }
+    await this.dataSource.transaction(async (manager) => {
+      await manager.delete(BundlePlanWeek, { bundleId: id, plan });
+      if (uniqueWeekIds.length) {
+        await manager.save(BundlePlanWeek, uniqueWeekIds.map((weekId) => manager.create(BundlePlanWeek, { bundleId: id, plan, weekId })));
+      }
+    });
+    return this.bundlePlanWeeks.find({ where: { bundleId: id, plan } });
+  }
+
+  async enrollPlan(id: string, plan: BundlePlan, studentId: string, dto: EnrollPlanDto) {
+    const bundle = await this.requireBundle(id);
+    if (bundle.status !== BundleStatus.PUBLISHED) throw new ForbiddenException('This bundle is not published');
+    const enabled = plan === BundlePlan.FIRST ? bundle.firstPlanEnabled : bundle.finalPlanEnabled;
+    if (!enabled) throw new ForbiddenException('This plan is not offered for this bundle');
+    const tier = dto.tier ?? BundlePlanTier.MCQ;
+    if (this.planPrice(bundle, plan, tier) === null) {
+      throw new ConflictException('This plan tier does not have a price configured yet');
+    }
+
+    let item = await this.planGrants.findOne({ where: { bundleId: id, studentId, plan } });
+    if (item && item.status !== BundleEnrollmentStatus.REVOKED && item.paymentStatus === BundlePaymentStatus.PAID && item.tier === tier) {
+      return this.planGrantView(item, bundle);
+    }
+    if (!item) item = this.planGrants.create({ bundleId: id, studentId, plan });
+    item.tier = tier;
+    item.status = BundleEnrollmentStatus.REVOKED;
+    item.paymentStatus = BundlePaymentStatus.PENDING;
+    item.paidAt = null;
+    item.paymentReference = null;
+    item.expiresAt = bundle.availableUntil;
+    const saved = await this.planGrants.save(item);
+    return this.planGrantView(saved, bundle);
+  }
+
+  async grantPlan(id: string, plan: BundlePlan, actor: AuthenticatedUser, dto: GrantPlanDto) {
+    await this.assertManager(id, actor);
+    const [student, bundle] = await Promise.all([
+      this.users.findOne({ where: { id: dto.student_id, role: UserRole.STUDENT, status: UserStatus.ACTIVE } }),
+      this.requireBundle(id),
+    ]);
+    if (!student) throw new NotFoundException('Active student not found');
+    let item = await this.planGrants.findOne({ where: { bundleId: id, studentId: dto.student_id, plan } });
+    if (!item) item = this.planGrants.create({ bundleId: id, studentId: dto.student_id, plan });
+    item.tier = dto.tier ?? item.tier ?? BundlePlanTier.MCQ;
+    item.grantedBy = actor.userId;
+    item.expiresAt = dto.expires_at ? new Date(dto.expires_at) : null;
+    if (dto.payment_confirmed) {
+      item.status = BundleEnrollmentStatus.ACTIVE;
+      item.paymentStatus = BundlePaymentStatus.PAID;
+      item.paidAt = item.paidAt ?? new Date();
+      item.paymentReference = dto.payment_reference?.trim() || item.paymentReference || null;
+    } else {
+      item.status = BundleEnrollmentStatus.REVOKED;
+      item.paymentStatus = BundlePaymentStatus.PENDING;
+      item.paidAt = null;
+      item.paymentReference = null;
+    }
+    const saved = await this.planGrants.save(item);
+    return this.planGrantView(saved, bundle);
+  }
+
+  async confirmPlanPayment(id: string, plan: BundlePlan, actor: AuthenticatedUser, studentId: string, dto: ConfirmBundlePaymentDto) {
+    await this.assertManager(id, actor);
+    const item = await this.planGrants.findOne({ where: { bundleId: id, studentId, plan } });
+    if (!item) throw new NotFoundException('Plan enrollment not found');
+    if (item.paymentStatus === BundlePaymentStatus.PAID && item.status !== BundleEnrollmentStatus.REVOKED) return item;
+    if (item.paymentStatus !== BundlePaymentStatus.PENDING) throw new ConflictException('This plan enrollment is not awaiting payment');
+    item.paymentStatus = BundlePaymentStatus.PAID;
+    item.paidAt = new Date();
+    item.paymentReference = dto.payment_reference?.trim() || null;
+    item.status = BundleEnrollmentStatus.ACTIVE;
+    return this.planGrants.save(item);
+  }
+
+  async revokePlanGrant(id: string, plan: BundlePlan, actor: AuthenticatedUser, studentId: string) {
+    await this.assertManager(id, actor);
+    const item = await this.planGrants.findOne({ where: { bundleId: id, studentId, plan } });
+    if (!item) throw new NotFoundException('Plan enrollment not found');
+    item.status = BundleEnrollmentStatus.REVOKED;
+    if (item.paymentStatus === BundlePaymentStatus.PENDING) item.paymentStatus = BundlePaymentStatus.CANCELLED;
+    await this.planGrants.save(item);
+  }
+
+  async enrollByCode(studentId: string, code: string) {
+    const student = await this.findStudentSafe(studentId);
+    const candidates = await this.bundles.createQueryBuilder('bundle')
+      .addSelect('bundle.enrollment_code_hash')
+      .where('bundle.status = :status', { status: BundleStatus.PUBLISHED })
+      .andWhere('bundle.access_mode = :mode', { mode: BundleAccessMode.CODE })
+      .getMany();
+    for (const bundle of candidates) {
+      if (bundle.enrollmentCodeHash && await bcrypt.compare(code, bundle.enrollmentCodeHash)) {
+        if (student?.currentSemester) {
+          const semesterMap = await this.resolveBundleSemesters([bundle.id], [bundle]);
+          const bundleSemester = semesterMap.get(bundle.id);
+          if (bundleSemester && bundleSemester !== student.currentSemester) {
+            throw new ForbiddenException(`You can only enroll in bundles for your current semester (Semester ${student.currentSemester})`);
+          }
+        }
+        return this.upsertEnrollment(
+          bundle,
+          studentId,
+          BundleEnrollmentSource.CODE,
+          null,
+          bundle.availableUntil,
+          false,
+        );
+      }
+    }
+    throw new NotFoundException('Enrollment code is invalid or inactive');
+  }
+
+  async enrollPublic(id: string, studentId: string) {
+    const bundle = await this.requireBundle(id);
+    if (bundle.status !== BundleStatus.PUBLISHED || bundle.accessMode !== BundleAccessMode.PUBLIC) {
+      throw new ForbiddenException('This bundle is not open for public enrollment');
+    }
+    if (bundle.availableUntil && bundle.availableUntil <= new Date()) {
+      throw new ForbiddenException('This bundle has expired');
+    }
+    const student = await this.findStudentSafe(studentId);
+    if (student?.currentSemester) {
+      const semesterMap = await this.resolveBundleSemesters([bundle.id], [bundle]);
+      const bundleSemester = semesterMap.get(bundle.id);
+      if (bundleSemester && bundleSemester !== student.currentSemester) {
+        throw new ForbiddenException(`You can only enroll in bundles for your current semester (Semester ${student.currentSemester})`);
+      }
+    }
+    return this.upsertEnrollment(
+      bundle,
+      studentId,
+      BundleEnrollmentSource.PUBLIC,
+      null,
+      null,
+      false,
+    );
+  }
+
+  private async upsertEnrollment(
+    bundle: Bundle,
+    studentId: string,
+    source: BundleEnrollmentSource,
+    grantedBy: string | null,
+    expiresAt: Date | null,
+    paymentConfirmed: boolean,
+    paymentReference?: string,
+  ) {
+    let item = await this.enrollments.findOne({ where: { bundleId: bundle.id, studentId } });
+    if (!item) {
+      item = this.enrollments.create({
+        bundleId: bundle.id,
+        studentId,
+        source,
+        grantedBy,
+        expiresAt,
+        status: BundleEnrollmentStatus.ACTIVE,
+        paymentStatus: BundlePaymentStatus.NOT_REQUIRED,
+        paidAt: null,
+        paymentReference: null,
+      });
+    }
+    item.source = source;
+    item.grantedBy = grantedBy;
+    item.expiresAt = expiresAt;
+
+    if (bundle.isFree) {
+      item.status = BundleEnrollmentStatus.ACTIVE;
+      item.paymentStatus = BundlePaymentStatus.NOT_REQUIRED;
+      item.paidAt = null;
+      item.paymentReference = null;
+    } else if (paymentConfirmed || item.paymentStatus === BundlePaymentStatus.PAID) {
+      item.status = BundleEnrollmentStatus.ACTIVE;
+      item.paymentStatus = BundlePaymentStatus.PAID;
+      item.paidAt = item.paidAt ?? new Date();
+      item.paymentReference = paymentReference?.trim() || item.paymentReference || null;
+    } else {
+      item.status = BundleEnrollmentStatus.REVOKED;
+      item.paymentStatus = BundlePaymentStatus.PENDING;
+      item.paidAt = null;
+      item.paymentReference = null;
+    }
+    const saved = await this.enrollments.save(item);
+    const hydrated = await this.enrollments.findOne({
+      where: { id: saved.id },
+      relations: { bundle: true },
+    });
+    return hydrated ? this.enrollmentView(hydrated) : saved;
+  }
+
+  private async synchronizeEnrollmentPolicy(bundle: Bundle) {
+    if (bundle.isFree) {
+      await this.enrollments.createQueryBuilder()
+        .update(BundleEnrollment)
+        .set({
+          status: BundleEnrollmentStatus.ACTIVE,
+          paymentStatus: BundlePaymentStatus.NOT_REQUIRED,
+          paidAt: null,
+          paymentReference: null,
+        })
+        .where('bundle_id = :bundleId', { bundleId: bundle.id })
+        .andWhere('payment_status = :pending', { pending: BundlePaymentStatus.PENDING })
+        .execute();
+      await this.enrollments.createQueryBuilder()
+        .update(BundleEnrollment)
+        .set({ paymentStatus: BundlePaymentStatus.NOT_REQUIRED })
+        .where('bundle_id = :bundleId', { bundleId: bundle.id })
+        .andWhere('status <> :revoked', { revoked: BundleEnrollmentStatus.REVOKED })
+        .execute();
+      return;
+    }
+    await this.enrollments.createQueryBuilder()
+      .update(BundleEnrollment)
+      .set({
+        status: BundleEnrollmentStatus.REVOKED,
+        paymentStatus: BundlePaymentStatus.PENDING,
+        paidAt: null,
+        paymentReference: null,
+      })
+      .where('bundle_id = :bundleId', { bundleId: bundle.id })
+      .andWhere('status <> :revoked', { revoked: BundleEnrollmentStatus.REVOKED })
+      .andWhere('payment_status = :notRequired', { notRequired: BundlePaymentStatus.NOT_REQUIRED })
+      .execute();
+  }
+
+  private async requireEnrollment(bundleId: string, studentId: string) {
+    const item = await this.enrollments.findOne({ where: { bundleId, studentId } });
+    if (!item) throw new ForbiddenException('You do not have access to this bundle');
+    if (item.paymentStatus === BundlePaymentStatus.PENDING) {
+      throw new ForbiddenException('Payment is required before this bundle becomes accessible');
+    }
+    const now=new Date();
+    if(item.status!==BundleEnrollmentStatus.ACTIVE
+      || item.startsAt>now
+      || Boolean(item.expiresAt&&item.expiresAt<=now)) {
+      throw new ForbiddenException('Your bundle subscription is not active');
+    }
+    return item;
+  }
+
+  private enrollmentView(row: BundleEnrollment) {
+    return {
+      ...row.bundle,
+      ...this.accessState(row, row.bundle),
+      partial_access: false,
+      enrollmentSource: row.source,
+      paymentStatus: row.paymentStatus,
+      paidAt: row.paidAt,
+      paymentReference: row.paymentReference,
+    };
+  }
+
+  private accessState(row: BundleEnrollment, bundle: Bundle) {
+    const now = new Date();
+    const paymentRequired = !bundle.isFree && row.paymentStatus === BundlePaymentStatus.PENDING;
+    const revoked = row.status === BundleEnrollmentStatus.REVOKED && !paymentRequired;
+    const scheduled = Boolean(bundle.availableFrom && bundle.availableFrom > now);
+    const draft = bundle.status === BundleStatus.DRAFT;
+    const expired = bundle.status === BundleStatus.ARCHIVED
+      || row.status === BundleEnrollmentStatus.EXPIRED
+      || Boolean(row.expiresAt && row.expiresAt <= now)
+      || Boolean(bundle.availableUntil && bundle.availableUntil <= now);
+    const accessible = !paymentRequired && !revoked && !scheduled && !draft && !expired;
+    const accessStatus = paymentRequired
+      ? 'PENDING_PAYMENT'
+      : revoked
+        ? 'REVOKED'
+        : draft
+          ? 'DRAFT'
+          : scheduled
+            ? 'SCHEDULED'
+            : expired
+              ? 'EXPIRED'
+              : 'ACTIVE';
+    return {
+      read_only: false,
+      accessible,
+      payment_required: paymentRequired,
+      access_status: accessStatus,
+      expires_at: row.expiresAt,
+    };
+  }
+
+  private async resolvePlanAccess(bundleId: string, studentId: string) {
+    const grants = await this.planGrants.find({ where: { bundleId, studentId } });
+    const now = new Date();
+    const active = grants.filter((row) => row.status !== BundleEnrollmentStatus.REVOKED
+      && row.paymentStatus === BundlePaymentStatus.PAID
+      && !(row.expiresAt && row.expiresAt <= now));
+    if (!active.length) return null;
+    const weekLinks = await this.bundlePlanWeeks.find({ where: { bundleId, plan: In(active.map((row) => row.plan)) } });
+    const visibleWeekIds = new Set(weekLinks.map((row) => row.weekId));
+    const essayPlans = new Set(active.filter((row) => row.tier === BundlePlanTier.MCQ_ESSAY).map((row) => row.plan));
+    const essayWeekIds = new Set(weekLinks.filter((row) => essayPlans.has(row.plan)).map((row) => row.weekId));
+    return { visibleWeekIds, essayWeekIds, grants: active };
+  }
+
+  private planPrice(bundle: Bundle, plan: BundlePlan, tier: BundlePlanTier): number | null {
+    const raw = plan === BundlePlan.FIRST
+      ? (tier === BundlePlanTier.MCQ_ESSAY ? bundle.firstPlanPriceMcqEssay : bundle.firstPlanPriceMcq)
+      : (tier === BundlePlanTier.MCQ_ESSAY ? bundle.finalPlanPriceMcqEssay : bundle.finalPlanPriceMcq);
+    return raw === null || raw === undefined ? null : Number(raw);
+  }
+
+  private planGrantView(row: BundlePlanGrant, bundle: Bundle) {
+    return {
+      id: row.id,
+      bundleId: row.bundleId,
+      plan: row.plan,
+      tier: row.tier,
+      status: row.status,
+      paymentStatus: row.paymentStatus,
+      paidAt: row.paidAt,
+      paymentReference: row.paymentReference,
+      expiresAt: row.expiresAt,
+      price: this.planPrice(bundle, row.plan, row.tier),
+      priceCurrency: bundle.priceCurrency,
+    };
+  }
+
+  private resolvePlanPriceInput(input: number | null | undefined, existing: string | null): number | null {
+    if (input !== undefined) return input;
+    return existing === null ? null : Number(existing);
+  }
+
+  parsePlan(value: string): BundlePlan {
+    if (value === 'FIRST' || value === 'FINAL') return value as BundlePlan;
+    throw new BadRequestException('plan must be FIRST or FINAL');
+  }
+
+  private async assertManager(id: string, actor: AuthenticatedUser) {
+    await this.requireBundle(id);
+    if (actor.role === UserRole.SYSTEM_ADMIN) return;
+    if (actor.role !== UserRole.INSTRUCTOR || !await this.bundleInstructors.exists({
+      where: { bundleId: id, instructorId: actor.userId },
+    })) {
+      throw new ForbiddenException('You do not manage this bundle');
+    }
+  }
+
+  private async assertCourseAttachable(courseId: string, actor: AuthenticatedUser) {
+    if (!await this.courses.exists({ where: { id: courseId, isActive: true } })) {
+      throw new NotFoundException('Active course not found');
+    }
+    if (actor.role === UserRole.SYSTEM_ADMIN) return;
+    const rows = await this.dataSource.query(
+      `SELECT 1 FROM course_instructors WHERE course_id = $1 AND instructor_id = $2 LIMIT 1`,
+      [courseId, actor.userId],
+    ) as unknown[];
+    if (!rows.length) throw new ForbiddenException('You can attach only courses assigned to you');
+  }
+
+  private async requireBundle(id: string) {
+    const item = await this.bundles.findOne({ where: { id } });
+    if (!item) throw new NotFoundException('Bundle not found');
+    return item;
+  }
+
+  private async requireBundleWithSecret(id: string) {
+    const item = await this.bundles.createQueryBuilder('bundle')
+      .addSelect('bundle.enrollment_code_hash')
+      .where('bundle.id = :id', { id })
+      .getOne();
+    if (!item) throw new NotFoundException('Bundle not found');
+    return item;
+  }
+
+  private resolvePricing(isFree: boolean, priceAmount?: number, priceCurrency?: string) {
+    const currency = (priceCurrency || 'EGP').trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(currency)) throw new BadRequestException('price_currency must be a three-letter currency code');
+    if (isFree) return { priceAmount: null, priceCurrency: currency };
+    if (priceAmount === undefined || !Number.isFinite(priceAmount) || priceAmount <= 0) {
+      throw new BadRequestException('Paid bundles require a price greater than zero');
+    }
+    return { priceAmount: Number(priceAmount).toFixed(2), priceCurrency: currency };
+  }
+
+  private validateWindow(from?: string | null, to?: string | null) {
+    if (from && to && new Date(from) >= new Date(to)) {
+      throw new BadRequestException('available_until must be after available_from');
+    }
+  }
+
+  private slug(value: string) {
+    const normalized = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    if (!normalized) throw new BadRequestException('Bundle slug is invalid');
+    return normalized;
+  }
+
+  private userView(user: User) {
+    return {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      forensicCode: user.forensicCode,
+      forensic_code: user.forensicCode,
+    };
+  }
+
+  private isUnique(error: unknown) {
+    return typeof error === 'object' && error !== null && 'code' in error
+      && (error as { code?: string }).code === '23505';
+  }
+
+  private async saveLink<T>(operation: () => Promise<T>, message: string) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (this.isUnique(error)) throw new ConflictException(message);
+      throw error;
+    }
+  }
 }

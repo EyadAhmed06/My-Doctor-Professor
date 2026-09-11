@@ -43,6 +43,8 @@ CREATE TABLE users (
 
     last_login_at TIMESTAMP,
 
+    forensic_code VARCHAR(6) NOT NULL UNIQUE,
+
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -141,6 +143,10 @@ CREATE TABLE auth_sessions (
 
     refresh_token_hash TEXT NOT NULL,
 
+    ip_address INET,
+
+    user_agent TEXT,
+
     expires_at TIMESTAMP NOT NULL,
 
     revoked_at TIMESTAMP,
@@ -155,11 +161,46 @@ CREATE TABLE auth_sessions (
 
 );
 
+CREATE TABLE external_auth_identities (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    user_id UUID NOT NULL,
+
+    provider VARCHAR(30) NOT NULL,
+
+    provider_subject VARCHAR(255) NOT NULL,
+
+    provider_email CITEXT NOT NULL,
+
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    last_used_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT ck_external_auth_provider
+        CHECK (provider IN ('GOOGLE')),
+
+    CONSTRAINT fk_external_auth_identity_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT uq_external_auth_provider_subject
+        UNIQUE (provider, provider_subject),
+
+    CONSTRAINT uq_external_auth_user_provider
+        UNIQUE (user_id, provider)
+
+);
+
+CREATE INDEX idx_external_auth_provider_email
+ON external_auth_identities(provider, provider_email);
+
 CREATE TABLE account_action_tokens (
 
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,
-    purpose VARCHAR(30) NOT NULL,
+    purpose VARCHAR(32) NOT NULL,
     token_digest CHAR(64) NOT NULL UNIQUE,
     expires_at TIMESTAMP NOT NULL,
     consumed_at TIMESTAMP,
@@ -168,7 +209,7 @@ CREATE TABLE account_action_tokens (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
 
     CONSTRAINT chk_account_action_token_purpose
-        CHECK (purpose IN ('EMAIL_VERIFICATION', 'PASSWORD_RESET'))
+        CHECK (purpose IN ('EMAIL_VERIFICATION', 'PASSWORD_RESET', 'PASSWORD_RESET_CODE'))
 );
 
 CREATE INDEX idx_account_action_tokens_user_purpose
@@ -215,6 +256,9 @@ ON auth_sessions(user_id);
 
 CREATE INDEX idx_auth_sessions_expiry
 ON auth_sessions(expires_at);
+
+CREATE UNIQUE INDEX uq_auth_sessions_active_user
+ON auth_sessions(user_id) WHERE revoked_at IS NULL;
 
 CREATE INDEX idx_users_role
 ON users(role);

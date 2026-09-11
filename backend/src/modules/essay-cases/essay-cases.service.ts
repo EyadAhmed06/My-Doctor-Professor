@@ -1,0 +1,162 @@
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { DataSource, EntityManager } from 'typeorm';
+import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { buildCourseAccessExistsSql } from '../bundle-access/bundle-access.predicates';
+import { BundleAccessService } from '../bundle-access/bundle-access.service';
+import { UserRole } from '../users/entities/user.entity';
+import { CreateEssayCaseDto, ReorderEssayCasesDto, SubmitEssayCaseDto, UpdateEssayCaseDto } from './essay-cases.dto';
+
+type Row = Record<string, any>;
+@Injectable()
+export class EssayCasesService {
+  constructor(
+    private readonly db: DataSource,
+    private readonly bundleAccess: BundleAccessService,
+  ) {}
+
+  async listCourses(actor: AuthenticatedUser) {
+    if (actor.role === UserRole.STUDENT) {
+      return this.db.query(
+        /* security-audit-reviewed: parameterized-or-allowlisted-fragments */
+        `SELECT DISTINCT c.id, c.course_code AS "courseCode", c.course_name AS "courseName"
+         FROM courses c
+         WHERE c.is_active = TRUE
+           AND ${buildCourseAccessExistsSql('c.id', '$1', 'c')}
+         ORDER BY c.course_name`,
+        [actor.userId],
+      );
+    }
+    if (actor.role === UserRole.INSTRUCTOR) return this.db.query(`SELECT DISTINCT c.id,c.course_code AS "courseCode",c.course_name AS "courseName" FROM courses c LEFT JOIN course_instructors mine ON mine.course_id=c.id AND mine.instructor_id=$1 WHERE mine.instructor_id IS NOT NULL OR NOT EXISTS (SELECT 1 FROM course_instructors owner WHERE owner.course_id=c.id) ORDER BY c.course_name`, [actor.userId]);
+    return this.db.query(`SELECT id,course_code AS "courseCode",course_name AS "courseName" FROM courses ORDER BY course_name`);
+  }
+
+  async listCurriculum(courseId: string, actor: AuthenticatedUser) {
+    await this.assertCourseAccess(courseId, actor, false);
+    const rows: Row[] = await this.db.query(`
+        /* security-audit-reviewed: parameterized-or-allowlisted-fragments */SELECT w.id AS week_id,w.week_number,w.title AS week_title,c.id,c.title,c.stem,c.section,c.source_case_number,c.is_published,c.display_order,
+      COALESCE(json_agg(json_build_object('id',q.id,'prompt',q.prompt,'display_order',q.display_order) ORDER BY q.display_order) FILTER (WHERE q.id IS NOT NULL),'[]') AS questions
+      FROM weeks w LEFT JOIN essay_cases c ON c.week_id=w.id ${actor.role === UserRole.STUDENT ? 'AND c.is_published=TRUE' : ''}
+      LEFT JOIN essay_case_questions q ON q.case_id=c.id WHERE w.course_id=$1
+      GROUP BY w.id,w.week_number,w.title,c.id ORDER BY w.week_number,c.display_order,c.created_at`, [courseId]);
+    const weeks = new Map<string, any>();
+    for (const row of rows) {
+      if (!weeks.has(row.week_id)) weeks.set(row.week_id, { id: row.week_id, weekNumber: row.week_number, title: row.week_title, cases: [] });
+      if (row.id) weeks.get(row.week_id).cases.push({ id: row.id, weekId: row.week_id, displayOrder: row.display_order, title: row.title, stem: row.stem, section: row.section, sourceCaseNumber: row.source_case_number, isPublished: row.is_published, questions: row.questions });
+    }
+    return { course_id: courseId, weeks: [...weeks.values()] };
+  }
+
+  async getCase(id: string, actor: AuthenticatedUser) {
+    const rows: Row[] = await this.db.query(`SELECT c.*,w.course_id,w.week_number FROM essay_cases c JOIN weeks w ON w.id=c.week_id WHERE c.id=$1`, [id]);
+    const item = rows[0]; if (!item) throw new NotFoundException('Essay case not found');
+    await this.assertCourseAccess(item.course_id, actor, false);
+    if (actor.role === UserRole.STUDENT && !item.is_published) throw new NotFoundException('Essay case not found');
+    // Defense in depth: do not load model answers into application memory for a
+    // student until the server-recorded attempt is already revealed.
+    const attempt: Row | undefined = actor.role === UserRole.STUDENT
+      ? (await this.db.query(
+          `SELECT id,status,submitted_at,revealed_at FROM essay_case_attempts WHERE case_id=$1 AND student_id=$2`,
+          [id, actor.userId],
+        ))[0]
+      : undefined;
+    const mayReveal = actor.role !== UserRole.STUDENT || attempt?.status === 'REVEALED';
+    const questions: Row[] = await this.db.query(
+      mayReveal
+        ? `SELECT id,prompt,model_answer,display_order FROM essay_case_questions WHERE case_id=$1 ORDER BY display_order`
+        : `SELECT id,prompt,display_order FROM essay_case_questions WHERE case_id=$1 ORDER BY display_order`,
+      [id],
+    );
+    const answerRows: Row[] = attempt ? await this.db.query(`SELECT question_id,answer_text FROM essay_case_answers WHERE attempt_id=$1`, [attempt.id]) : [];
+    const answers = new Map(answerRows.map((row) => [row.question_id, row.answer_text]));
+    return { id: item.id, weekId: item.week_id, weekNumber: item.week_number, title: item.title, stem: item.stem, section: item.section, sourceCaseNumber: item.source_case_number, isPublished: item.is_published, attempt: attempt || null,
+      questions: questions.map((q) => ({ id: q.id, prompt: q.prompt, displayOrder: q.display_order, studentAnswer: answers.get(q.id) || null, ...(mayReveal ? { modelAnswer: q.model_answer } : {}) })) };
+  }
+
+  async create(dto: CreateEssayCaseDto, actor: AuthenticatedUser) {
+    const courseId = await this.courseForWeek(dto.week_id); await this.assertCourseAccess(courseId, actor, true);
+    const id = await this.db.transaction(async (m) => this.insertCase(m, dto, actor.userId)); return this.getCase(id, actor);
+  }
+
+  async update(id: string, dto: UpdateEssayCaseDto, actor: AuthenticatedUser) {
+    const item = await this.requireCase(id); await this.assertCourseAccess(item.course_id, actor, true);
+    await this.db.transaction(async (m) => {
+      await m.query(`UPDATE essay_cases SET title=COALESCE($2,title),stem=COALESCE($3,stem),section=CASE WHEN $4::boolean THEN $5 ELSE section END,is_published=COALESCE($6,is_published),updated_at=now() WHERE id=$1`, [id,dto.title?.trim()||null,dto.stem?.trim()||null,dto.section!==undefined,dto.section?.trim()||null,dto.is_published ?? null]);
+      if (dto.questions) {
+        const existing:Row[]=await m.query(`SELECT id FROM essay_case_questions WHERE case_id=$1`,[id]); const kept=new Set(dto.questions.map(q=>q.id).filter(Boolean)); const removed=existing.filter(q=>!kept.has(q.id));
+        if(removed.length){ const used=(await m.query(`SELECT 1 FROM essay_case_answers WHERE question_id=ANY($1::uuid[]) LIMIT 1`,[removed.map(q=>q.id)]))[0]; if(used) throw new ConflictException('A question with student answers cannot be removed; edit it or add a new question instead'); await m.query(`DELETE FROM essay_case_questions WHERE id=ANY($1::uuid[])`,[removed.map(q=>q.id)]); }
+        await m.query(`UPDATE essay_case_questions SET display_order=display_order+1000 WHERE case_id=$1`,[id]);
+        for(let i=0;i<dto.questions.length;i++){ const q=dto.questions[i]; if(q.id) await m.query(`UPDATE essay_case_questions SET prompt=$3,model_answer=$4,display_order=$5,updated_at=now() WHERE id=$1 AND case_id=$2`,[q.id,id,q.prompt.trim(),q.model_answer.trim(),i+1]); else await m.query(`INSERT INTO essay_case_questions(case_id,prompt,model_answer,display_order) VALUES($1,$2,$3,$4)`,[id,q.prompt.trim(),q.model_answer.trim(),i+1]); }
+      }
+    }); return this.getCase(id, actor);
+  }
+  async reorder(dto: ReorderEssayCasesDto, actor: AuthenticatedUser) {
+    await this.assertCourseAccess(dto.course_id, actor, true);
+    const weeks: Row[] = await this.db.query(`SELECT id FROM weeks WHERE course_id=$1`, [dto.course_id]);
+    const validWeeks = new Set(weeks.map((week) => week.id));
+    const cases: Row[] = await this.db.query(
+      `SELECT c.id FROM essay_cases c JOIN weeks w ON w.id=c.week_id WHERE w.course_id=$1`,
+      [dto.course_id],
+    );
+    const validCases = new Set(cases.map((item) => item.id));
+    const receivedCases = new Set(dto.items.map((item) => item.case_id));
+    if (
+      receivedCases.size !== dto.items.length ||
+      receivedCases.size !== validCases.size ||
+      [...validCases].some((id) => !receivedCases.has(id)) ||
+      dto.items.some((item) => !validWeeks.has(item.week_id))
+    ) {
+      throw new ConflictException('The submitted case order must contain every course case exactly once and use weeks from the same course');
+    }
+    const seenPositions = new Set<string>();
+    for (const item of dto.items) {
+      const key = `${item.week_id}:${item.display_order}`;
+      if (seenPositions.has(key)) throw new ConflictException('Each case position inside a week must be unique');
+      seenPositions.add(key);
+    }
+    await this.db.transaction(async (m) => {
+      await m.query(
+        `UPDATE essay_cases c SET display_order=c.display_order+100000 FROM weeks w WHERE w.id=c.week_id AND w.course_id=$1`,
+        [dto.course_id],
+      );
+      for (const item of dto.items) {
+        await m.query(
+          `UPDATE essay_cases SET week_id=$2,display_order=$3,updated_at=now() WHERE id=$1`,
+          [item.case_id, item.week_id, item.display_order],
+        );
+      }
+    });
+    return this.listCurriculum(dto.course_id, actor);
+  }
+
+  async remove(id: string, actor: AuthenticatedUser) { const item=await this.requireCase(id); await this.assertCourseAccess(item.course_id,actor,true); await this.db.query(`DELETE FROM essay_cases WHERE id=$1`,[id]); }
+
+  async submit(id: string, dto: SubmitEssayCaseDto, actor: AuthenticatedUser) {
+    const item=await this.requireCase(id); await this.assertCourseAccess(item.course_id,actor,false); if(!item.is_published) throw new NotFoundException('Essay case not found');
+    const questions:Row[]=await this.db.query(`SELECT id FROM essay_case_questions WHERE case_id=$1`,[id]);
+    const expected=new Set(questions.map(q=>q.id)); const received=new Set(dto.answers.map(a=>a.question_id));
+    if(expected.size!==received.size || [...expected].some(q=>!received.has(q))) throw new ConflictException('Every case question must have exactly one non-empty answer');
+    await this.db.transaction(async m=>{ const old=(await m.query(`SELECT id,status FROM essay_case_attempts WHERE case_id=$1 AND student_id=$2 FOR UPDATE`,[id,actor.userId]))[0]; if(old?.status==='REVEALED') throw new ConflictException('A revealed case attempt cannot be resubmitted'); const attempt=(await m.query(`INSERT INTO essay_case_attempts(case_id,student_id,status,submitted_at) VALUES($1,$2,'SUBMITTED',now()) ON CONFLICT(case_id,student_id) DO UPDATE SET status='SUBMITTED',submitted_at=now(),revealed_at=NULL RETURNING id`,[id,actor.userId]))[0]; await m.query(`DELETE FROM essay_case_answers WHERE attempt_id=$1`,[attempt.id]); for(const answer of dto.answers) await m.query(`INSERT INTO essay_case_answers(attempt_id,question_id,answer_text) VALUES($1,$2,$3)`,[attempt.id,answer.question_id,answer.answer.trim()]); });
+    return this.getCase(id,actor);
+  }
+  async reveal(id:string,actor:AuthenticatedUser){ const item=await this.requireCase(id); await this.assertCourseAccess(item.course_id,actor,false); const result=await this.db.query(`UPDATE essay_case_attempts SET status='REVEALED',revealed_at=now() WHERE case_id=$1 AND student_id=$2 AND status='SUBMITTED' RETURNING id`,[id,actor.userId]); if(!result.length) throw new ConflictException('Submit every answer before revealing model answers'); return this.getCase(id,actor); }
+
+  private async insertCase(m:EntityManager,dto:any,userId:string){ const row=(await m.query(`INSERT INTO essay_cases(week_id,title,stem,section,source_case_number,is_published,created_by,display_order) VALUES($1,$2,$3,$4,$5,$6,$7,(SELECT COALESCE(MAX(display_order),0)+1 FROM essay_cases WHERE week_id=$1)) RETURNING id`,[dto.week_id,dto.title.trim(),dto.stem.trim(),dto.section?.trim()||null,dto.source_case_number||null,dto.is_published??false,userId]))[0]; for(let i=0;i<dto.questions.length;i++) await m.query(`INSERT INTO essay_case_questions(case_id,prompt,model_answer,display_order) VALUES($1,$2,$3,$4)`,[row.id,dto.questions[i].prompt.trim(),dto.questions[i].model_answer.trim(),i+1]); return row.id; }
+  private async requireCase(id:string){ const row=(await this.db.query(`SELECT c.*,w.course_id FROM essay_cases c JOIN weeks w ON w.id=c.week_id WHERE c.id=$1`,[id]))[0]; if(!row) throw new NotFoundException('Essay case not found'); return row; }
+  private async courseForWeek(id:string){ const row=(await this.db.query(`SELECT course_id FROM weeks WHERE id=$1`,[id]))[0]; if(!row) throw new NotFoundException('Week not found'); return row.course_id; }
+  private async assertCourseAccess(courseId: string, actor: AuthenticatedUser, manage: boolean) {
+    if (actor.role === UserRole.SYSTEM_ADMIN) return;
+    if (actor.role === UserRole.INSTRUCTOR) {
+      const ok = (await this.db.query(`SELECT 1 FROM course_instructors WHERE course_id = $1 AND instructor_id = $2`, [courseId, actor.userId]))[0];
+      if (ok) return;
+    }
+    if (!manage && actor.role === UserRole.STUDENT) {
+      const ok = (await this.db.query(
+        /* security-audit-reviewed: parameterized-or-allowlisted-fragments */
+        `SELECT 1 FROM courses c WHERE c.id = $1 AND c.is_active = TRUE AND ${buildCourseAccessExistsSql('$1', '$2', 'c')}`,
+        [courseId, actor.userId],
+      ))[0];
+      if (ok) return;
+    }
+    throw new ForbiddenException(manage ? 'You are not assigned to manage this course' : 'This course is not available in an active enrolled bundle');
+  }
+}

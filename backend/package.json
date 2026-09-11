@@ -6,9 +6,12 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "clean:dist": "node -e \"const fs=require('fs'); for (const p of ['dist','tsconfig.tsbuildinfo','tsconfig.build.tsbuildinfo']) fs.rmSync(p,{recursive:true,force:true});\"",
+    "prebuild": "npm run clean:dist",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
+    "prestart:dev": "npm run clean:dist",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
@@ -22,11 +25,29 @@
     "typeorm": "typeorm-ts-node-commonjs",
     "migration:run": "npm run typeorm -- migration:run -d src/database/data-source.ts",
     "migration:show": "npm run typeorm -- migration:show -d src/database/data-source.ts",
+    "migration:run:prod": "node node_modules/typeorm/cli.js migration:run -d dist/database/data-source.js",
+    "migration:show:prod": "node node_modules/typeorm/cli.js migration:show -d dist/database/data-source.js",
+    "migration:verify-ledger": "node scripts/verify-migration-ledger.mjs",
     "schema:log": "npm run typeorm -- schema:log -d src/database/data-source.ts",
     "schema:check": "node scripts/check-schema-compatibility.cjs",
-    "postman:generate": "node scripts/generate-postman.mjs",
+    "schema:repair": "node scripts/repair-schema-drift.cjs",
+    "postman:generate": "node scripts/generate-postman-safe.mjs",
+    "postman:extractor:test": "node scripts/test-controller-route-extractor.mjs",
+    "postman:verify-inventory": "node scripts/verify-generated-route-inventory.mjs",
     "postman:verify-report": "node scripts/verify-newman-report.mjs",
-    "seed:demo": "ts-node scripts/seed-demo.ts"
+    "seed:demo": "ts-node scripts/seed-demo.ts",
+    "seed:medical-content": "ts-node scripts/seed-medical-content.ts",
+    "seed:roles": "ts-node scripts/seed-role-accounts.ts",
+    "audit:mcq-integrity": "ts-node scripts/audit-mcq-integrity.ts",
+    "audit:canonical-mcq-pdf": "ts-node scripts/audit-canonical-mcq-pdf.ts",
+    "verify:mcq-deployment": "ts-node scripts/verify-mcq-deployment.ts",
+    "diagnose:mcq-generation": "ts-node scripts/diagnose-mcq-generation.ts",
+    "prepare:seeded-mcq-repair": "ts-node scripts/prepare-seeded-mcq-repair.ts",
+    "repair:seeded-mcqs": "npm run prepare:seeded-mcq-repair && npm run seed:medical-content && MCQ_SEEDED_STRICT=true npm run audit:mcq-integrity && npm run verify:mcq-deployment",
+    "backup:create": "node scripts/backup-db.mjs",
+    "backup:verify": "node scripts/verify-backup.mjs",
+    "backup:restore": "node scripts/restore-backup.mjs",
+    "audit:security": "node scripts/security-static-audit.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -78,19 +99,11 @@
     "typescript-eslint": "^8.20.0"
   },
   "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
+    "moduleFileExtensions": ["js", "json", "ts"],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
-    },
-    "collectCoverageFrom": [
-      "**/*.(t|j)s"
-    ],
+    "transform": {"^.+\\.(t|j)s$": "ts-jest"},
+    "collectCoverageFrom": ["**/*.(t|j)s"],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   }

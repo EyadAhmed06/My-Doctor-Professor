@@ -1,0 +1,46 @@
+/* Keep Clinical Momentum icon badges centered and prevent generic metric text rules from styling the icon wrappers. */
+.momentum-card .metric > .metric-icon {
+  display: grid !important;
+  place-items: center !important;
+  width: 43px;
+  height: 43px;
+  min-width: 43px;
+  min-height: 43px;
+  flex: 0 0 43px;
+  padding: 0 !important;
+  margin: 0;
+  overflow: hidden;
+  line-height: 1 !important;
+  color: var(--db-teal) !important;
+  font-size: 20px !important;
+  box-sizing: border-box;
+}
+
+.momentum-card .metric > .metric-icon.flame {
+  color: #ff8a36 !important;
+}
+
+.momentum-card .metric > .metric-icon > svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  margin: 0 !important;
+  position: static !important;
+  inset: auto !important;
+  transform: none !important;
+  flex: 0 0 20px;
+}
+
+.momentum-card .metric.primary > svg {
+  display: block;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  margin: auto 6px auto auto !important;
+  align-self: center;
+  position: static !important;
+  transform: none !important;
+}

@@ -1,0 +1,4502 @@
+{
+  "region": "upper-limb",
+  "label": "Upper limb",
+  "generated": "by scripts/anatomy/prepare-model.mjs - do not edit by hand",
+  "nonCommercialTexturesRemoved": [
+    "Muscle tiles",
+    "Tendon only",
+    "Muscle tiles plain"
+  ],
+  "systems": [
+    {
+      "key": "nerve",
+      "label": "Nerves"
+    },
+    {
+      "key": "artery",
+      "label": "Arteries"
+    },
+    {
+      "key": "vein",
+      "label": "Veins"
+    },
+    {
+      "key": "muscle",
+      "label": "Muscles"
+    },
+    {
+      "key": "bone",
+      "label": "Bones"
+    },
+    {
+      "key": "connective",
+      "label": "Ligaments & joints"
+    },
+    {
+      "key": "other",
+      "label": "Other"
+    }
+  ],
+  "structures": [
+    {
+      "id": "Lumbar vertebra (L1)",
+      "name": "Lumbar vertebra (L1)",
+      "system": "bone"
+    },
+    {
+      "id": "Lumbar vertebra (L2)",
+      "name": "Lumbar vertebra (L2)",
+      "system": "bone"
+    },
+    {
+      "id": "Lumbar vertebra (L3)",
+      "name": "Lumbar vertebra (L3)",
+      "system": "bone"
+    },
+    {
+      "id": "Lumbar vertebra (L4)",
+      "name": "Lumbar vertebra (L4)",
+      "system": "bone"
+    },
+    {
+      "id": "Lumbar vertebra (L5)",
+      "name": "Lumbar vertebra (L5)",
+      "system": "bone"
+    },
+    {
+      "id": "Sacrum",
+      "name": "Sacrum",
+      "system": "bone"
+    },
+    {
+      "id": "Thoracic vertebra (T1)",
+      "name": "Thoracic vertebra (T1)",
+      "system": "bone"
+    },
+    {
+      "id": "Thoracic vertebra (T10)",
+      "name": "Thoracic vertebra (T10)",
+      "system": "bone"
+    },
+    {
+      "id": "Thoracic vertebra (T11)",
+      "name": "Thoracic vertebra (T11)",
+      "system": "bone"
+    },
+    {
+      "id": "Thoracic vertebra (T12)",
+      "name": "Thoracic vertebra (T12)",
+      "system": "bone"
+    },
+    {
+      "id": "Thoracic vertebra (T2)",
+      "name": "Thoracic vertebra (T2)",
+      "system": "bone"
+    },
+    {
+      "id": "Thoracic vertebra (T3)",
+      "name": "Thoracic vertebra (T3)",
+      "system": "bone"
+    },
+    {
+      "id": "Thoracic vertebra (T4)",
+      "name": "Thoracic vertebra (T4)",
+      "system": "bone"
+    },
+    {
+      "id": "Thoracic vertebra (T5)",
+      "name": "Thoracic vertebra (T5)",
+      "system": "bone"
+    },
+    {
+      "id": "Thoracic vertebra (T6)",
+      "name": "Thoracic vertebra (T6)",
+      "system": "bone"
+    },
+    {
+      "id": "Thoracic vertebra (T7)",
+      "name": "Thoracic vertebra (T7)",
+      "system": "bone"
+    },
+    {
+      "id": "Thoracic vertebra (T8)",
+      "name": "Thoracic vertebra (T8)",
+      "system": "bone"
+    },
+    {
+      "id": "Thoracic vertebra (T9)",
+      "name": "Thoracic vertebra (T9)",
+      "system": "bone"
+    },
+    {
+      "id": "Humerus.r",
+      "name": "Humerus (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Bicipital aponeurosis.r",
+      "name": "Bicipital aponeurosis (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Brachialis muscle.r",
+      "name": "Brachialis muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Common tendon of biceps brachii.r",
+      "name": "Common tendon of biceps brachii (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Common tendon of triceps brachii.r",
+      "name": "Common tendon of triceps brachii (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Coracobrachialis muscle.r",
+      "name": "Coracobrachialis muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Lateral head of triceps brachii.r",
+      "name": "Lateral head of triceps brachii (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Long head of biceps brachii tendon sheath.r",
+      "name": "Long head of biceps brachii tendon sheath (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Long head of biceps brachii.r",
+      "name": "Long head of biceps brachii (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Long head of triceps brachii.r",
+      "name": "Long head of triceps brachii (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Medial head of triceps brachii.r",
+      "name": "Medial head of triceps brachii (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Short head of biceps brachii.r",
+      "name": "Short head of biceps brachii (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Axillary nerve - superior lateral br cutaneous nerve.r",
+      "name": "Axillary nerve - superior lateral br cutaneous nerve (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Lateral root of median nerve.r",
+      "name": "Lateral root of median nerve (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Medial brachial cutaneous nerve.r",
+      "name": "Medial brachial cutaneous nerve (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Medial root of median nerve.r",
+      "name": "Medial root of median nerve (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Median nerve.r",
+      "name": "Median nerve (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Musculocutaneus nerve.r",
+      "name": "Musculocutaneus nerve (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Radial nerve (deep branch).r",
+      "name": "Radial nerve (deep branch) (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Radial nerve (inferior lateral brachial cutaneous n).r",
+      "name": "Radial nerve (inferior lateral brachial cutaneous n) (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Radial nerve (posterior antebrachial cutaneous n).r",
+      "name": "Radial nerve (posterior antebrachial cutaneous n) (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Radial nerve (posterior brachial cutaneous n).r",
+      "name": "Radial nerve (posterior brachial cutaneous n) (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Radial nerve (posterior interosseus n).r",
+      "name": "Radial nerve (posterior interosseus n) (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Radial nerve (superficial br).r",
+      "name": "Radial nerve (superficial br) (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Radial nerve.r",
+      "name": "Radial nerve (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Ulnar nerve.r",
+      "name": "Ulnar nerve (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Arm superficial vein-Basilic vein.r",
+      "name": "Arm superficial vein-Basilic vein (right)",
+      "system": "vein"
+    },
+    {
+      "id": "Arm superficial vein-Cephalic vein.r",
+      "name": "Arm superficial vein-Cephalic vein (right)",
+      "system": "vein"
+    },
+    {
+      "id": "Arm superficial vein-Median antebrachial vein.r",
+      "name": "Arm superficial vein-Median antebrachial vein (right)",
+      "system": "vein"
+    },
+    {
+      "id": "Arm superficial vein-Median cubital vein.r",
+      "name": "Arm superficial vein-Median cubital vein (right)",
+      "system": "vein"
+    },
+    {
+      "id": "Axillary vein.r",
+      "name": "Axillary vein (right)",
+      "system": "vein"
+    },
+    {
+      "id": "Deep veins of the arm.r",
+      "name": "Deep veins of the arm (right)",
+      "system": "vein"
+    },
+    {
+      "id": "Superficial veins of upper limb.r",
+      "name": "Superficial veins of upper limb (right)",
+      "system": "vein"
+    },
+    {
+      "id": "Anterior circumflex humeral artery.r",
+      "name": "Anterior circumflex humeral artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Axillary artery.r",
+      "name": "Axillary artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Brachial artery.r",
+      "name": "Brachial artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Brachiocephalic artery.r",
+      "name": "Brachiocephalic artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Deep artery of arm.r",
+      "name": "Deep artery of arm (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Inferior ulnar collateral artery.r",
+      "name": "Inferior ulnar collateral artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Medial collateral artery.r",
+      "name": "Medial collateral artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Middle collateral artery.r",
+      "name": "Middle collateral artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Posterior circumflex humeral artery.r",
+      "name": "Posterior circumflex humeral artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Posterior ulnar recurrent artery.r",
+      "name": "Posterior ulnar recurrent artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Radial collateral artery.r",
+      "name": "Radial collateral artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Superior ulnar collateral artery.r",
+      "name": "Superior ulnar collateral artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Articular capsule of glenohumeral joint.r",
+      "name": "Articular capsule of glenohumeral joint (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Brachial fascia.r",
+      "name": "Brachial fascia (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Coracohumeral ligament.r",
+      "name": "Coracohumeral ligament (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Glenoid labrum.r",
+      "name": "Glenoid labrum (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Inferior glenohumeral ligament.r",
+      "name": "Inferior glenohumeral ligament (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Lateral intermuscular septum of arm.r",
+      "name": "Lateral intermuscular septum of arm (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Medial intermuscular septum of arm.r",
+      "name": "Medial intermuscular septum of arm (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Middle glenohumeral ligament.r",
+      "name": "Middle glenohumeral ligament (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Superior glenohumeral ligament.r",
+      "name": "Superior glenohumeral ligament (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Transverse humeral ligament.r",
+      "name": "Transverse humeral ligament (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Art cart of humerus distal end.r​",
+      "name": "Art cart of humerus distal end.r​",
+      "system": "bone"
+    },
+    {
+      "id": "Art cart of humerus head​.r",
+      "name": "Art cart of humerus head​ (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Coracobrachial bursa.r",
+      "name": "Coracobrachial bursa (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Intratendinous olecranon bursa.r",
+      "name": "Intratendinous olecranon bursa (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Subcutaneous olecranon bursa.r",
+      "name": "Subcutaneous olecranon bursa (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Subtendinous bursa of infraspinatus muscle.r",
+      "name": "Subtendinous bursa of infraspinatus muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Subtendinous bursa of latissimus dorsi.r",
+      "name": "Subtendinous bursa of latissimus dorsi (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Subtendinous bursa of subscapularis.r",
+      "name": "Subtendinous bursa of subscapularis (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Subtendinous bursa of teres major.r",
+      "name": "Subtendinous bursa of teres major (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Annulus fibrosus L1 L20",
+      "name": "Annulus fibrosus L1 L20",
+      "system": "connective"
+    },
+    {
+      "id": "Annulus fibrosus L2 L3",
+      "name": "Annulus fibrosus L2 L3",
+      "system": "connective"
+    },
+    {
+      "id": "Annulus fibrosus L3 L4",
+      "name": "Annulus fibrosus L3 L4",
+      "system": "connective"
+    },
+    {
+      "id": "Annulus fibrosus L4 L5",
+      "name": "Annulus fibrosus L4 L5",
+      "system": "connective"
+    },
+    {
+      "id": "Annulus fibrosus L5 S1",
+      "name": "Annulus fibrosus L5 S1",
+      "system": "connective"
+    },
+    {
+      "id": "Annulus fibrosus T1 T2",
+      "name": "Annulus fibrosus T1 T2",
+      "system": "connective"
+    },
+    {
+      "id": "Annulus fibrosus T10 T11",
+      "name": "Annulus fibrosus T10 T11",
+      "system": "connective"
+    },
+    {
+      "id": "Annulus fibrosus T11 T12",
+      "name": "Annulus fibrosus T11 T12",
+      "system": "connective"
+    },
+    {
+      "id": "Annulus fibrosus T12 L1",
+      "name": "Annulus fibrosus T12 L1",
+      "system": "connective"
+    },
+    {
+      "id": "Annulus fibrosus T2 T3",
+      "name": "Annulus fibrosus T2 T3",
+      "system": "connective"
+    },
+    {
+      "id": "Annulus fibrosus T3 T4",
+      "name": "Annulus fibrosus T3 T4",
+      "system": "connective"
+    },
+    {
+      "id": "Annulus fibrosus T4 T5",
+      "name": "Annulus fibrosus T4 T5",
+      "system": "connective"
+    },
+    {
+      "id": "Annulus fibrosus T5 T6",
+      "name": "Annulus fibrosus T5 T6",
+      "system": "connective"
+    },
+    {
+      "id": "Annulus fibrosus T6 T7",
+      "name": "Annulus fibrosus T6 T7",
+      "system": "connective"
+    },
+    {
+      "id": "Annulus fibrosus T7 T8",
+      "name": "Annulus fibrosus T7 T8",
+      "system": "connective"
+    },
+    {
+      "id": "Annulus fibrosus T8 T9",
+      "name": "Annulus fibrosus T8 T9",
+      "system": "connective"
+    },
+    {
+      "id": "Annulus fibrosus T9 T10",
+      "name": "Annulus fibrosus T9 T10",
+      "system": "connective"
+    },
+    {
+      "id": "art cart of sacrum art process.r",
+      "name": "Art cart of sacrum art process (right)",
+      "system": "bone"
+    },
+    {
+      "id": "art cart of sacrum lumbosacral joint",
+      "name": "Art cart of sacrum lumbosacral joint",
+      "system": "bone"
+    },
+    {
+      "id": "Nucleus pulposus L1-S1",
+      "name": "Nucleus pulposus L1-S1",
+      "system": "connective"
+    },
+    {
+      "id": "Vertebra L1 art cart",
+      "name": "Vertebra L1 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra L2 art cart",
+      "name": "Vertebra L2 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra L3 art cart.",
+      "name": "Vertebra L3 art cart.",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra L4 art cart",
+      "name": "Vertebra L4 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra L5 art cart",
+      "name": "Vertebra L5 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra T1 art cart",
+      "name": "Vertebra T1 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra T10 art cart",
+      "name": "Vertebra T10 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra T11 art cart",
+      "name": "Vertebra T11 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra T12 art cart",
+      "name": "Vertebra T12 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra T2 art cart",
+      "name": "Vertebra T2 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra T3 art cart",
+      "name": "Vertebra T3 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra T4 art cart",
+      "name": "Vertebra T4 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra T5 art cart",
+      "name": "Vertebra T5 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra T6 art cart",
+      "name": "Vertebra T6 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra T7 art cart",
+      "name": "Vertebra T7 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra T8 art cart",
+      "name": "Vertebra T8 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra T9 art cart",
+      "name": "Vertebra T9 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Anterior interosseous artery.r",
+      "name": "Anterior interosseous artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Anterior ulnar recurrent artery.r",
+      "name": "Anterior ulnar recurrent artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Common interosseous artery.r",
+      "name": "Common interosseous artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Interosseous recurrent artery.r",
+      "name": "Interosseous recurrent artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Posterior interosseous artery.r",
+      "name": "Posterior interosseous artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Radial artery.r",
+      "name": "Radial artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Radial recrurrent artery.r",
+      "name": "Radial recrurrent artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Ulnar artery (dorsal carpal br).r",
+      "name": "Ulnar artery (dorsal carpal br) (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Ulnar artery.r",
+      "name": "Ulnar artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Radius.r",
+      "name": "Radius (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Ulna.r",
+      "name": "Ulna (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Antebrachial fascia.r",
+      "name": "Antebrachial fascia (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Articular capsule of elbow joint.r",
+      "name": "Articular capsule of elbow joint (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Dorsal radio-ulnar ligament.r",
+      "name": "Dorsal radio-ulnar ligament (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Interosseous membrane of forearm.r",
+      "name": "Interosseous membrane of forearm (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Oblique cord or radio-ulnar syndesmosis.r",
+      "name": "Oblique cord or radio-ulnar syndesmosis (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Quadrate ligament.r",
+      "name": "Quadrate ligament (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Radial annular ligament.r",
+      "name": "Radial annular ligament (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Radial collateral ligament of elbow.r",
+      "name": "Radial collateral ligament of elbow (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Ulnar collateral ligament of elbow.r",
+      "name": "Ulnar collateral ligament of elbow (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Art cart of radius distal end​.r",
+      "name": "Art cart of radius distal end​ (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Art cart of radius head​.r",
+      "name": "Art cart of radius head​ (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Art cart of ulna (proximal end).r",
+      "name": "Art cart of ulna (proximal end) (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Art cart of ulna. (distal end).r",
+      "name": "Art cart of ulna. (distal end) (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Abductor pollicis longus.r",
+      "name": "Abductor pollicis longus (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Anconeus muscle.r",
+      "name": "Anconeus muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Brachioradialis muscle.r",
+      "name": "Brachioradialis muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Common tendon of extensor carpi ulnaris.r",
+      "name": "Common tendon of extensor carpi ulnaris (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Common tendon of flexor carpi ulnaris.r",
+      "name": "Common tendon of flexor carpi ulnaris (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor carpi radialis brevis.r",
+      "name": "Extensor carpi radialis brevis (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor carpi radialis longus.r",
+      "name": "Extensor carpi radialis longus (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor digiti minimi.r",
+      "name": "Extensor digiti minimi (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor digitorum.r",
+      "name": "Extensor digitorum (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor indicis.r",
+      "name": "Extensor indicis (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor pollicis brevis.r",
+      "name": "Extensor pollicis brevis (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor pollicis longus.r",
+      "name": "Extensor pollicis longus (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor carpi radialis.r",
+      "name": "Flexor carpi radialis (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor digitorum profundus.r",
+      "name": "Flexor digitorum profundus (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor digitorum superficialis humero-ulnar head.r",
+      "name": "Flexor digitorum superficialis humero-ulnar head (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor digitorum superficialis radial head.r",
+      "name": "Flexor digitorum superficialis radial head (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor pollicis longus.r",
+      "name": "Flexor pollicis longus (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Humeral head of extensor carpi ulnaris.r",
+      "name": "Humeral head of extensor carpi ulnaris (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Humeral head of flexor carpi ulnaris.r",
+      "name": "Humeral head of flexor carpi ulnaris (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Humeral head of pronator teres.r",
+      "name": "Humeral head of pronator teres (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Palmaris longus muscle.r",
+      "name": "Palmaris longus muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Pronator quadratus.r",
+      "name": "Pronator quadratus (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Supinator.r",
+      "name": "Supinator (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Ulnar head of extensor carpi ulnaris.r",
+      "name": "Ulnar head of extensor carpi ulnaris (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Ulnar head of flexor carpi ulnaris.r",
+      "name": "Ulnar head of flexor carpi ulnaris (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Ulnar head of pronator teres.r",
+      "name": "Ulnar head of pronator teres (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Medial antebrachial cutaneous nerve.r",
+      "name": "Medial antebrachial cutaneous nerve (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Musculocutaneus nerve  - lateral antebrachial cutaneous nerve.r",
+      "name": "Musculocutaneus nerve - lateral antebrachial cutaneous nerve (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Bicipitoradial bursa",
+      "name": "Bicipitoradial bursa",
+      "system": "connective"
+    },
+    {
+      "id": "Interosseous cubital bursa.r",
+      "name": "Interosseous cubital bursa (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Subtendinous bursa of triceps brachii.r",
+      "name": "Subtendinous bursa of triceps brachii (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Anterior interosseous veins.r",
+      "name": "Anterior interosseous veins (right)",
+      "system": "vein"
+    },
+    {
+      "id": "Posterior interosseous veins.r",
+      "name": "Posterior interosseous veins (right)",
+      "system": "vein"
+    },
+    {
+      "id": "Radial veins.r",
+      "name": "Radial veins (right)",
+      "system": "vein"
+    },
+    {
+      "id": "Ulnar veins.r",
+      "name": "Ulnar veins (right)",
+      "system": "vein"
+    },
+    {
+      "id": "Common palmar digital arteries.r",
+      "name": "Common palmar digital arteries (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Deep palmar arch.r",
+      "name": "Deep palmar arch (right)",
+      "system": "other"
+    },
+    {
+      "id": "Dorsal carpal arch.r",
+      "name": "Dorsal carpal arch (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Dorsal carpal network.r",
+      "name": "Dorsal carpal network (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Dorsal digital arteries.r",
+      "name": "Dorsal digital arteries (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Dorsal metacarpal arteries.r",
+      "name": "Dorsal metacarpal arteries (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Dorsalis indicis.r",
+      "name": "Dorsalis indicis (right)",
+      "system": "other"
+    },
+    {
+      "id": "Dorsalis pollicis.r",
+      "name": "Dorsalis pollicis (right)",
+      "system": "other"
+    },
+    {
+      "id": "Palmar carpal branches.r",
+      "name": "Palmar carpal branches (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Palmar metacarpal arteries.r",
+      "name": "Palmar metacarpal arteries (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Perforating arteries.r",
+      "name": "Perforating arteries (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Princeps pollicis arteries.r",
+      "name": "Princeps pollicis arteries (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Proper palmar digital arteries.r",
+      "name": "Proper palmar digital arteries (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Radialis indicis.r",
+      "name": "Radialis indicis (right)",
+      "system": "other"
+    },
+    {
+      "id": "Superficial palmar arch.r",
+      "name": "Superficial palmar arch (right)",
+      "system": "other"
+    },
+    {
+      "id": "1st metacarpal bone.r",
+      "name": "1st metacarpal bone (right)",
+      "system": "bone"
+    },
+    {
+      "id": "2nd metacarpal bone.r",
+      "name": "2nd metacarpal bone (right)",
+      "system": "bone"
+    },
+    {
+      "id": "3rd metacarpal bone.r",
+      "name": "3rd metacarpal bone (right)",
+      "system": "bone"
+    },
+    {
+      "id": "4th metacarpal bone.r",
+      "name": "4th metacarpal bone (right)",
+      "system": "bone"
+    },
+    {
+      "id": "5th metacarpal bone.r",
+      "name": "5th metacarpal bone (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Capitate.r",
+      "name": "Capitate (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Distal phalanx of 1st finger.r",
+      "name": "Distal phalanx of 1st finger (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Distal phalanx of 2d finger.r",
+      "name": "Distal phalanx of 2d finger (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Distal phalanx of 3d finger.r",
+      "name": "Distal phalanx of 3d finger (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Distal phalanx of 4th finger.r",
+      "name": "Distal phalanx of 4th finger (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Distal phalanx of 5th finger.r",
+      "name": "Distal phalanx of 5th finger (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Hamate.r",
+      "name": "Hamate (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Lunate bone.r",
+      "name": "Lunate bone (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Middle phalanx of 2d finger.r",
+      "name": "Middle phalanx of 2d finger (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Middle phalanx of 3rd finger.r",
+      "name": "Middle phalanx of 3rd finger (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Middle phalanx of 4th finger.r",
+      "name": "Middle phalanx of 4th finger (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Middle phalanx of 5th finger.r",
+      "name": "Middle phalanx of 5th finger (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Pisiform.r",
+      "name": "Pisiform (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Proximal phalanx of 1st finger.r",
+      "name": "Proximal phalanx of 1st finger (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Proximal phalanx of 2d finger.r",
+      "name": "Proximal phalanx of 2d finger (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Proximal phalanx of 3rd finger.r",
+      "name": "Proximal phalanx of 3rd finger (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Proximal phalanx of 4th finger.r",
+      "name": "Proximal phalanx of 4th finger (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Proximal phalanx of 5th finger.r",
+      "name": "Proximal phalanx of 5th finger (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Scaphoid.r",
+      "name": "Scaphoid (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Sesamoid bones of hand.r",
+      "name": "Sesamoid bones of hand (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Trapezium.r",
+      "name": "Trapezium (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Trapezoid.r",
+      "name": "Trapezoid (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Triquetrum.r",
+      "name": "Triquetrum (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Annular ligament(A1) of 1st finger.r",
+      "name": "Annular ligament(A1) of 1st finger (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Annular ligament(A2) of 1st finger.r",
+      "name": "Annular ligament(A2) of 1st finger (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Annular ligaments of 2nd finger A1-A5.r",
+      "name": "Annular ligaments of 2nd finger A1-A5 (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Annular ligaments of 3rd finger A1-A5.r",
+      "name": "Annular ligaments of 3rd finger A1-A5 (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Annular ligaments of 4th finger A1-A5.r",
+      "name": "Annular ligaments of 4th finger A1-A5 (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Annular ligaments of 5th finger A1-A5.r",
+      "name": "Annular ligaments of 5th finger A1-A5 (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Articular capsule of radiocarpal joint",
+      "name": "Articular capsule of radiocarpal joint",
+      "system": "bone"
+    },
+    {
+      "id": "Articular capsules of distal interphalangeal joints",
+      "name": "Articular capsules of distal interphalangeal joints",
+      "system": "connective"
+    },
+    {
+      "id": "Articular capsules of metacarpophalangeal joints",
+      "name": "Articular capsules of metacarpophalangeal joints",
+      "system": "bone"
+    },
+    {
+      "id": "Articular capsules of proximal interphalangeal joints",
+      "name": "Articular capsules of proximal interphalangeal joints",
+      "system": "connective"
+    },
+    {
+      "id": "Capitohamate interosseus ligament",
+      "name": "Capitohamate interosseus ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Collateral ligaments of distal phalangeal joints.r",
+      "name": "Collateral ligaments of distal phalangeal joints (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Collateral ligaments of interphalangeal joints.r",
+      "name": "Collateral ligaments of interphalangeal joints (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Collateral ligaments of metacarpal joints.r",
+      "name": "Collateral ligaments of metacarpal joints (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Collateral ligaments of metacarpophalangeal joints.r",
+      "name": "Collateral ligaments of metacarpophalangeal joints (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Cruciform ligaments of 2nd finger.r",
+      "name": "Cruciform ligaments of 2nd finger (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Cruciform ligaments of 3rd finger.r",
+      "name": "Cruciform ligaments of 3rd finger (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Cruciform ligaments of 4th finger.r",
+      "name": "Cruciform ligaments of 4th finger (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Cruciform ligaments of 5th finger.r",
+      "name": "Cruciform ligaments of 5th finger (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Deep transverse metacarpal ligament",
+      "name": "Deep transverse metacarpal ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Dorsal carpometacarpal ligaments",
+      "name": "Dorsal carpometacarpal ligaments",
+      "system": "bone"
+    },
+    {
+      "id": "Dorsal intercarpal ligament",
+      "name": "Dorsal intercarpal ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Dorsal metacarpal ligaments",
+      "name": "Dorsal metacarpal ligaments",
+      "system": "bone"
+    },
+    {
+      "id": "Dorsal radiocarpal ligament.r",
+      "name": "Dorsal radiocarpal ligament (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Dorsal scaphotriquetral ligament",
+      "name": "Dorsal scaphotriquetral ligament",
+      "system": "connective"
+    },
+    {
+      "id": "Dorsal ulnocarpal ligament",
+      "name": "Dorsal ulnocarpal ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Extensor retinaculum of wrist",
+      "name": "Extensor retinaculum of wrist",
+      "system": "muscle"
+    },
+    {
+      "id": "Fibrous sheath of digits of hand",
+      "name": "Fibrous sheath of digits of hand",
+      "system": "connective"
+    },
+    {
+      "id": "Fibrous sheath of digits of hand thumb",
+      "name": "Fibrous sheath of digits of hand thumb",
+      "system": "connective"
+    },
+    {
+      "id": "Flexor retinaculum",
+      "name": "Flexor retinaculum",
+      "system": "muscle"
+    },
+    {
+      "id": "Intercarpal articulations.r",
+      "name": "Intercarpal articulations (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Interosseous metacarpal ligaments",
+      "name": "Interosseous metacarpal ligaments",
+      "system": "bone"
+    },
+    {
+      "id": "Intertendinous connections of extensor digitorum",
+      "name": "Intertendinous connections of extensor digitorum",
+      "system": "muscle"
+    },
+    {
+      "id": "Lateral band of 2nd finger",
+      "name": "Lateral band of 2nd finger",
+      "system": "other"
+    },
+    {
+      "id": "Lateral band of 3rd finger",
+      "name": "Lateral band of 3rd finger",
+      "system": "other"
+    },
+    {
+      "id": "Lateral band of 4th finger",
+      "name": "Lateral band of 4th finger",
+      "system": "other"
+    },
+    {
+      "id": "Lateral band of 5th finger",
+      "name": "Lateral band of 5th finger",
+      "system": "other"
+    },
+    {
+      "id": "Lunotriquetral interosseous ligament",
+      "name": "Lunotriquetral interosseous ligament",
+      "system": "connective"
+    },
+    {
+      "id": "Oblique ligament of 1st finger.r",
+      "name": "Oblique ligament of 1st finger (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Palmar capitohamate ligament",
+      "name": "Palmar capitohamate ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Palmar carpometacarpal ligaments",
+      "name": "Palmar carpometacarpal ligaments",
+      "system": "bone"
+    },
+    {
+      "id": "Palmar ligaments of distal phalangeal joints.r",
+      "name": "Palmar ligaments of distal phalangeal joints (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Palmar ligaments of interphalangeal joints.r",
+      "name": "Palmar ligaments of interphalangeal joints (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Palmar ligaments of metacarpophalangeal joints.r",
+      "name": "Palmar ligaments of metacarpophalangeal joints (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Palmar lunotriquetral ligament",
+      "name": "Palmar lunotriquetral ligament",
+      "system": "connective"
+    },
+    {
+      "id": "Palmar metacarpal ligaments",
+      "name": "Palmar metacarpal ligaments",
+      "system": "bone"
+    },
+    {
+      "id": "Palmar radio-ulnar ligament",
+      "name": "Palmar radio-ulnar ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Palmar radiocarpal ligament.r",
+      "name": "Palmar radiocarpal ligament (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Palmar scaphotriquetral ligament",
+      "name": "Palmar scaphotriquetral ligament",
+      "system": "connective"
+    },
+    {
+      "id": "Palmar trapezoideocapitate ligament",
+      "name": "Palmar trapezoideocapitate ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Palmar ulnocarpal ligament.r",
+      "name": "Palmar ulnocarpal ligament (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Pisohamate ligament",
+      "name": "Pisohamate ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Pisometacarpal ligament.r",
+      "name": "Pisometacarpal ligament (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Pisotriquetral ligament",
+      "name": "Pisotriquetral ligament",
+      "system": "connective"
+    },
+    {
+      "id": "Radial collateral ligament of wrist.r",
+      "name": "Radial collateral ligament of wrist (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Radiate carpal ligament",
+      "name": "Radiate carpal ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Radioscaphocapitate ligament",
+      "name": "Radioscaphocapitate ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Scaphocapitate ligament",
+      "name": "Scaphocapitate ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Scapholunate interosseus ligament",
+      "name": "Scapholunate interosseus ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Scaphotrapeziotrapezoidal ligament",
+      "name": "Scaphotrapeziotrapezoidal ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Thickened part of antebrachial fascia",
+      "name": "Thickened part of antebrachial fascia",
+      "system": "connective"
+    },
+    {
+      "id": "Trapeziotrapezoidal interosseous ligament",
+      "name": "Trapeziotrapezoidal interosseous ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Trapezoideocapitate interosseous ligament",
+      "name": "Trapezoideocapitate interosseous ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Triangular fibro cartilage disc",
+      "name": "Triangular fibro cartilage disc",
+      "system": "connective"
+    },
+    {
+      "id": "Triquetrocapitate ligament",
+      "name": "Triquetrocapitate ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Triquetrohamate ligament",
+      "name": "Triquetrohamate ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Ulnar collateral ligament of wrist.r",
+      "name": "Ulnar collateral ligament of wrist (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Ulnopisiform ligament",
+      "name": "Ulnopisiform ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Ulnotriquetral ligament",
+      "name": "Ulnotriquetral ligament",
+      "system": "connective"
+    },
+    {
+      "id": "Art cart of capitate bone​",
+      "name": "Art cart of capitate bone​",
+      "system": "bone"
+    },
+    {
+      "id": "Art cart of hamate bone​",
+      "name": "Art cart of hamate bone​",
+      "system": "bone"
+    },
+    {
+      "id": "Art cart of lunate bone",
+      "name": "Art cart of lunate bone",
+      "system": "bone"
+    },
+    {
+      "id": "Art cart of pisiform bone ​",
+      "name": "Art cart of pisiform bone ​",
+      "system": "bone"
+    },
+    {
+      "id": "Art cart of scaphoid bone​",
+      "name": "Art cart of scaphoid bone​",
+      "system": "bone"
+    },
+    {
+      "id": "Art cart of trapezium bone​",
+      "name": "Art cart of trapezium bone​",
+      "system": "bone"
+    },
+    {
+      "id": "Art cart of trapezoid bone​",
+      "name": "Art cart of trapezoid bone​",
+      "system": "bone"
+    },
+    {
+      "id": "Art cart of triquetrum bone",
+      "name": "Art cart of triquetrum bone",
+      "system": "bone"
+    },
+    {
+      "id": "Art carts of distal phalanges",
+      "name": "Art carts of distal phalanges",
+      "system": "other"
+    },
+    {
+      "id": "Art carts of metacarpal bones",
+      "name": "Art carts of metacarpal bones",
+      "system": "bone"
+    },
+    {
+      "id": "Art carts of middle phalanges",
+      "name": "Art carts of middle phalanges",
+      "system": "other"
+    },
+    {
+      "id": "Art carts of proximal phalanges",
+      "name": "Art carts of proximal phalanges",
+      "system": "other"
+    },
+    {
+      "id": "Abductor pollicis longus tendon sheath",
+      "name": "Abductor pollicis longus tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Common flexor tendon sheath",
+      "name": "Common flexor tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor carpi radialis brevis tendon sheath",
+      "name": "Extensor carpi radialis brevis tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor carpi radialis longus tendon sheath",
+      "name": "Extensor carpi radialis longus tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor carpi ulnaris tendon sheath",
+      "name": "Extensor carpi ulnaris tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor digiti minimi tendon sheath",
+      "name": "Extensor digiti minimi tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor digitorum - Extensor indicis tendon sheath",
+      "name": "Extensor digitorum - Extensor indicis tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor pollicis brevis tendon sheath",
+      "name": "Extensor pollicis brevis tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor pollicis longus tendon sheath",
+      "name": "Extensor pollicis longus tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor carpi radialis tendon sheath",
+      "name": "Flexor carpi radialis tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor pollicis longus tendon sheath",
+      "name": "Flexor pollicis longus tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Synovial sheaths of fingers",
+      "name": "Synovial sheaths of fingers",
+      "system": "connective"
+    },
+    {
+      "id": "1st dorsal interosseus of hand.r",
+      "name": "1st dorsal interosseus of hand (right)",
+      "system": "other"
+    },
+    {
+      "id": "1st lumbrical of hand.r",
+      "name": "1st lumbrical of hand (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "1st palmar interosseus of hand.r",
+      "name": "1st palmar interosseus of hand (right)",
+      "system": "other"
+    },
+    {
+      "id": "2nd dorsal interosseus of hand.r",
+      "name": "2nd dorsal interosseus of hand (right)",
+      "system": "other"
+    },
+    {
+      "id": "2nd lumbrical of hand.r",
+      "name": "2nd lumbrical of hand (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "2nd palmar interosseus of hand.r",
+      "name": "2nd palmar interosseus of hand (right)",
+      "system": "other"
+    },
+    {
+      "id": "3rd dorsal interosseus of hand.r",
+      "name": "3rd dorsal interosseus of hand (right)",
+      "system": "other"
+    },
+    {
+      "id": "3rd lumbrical of hand.r",
+      "name": "3rd lumbrical of hand (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "3rd palmar interosseus of hand.r",
+      "name": "3rd palmar interosseus of hand (right)",
+      "system": "other"
+    },
+    {
+      "id": "4th dorsal interosseus of hand.r",
+      "name": "4th dorsal interosseus of hand (right)",
+      "system": "other"
+    },
+    {
+      "id": "4th lumbrical of hand.r",
+      "name": "4th lumbrical of hand (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Abductor digiti minimi.r",
+      "name": "Abductor digiti minimi (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Abductor pollicis brevis.r",
+      "name": "Abductor pollicis brevis (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Adductor pollicis.r",
+      "name": "Adductor pollicis (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Aponeurosis palmaris.r",
+      "name": "Aponeurosis palmaris (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Deep head of flexor pollicis brevis.r",
+      "name": "Deep head of flexor pollicis brevis (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor hood of 2nd finger.r",
+      "name": "Extensor hood of 2nd finger (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor hood of 3rd finger.r",
+      "name": "Extensor hood of 3rd finger (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor hood of 4th finger.r",
+      "name": "Extensor hood of 4th finger (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor hood of 5th finger.r",
+      "name": "Extensor hood of 5th finger (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor digiti minimi brevis of hand.r",
+      "name": "Flexor digiti minimi brevis of hand (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Oblique head of adductor pollicis.r",
+      "name": "Oblique head of adductor pollicis (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Opponens digiti minimi muscle of hand.r",
+      "name": "Opponens digiti minimi muscle of hand (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Opponens pollicis muscle.r",
+      "name": "Opponens pollicis muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Palmaris brevis muscle.r",
+      "name": "Palmaris brevis muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Superficial head of flexor pollicis brevis.r",
+      "name": "Superficial head of flexor pollicis brevis (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Superficial transverse metacarpal lig.",
+      "name": "Superficial transverse metacarpal lig.",
+      "system": "bone"
+    },
+    {
+      "id": "Transverse head of adductor pollicis.r",
+      "name": "Transverse head of adductor pollicis (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Median nerve Common palmar digital nerve of the thumb",
+      "name": "Median nerve Common palmar digital nerve of the thumb",
+      "system": "nerve"
+    },
+    {
+      "id": "Median nerve Common palmar digital nerves",
+      "name": "Median nerve Common palmar digital nerves",
+      "system": "nerve"
+    },
+    {
+      "id": "Median nerve Palmar br",
+      "name": "Median nerve Palmar br",
+      "system": "nerve"
+    },
+    {
+      "id": "Median nerve Proper palmar digital nerves",
+      "name": "Median nerve Proper palmar digital nerves",
+      "system": "nerve"
+    },
+    {
+      "id": "Median nerve Proper palmar digital nerves of the thumb",
+      "name": "Median nerve Proper palmar digital nerves of the thumb",
+      "system": "nerve"
+    },
+    {
+      "id": "Median nerve Recurrent br",
+      "name": "Median nerve Recurrent br",
+      "system": "nerve"
+    },
+    {
+      "id": "Radial nerve (dorsal digital nn).r",
+      "name": "Radial nerve (dorsal digital nn) (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Ulnar nerve Communicating br",
+      "name": "Ulnar nerve Communicating br",
+      "system": "nerve"
+    },
+    {
+      "id": "Ulnar nerve Deep br",
+      "name": "Ulnar nerve Deep br",
+      "system": "nerve"
+    },
+    {
+      "id": "Ulnar nerve Dorsal cutaneous br",
+      "name": "Ulnar nerve Dorsal cutaneous br",
+      "system": "nerve"
+    },
+    {
+      "id": "Ulnar nerve Palmar cutaneous br",
+      "name": "Ulnar nerve Palmar cutaneous br",
+      "system": "nerve"
+    },
+    {
+      "id": "Ulnar nerve Superficial br Common palmar digital n",
+      "name": "Ulnar nerve Superficial br Common palmar digital n",
+      "system": "nerve"
+    },
+    {
+      "id": "Ulnar nerve Superficial br Proper palmar digital nn",
+      "name": "Ulnar nerve Superficial br Proper palmar digital nn",
+      "system": "nerve"
+    },
+    {
+      "id": "Deep venous palmar arch",
+      "name": "Deep venous palmar arch",
+      "system": "vein"
+    },
+    {
+      "id": "Dorsal digital veins",
+      "name": "Dorsal digital veins",
+      "system": "vein"
+    },
+    {
+      "id": "Dorsal metatarsal veins",
+      "name": "Dorsal metatarsal veins",
+      "system": "vein"
+    },
+    {
+      "id": "Dorsal venous network",
+      "name": "Dorsal venous network",
+      "system": "vein"
+    },
+    {
+      "id": "Intercapitular veins",
+      "name": "Intercapitular veins",
+      "system": "vein"
+    },
+    {
+      "id": "Palmal digital veins",
+      "name": "Palmal digital veins",
+      "system": "vein"
+    },
+    {
+      "id": "Palmar metacarpal veins",
+      "name": "Palmar metacarpal veins",
+      "system": "vein"
+    },
+    {
+      "id": "Palmar venous network",
+      "name": "Palmar venous network",
+      "system": "vein"
+    },
+    {
+      "id": "Superficial palmar venous arch",
+      "name": "Superficial palmar venous arch",
+      "system": "vein"
+    },
+    {
+      "id": "Common carotid artery.r",
+      "name": "Common carotid artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Atlas (C1)",
+      "name": "Atlas (C1)",
+      "system": "bone"
+    },
+    {
+      "id": "Axis (C2)",
+      "name": "Axis (C2)",
+      "system": "bone"
+    },
+    {
+      "id": "Cervical vertebra (C3)",
+      "name": "Cervical vertebra (C3)",
+      "system": "bone"
+    },
+    {
+      "id": "Cervical vertebra (C4)",
+      "name": "Cervical vertebra (C4)",
+      "system": "bone"
+    },
+    {
+      "id": "Cervical vertebra (C5)",
+      "name": "Cervical vertebra (C5)",
+      "system": "bone"
+    },
+    {
+      "id": "Cervical vertebra (C6)",
+      "name": "Cervical vertebra (C6)",
+      "system": "bone"
+    },
+    {
+      "id": "Cervical vertebra (C7)",
+      "name": "Cervical vertebra (C7)",
+      "system": "bone"
+    },
+    {
+      "id": "annulus fibrosus C2 C3",
+      "name": "Annulus fibrosus C2 C3",
+      "system": "connective"
+    },
+    {
+      "id": "annulus fibrosus C3 C4",
+      "name": "Annulus fibrosus C3 C4",
+      "system": "connective"
+    },
+    {
+      "id": "annulus fibrosus C4 C5",
+      "name": "Annulus fibrosus C4 C5",
+      "system": "connective"
+    },
+    {
+      "id": "annulus fibrosus C5 C6",
+      "name": "Annulus fibrosus C5 C6",
+      "system": "connective"
+    },
+    {
+      "id": "annulus fibrosus C6 C7",
+      "name": "Annulus fibrosus C6 C7",
+      "system": "connective"
+    },
+    {
+      "id": "annulus fibrosus C7 T1",
+      "name": "Annulus fibrosus C7 T1",
+      "system": "connective"
+    },
+    {
+      "id": "art cart of Atlas  C1",
+      "name": "Art cart of Atlas C1",
+      "system": "bone"
+    },
+    {
+      "id": "art cart of Axis  C2",
+      "name": "Art cart of Axis C2",
+      "system": "bone"
+    },
+    {
+      "id": "Nucleus pulposus C2-T1",
+      "name": "Nucleus pulposus C2-T1",
+      "system": "connective"
+    },
+    {
+      "id": "Vertebra C3 art cart",
+      "name": "Vertebra C3 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra C4 art cart",
+      "name": "Vertebra C4 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra C5 art cart",
+      "name": "Vertebra C5 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra C6 art cart",
+      "name": "Vertebra C6 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "Vertebra C7 art cart",
+      "name": "Vertebra C7 art cart",
+      "system": "bone"
+    },
+    {
+      "id": "C5 root.r",
+      "name": "C5 root (right)",
+      "system": "other"
+    },
+    {
+      "id": "C6 root.r",
+      "name": "C6 root (right)",
+      "system": "other"
+    },
+    {
+      "id": "C7 root.r",
+      "name": "C7 root (right)",
+      "system": "other"
+    },
+    {
+      "id": "C8 root.r",
+      "name": "C8 root (right)",
+      "system": "other"
+    },
+    {
+      "id": "Circumflex scapular artery.r",
+      "name": "Circumflex scapular artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Dorsal scapular artery (Deep br of transverse cervical a.).r",
+      "name": "Dorsal scapular artery (Deep br of transverse cervical a.) (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Subclavian artery.r",
+      "name": "Subclavian artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Subscapular artery.r",
+      "name": "Subscapular artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Superficial branch of Transverse cervical artery.r",
+      "name": "Superficial branch of Transverse cervical artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Suprascapular artery.r",
+      "name": "Suprascapular artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Thoracoacromial artery Acromial br.r",
+      "name": "Thoracoacromial artery Acromial br (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Thoracoacromial artery Deltoid br.r",
+      "name": "Thoracoacromial artery Deltoid br (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Thoracoacromial artery Pectoral br.r",
+      "name": "Thoracoacromial artery Pectoral br (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Thyrocervical trunk.r",
+      "name": "Thyrocervical trunk (right)",
+      "system": "other"
+    },
+    {
+      "id": "Transverse cervical artery.r",
+      "name": "Transverse cervical artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Vertebral artery.r",
+      "name": "Vertebral artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Clavicle.r",
+      "name": "Clavicle (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Scapula.r.",
+      "name": "Scapula.r.",
+      "system": "bone"
+    },
+    {
+      "id": "Acromioclavicular capsule.r",
+      "name": "Acromioclavicular capsule (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Acromioclavicular disc.r",
+      "name": "Acromioclavicular disc (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Acromioclavicular ligament.r",
+      "name": "Acromioclavicular ligament (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Anterior sternoclavicular ligament.r",
+      "name": "Anterior sternoclavicular ligament (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Conoid ligament (part of coracoclavicular ligament).r",
+      "name": "Conoid ligament (part of coracoclavicular ligament) (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Coraco-acromial ligament.r",
+      "name": "Coraco-acromial ligament (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Coracoclavicular ligament.r",
+      "name": "Coracoclavicular ligament (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Costoclavicular ligament.r",
+      "name": "Costoclavicular ligament (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Inferior transverse scapular ligament.r",
+      "name": "Inferior transverse scapular ligament (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Interclavicular ligament.r",
+      "name": "Interclavicular ligament (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Posterior Sternoclavicular ligament.r",
+      "name": "Posterior Sternoclavicular ligament (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Sternoclavicular capsule.r",
+      "name": "Sternoclavicular capsule (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Superior transverse scapular ligament.r",
+      "name": "Superior transverse scapular ligament (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Trapezoid ligament (part of coracoclavicular ligament).r",
+      "name": "Trapezoid ligament (part of coracoclavicular ligament) (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartilage of acromioclavicular joint on clavicle.r",
+      "name": "Articular cartilage of acromioclavicular joint on clavicle (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartilage of acromioclavicular joint on scapula.r",
+      "name": "Articular cartilage of acromioclavicular joint on scapula (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartilage of glenohumeral joint on scapula.r",
+      "name": "Articular cartilage of glenohumeral joint on scapula (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartilage of sternoclavicular joint on clavicle.r",
+      "name": "Articular cartilage of sternoclavicular joint on clavicle (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Articular disc of steroclavicular joint.r",
+      "name": "Articular disc of steroclavicular joint (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Abdominal head of pectoralis major muscle.r",
+      "name": "Abdominal head of pectoralis major muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Acromial part of deltoid muscle.r",
+      "name": "Acromial part of deltoid muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Ascending part of Trapezius muscle.r",
+      "name": "Ascending part of Trapezius muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Clavicular head of pectoralis major muscle.r",
+      "name": "Clavicular head of pectoralis major muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Clavicular part of deltoid muscle.r",
+      "name": "Clavicular part of deltoid muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Deltoid muscle.r",
+      "name": "Deltoid muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Descending part of Trapezius muscle.r",
+      "name": "Descending part of Trapezius muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Infraspinatus muscle.r",
+      "name": "Infraspinatus muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Latissimus dorsi.r",
+      "name": "Latissimus dorsi (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Levator scapulae.r",
+      "name": "Levator scapulae (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Pectoralis major.r",
+      "name": "Pectoralis major (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Pectoralis minor muscle.r",
+      "name": "Pectoralis minor muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Rhomboid major muscle.r",
+      "name": "Rhomboid major muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Rhomboid minor muscle.r",
+      "name": "Rhomboid minor muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Serratus anterior muscle.r",
+      "name": "Serratus anterior muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Spinal part of deltoid muscle.r",
+      "name": "Spinal part of deltoid muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Sternocostal head of pectoralis major muscle.r",
+      "name": "Sternocostal head of pectoralis major muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Subclavius muscle.r",
+      "name": "Subclavius muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Subscapularis muscle.r",
+      "name": "Subscapularis muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Supraspinatus muscle.r",
+      "name": "Supraspinatus muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Teres major muscle.r",
+      "name": "Teres major muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Teres minor muscle.r",
+      "name": "Teres minor muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Transverse part of trapezius muscle.r",
+      "name": "Transverse part of trapezius muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Trapezius muscle.r",
+      "name": "Trapezius muscle (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Dorsal scapular nerve.r",
+      "name": "Dorsal scapular nerve (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Lower subscapular nerve.r",
+      "name": "Lower subscapular nerve (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Suprascapular nerve.r",
+      "name": "Suprascapular nerve (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Upper subscapular nerve.r",
+      "name": "Upper subscapular nerve (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Infraserratus bursa.r",
+      "name": "Infraserratus bursa (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Subacromial bursa.r",
+      "name": "Subacromial bursa (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Subacromial-subdeltoid bursa.r",
+      "name": "Subacromial-subdeltoid bursa (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Subcutaneous acromial bursa.r",
+      "name": "Subcutaneous acromial bursa (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Subdeltoid bursa.r",
+      "name": "Subdeltoid bursa (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Subtendinous bursa of trapezius.r",
+      "name": "Subtendinous bursa of trapezius (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "Supraserratus bursa.r",
+      "name": "Supraserratus bursa (right)",
+      "system": "muscle"
+    },
+    {
+      "id": "External jugular vein.r",
+      "name": "External jugular vein (right)",
+      "system": "vein"
+    },
+    {
+      "id": "Costocervical trunk.r",
+      "name": "Costocervical trunk (right)",
+      "system": "other"
+    },
+    {
+      "id": "Internal thoracic artery.r",
+      "name": "Internal thoracic artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Lateral thoracic artery.r",
+      "name": "Lateral thoracic artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Superior thoracic artery.r",
+      "name": "Superior thoracic artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Thoracodorsal artery.r",
+      "name": "Thoracodorsal artery (right)",
+      "system": "artery"
+    },
+    {
+      "id": "Body of sternum",
+      "name": "Body of sternum",
+      "system": "bone"
+    },
+    {
+      "id": "Manubrium of sternum",
+      "name": "Manubrium of sternum",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (10th).r",
+      "name": "Rib (10th) (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (11th).r",
+      "name": "Rib (11th) (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (12th).r",
+      "name": "Rib (12th) (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (1st).r",
+      "name": "Rib (1st) (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (2nd).r",
+      "name": "Rib (2nd) (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (3rd).r",
+      "name": "Rib (3rd) (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (4th).r",
+      "name": "Rib (4th) (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (5th).r",
+      "name": "Rib (5th) (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (6th).r",
+      "name": "Rib (6th) (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (7th).r",
+      "name": "Rib (7th) (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (8th).r",
+      "name": "Rib (8th) (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (9th).r",
+      "name": "Rib (9th) (right)",
+      "system": "bone"
+    },
+    {
+      "id": "10th rib art cart of head.r",
+      "name": "10th rib art cart of head (right)",
+      "system": "bone"
+    },
+    {
+      "id": "10th rib art cart of tubercle.r",
+      "name": "10th rib art cart of tubercle (right)",
+      "system": "bone"
+    },
+    {
+      "id": "11th rib art cart of head.r",
+      "name": "11th rib art cart of head (right)",
+      "system": "bone"
+    },
+    {
+      "id": "12th rib art cart of head.r",
+      "name": "12th rib art cart of head (right)",
+      "system": "bone"
+    },
+    {
+      "id": "1st rib art cart of head.r",
+      "name": "1st rib art cart of head (right)",
+      "system": "bone"
+    },
+    {
+      "id": "1st rib art cart of tubercle.r",
+      "name": "1st rib art cart of tubercle (right)",
+      "system": "bone"
+    },
+    {
+      "id": "2nd rib art cart of head.r",
+      "name": "2nd rib art cart of head (right)",
+      "system": "bone"
+    },
+    {
+      "id": "2nd rib art cart of tubercle.r",
+      "name": "2nd rib art cart of tubercle (right)",
+      "system": "bone"
+    },
+    {
+      "id": "3rd rib art cart of head.r",
+      "name": "3rd rib art cart of head (right)",
+      "system": "bone"
+    },
+    {
+      "id": "3rd rib art cart of tubercle.r",
+      "name": "3rd rib art cart of tubercle (right)",
+      "system": "bone"
+    },
+    {
+      "id": "4th rib art cart of head.r",
+      "name": "4th rib art cart of head (right)",
+      "system": "bone"
+    },
+    {
+      "id": "4th rib art cart of tubercle.r",
+      "name": "4th rib art cart of tubercle (right)",
+      "system": "bone"
+    },
+    {
+      "id": "5th rib art cart of head.r",
+      "name": "5th rib art cart of head (right)",
+      "system": "bone"
+    },
+    {
+      "id": "5th rib art cart of tubercle.r",
+      "name": "5th rib art cart of tubercle (right)",
+      "system": "bone"
+    },
+    {
+      "id": "6th rib art cart of head.r",
+      "name": "6th rib art cart of head (right)",
+      "system": "bone"
+    },
+    {
+      "id": "6th rib art cart of tubercle.r",
+      "name": "6th rib art cart of tubercle (right)",
+      "system": "bone"
+    },
+    {
+      "id": "7th rib art cart of head.r",
+      "name": "7th rib art cart of head (right)",
+      "system": "bone"
+    },
+    {
+      "id": "7th rib art cart of tubercle.r",
+      "name": "7th rib art cart of tubercle (right)",
+      "system": "bone"
+    },
+    {
+      "id": "8th rib art cart of head.r",
+      "name": "8th rib art cart of head (right)",
+      "system": "bone"
+    },
+    {
+      "id": "8th rib art cart of tubercle.r",
+      "name": "8th rib art cart of tubercle (right)",
+      "system": "bone"
+    },
+    {
+      "id": "9th rib art cart of head.r",
+      "name": "9th rib art cart of head (right)",
+      "system": "bone"
+    },
+    {
+      "id": "9th rib art cart of tubercle.r",
+      "name": "9th rib art cart of tubercle (right)",
+      "system": "bone"
+    },
+    {
+      "id": "art cart of sternoclavicular joint on manubrium.r",
+      "name": "Art cart of sternoclavicular joint on manubrium (right)",
+      "system": "connective"
+    },
+    {
+      "id": "art cart of sternocostal joint on manubrium.r",
+      "name": "Art cart of sternocostal joint on manubrium (right)",
+      "system": "connective"
+    },
+    {
+      "id": "art cart of sternocostal joints on sternal body.r",
+      "name": "Art cart of sternocostal joints on sternal body (right)",
+      "system": "connective"
+    },
+    {
+      "id": "Costal cart of 10th.rib.r",
+      "name": "Costal cart of 10th.rib (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 11th.rib.r",
+      "name": "Costal cart of 11th.rib (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 12th.rib.r",
+      "name": "Costal cart of 12th.rib (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 1st.rib.r",
+      "name": "Costal cart of 1st.rib (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 2nd.rib.r",
+      "name": "Costal cart of 2nd.rib (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 3rd.rib.r",
+      "name": "Costal cart of 3rd.rib (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 4th.rib.r",
+      "name": "Costal cart of 4th.rib (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 5th.rib.r",
+      "name": "Costal cart of 5th.rib (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 6th.rib.r",
+      "name": "Costal cart of 6th.rib (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 7th.rib.r",
+      "name": "Costal cart of 7th.rib (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 8th.rib.r",
+      "name": "Costal cart of 8th.rib (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 9th.rib.r",
+      "name": "Costal cart of 9th.rib (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Nucleus pulposus T1-L1",
+      "name": "Nucleus pulposus T1-L1",
+      "system": "connective"
+    },
+    {
+      "id": "Xiphoid process",
+      "name": "Xiphoid process",
+      "system": "other"
+    },
+    {
+      "id": "Anterior divisions of brachial plexus.r",
+      "name": "Anterior divisions of brachial plexus (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Inferior trunk of brachial plexus.r",
+      "name": "Inferior trunk of brachial plexus (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Lateral cord of brachial plexus.r",
+      "name": "Lateral cord of brachial plexus (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Lateral pectoral nerve.r",
+      "name": "Lateral pectoral nerve (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Long thoracic nerve.r",
+      "name": "Long thoracic nerve (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Medial cord of brachial plexus.r",
+      "name": "Medial cord of brachial plexus (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Medial pectoral nerve.r",
+      "name": "Medial pectoral nerve (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Middle trunk of brachial plexus.r",
+      "name": "Middle trunk of brachial plexus (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Posterior cord of brachial plexus.r",
+      "name": "Posterior cord of brachial plexus (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Posterior divisions of brachial plexus.r",
+      "name": "Posterior divisions of brachial plexus (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Subclavian nerve.r",
+      "name": "Subclavian nerve (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "Superior trunk of brachial plexus.r",
+      "name": "Superior trunk of brachial plexus (right)",
+      "system": "nerve"
+    },
+    {
+      "id": "T1 root.r",
+      "name": "T1 root (right)",
+      "system": "other"
+    },
+    {
+      "id": "Lateral thoracic vein.r",
+      "name": "Lateral thoracic vein (right)",
+      "system": "vein"
+    },
+    {
+      "id": "Subclavian vein.r",
+      "name": "Subclavian vein (right)",
+      "system": "vein"
+    },
+    {
+      "id": "Humerus.l",
+      "name": "Humerus (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Bicipital aponeurosis.l",
+      "name": "Bicipital aponeurosis (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Brachialis muscle.l",
+      "name": "Brachialis muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Common tendon of biceps brachii.l",
+      "name": "Common tendon of biceps brachii (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Common tendon of triceps brachii.l",
+      "name": "Common tendon of triceps brachii (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Coracobrachialis muscle.l",
+      "name": "Coracobrachialis muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Lateral head of triceps brachii.l",
+      "name": "Lateral head of triceps brachii (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Long head of biceps brachii tendon sheath.l",
+      "name": "Long head of biceps brachii tendon sheath (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Long head of biceps brachii.l",
+      "name": "Long head of biceps brachii (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Long head of triceps brachii.l",
+      "name": "Long head of triceps brachii (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Medial head of triceps brachii.l",
+      "name": "Medial head of triceps brachii (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Short head of biceps brachii.l",
+      "name": "Short head of biceps brachii (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Axillary nerve - superior lateral br cutaneous nerve.l",
+      "name": "Axillary nerve - superior lateral br cutaneous nerve (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Lateral root of median nerve.l",
+      "name": "Lateral root of median nerve (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Medial brachial cutaneous nerve.l",
+      "name": "Medial brachial cutaneous nerve (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Medial root of median nerve.l",
+      "name": "Medial root of median nerve (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Median nerve.l",
+      "name": "Median nerve (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Musculocutaneus nerve.l",
+      "name": "Musculocutaneus nerve (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Radial nerve (deep branch).l",
+      "name": "Radial nerve (deep branch) (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Radial nerve (inferior lateral brachial cutaneous n).l",
+      "name": "Radial nerve (inferior lateral brachial cutaneous n) (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Radial nerve (posterior antebrachial cutaneous n).l",
+      "name": "Radial nerve (posterior antebrachial cutaneous n) (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Radial nerve (posterior brachial cutaneous n).l",
+      "name": "Radial nerve (posterior brachial cutaneous n) (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Radial nerve (posterior interosseus n).l",
+      "name": "Radial nerve (posterior interosseus n) (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Radial nerve (superficial br).l",
+      "name": "Radial nerve (superficial br) (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Radial nerve.l",
+      "name": "Radial nerve (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Ulnar nerve.l",
+      "name": "Ulnar nerve (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Arm superficial vein-Basilic vein.l",
+      "name": "Arm superficial vein-Basilic vein (left)",
+      "system": "vein"
+    },
+    {
+      "id": "Arm superficial vein-Cephalic vein.l",
+      "name": "Arm superficial vein-Cephalic vein (left)",
+      "system": "vein"
+    },
+    {
+      "id": "Arm superficial vein-Median antebrachial vein.l",
+      "name": "Arm superficial vein-Median antebrachial vein (left)",
+      "system": "vein"
+    },
+    {
+      "id": "Arm superficial vein-Median cubital vein.l",
+      "name": "Arm superficial vein-Median cubital vein (left)",
+      "system": "vein"
+    },
+    {
+      "id": "Axillary vein.l",
+      "name": "Axillary vein (left)",
+      "system": "vein"
+    },
+    {
+      "id": "Deep veins of the arm.l",
+      "name": "Deep veins of the arm (left)",
+      "system": "vein"
+    },
+    {
+      "id": "Superficial veins of upper limb.l",
+      "name": "Superficial veins of upper limb (left)",
+      "system": "vein"
+    },
+    {
+      "id": "Anterior circumflex humeral artery.l",
+      "name": "Anterior circumflex humeral artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Axillary artery.l",
+      "name": "Axillary artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Brachial artery.l",
+      "name": "Brachial artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Brachiocephalic artery.l",
+      "name": "Brachiocephalic artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Deep artery of arm.l",
+      "name": "Deep artery of arm (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Inferior ulnar collateral artery.l",
+      "name": "Inferior ulnar collateral artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Medial collateral artery.l",
+      "name": "Medial collateral artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Middle collateral artery.l",
+      "name": "Middle collateral artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Posterior circumflex humeral artery.l",
+      "name": "Posterior circumflex humeral artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Posterior ulnar recurrent artery.l",
+      "name": "Posterior ulnar recurrent artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Radial collateral artery.l",
+      "name": "Radial collateral artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Superior ulnar collateral artery.l",
+      "name": "Superior ulnar collateral artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Articular capsule of glenohumeral joint.l",
+      "name": "Articular capsule of glenohumeral joint (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Brachial fascia.l",
+      "name": "Brachial fascia (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Coracohumeral ligament.l",
+      "name": "Coracohumeral ligament (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Glenoid labrum.l",
+      "name": "Glenoid labrum (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Inferior glenohumeral ligament.l",
+      "name": "Inferior glenohumeral ligament (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Lateral intermuscular septum of arm.l",
+      "name": "Lateral intermuscular septum of arm (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Medial intermuscular septum of arm.l",
+      "name": "Medial intermuscular septum of arm (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Middle glenohumeral ligament.l",
+      "name": "Middle glenohumeral ligament (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Superior glenohumeral ligament.l",
+      "name": "Superior glenohumeral ligament (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Transverse humeral ligament.l",
+      "name": "Transverse humeral ligament (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Art cart of humerus head​.l",
+      "name": "Art cart of humerus head​ (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Coracobrachial bursa.l",
+      "name": "Coracobrachial bursa (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Intratendinous olecranon bursa.l",
+      "name": "Intratendinous olecranon bursa (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Subcutaneous olecranon bursa.l",
+      "name": "Subcutaneous olecranon bursa (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Subtendinous bursa of infraspinatus muscle.l",
+      "name": "Subtendinous bursa of infraspinatus muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Subtendinous bursa of latissimus dorsi.l",
+      "name": "Subtendinous bursa of latissimus dorsi (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Subtendinous bursa of subscapularis.l",
+      "name": "Subtendinous bursa of subscapularis (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Subtendinous bursa of teres major.l",
+      "name": "Subtendinous bursa of teres major (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "art cart of sacrum art process.l",
+      "name": "Art cart of sacrum art process (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Anterior interosseous artery.l",
+      "name": "Anterior interosseous artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Anterior ulnar recurrent artery.l",
+      "name": "Anterior ulnar recurrent artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Common interosseous artery.l",
+      "name": "Common interosseous artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Interosseous recurrent artery.l",
+      "name": "Interosseous recurrent artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Posterior interosseous artery.l",
+      "name": "Posterior interosseous artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Radial artery.l",
+      "name": "Radial artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Radial recrurrent artery.l",
+      "name": "Radial recrurrent artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Ulnar artery (dorsal carpal br).l",
+      "name": "Ulnar artery (dorsal carpal br) (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Ulnar artery.l",
+      "name": "Ulnar artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Radius.l",
+      "name": "Radius (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Ulna.l",
+      "name": "Ulna (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Antebrachial fascia.l",
+      "name": "Antebrachial fascia (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Articular capsule of elbow joint.l",
+      "name": "Articular capsule of elbow joint (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Dorsal radio-ulnar ligament.l",
+      "name": "Dorsal radio-ulnar ligament (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Interosseous membrane of forearm.l",
+      "name": "Interosseous membrane of forearm (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Oblique cord or radio-ulnar syndesmosis.l",
+      "name": "Oblique cord or radio-ulnar syndesmosis (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Quadrate ligament.l",
+      "name": "Quadrate ligament (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Radial annular ligament.l",
+      "name": "Radial annular ligament (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Radial collateral ligament of elbow.l",
+      "name": "Radial collateral ligament of elbow (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Ulnar collateral ligament of elbow.l",
+      "name": "Ulnar collateral ligament of elbow (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Art cart of radius distal end​.l",
+      "name": "Art cart of radius distal end​ (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Art cart of radius head​.l",
+      "name": "Art cart of radius head​ (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Art cart of ulna (proximal end).l",
+      "name": "Art cart of ulna (proximal end) (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Art cart of ulna. (distal end).l",
+      "name": "Art cart of ulna. (distal end) (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Abductor pollicis longus.l",
+      "name": "Abductor pollicis longus (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Anconeus muscle.l",
+      "name": "Anconeus muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Brachioradialis muscle.l",
+      "name": "Brachioradialis muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Common tendon of extensor carpi ulnaris.l",
+      "name": "Common tendon of extensor carpi ulnaris (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Common tendon of flexor carpi ulnaris.l",
+      "name": "Common tendon of flexor carpi ulnaris (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor carpi radialis brevis.l",
+      "name": "Extensor carpi radialis brevis (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor carpi radialis longus.l",
+      "name": "Extensor carpi radialis longus (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor digiti minimi.l",
+      "name": "Extensor digiti minimi (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor digitorum.l",
+      "name": "Extensor digitorum (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor indicis.l",
+      "name": "Extensor indicis (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor pollicis brevis.l",
+      "name": "Extensor pollicis brevis (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor pollicis longus.l",
+      "name": "Extensor pollicis longus (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor carpi radialis.l",
+      "name": "Flexor carpi radialis (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor digitorum profundus.l",
+      "name": "Flexor digitorum profundus (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor digitorum superficialis humero-ulnar head.l",
+      "name": "Flexor digitorum superficialis humero-ulnar head (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor digitorum superficialis radial head.l",
+      "name": "Flexor digitorum superficialis radial head (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor pollicis longus.l",
+      "name": "Flexor pollicis longus (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Humeral head of extensor carpi ulnaris.l",
+      "name": "Humeral head of extensor carpi ulnaris (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Humeral head of flexor carpi ulnaris.l",
+      "name": "Humeral head of flexor carpi ulnaris (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Humeral head of pronator teres.l",
+      "name": "Humeral head of pronator teres (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Palmaris longus muscle.l",
+      "name": "Palmaris longus muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Pronator quadratus.l",
+      "name": "Pronator quadratus (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Supinator.l",
+      "name": "Supinator (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Ulnar head of extensor carpi ulnaris.l",
+      "name": "Ulnar head of extensor carpi ulnaris (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Ulnar head of flexor carpi ulnaris.l",
+      "name": "Ulnar head of flexor carpi ulnaris (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Ulnar head of pronator teres.l",
+      "name": "Ulnar head of pronator teres (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Medial antebrachial cutaneous nerve.l",
+      "name": "Medial antebrachial cutaneous nerve (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Musculocutaneus nerve  - lateral antebrachial cutaneous nerve.l",
+      "name": "Musculocutaneus nerve - lateral antebrachial cutaneous nerve (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Interosseous cubital bursa.l",
+      "name": "Interosseous cubital bursa (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Subtendinous bursa of triceps brachii.l",
+      "name": "Subtendinous bursa of triceps brachii (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Anterior interosseous veins.l",
+      "name": "Anterior interosseous veins (left)",
+      "system": "vein"
+    },
+    {
+      "id": "Posterior interosseous veins.l",
+      "name": "Posterior interosseous veins (left)",
+      "system": "vein"
+    },
+    {
+      "id": "Radial veins.l",
+      "name": "Radial veins (left)",
+      "system": "vein"
+    },
+    {
+      "id": "Ulnar veins.l",
+      "name": "Ulnar veins (left)",
+      "system": "vein"
+    },
+    {
+      "id": "Common palmar digital arteries.l",
+      "name": "Common palmar digital arteries (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Deep palmar arch.l",
+      "name": "Deep palmar arch (left)",
+      "system": "other"
+    },
+    {
+      "id": "Dorsal carpal arch.l",
+      "name": "Dorsal carpal arch (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Dorsal carpal network.l",
+      "name": "Dorsal carpal network (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Dorsal digital arteries.l",
+      "name": "Dorsal digital arteries (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Dorsal metacarpal arteries.l",
+      "name": "Dorsal metacarpal arteries (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Dorsalis indicis.l",
+      "name": "Dorsalis indicis (left)",
+      "system": "other"
+    },
+    {
+      "id": "Dorsalis pollicis.l",
+      "name": "Dorsalis pollicis (left)",
+      "system": "other"
+    },
+    {
+      "id": "Palmar carpal branches.l",
+      "name": "Palmar carpal branches (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Palmar metacarpal arteries.l",
+      "name": "Palmar metacarpal arteries (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Perforating arteries.l",
+      "name": "Perforating arteries (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Princeps pollicis arteries.l",
+      "name": "Princeps pollicis arteries (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Proper palmar digital arteries.l",
+      "name": "Proper palmar digital arteries (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Radialis indicis.l",
+      "name": "Radialis indicis (left)",
+      "system": "other"
+    },
+    {
+      "id": "Superficial palmar arch.l",
+      "name": "Superficial palmar arch (left)",
+      "system": "other"
+    },
+    {
+      "id": "1st metacarpal bone.l",
+      "name": "1st metacarpal bone (left)",
+      "system": "bone"
+    },
+    {
+      "id": "2nd metacarpal bone.l",
+      "name": "2nd metacarpal bone (left)",
+      "system": "bone"
+    },
+    {
+      "id": "3rd metacarpal bone.l",
+      "name": "3rd metacarpal bone (left)",
+      "system": "bone"
+    },
+    {
+      "id": "4th metacarpal bone.l",
+      "name": "4th metacarpal bone (left)",
+      "system": "bone"
+    },
+    {
+      "id": "5th metacarpal bone.l",
+      "name": "5th metacarpal bone (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Capitate.l",
+      "name": "Capitate (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Distal phalanx of 1st finger.l",
+      "name": "Distal phalanx of 1st finger (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Distal phalanx of 2d finger.l",
+      "name": "Distal phalanx of 2d finger (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Distal phalanx of 3d finger.l",
+      "name": "Distal phalanx of 3d finger (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Distal phalanx of 4th finger.l",
+      "name": "Distal phalanx of 4th finger (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Distal phalanx of 5th finger.l",
+      "name": "Distal phalanx of 5th finger (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Hamate.l",
+      "name": "Hamate (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Lunate bone.l",
+      "name": "Lunate bone (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Middle phalanx of 2d finger.l",
+      "name": "Middle phalanx of 2d finger (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Middle phalanx of 3rd finger.l",
+      "name": "Middle phalanx of 3rd finger (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Middle phalanx of 4th finger.l",
+      "name": "Middle phalanx of 4th finger (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Middle phalanx of 5th finger.l",
+      "name": "Middle phalanx of 5th finger (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Pisiform.l",
+      "name": "Pisiform (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Proximal phalanx of 1st finger.l",
+      "name": "Proximal phalanx of 1st finger (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Proximal phalanx of 2d finger.l",
+      "name": "Proximal phalanx of 2d finger (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Proximal phalanx of 3rd finger.l",
+      "name": "Proximal phalanx of 3rd finger (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Proximal phalanx of 4th finger.l",
+      "name": "Proximal phalanx of 4th finger (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Proximal phalanx of 5th finger.l",
+      "name": "Proximal phalanx of 5th finger (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Scaphoid.l",
+      "name": "Scaphoid (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Sesamoid bones of hand.l",
+      "name": "Sesamoid bones of hand (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Trapezium.l",
+      "name": "Trapezium (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Trapezoid.l",
+      "name": "Trapezoid (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Triquetrum.l",
+      "name": "Triquetrum (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Annular ligament(A1) of 1st finger.l",
+      "name": "Annular ligament(A1) of 1st finger (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Annular ligament(A2) of 1st finger.l",
+      "name": "Annular ligament(A2) of 1st finger (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Annular ligaments of 2nd finger A1-A5.l",
+      "name": "Annular ligaments of 2nd finger A1-A5 (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Annular ligaments of 3rd finger A1-A5.l",
+      "name": "Annular ligaments of 3rd finger A1-A5 (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Annular ligaments of 4th finger A1-A5.l",
+      "name": "Annular ligaments of 4th finger A1-A5 (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Annular ligaments of 5th finger A1-A5.l",
+      "name": "Annular ligaments of 5th finger A1-A5 (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Collateral ligaments of distal phalangeal joints.l",
+      "name": "Collateral ligaments of distal phalangeal joints (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Collateral ligaments of interphalangeal joints.l",
+      "name": "Collateral ligaments of interphalangeal joints (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Collateral ligaments of metacarpal joints.l",
+      "name": "Collateral ligaments of metacarpal joints (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Collateral ligaments of metacarpophalangeal joints.l",
+      "name": "Collateral ligaments of metacarpophalangeal joints (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Cruciform ligaments of 2nd finger.l",
+      "name": "Cruciform ligaments of 2nd finger (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Cruciform ligaments of 3rd finger.l",
+      "name": "Cruciform ligaments of 3rd finger (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Cruciform ligaments of 4th finger.l",
+      "name": "Cruciform ligaments of 4th finger (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Cruciform ligaments of 5th finger.l",
+      "name": "Cruciform ligaments of 5th finger (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Dorsal radiocarpal ligament.l",
+      "name": "Dorsal radiocarpal ligament (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Intercarpal articulations.l",
+      "name": "Intercarpal articulations (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Oblique ligament of 1st finger.l",
+      "name": "Oblique ligament of 1st finger (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Palmar ligaments of distal phalangeal joints.l",
+      "name": "Palmar ligaments of distal phalangeal joints (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Palmar ligaments of interphalangeal joints.l",
+      "name": "Palmar ligaments of interphalangeal joints (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Palmar ligaments of metacarpophalangeal joints.l",
+      "name": "Palmar ligaments of metacarpophalangeal joints (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Palmar radiocarpal ligament.l",
+      "name": "Palmar radiocarpal ligament (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Palmar ulnocarpal ligament.l",
+      "name": "Palmar ulnocarpal ligament (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Pisometacarpal ligament.l",
+      "name": "Pisometacarpal ligament (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Radial collateral ligament of wrist.l",
+      "name": "Radial collateral ligament of wrist (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Ulnar collateral ligament of wrist.l",
+      "name": "Ulnar collateral ligament of wrist (left)",
+      "system": "bone"
+    },
+    {
+      "id": "1st dorsal interosseus of hand.l",
+      "name": "1st dorsal interosseus of hand (left)",
+      "system": "other"
+    },
+    {
+      "id": "1st lumbrical of hand.l",
+      "name": "1st lumbrical of hand (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "1st palmar interosseus of hand.l",
+      "name": "1st palmar interosseus of hand (left)",
+      "system": "other"
+    },
+    {
+      "id": "2nd dorsal interosseus of hand.l",
+      "name": "2nd dorsal interosseus of hand (left)",
+      "system": "other"
+    },
+    {
+      "id": "2nd lumbrical of hand.l",
+      "name": "2nd lumbrical of hand (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "2nd palmar interosseus of hand.l",
+      "name": "2nd palmar interosseus of hand (left)",
+      "system": "other"
+    },
+    {
+      "id": "3rd dorsal interosseus of hand.l",
+      "name": "3rd dorsal interosseus of hand (left)",
+      "system": "other"
+    },
+    {
+      "id": "3rd lumbrical of hand.l",
+      "name": "3rd lumbrical of hand (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "3rd palmar interosseus of hand.l",
+      "name": "3rd palmar interosseus of hand (left)",
+      "system": "other"
+    },
+    {
+      "id": "4th dorsal interosseus of hand.l",
+      "name": "4th dorsal interosseus of hand (left)",
+      "system": "other"
+    },
+    {
+      "id": "4th lumbrical of hand.l",
+      "name": "4th lumbrical of hand (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Abductor digiti minimi.l",
+      "name": "Abductor digiti minimi (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Abductor pollicis brevis.l",
+      "name": "Abductor pollicis brevis (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Adductor pollicis.l",
+      "name": "Adductor pollicis (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Aponeurosis palmaris.l",
+      "name": "Aponeurosis palmaris (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Deep head of flexor pollicis brevis.l",
+      "name": "Deep head of flexor pollicis brevis (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor hood of 2nd finger.l",
+      "name": "Extensor hood of 2nd finger (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor hood of 3rd finger.l",
+      "name": "Extensor hood of 3rd finger (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor hood of 4th finger.l",
+      "name": "Extensor hood of 4th finger (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor hood of 5th finger.l",
+      "name": "Extensor hood of 5th finger (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor digiti minimi brevis of hand.l",
+      "name": "Flexor digiti minimi brevis of hand (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Oblique head of adductor pollicis.l",
+      "name": "Oblique head of adductor pollicis (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Opponens digiti minimi muscle of hand.l",
+      "name": "Opponens digiti minimi muscle of hand (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Opponens pollicis muscle.l",
+      "name": "Opponens pollicis muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Palmaris brevis muscle.l",
+      "name": "Palmaris brevis muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Superficial head of flexor pollicis brevis.l",
+      "name": "Superficial head of flexor pollicis brevis (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Transverse head of adductor pollicis.l",
+      "name": "Transverse head of adductor pollicis (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Radial nerve (dorsal digital nn).l",
+      "name": "Radial nerve (dorsal digital nn) (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Common carotid artery.l",
+      "name": "Common carotid artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "C5 root.l",
+      "name": "C5 root (left)",
+      "system": "other"
+    },
+    {
+      "id": "C6 root.l",
+      "name": "C6 root (left)",
+      "system": "other"
+    },
+    {
+      "id": "C7 root.l",
+      "name": "C7 root (left)",
+      "system": "other"
+    },
+    {
+      "id": "C8 root.l",
+      "name": "C8 root (left)",
+      "system": "other"
+    },
+    {
+      "id": "Circumflex scapular artery.l",
+      "name": "Circumflex scapular artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Dorsal scapular artery (Deep br of transverse cervical a.).l",
+      "name": "Dorsal scapular artery (Deep br of transverse cervical a.) (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Subclavian artery.l",
+      "name": "Subclavian artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Subscapular artery.l",
+      "name": "Subscapular artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Superficial branch of Transverse cervical artery.l",
+      "name": "Superficial branch of Transverse cervical artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Suprascapular artery.l",
+      "name": "Suprascapular artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Thoracoacromial artery Acromial br.l",
+      "name": "Thoracoacromial artery Acromial br (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Thoracoacromial artery Deltoid br.l",
+      "name": "Thoracoacromial artery Deltoid br (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Thoracoacromial artery Pectoral br.l",
+      "name": "Thoracoacromial artery Pectoral br (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Thyrocervical trunk.l",
+      "name": "Thyrocervical trunk (left)",
+      "system": "other"
+    },
+    {
+      "id": "Transverse cervical artery.l",
+      "name": "Transverse cervical artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Vertebral artery.l",
+      "name": "Vertebral artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Clavicle.l",
+      "name": "Clavicle (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Acromioclavicular capsule.l",
+      "name": "Acromioclavicular capsule (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Acromioclavicular disc.l",
+      "name": "Acromioclavicular disc (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Acromioclavicular ligament.l",
+      "name": "Acromioclavicular ligament (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Anterior sternoclavicular ligament.l",
+      "name": "Anterior sternoclavicular ligament (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Conoid ligament (part of coracoclavicular ligament).l",
+      "name": "Conoid ligament (part of coracoclavicular ligament) (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Coraco-acromial ligament.l",
+      "name": "Coraco-acromial ligament (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Coracoclavicular ligament.l",
+      "name": "Coracoclavicular ligament (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Costoclavicular ligament.l",
+      "name": "Costoclavicular ligament (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Inferior transverse scapular ligament.l",
+      "name": "Inferior transverse scapular ligament (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Interclavicular ligament.l",
+      "name": "Interclavicular ligament (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Posterior Sternoclavicular ligament.l",
+      "name": "Posterior Sternoclavicular ligament (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Sternoclavicular capsule.l",
+      "name": "Sternoclavicular capsule (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Superior transverse scapular ligament.l",
+      "name": "Superior transverse scapular ligament (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Trapezoid ligament (part of coracoclavicular ligament).l",
+      "name": "Trapezoid ligament (part of coracoclavicular ligament) (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartilage of acromioclavicular joint on clavicle.l",
+      "name": "Articular cartilage of acromioclavicular joint on clavicle (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartilage of acromioclavicular joint on scapula.l",
+      "name": "Articular cartilage of acromioclavicular joint on scapula (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartilage of glenohumeral joint on scapula.l",
+      "name": "Articular cartilage of glenohumeral joint on scapula (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartilage of sternoclavicular joint on clavicle.l",
+      "name": "Articular cartilage of sternoclavicular joint on clavicle (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Articular disc of steroclavicular joint.l",
+      "name": "Articular disc of steroclavicular joint (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Abdominal head of pectoralis major muscle.l",
+      "name": "Abdominal head of pectoralis major muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Acromial part of deltoid muscle.l",
+      "name": "Acromial part of deltoid muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Ascending part of Trapezius muscle.l",
+      "name": "Ascending part of Trapezius muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Clavicular head of pectoralis major muscle.l",
+      "name": "Clavicular head of pectoralis major muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Clavicular part of deltoid muscle.l",
+      "name": "Clavicular part of deltoid muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Deltoid muscle.l",
+      "name": "Deltoid muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Descending part of Trapezius muscle.l",
+      "name": "Descending part of Trapezius muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Infraspinatus muscle.l",
+      "name": "Infraspinatus muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Latissimus dorsi.l",
+      "name": "Latissimus dorsi (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Levator scapulae.l",
+      "name": "Levator scapulae (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Pectoralis major.l",
+      "name": "Pectoralis major (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Pectoralis minor muscle.l",
+      "name": "Pectoralis minor muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Rhomboid major muscle.l",
+      "name": "Rhomboid major muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Rhomboid minor muscle.l",
+      "name": "Rhomboid minor muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Serratus anterior muscle.l",
+      "name": "Serratus anterior muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Spinal part of deltoid muscle.l",
+      "name": "Spinal part of deltoid muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Sternocostal head of pectoralis major muscle.l",
+      "name": "Sternocostal head of pectoralis major muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Subclavius muscle.l",
+      "name": "Subclavius muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Subscapularis muscle.l",
+      "name": "Subscapularis muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Supraspinatus muscle.l",
+      "name": "Supraspinatus muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Teres major muscle.l",
+      "name": "Teres major muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Teres minor muscle.l",
+      "name": "Teres minor muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Transverse part of trapezius muscle.l",
+      "name": "Transverse part of trapezius muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Trapezius muscle.l",
+      "name": "Trapezius muscle (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Dorsal scapular nerve.l",
+      "name": "Dorsal scapular nerve (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Lower subscapular nerve.l",
+      "name": "Lower subscapular nerve (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Suprascapular nerve.l",
+      "name": "Suprascapular nerve (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Upper subscapular nerve.l",
+      "name": "Upper subscapular nerve (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Infraserratus bursa.l",
+      "name": "Infraserratus bursa (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Subacromial bursa.l",
+      "name": "Subacromial bursa (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Subacromial-subdeltoid bursa.l",
+      "name": "Subacromial-subdeltoid bursa (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Subcutaneous acromial bursa.l",
+      "name": "Subcutaneous acromial bursa (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Subdeltoid bursa.l",
+      "name": "Subdeltoid bursa (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Subtendinous bursa of trapezius.l",
+      "name": "Subtendinous bursa of trapezius (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "Supraserratus bursa.l",
+      "name": "Supraserratus bursa (left)",
+      "system": "muscle"
+    },
+    {
+      "id": "External jugular vein.l",
+      "name": "External jugular vein (left)",
+      "system": "vein"
+    },
+    {
+      "id": "Costocervical trunk.l",
+      "name": "Costocervical trunk (left)",
+      "system": "other"
+    },
+    {
+      "id": "Internal thoracic artery.l",
+      "name": "Internal thoracic artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Lateral thoracic artery.l",
+      "name": "Lateral thoracic artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Superior thoracic artery.l",
+      "name": "Superior thoracic artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Thoracodorsal artery.l",
+      "name": "Thoracodorsal artery (left)",
+      "system": "artery"
+    },
+    {
+      "id": "Rib (10th).l",
+      "name": "Rib (10th) (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (11th).l",
+      "name": "Rib (11th) (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (12th).l",
+      "name": "Rib (12th) (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (1st).l",
+      "name": "Rib (1st) (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (2nd).l",
+      "name": "Rib (2nd) (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (3rd).l",
+      "name": "Rib (3rd) (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (4th).l",
+      "name": "Rib (4th) (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (5th).l",
+      "name": "Rib (5th) (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (6th).l",
+      "name": "Rib (6th) (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (7th).l",
+      "name": "Rib (7th) (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (8th).l",
+      "name": "Rib (8th) (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Rib (9th).l",
+      "name": "Rib (9th) (left)",
+      "system": "bone"
+    },
+    {
+      "id": "10th rib art cart of head.l",
+      "name": "10th rib art cart of head (left)",
+      "system": "bone"
+    },
+    {
+      "id": "10th rib art cart of tubercle.l",
+      "name": "10th rib art cart of tubercle (left)",
+      "system": "bone"
+    },
+    {
+      "id": "11th rib art cart of head.l",
+      "name": "11th rib art cart of head (left)",
+      "system": "bone"
+    },
+    {
+      "id": "12th rib art cart of head.l",
+      "name": "12th rib art cart of head (left)",
+      "system": "bone"
+    },
+    {
+      "id": "1st rib art cart of head.l",
+      "name": "1st rib art cart of head (left)",
+      "system": "bone"
+    },
+    {
+      "id": "1st rib art cart of tubercle.l",
+      "name": "1st rib art cart of tubercle (left)",
+      "system": "bone"
+    },
+    {
+      "id": "2nd rib art cart of head.l",
+      "name": "2nd rib art cart of head (left)",
+      "system": "bone"
+    },
+    {
+      "id": "2nd rib art cart of tubercle.l",
+      "name": "2nd rib art cart of tubercle (left)",
+      "system": "bone"
+    },
+    {
+      "id": "3rd rib art cart of head.l",
+      "name": "3rd rib art cart of head (left)",
+      "system": "bone"
+    },
+    {
+      "id": "3rd rib art cart of tubercle.l",
+      "name": "3rd rib art cart of tubercle (left)",
+      "system": "bone"
+    },
+    {
+      "id": "4th rib art cart of head.l",
+      "name": "4th rib art cart of head (left)",
+      "system": "bone"
+    },
+    {
+      "id": "4th rib art cart of tubercle.l",
+      "name": "4th rib art cart of tubercle (left)",
+      "system": "bone"
+    },
+    {
+      "id": "5th rib art cart of head.l",
+      "name": "5th rib art cart of head (left)",
+      "system": "bone"
+    },
+    {
+      "id": "5th rib art cart of tubercle.l",
+      "name": "5th rib art cart of tubercle (left)",
+      "system": "bone"
+    },
+    {
+      "id": "6th rib art cart of head.l",
+      "name": "6th rib art cart of head (left)",
+      "system": "bone"
+    },
+    {
+      "id": "6th rib art cart of tubercle.l",
+      "name": "6th rib art cart of tubercle (left)",
+      "system": "bone"
+    },
+    {
+      "id": "7th rib art cart of head.l",
+      "name": "7th rib art cart of head (left)",
+      "system": "bone"
+    },
+    {
+      "id": "7th rib art cart of tubercle.l",
+      "name": "7th rib art cart of tubercle (left)",
+      "system": "bone"
+    },
+    {
+      "id": "8th rib art cart of head.l",
+      "name": "8th rib art cart of head (left)",
+      "system": "bone"
+    },
+    {
+      "id": "8th rib art cart of tubercle.l",
+      "name": "8th rib art cart of tubercle (left)",
+      "system": "bone"
+    },
+    {
+      "id": "9th rib art cart of head.l",
+      "name": "9th rib art cart of head (left)",
+      "system": "bone"
+    },
+    {
+      "id": "9th rib art cart of tubercle.l",
+      "name": "9th rib art cart of tubercle (left)",
+      "system": "bone"
+    },
+    {
+      "id": "art cart of sternoclavicular joint on manubrium.l",
+      "name": "Art cart of sternoclavicular joint on manubrium (left)",
+      "system": "connective"
+    },
+    {
+      "id": "art cart of sternocostal joint on manubrium.l",
+      "name": "Art cart of sternocostal joint on manubrium (left)",
+      "system": "connective"
+    },
+    {
+      "id": "art cart of sternocostal joints on sternal body.l",
+      "name": "Art cart of sternocostal joints on sternal body (left)",
+      "system": "connective"
+    },
+    {
+      "id": "Costal cart of 10th.rib.l",
+      "name": "Costal cart of 10th.rib (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 11th.rib.l",
+      "name": "Costal cart of 11th.rib (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 12th.rib.l",
+      "name": "Costal cart of 12th.rib (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 1st.rib.l",
+      "name": "Costal cart of 1st.rib (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 2nd.rib.l",
+      "name": "Costal cart of 2nd.rib (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 3rd.rib.l",
+      "name": "Costal cart of 3rd.rib (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 4th.rib.l",
+      "name": "Costal cart of 4th.rib (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 5th.rib.l",
+      "name": "Costal cart of 5th.rib (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 6th.rib.l",
+      "name": "Costal cart of 6th.rib (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 7th.rib.l",
+      "name": "Costal cart of 7th.rib (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 8th.rib.l",
+      "name": "Costal cart of 8th.rib (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Costal cart of 9th.rib.l",
+      "name": "Costal cart of 9th.rib (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Anterior divisions of brachial plexus.l",
+      "name": "Anterior divisions of brachial plexus (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Inferior trunk of brachial plexus.l",
+      "name": "Inferior trunk of brachial plexus (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Lateral cord of brachial plexus.l",
+      "name": "Lateral cord of brachial plexus (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Lateral pectoral nerve.l",
+      "name": "Lateral pectoral nerve (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Long thoracic nerve.l",
+      "name": "Long thoracic nerve (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Medial cord of brachial plexus.l",
+      "name": "Medial cord of brachial plexus (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Medial pectoral nerve.l",
+      "name": "Medial pectoral nerve (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Middle trunk of brachial plexus.l",
+      "name": "Middle trunk of brachial plexus (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Posterior cord of brachial plexus.l",
+      "name": "Posterior cord of brachial plexus (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Posterior divisions of brachial plexus.l",
+      "name": "Posterior divisions of brachial plexus (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Subclavian nerve.l",
+      "name": "Subclavian nerve (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "Superior trunk of brachial plexus.l",
+      "name": "Superior trunk of brachial plexus (left)",
+      "system": "nerve"
+    },
+    {
+      "id": "T1 root.l",
+      "name": "T1 root (left)",
+      "system": "other"
+    },
+    {
+      "id": "Lateral thoracic vein.l",
+      "name": "Lateral thoracic vein (left)",
+      "system": "vein"
+    },
+    {
+      "id": "Subclavian vein.l",
+      "name": "Subclavian vein (left)",
+      "system": "vein"
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { BRAND_NAME, BrandLockup } from "./brand";
 import {
   FiActivity, FiArrowRight, FiBarChart2, FiBookOpen, FiCalendar, FiCheck,
@@ -17,9 +18,10 @@ export function Brand() {
   return <BrandLockup className="brand" />;
 }
 
-export function Field({label,icon:Icon,placeholder,type="text",select=false,name,value,onChange,required=false,autoComplete}:{
+export function Field({label,icon:Icon,placeholder,type="text",select=false,name,value,onChange,required=false,autoComplete,min,max,step}:{
   label:string; icon?:typeof FiUser; placeholder:string; type?:string; select?:boolean;
   name?:string; value?:string; onChange?:ChangeEventHandler<HTMLInputElement>; required?:boolean; autoComplete?:string;
+  min?:number; max?:number; step?:number;
 }) {
   const [visible,setVisible]=useState(false);
   const password=type==="password";
@@ -27,7 +29,7 @@ export function Field({label,icon:Icon,placeholder,type="text",select=false,name
     <span>{label}</span>
     <span className="input-shell">
       {Icon && <Icon className="input-icon" />}
-      <input name={name} value={value} onChange={onChange} required={required} autoComplete={autoComplete}
+      <input name={name} value={value} onChange={onChange} required={required} autoComplete={autoComplete} min={min} max={max} step={step}
         type={password && visible ? "text" : type} placeholder={placeholder} />
       {select && <FiChevronDown className="input-tail" />}
       {password && <button type="button" className="input-tail icon-button" onClick={()=>setVisible(!visible)}
@@ -68,7 +70,7 @@ export function TrustStrip() {
 
 export function PageFooter() {
   return <footer><span>© 2026 {BRAND_NAME}. All rights reserved.</span>
-    <nav><a href="#">Privacy Policy</a><a href="#">Terms of Service</a></nav></footer>;
+    <nav><Link href="/privacy">Privacy Policy</Link><Link href="/terms">Terms of Service</Link></nav></footer>;
 }
 
 export function SecureNote() { return <div className="secure-note"><FiShield/> Your data is secure and encrypted.</div>; }

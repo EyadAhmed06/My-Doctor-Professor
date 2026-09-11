@@ -1,0 +1,210 @@
+.header-popover-anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.profile-menu-trigger {
+  min-height: 46px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 3px 6px;
+  cursor: pointer;
+  text-align: left;
+}
+.profile-menu-trigger > span:nth-child(2) { min-width: 0; display: grid; }
+.profile-menu-trigger b,
+.profile-menu-trigger small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-menu-trigger small { color: var(--muted); }
+.profile-menu-trigger[aria-expanded="true"] > svg { transform: rotate(180deg); }
+.profile-menu-trigger > svg { transition: transform 180ms ease; }
+
+.header-popover {
+  position: absolute;
+  z-index: 800;
+  top: calc(100% + 12px);
+  right: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(10, 15, 33, .985);
+  color: var(--text);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .44);
+  animation: continuity-popover-enter 170ms ease-out both;
+}
+@keyframes continuity-popover-enter {
+  from { opacity: 0; transform: translateY(-6px); }
+}
+
+.profile-menu {
+  width: 280px;
+  padding: 8px;
+}
+.profile-menu-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  margin-bottom: 5px;
+  border-bottom: 1px solid var(--line);
+}
+.profile-menu-summary > div { min-width: 0; display: grid; gap: 3px; }
+.profile-menu-summary b,
+.profile-menu-summary small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-menu-summary small { color: var(--muted); }
+.profile-menu > button {
+  width: 100%;
+  min-height: 43px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 11px;
+  cursor: pointer;
+  text-align: left;
+}
+.profile-menu > button:hover,
+.profile-menu > button:focus-visible { background: rgba(72, 210, 199, .08); }
+.profile-menu > button.danger { color: #ff9a9a; }
+.profile-theme-row {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 10px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.notification-preview {
+  width: min(420px, calc(100vw - 28px));
+  overflow: hidden;
+}
+.notification-preview > header {
+  min-height: 64px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 13px;
+}
+.notification-preview > header > div { display: grid; gap: 3px; }
+.notification-preview > header small { color: var(--muted); }
+.notification-preview > header button,
+.notification-preview > footer button {
+  border: 0;
+  background: transparent;
+  color: var(--teal);
+  font-weight: 700;
+  cursor: pointer;
+}
+.notification-preview > header button { display: inline-flex; align-items: center; gap: 6px; }
+.notification-preview > header button:disabled { color: var(--muted); cursor: default; }
+.notification-preview-list { max-height: min(480px, 62vh); overflow-y: auto; padding: 6px; }
+.notification-preview-list > button {
+  width: 100%;
+  min-height: 82px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px;
+  cursor: pointer;
+  text-align: left;
+}
+.notification-preview-list > button:hover,
+.notification-preview-list > button:focus-visible { background: rgba(255, 255, 255, .035); }
+.notification-preview-list > button > span {
+  width: 7px;
+  height: 7px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: transparent;
+}
+.notification-preview-list > button.unread > span { background: var(--teal); box-shadow: 0 0 10px rgba(72, 210, 199, .65); }
+.notification-preview-list > button > div { min-width: 0; display: grid; gap: 4px; }
+.notification-preview-list b,
+.notification-preview-list p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notification-preview-list p { margin: 0; color: var(--muted); font-size: 12px; }
+.notification-preview-list small { color: var(--muted); font-size: 10px; }
+.notification-preview > footer { min-height: 48px; border-top: 1px solid var(--line); display: grid; place-items: center; }
+.header-popover-empty { color: var(--muted); text-align: center; padding: 34px 18px; }
+
+.workspace-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -4px 0 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.workspace-breadcrumb a,
+.workspace-breadcrumb button {
+  border: 0;
+  background: transparent;
+  color: var(--teal);
+  padding: 0;
+  cursor: pointer;
+}
+.workspace-breadcrumb span[aria-current="page"] { color: var(--text); }
+
+.bundle-content { position: relative; }
+.bundle-content.is-loading > :not(.bundle-content-overlay) { opacity: .72; }
+.bundle-content-overlay {
+  position: absolute;
+  z-index: 10;
+  inset: 0;
+  background: rgba(6, 9, 25, .38);
+  backdrop-filter: blur(1.5px);
+  pointer-events: none;
+}
+.bundle-tabs button { display: inline-flex; align-items: center; gap: 7px; }
+.bundle-tabs button small {
+  min-width: 21px;
+  height: 21px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.06);
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+}
+.bundle-row[href],
+.bundle-course details div > a {
+  color: inherit;
+  text-decoration: none;
+}
+
+[data-theme="light"] .header-popover { background: rgba(255, 255, 255, .99); box-shadow: 0 24px 70px rgba(31, 42, 58, .18); }
+[data-theme="light"] .bundle-content-overlay { background: rgba(241, 246, 249, .48); }
+
+@media (max-width: 900px) {
+  .profile-menu-trigger > span:nth-child(2) { display: none; }
+  .notification-preview { position: fixed; top: 70px; right: 14px; }
+  .profile-menu { position: fixed; top: 70px; right: 14px; }
+}
+
+@media (max-width: 560px) {
+  .notification-preview,
+  .profile-menu { left: 12px; right: 12px; width: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-popover { animation: none; }
+  .profile-menu-trigger > svg { transition: none; }
+}

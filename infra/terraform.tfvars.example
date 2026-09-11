@@ -1,0 +1,7 @@
+aws_region         = "eu-central-1"
+instance_type      = "t3.medium"
+root_volume_gb     = 40
+budget_limit_usd   = 112
+budget_email       = "eyadelmaleh07@gmail.com"
+github_repository  = "EyadAhmed06/My-Doctor-Professor"
+github_branch      = "agent/phase1-interactions"

@@ -8,12 +8,13 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import * as argon2 from 'argon2';
 import * as bcrypt from 'bcrypt';
-import { DataSource, Not, QueryFailedError, Repository } from 'typeorm';
+import { DataSource, EntityManager, Not, QueryFailedError, Repository } from 'typeorm';
 import { AuthSession } from './entities/auth-session.entity';
 import { Instructor } from './entities/instructor.entity';
 import { Student } from './entities/student.entity';
 import { SystemAdmin } from './entities/system-admin.entity';
 import { Gender, User, UserRole, UserStatus } from './entities/user.entity';
+import { generateForensicCode } from './forensic-code';
 
 export interface CreateStudentAccountInput {
   fullName:string;email:string;password:string;phoneNumber:string;
@@ -84,6 +85,7 @@ export class UsersService {
         if(input.employeeNumber&&await manager.findOne(SystemAdmin,{where:{employeeNumber:input.employeeNumber.trim()}})) {
           throw new ConflictException('Employee number is already registered');
         }
+        const forensicCode = await this.generateUniqueForensicCode(manager);
         const user=await manager.save(User,manager.create(User,{
           fullName:input.fullName.trim(),email,passwordHash,
           phoneNumber:input.phoneNumber,dateOfBirth:input.dateOfBirth??null,
@@ -91,6 +93,7 @@ export class UsersService {
           status:managed?UserStatus.ACTIVE:UserStatus.PENDING_VERIFICATION,
           profilePictureUrl:null,emailVerified:managed,
           failedLoginAttempts:0,lockedUntil:null,lastLoginAt:null,
+          forensicCode,
         }));
         if(input.role===UserRole.STUDENT) {
           await manager.save(Student,manager.create(Student,{
@@ -139,7 +142,19 @@ export class UsersService {
   async getUserProfile(userId:string) {
     const user=await this.findById(userId);
     if(!user) throw new NotFoundException('User not found');
-    return this.safeUser(user);
+    const safe = this.safeUser(user);
+    if (user.role === UserRole.STUDENT) {
+      const student = await this.studentsRepository.findOne({ where: { userId } });
+      if (student) {
+        return {
+          ...safe,
+          studentNumber: student.studentNumber,
+          currentSemester: student.currentSemester,
+          current_semester: student.currentSemester,
+        };
+      }
+    }
+    return safe;
   }
 
   async recordFailedLogin(userId:string) {
@@ -160,17 +175,98 @@ export class UsersService {
     await this.resetFailedLoginAttempts(userId);return false;
   }
 
-  async saveSession(id:string,userId:string,refreshTokenHash:string,expiresAt:Date) {
+  async saveSession(
+    id: string,
+    userId: string,
+    refreshTokenHash: string,
+    expiresAt: Date,
+    ipAddress?: string | null,
+    userAgent?: string | null,
+  ) {
     await this.sessionsRepository.save(this.sessionsRepository.create({
-      id,userId,refreshTokenHash,expiresAt,revokedAt:null,lastUsedAt:null,
+      id,
+      userId,
+      refreshTokenHash,
+      expiresAt,
+      revokedAt: null,
+      lastUsedAt: null,
+      ipAddress: ipAddress ?? null,
+      userAgent: userAgent ?? null,
     }));
   }
   findSession(id:string){return this.sessionsRepository.findOne({where:{id}});}
+
+  async revokeExpiredSessions(userId: string): Promise<number> {
+    const result = await this.sessionsRepository.createQueryBuilder()
+      .update(AuthSession)
+      .set({ revokedAt: new Date() })
+      .where('user_id = :userId', { userId })
+      .andWhere('revoked_at IS NULL')
+      .andWhere('expires_at <= CURRENT_TIMESTAMP')
+      .execute();
+    return result.affected ?? 0;
+  }
+
+  async hasActiveSession(userId: string): Promise<boolean> {
+    const count = await this.sessionsRepository.createQueryBuilder('session')
+      .where('session.user_id = :userId', { userId })
+      .andWhere('session.revoked_at IS NULL')
+      .andWhere('session.expires_at > CURRENT_TIMESTAMP')
+      .getCount();
+    return count > 0;
+  }
+
+  async getSecurityOverview(userId:string,currentSessionId:string) {
+    const sessions=await this.sessionsRepository.createQueryBuilder('session')
+      .where('session.user_id = :userId',{userId})
+      .andWhere('session.revoked_at IS NULL')
+      .andWhere('session.expires_at > CURRENT_TIMESTAMP')
+      .orderBy('session.created_at','DESC')
+      .getMany();
+    const providers=await this.dataSource.query(
+      `SELECT provider, provider_email, created_at, last_used_at
+       FROM external_auth_identities
+       WHERE user_id = $1
+       ORDER BY provider`,
+      [userId],
+    ) as Array<{provider:string;provider_email:string;created_at:Date;last_used_at:Date|null}>;
+    return {
+      sessions:sessions.map(session=>({
+        id:session.id,
+        current:session.id===currentSessionId,
+        created_at:session.createdAt,
+        last_used_at:session.lastUsedAt,
+        expires_at:session.expiresAt,
+        ip_address:session.ipAddress,
+        user_agent:session.userAgent,
+      })),
+      providers:providers.map(provider=>({
+        provider:provider.provider,
+        email:provider.provider_email,
+        linked_at:provider.created_at,
+        last_used_at:provider.last_used_at,
+      })),
+    };
+  }
+
+  async revokeOtherSessions(userId:string,currentSessionId:string) {
+    await this.sessionsRepository.createQueryBuilder().update(AuthSession)
+      .set({revokedAt:new Date()})
+      .where('user_id = :userId',{userId})
+      .andWhere('id <> :currentSessionId',{currentSessionId})
+      .andWhere('revoked_at IS NULL')
+      .execute();
+  }
+
   async rotateSessionSecure(
     id:string,userId:string,presentedTokenDigest:string,
     refreshTokenDigest:string,expiresAt:Date,
   ) {
-    const outcome=await this.dataSource.transaction<'rotated'|'invalid'|'reuse'>(async manager=>{
+    const raceGraceMs=Math.min(
+      30_000,
+      Math.max(1_000,Number(process.env.AUTH_REFRESH_RACE_GRACE_MS??10_000)),
+    );
+    const outcome=await this.dataSource.transaction<'rotated'|'invalid'|'race'|'reuse'>(async manager=>{
       const rotation=await manager.createQueryBuilder()
         .update(AuthSession)
         .set({
@@ -186,15 +282,30 @@ export class UsersService {
         .execute();
       if(rotation.affected===1)return 'rotated';
 
-      const revocation=await manager.createQueryBuilder()
-        .update(AuthSession)
-        .set({revokedAt:new Date()})
-        .where('id = :id',{id})
-        .andWhere('user_id = :userId',{userId})
-        .andWhere('revoked_at IS NULL')
-        .execute();
-      return revocation.affected===1?'reuse':'invalid';
+      // A second browser request can arrive with the just-rotated cookie while the
+      // first response is still being applied. Treat that short window as a retry,
+      // not token theft, so a harmless refresh race never revokes the whole session.
+      const session=await manager.findOne(AuthSession,{
+        where:{id,userId},
+        lock:{mode:'pessimistic_write'},
+      });
+      if(!session||session.revokedAt)return 'invalid';
+      if(session.expiresAt<=new Date()) {
+        session.revokedAt=new Date();
+        await manager.save(AuthSession,session);
+        return 'invalid';
+      }
+      if(session.lastUsedAt&&Date.now()-session.lastUsedAt.getTime()<=raceGraceMs) {
+        return 'race';
+      }
+
+      session.revokedAt=new Date();
+      await manager.save(AuthSession,session);
+      return 'reuse';
     });
+    if(outcome==='race') {
+      throw new ConflictException('Refresh already completed by another request; retry');
+    }
     if(outcome!=='rotated') {
       throw new UnauthorizedException(
         outcome==='reuse'
@@ -213,6 +324,7 @@ export class UsersService {
   async updateProfile(userId:string,input:{
     fullName?:string;phoneNumber?:string;dateOfBirth?:Date;
     gender?:Gender;profilePictureUrl?:string;
+    currentSemester?:number;
   }) {
     const user=await this.findById(userId);
     if(!user) throw new NotFoundException('User not found');
@@ -227,7 +339,33 @@ export class UsersService {
     if(input.dateOfBirth!==undefined) user.dateOfBirth=input.dateOfBirth;
     if(input.gender!==undefined) user.gender=input.gender;
     if(input.profilePictureUrl!==undefined) user.profilePictureUrl=input.profilePictureUrl.trim()||null;
-    return this.safeUser(await this.usersRepository.save(user));
+
+    if (user.role === UserRole.STUDENT && input.currentSemester !== undefined) {
+      const semester = Number(input.currentSemester);
+      if (!Number.isInteger(semester) || semester < 1 || semester > 6) {
+        throw new BadRequestException('Current semester must be an integer between 1 and 6');
+      }
+      await this.studentsRepository.update({ userId }, { currentSemester: semester });
+    }
+
+    await this.usersRepository.save(user);
+    return this.getUserProfile(userId);
+  }
+
+  async deactivateOwnAccount(userId:string,currentPassword:string) {
+    const user=await this.findById(userId);
+    if(!user) throw new NotFoundException('User not found');
+    if(user.role!==UserRole.STUDENT) throw new BadRequestException('Self-service account deletion is available to students only');
+    if(!(await this.validatePassword(currentPassword,user.passwordHash))) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+    await this.dataSource.transaction(async manager=>{
+      user.status=UserStatus.DEACTIVATED;
+      await manager.save(User,user);
+      await manager.createQueryBuilder().update(AuthSession)
+        .set({revokedAt:new Date()})
+        .where('user_id = :userId AND revoked_at IS NULL',{userId}).execute();
+    });
   }
 
   async changePassword(userId:string,currentPassword:string,newPassword:string) {
@@ -248,6 +386,15 @@ export class UsersService {
   safeUser(user:User) {
     const {passwordHash:_password,failedLoginAttempts:_failed,lockedUntil:_locked,...safe}=user;
     return safe;
+  }
+
+  private async generateUniqueForensicCode(manager: EntityManager, maxAttempts = 10): Promise<string> {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const code = generateForensicCode();
+      const existing = await manager.findOne(User, { where: { forensicCode: code } });
+      if (!existing) return code;
+    }
+    throw new ConflictException('Unable to allocate a unique forensic code');
   }
 
   private assertProfileFields(input:CreateManagedAccountInput) {

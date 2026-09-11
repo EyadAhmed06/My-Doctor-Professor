@@ -2,17 +2,26 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DatabaseExceptionFilter } from './common/filters/database-exception.filter';
+import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
+import { isAllowedOrigin, parseAllowedOrigins } from './config/cors-policy';
+import { assertSecureRuntimeConfiguration } from './config/runtime-security';
 
 async function bootstrap() {
+  assertSecureRuntimeConfiguration();
   const app = await NestFactory.create(AppModule);
-
-  app.setGlobalPrefix('api/v1');
+  const requestContext = new RequestContextMiddleware();
+  app.use(requestContext.use.bind(requestContext));
 
   app.use((_request, response, next) => {
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('X-Frame-Options', 'DENY');
+    response.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+    response.setHeader('Cross-Origin-Resource-Policy', 'same-site');
     response.setHeader('Referrer-Policy', 'no-referrer');
-    response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+    response.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+    response.setHeader('Cache-Control', 'no-store, max-age=0');
+    response.setHeader('Pragma', 'no-cache');
     if (process.env.NODE_ENV === 'production') {
       response.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     }
@@ -24,29 +33,39 @@ async function bootstrap() {
     app.getHttpAdapter().getInstance().set('trust proxy', trustProxyHops);
   }
 
+  const allowedOrigins = parseAllowedOrigins(
+    process.env.FRONTEND_URL,
+    process.env.CORS_ORIGINS,
+    process.env.NODE_ENV,
+  );
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3001',
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin, allowedOrigins)) return callback(null, true);
+      return callback(new Error('Origin is not allowed by CORS'), false);
+    },
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    allowedHeaders: 'Content-Type,Authorization',
+    allowedHeaders: 'Content-Type,Authorization,X-Request-Id,Idempotency-Key',
+    exposedHeaders: 'X-Request-Id',
+    maxAge: 600,
   });
 
   app.useGlobalFilters(new DatabaseExceptionFilter());
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+    transformOptions: { enableImplicitConversion: true },
+  }));
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-    }),
-  );
+  // Versioned prefix owned by the app itself, so the path is identical in local
+  // development, tests, and behind the proxy. Caddy matches this prefix without
+  // stripping it (deploy/Caddyfile); changing one without the other breaks routing.
+  app.setGlobalPrefix('api/v1');
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);
-  console.log(`Application is running on: http://localhost:${port}/api/v1`);
+  console.log(`Application is running on: http://localhost:${port}`);
 }
 
 void bootstrap();

@@ -54,8 +54,25 @@ export class NotificationsService {
     }
     if(actor.role===UserRole.INSTRUCTOR) {
       const invalid=recipients.filter((user)=>user.role!==UserRole.STUDENT);
-      if(invalid.length) {
-        throw new ForbiddenException('Instructors can send notifications only to students');
+      if(invalid.length) throw new ForbiddenException('Instructors can send notifications only to students');
+      const allowedRows=await this.dataSource.query(`
+        SELECT DISTINCT enrollment.student_id
+        FROM bundle_enrollments enrollment
+        JOIN bundles bundle ON bundle.id=enrollment.bundle_id
+        LEFT JOIN bundle_instructors assignment ON assignment.bundle_id=bundle.id
+        LEFT JOIN bundle_courses bundle_course ON bundle_course.bundle_id=bundle.id
+        LEFT JOIN course_instructors course_assignment ON course_assignment.course_id=bundle_course.course_id
+        WHERE (assignment.instructor_id=$1 OR course_assignment.instructor_id=$1)
+          AND enrollment.student_id=ANY($2::uuid[])
+          AND enrollment.status='ACTIVE'
+          AND (enrollment.expires_at IS NULL OR enrollment.expires_at>CURRENT_TIMESTAMP)
+          AND bundle.status='PUBLISHED'
+          AND (bundle.is_free=TRUE OR enrollment.payment_status='PAID')
+      `,[actor.userId,dto.user_ids]) as Array<{student_id:string}>;
+      const allowed=new Set(allowedRows.map((row)=>row.student_id));
+      const unrelated=dto.user_ids.filter((id)=>!allowed.has(id));
+      if(unrelated.length) {
+        throw new ForbiddenException('Instructors can notify only active students in their published bundles');
       }
     }
     return this.dataSource.transaction(async(manager)=>{
@@ -90,20 +107,60 @@ export class NotificationsService {
     event:Omit<CreateNotificationDto,'user_ids'>,
     actor:AuthenticatedUser,
   ):Promise<void> {
+    const ids=await this.activeSubscriberIds(`
+      JOIN bundle_courses scope ON scope.bundle_id=bundle.id
+      WHERE scope.course_id=$1
+    `,courseId);
+    await this.deliver(ids,event,actor);
+  }
+
+  async notifyWeekStudents(
+    weekId:string,
+    event:Omit<CreateNotificationDto,'user_ids'>,
+    actor:AuthenticatedUser,
+  ):Promise<void> {
+    const ids=await this.activeSubscriberIds(`
+      JOIN bundle_weeks scope ON scope.bundle_id=bundle.id
+      WHERE scope.week_id=$1
+    `,weekId);
+    await this.deliver(ids,event,actor);
+  }
+
+  async notifyBundleStudents(
+    bundleId:string,
+    event:Omit<CreateNotificationDto,'user_ids'>,
+    actor:AuthenticatedUser,
+  ):Promise<void> {
+    const ids=await this.activeSubscriberIds('WHERE bundle.id=$1',bundleId);
+    await this.deliver(ids,event,actor);
+  }
+
+  private async activeSubscriberIds(scopeSql:string,scopeId:string):Promise<string[]> {
     const rows=await this.dataSource.query(`
-      SELECT user_account.id
-      FROM users user_account
-      JOIN students student ON student.user_id=user_account.id
-      JOIN courses course ON course.semester_id IN (
-        SELECT semester.id FROM semesters semester
-        WHERE semester.semester_number=student.current_semester
-      )
-      WHERE course.id=$1
+        /* security-audit-reviewed: parameterized-or-allowlisted-fragments */
+      SELECT DISTINCT user_account.id
+      FROM bundle_enrollments enrollment
+      JOIN bundles bundle ON bundle.id=enrollment.bundle_id
+      JOIN users user_account ON user_account.id=enrollment.student_id
+      ${scopeSql}
+        AND enrollment.status='ACTIVE'
+        AND enrollment.starts_at<=CURRENT_TIMESTAMP
+        AND (enrollment.expires_at IS NULL OR enrollment.expires_at>CURRENT_TIMESTAMP)
+        AND bundle.status='PUBLISHED'
+        AND (bundle.is_free=TRUE OR enrollment.payment_status='PAID')
+        AND (bundle.available_from IS NULL OR bundle.available_from<=CURRENT_TIMESTAMP)
+        AND (bundle.available_until IS NULL OR bundle.available_until>CURRENT_TIMESTAMP)
         AND user_account.role='STUDENT'
         AND user_account.status='ACTIVE'
-        AND user_account.email_verified=TRUE
-    `,[courseId]) as Array<{id:string}>;
-    const ids=rows.map((row)=>row.id);
+    `,[scopeId]) as Array<{id:string}>;
+    return rows.map((row)=>row.id);
+  }
+
+  private async deliver(
+    ids:string[],
+    event:Omit<CreateNotificationDto,'user_ids'>,
+    actor:AuthenticatedUser,
+  ):Promise<void> {
     for(let offset=0;offset<ids.length;offset+=500) {
       await this.tryCreate({...event,user_ids:ids.slice(offset,offset+500)},actor);
     }
@@ -121,6 +178,7 @@ export class NotificationsService {
   }
 
   async list(query:NotificationQueryDto,userId:string) {
+    await this.ensureStudentReminders(userId);
     const page=query.page??1,limit=query.limit??20;
     const builder=this.inbox.createQueryBuilder('inbox')
       .innerJoinAndSelect('inbox.notification','notification')
@@ -142,6 +200,7 @@ export class NotificationsService {
   }
 
   async unreadCount(userId:string) {
+    await this.ensureStudentReminders(userId);
     const count=await this.inbox.count({
       where:{userId,notificationStatus:NotificationStatus.UNREAD},
     });
@@ -171,6 +230,79 @@ export class NotificationsService {
   async remove(notificationId:string,userId:string):Promise<void> {
     const item=await this.requireInboxItem(notificationId,userId);
     await this.inbox.remove(item);
+  }
+
+  private async ensureStudentReminders(userId:string):Promise<void> {
+    const user=await this.users.findOne({where:{id:userId}});
+    if(!user||user.role!==UserRole.STUDENT||user.status!==UserStatus.ACTIVE) return;
+    const [planRows,flashcardRows]=await Promise.all([
+      this.dataSource.query(`
+        SELECT COUNT(*)::int AS due
+        FROM study_plan_items
+        WHERE student_id=$1 AND status='PLANNED' AND scheduled_date<=CURRENT_DATE
+      `,[userId]),
+      this.dataSource.query(`
+        SELECT COUNT(*)::int AS due
+        FROM student_flashcard_progress progress
+        JOIN flashcards card ON card.id=progress.flashcard_id AND card.is_active=TRUE
+        JOIN flashcard_decks deck ON deck.id=card.deck_id AND deck.is_published=TRUE
+        WHERE progress.student_id=$1 AND progress.times_reviewed>0
+          AND progress.next_review_at<=CURRENT_TIMESTAMP
+          AND EXISTS (
+            SELECT 1 FROM bundle_enrollments enrollment
+            JOIN bundles bundle ON bundle.id=enrollment.bundle_id
+            JOIN bundle_courses bundle_course ON bundle_course.bundle_id=bundle.id
+            WHERE enrollment.student_id=$1 AND bundle_course.course_id=deck.course_id
+              AND enrollment.status='ACTIVE'
+              AND (enrollment.expires_at IS NULL OR enrollment.expires_at>CURRENT_TIMESTAMP)
+              AND bundle.status='PUBLISHED'
+              AND (bundle.is_free=TRUE OR enrollment.payment_status='PAID')
+              AND (bundle.available_until IS NULL OR bundle.available_until>CURRENT_TIMESTAMP)
+              AND (
+                deck.lecture_id IS NULL OR EXISTS (
+                  SELECT 1 FROM lectures lecture
+                  JOIN bundle_weeks bundle_week ON bundle_week.week_id=lecture.week_id
+                    AND bundle_week.bundle_id=bundle.id
+                  WHERE lecture.id=deck.lecture_id AND lecture.is_published=TRUE
+                )
+              )
+          )
+      `,[userId]),
+    ]);
+    const planDue=Number(planRows[0]?.due||0);
+    const cardsDue=Number(flashcardRows[0]?.due||0);
+    if(planDue>0) await this.createDailyReminder(
+      userId,'Study plan reminder',
+      `You have ${planDue} planned session${planDue===1?'':'s'} due. Open your calendar to keep your momentum.`,
+      '/study-plan/calendar',
+    );
+    if(cardsDue>0) await this.createDailyReminder(
+      userId,'Flashcards due',
+      `${cardsDue} flashcard${cardsDue===1?' is':'s are'} ready for review.`,
+      '/flashcards',
+    );
+  }
+
+  private async createDailyReminder(
+    userId:string,title:string,message:string,targetUrl:string,
+  ):Promise<void> {
+    const existing=await this.dataSource.query(`
+      SELECT 1 FROM user_notifications inbox
+      JOIN notifications notification ON notification.id=inbox.notification_id
+      WHERE inbox.user_id=$1 AND notification.notification_type='REMINDER'
+        AND notification.title=$2 AND inbox.created_at::date=CURRENT_DATE
+      LIMIT 1
+    `,[userId,title]);
+    if(existing.length) return;
+    await this.dataSource.transaction(async(manager)=>{
+      const notification=await manager.save(Notification,manager.create(Notification,{
+        title,message,targetUrl,notificationType:NotificationType.REMINDER,createdBy:null,
+      }));
+      await manager.save(UserNotification,manager.create(UserNotification,{
+        notificationId:notification.id,userId,
+        notificationStatus:NotificationStatus.UNREAD,readAt:null,
+      }));
+    });
   }
 
   private async requireInboxItem(notificationId:string,userId:string) {

@@ -1,5 +1,8 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsEnum,
   IsInt,
@@ -11,6 +14,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import {
   QuestionDifficulty,
@@ -68,12 +72,14 @@ export class SearchQuestionsDto {
 
 export class CreateMcqOptionDto {
   @IsString() @IsNotEmpty() option_text: string;
+  @IsOptional() @IsString() explanation?: string;
   @IsBoolean() is_correct: boolean;
   @IsInt() @Min(1) display_order: number;
 }
 
 export class UpdateMcqOptionDto {
   @IsOptional() @IsString() @IsNotEmpty() option_text?: string;
+  @IsOptional() @IsString() explanation?: string;
   @IsOptional() @IsBoolean() is_correct?: boolean;
   @IsOptional() @IsInt() @Min(1) display_order?: number;
 }
@@ -87,4 +93,41 @@ export class EssayConfigurationDto {
 
 export class CreateTagDto {
   @IsString() @IsNotEmpty() @MaxLength(100) tag_name: string;
+}
+
+export class InspectQuestionImportDto {
+  @IsUUID() topic_id: string;
+  @BooleanQuery() @IsBoolean() copyright_confirmed: boolean;
+}
+
+export class PublishImportedOptionDto {
+  @IsString() @IsNotEmpty() @MaxLength(2000) option_text: string;
+  @IsBoolean() is_correct: boolean;
+}
+
+export class PublishImportedQuestionDto {
+  @IsBoolean() approved: boolean;
+  @IsString() @IsNotEmpty() question_text: string;
+  @IsOptional() @IsString() explanation?: string;
+  @IsEnum(QuestionDifficulty) difficulty: QuestionDifficulty;
+  @IsInt() @Min(1) @Max(999) marks: number;
+  @IsArray() @ArrayMinSize(5) @ArrayMaxSize(5)
+  @ValidateNested({ each: true })
+  @Type(() => PublishImportedOptionDto)
+  options: PublishImportedOptionDto[];
+  @IsOptional() @IsInt() @Min(1) source_page?: number;
+  @IsOptional() @IsUUID() reuse_question_id?: string;
+  @IsOptional() @IsBoolean() allow_topic_override?: boolean;
+  @IsOptional() @IsBoolean() allow_duplicate?: boolean;
+}
+
+export class PublishQuestionImportDto {
+  @IsUUID() topic_id: string;
+  @IsString() @IsNotEmpty() @MaxLength(255) original_filename: string;
+  @IsString() @IsNotEmpty() @MaxLength(64) file_sha256: string;
+  @IsBoolean() copyright_confirmed: boolean;
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(500)
+  @ValidateNested({ each: true })
+  @Type(() => PublishImportedQuestionDto)
+  candidates: PublishImportedQuestionDto[];
 }

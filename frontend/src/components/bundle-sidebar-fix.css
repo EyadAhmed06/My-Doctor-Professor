@@ -1,0 +1,12 @@
+/* Keep bundle navigation readable even with long titles and status labels. */
+.advanced-bundle-page .bundle-workspace{grid-template-columns:minmax(300px,340px) minmax(0,1fr)!important;gap:20px!important;align-items:start}
+.advanced-bundle-page .bundle-list{min-width:0;overflow:hidden}
+.advanced-bundle-page .bundle-list>h2{padding:15px 16px!important;margin:0!important}
+.advanced-bundle-page .bundle-list>button{grid-template-columns:38px minmax(0,1fr)!important;grid-template-areas:"icon copy" "icon badge";column-gap:12px!important;row-gap:6px!important;align-items:center!important;min-height:72px!important;padding:12px 13px!important;text-align:left;overflow:hidden}
+.advanced-bundle-page .bundle-list>button>span{grid-area:icon;align-self:center}
+.advanced-bundle-page .bundle-list>button>b{grid-area:copy;display:block!important;min-width:0;max-width:100%;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.18!important;overflow-wrap:anywhere}
+.advanced-bundle-page .bundle-list>button>b>small{display:block!important;margin-top:4px!important;font-size:9px!important;line-height:1.25!important;color:var(--muted)}
+.advanced-bundle-page .bundle-list>button>em.bundle-status-badge{grid-area:badge;justify-self:start!important;min-width:0!important;max-width:100%!important;margin:0!important;padding:5px 8px!important;font-size:8px!important;line-height:1!important;white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis}
+.advanced-bundle-page .bundle-list>button>b>em.bundle-status-badge{display:inline-flex!important;width:auto!important;min-width:0!important;max-width:100%!important;margin-top:7px!important;padding:5px 8px!important;font-size:8px!important;letter-spacing:.04em!important}
+@media(max-width:1050px){.advanced-bundle-page .bundle-workspace{grid-template-columns:minmax(250px,290px) minmax(0,1fr)!important}}
+@media(max-width:820px){.advanced-bundle-page .bundle-workspace{grid-template-columns:1fr!important}.advanced-bundle-page .bundle-list{max-height:none!important}.advanced-bundle-page .bundle-list>button{grid-template-columns:38px minmax(0,1fr)!important}}

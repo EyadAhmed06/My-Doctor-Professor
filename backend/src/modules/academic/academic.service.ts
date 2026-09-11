@@ -23,7 +23,10 @@ import {
 import { Semester } from '../../common/entities/semester.entity';
 import { Topic } from '../../common/entities/topic.entity';
 import { Week } from '../../common/entities/week.entity';
+import { NotificationType } from '../../common/entities/notification.entity';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { BundleAccessService } from '../bundle-access/bundle-access.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { Instructor } from '../users/entities/instructor.entity';
 import { UserRole } from '../users/entities/user.entity';
 import {
@@ -74,6 +77,8 @@ export class AcademicService {
     private readonly config: ConfigService,
     private readonly dataSource: DataSource,
     private readonly resourceStorage: ResourceStorageService,
+    private readonly notifications: NotificationsService,
+    private readonly bundleAccess: BundleAccessService,
   ) {}
 
   async createSemester(dto: CreateSemesterDto): Promise<Semester> {
@@ -93,16 +98,11 @@ export class AcademicService {
     });
   }
 
-  async getSemester(id: string, role: UserRole): Promise<Semester> {
-    const semester = await this.semesters.findOne({
-      where: { id },
-      relations: { courses: true },
-      order: { courses: { displayOrder: 'ASC' } },
-    });
+  async getSemester(id: string, actor: AuthenticatedUser): Promise<Semester> {
+    const semester = await this.semesters.findOne({ where: { id } });
     if (!semester) throw new NotFoundException('Semester not found');
-    if (role === UserRole.STUDENT) {
-      semester.courses = semester.courses.filter((course) => course.isActive);
-    }
+    const coursePage = await this.listCourses({ semester_id: id, page: 1, limit: 100 }, actor);
+    semester.courses = coursePage.data;
     return semester;
   }
 
@@ -159,7 +159,7 @@ export class AcademicService {
 
   async listCourses(
     query: CourseQueryDto,
-    role: UserRole,
+    actor: AuthenticatedUser,
   ): Promise<Paginated<Course>> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
@@ -177,8 +177,18 @@ export class AcademicService {
         semesterId: query.semester_id,
       });
     }
-    if (role === UserRole.STUDENT) {
+    if (actor.role === UserRole.STUDENT) {
       builder.andWhere('course.is_active = TRUE');
+      this.bundleAccess.applyStudentAccessScope(builder, 'course', actor.userId);
+    } else if (actor.role === UserRole.INSTRUCTOR) {
+      builder.andWhere(`EXISTS (
+        SELECT 1 FROM course_instructors assignment
+        WHERE assignment.course_id = course.id
+          AND assignment.instructor_id = :actorId
+      )`, { actorId: actor.userId });
+      if (query.is_active !== undefined) {
+        builder.andWhere('course.is_active = :isActive', { isActive: query.is_active });
+      }
     } else if (query.is_active !== undefined) {
       builder.andWhere('course.is_active = :isActive', {
         isActive: query.is_active,
@@ -205,7 +215,7 @@ export class AcademicService {
     };
   }
 
-  async getCourse(id: string, role: UserRole): Promise<Course> {
+  async getCourse(id: string, role: UserRole, studentId?: string): Promise<Course> {
     const course = await this.courses.findOne({
       where: { id },
       relations: {
@@ -226,6 +236,8 @@ export class AcademicService {
       throw new NotFoundException('Course not found');
     }
     if (role === UserRole.STUDENT) {
+      const visibleWeekIds=new Set(await this.accessibleWeekIds(studentId||'',id));
+      course.weeks=course.weeks.filter((week)=>visibleWeekIds.has(week.id));
       for (const week of course.weeks) {
         week.lectures = week.lectures.filter((lecture) => lecture.isPublished);
       }
@@ -266,7 +278,7 @@ export class AcademicService {
   async createWeek(courseId: string, dto: CreateWeekDto, actor: AuthenticatedUser): Promise<Week> {
     await this.assertCourseManager(courseId, actor);
     await this.requireCourse(courseId);
-    return this.saveUnique(
+    const week=await this.saveUnique(
       () => this.weeks.save(this.weeks.create({
         courseId,
         weekNumber: dto.week_number,
@@ -276,10 +288,25 @@ export class AcademicService {
       })),
       'Week number already exists in this course',
     );
+    await this.dataSource.query(`
+      INSERT INTO bundle_weeks(bundle_id,week_id)
+      SELECT bundle_course.bundle_id,$1
+      FROM bundle_courses bundle_course
+      JOIN bundles bundle ON bundle.id=bundle_course.bundle_id
+      WHERE bundle_course.course_id=$2 AND bundle.status='PUBLISHED'
+      ON CONFLICT(bundle_id,week_id) DO NOTHING
+    `,[week.id,courseId]);
+    await this.notifications.notifyWeekStudents(week.id,{
+      title:'New week available',
+      message:`${week.title||`Week ${week.weekNumber}`} was added to your subscribed curriculum.`,
+      target_url:'/bundles?tab=curriculum',
+      notification_type:NotificationType.COURSE,
+    },actor);
+    return week;
   }
 
-  async listWeeks(courseId: string, role: UserRole): Promise<Week[]> {
-    await this.getCourse(courseId, role);
+  async listWeeks(courseId: string, role: UserRole, studentId?: string): Promise<Week[]> {
+    await this.getCourse(courseId, role, studentId);
     const weeks = await this.weeks.find({
       where: { courseId },
       relations: { lectures: true },
@@ -289,9 +316,10 @@ export class AcademicService {
       },
     });
     if (role === UserRole.STUDENT) {
-      for (const week of weeks) {
-        week.lectures = week.lectures.filter((lecture) => lecture.isPublished);
-      }
+      const visibleWeekIds=new Set(await this.accessibleWeekIds(studentId||'',courseId));
+      const visible=weeks.filter((week)=>visibleWeekIds.has(week.id));
+      for (const week of visible) week.lectures=week.lectures.filter((lecture)=>lecture.isPublished);
+      return visible;
     }
     return weeks;
   }
@@ -326,11 +354,16 @@ export class AcademicService {
     await this.assertWeekManager(id, actor);
     const week = await this.requireWeek(id);
     if (dto.title !== undefined) week.title = dto.title.trim() || null;
-    if (dto.description !== undefined) {
-      week.description = dto.description.trim() || null;
-    }
+    if (dto.description !== undefined) week.description = dto.description.trim() || null;
     if (dto.display_order !== undefined) week.displayOrder = dto.display_order;
-    return this.weeks.save(week);
+    const saved=await this.weeks.save(week);
+    await this.notifications.notifyWeekStudents(saved.id,{
+      title:'Curriculum week updated',
+      message:`${saved.title||`Week ${saved.weekNumber}`} has new curriculum information.`,
+      target_url:'/bundles?tab=curriculum',
+      notification_type:NotificationType.COURSE,
+    },actor);
+    return saved;
   }
 
   async deleteWeek(id: string, actor: AuthenticatedUser): Promise<void> {
@@ -407,13 +440,10 @@ export class AcademicService {
   async updateLecture(id: string, dto: UpdateLectureDto, actor: AuthenticatedUser): Promise<Lecture> {
     await this.assertLectureManager(id, actor);
     const lecture = await this.requireLecture(id);
+    const wasPublished=lecture.isPublished;
     if (dto.title !== undefined) lecture.title = dto.title.trim();
-    if (dto.description !== undefined) {
-      lecture.description = dto.description.trim() || null;
-    }
-    if (dto.estimated_duration_minutes !== undefined) {
-      lecture.estimatedDurationMinutes = dto.estimated_duration_minutes;
-    }
+    if (dto.description !== undefined) lecture.description = dto.description.trim() || null;
+    if (dto.estimated_duration_minutes !== undefined) lecture.estimatedDurationMinutes = dto.estimated_duration_minutes;
     if (dto.display_order !== undefined) lecture.displayOrder = dto.display_order;
     if (dto.is_published !== undefined) {
       if (dto.is_published) {
@@ -422,14 +452,28 @@ export class AcademicService {
           this.resources.count({ where: { lectureId: id } }),
         ]);
         if (topicCount === 0 && resourceCount === 0) {
-          throw new ConflictException(
-            'Lecture requires at least one topic or resource before publishing',
-          );
+          throw new ConflictException('Lecture requires at least one topic or resource before publishing');
         }
       }
       lecture.isPublished = dto.is_published;
     }
-    return this.lectures.save(lecture);
+    const saved=await this.lectures.save(lecture);
+    if(!wasPublished&&saved.isPublished) {
+      await this.notifications.notifyWeekStudents(saved.weekId,{
+        title:'New lecture published',
+        message:`${saved.title} is now available in your subscribed bundle.`,
+        target_url:'/bundles?tab=curriculum',
+        notification_type:NotificationType.LECTURE,
+      },actor);
+    } else if(wasPublished&&saved.isPublished&&Object.keys(dto).some((key)=>key!=='is_published')) {
+      await this.notifications.notifyWeekStudents(saved.weekId,{
+        title:'Lecture updated',
+        message:`${saved.title} has been updated by your instructor.`,
+        target_url:'/bundles?tab=curriculum',
+        notification_type:NotificationType.LECTURE,
+      },actor);
+    }
+    return saved;
   }
 
   async deleteLecture(id: string, actor: AuthenticatedUser): Promise<void> {
@@ -651,6 +695,10 @@ export class AcademicService {
     });
     if (!assignment) throw new NotFoundException('Course instructor assignment not found');
     await this.courseInstructors.remove(assignment);
+  }
+
+  private async accessibleWeekIds(studentId:string,courseId:string):Promise<string[]> {
+    return this.bundleAccess.getAccessibleWeekIds(courseId, studentId);
   }
 
   private async assertCourseManager(courseId: string, actor: AuthenticatedUser): Promise<void> {
