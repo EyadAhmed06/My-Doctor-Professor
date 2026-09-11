@@ -146,6 +146,44 @@ test('settings exposes session security and keyboard manual navigation', async (
   await expect(page.getByRole('heading', { name: 'Command navigation manual' })).toBeVisible();
 });
 
+test('dark settings keeps both password fields visibly bounded', async ({ page }) => {
+  const user = await authenticated(page, 'STUDENT');
+  await page.addInitScript(() => localStorage.setItem('mdp-theme', 'dark'));
+  await routeApi(page, async path => {
+    if (path === '/auth/refresh') return { body: { access_token: 'platform-test-access', user } };
+    if (path === '/auth/me') return { body: user };
+    if (path === '/users/student-1') return { body: { ...user, fullName: 'Test Student', phoneNumber: '+201000000000', profilePictureUrl: null, gender: null, dateOfBirth: null } };
+    if (path === '/auth/security') return { body: { sessions: [], providers: [] } };
+    if (path === '/notifications/unread/count') return { body: { count: 0 } };
+    if (path === '/notifications') return { body: { data: [] } };
+    return null;
+  });
+
+  await page.goto('/settings');
+  const currentPassword = page.locator('.settings-password-form input[autocomplete="current-password"]').first();
+  const newPassword = page.locator('.settings-password-form input[autocomplete="new-password"]');
+  await expect(currentPassword).toBeVisible();
+  await expect(newPassword).toBeVisible();
+
+  for (const input of [currentPassword, newPassword]) {
+    const surface = await input.locator('..').evaluate(element => {
+      const style = getComputedStyle(element);
+      return {
+        borderWidth: style.borderTopWidth,
+        borderStyle: style.borderTopStyle,
+        borderColor: style.borderTopColor,
+        backgroundColor: style.backgroundColor,
+        height: element.getBoundingClientRect().height,
+      };
+    });
+    expect(surface.borderWidth).not.toBe('0px');
+    expect(surface.borderStyle).toBe('solid');
+    expect(surface.borderColor).not.toBe('rgba(0, 0, 0, 0)');
+    expect(surface.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+    expect(surface.height).toBeGreaterThanOrEqual(40);
+  }
+});
+
 test('instructor can upload a managed lecture resource with progress-aware workspace', async ({ page }) => {
   const user = await authenticated(page, 'INSTRUCTOR');
   let uploaded = false;
