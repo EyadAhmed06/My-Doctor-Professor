@@ -57,7 +57,12 @@ export class HealthService {
             ('essay_case_attempts','status'),
             ('essay_case_attempts','submitted_at'),
             ('essay_cases','week_id'),
-            ('essay_cases','is_published')
+            ('essay_cases','is_published'),
+            ('student_achievements','id'),
+            ('student_achievements','student_id'),
+            ('student_achievements','achievement_code'),
+            ('student_achievements','unlocked_at'),
+            ('student_achievements','created_at')
         ), missing AS (
           SELECT required.table_name || '.' || required.column_name AS name
           FROM required
@@ -74,7 +79,7 @@ export class HealthService {
 
       if (Number(contract?.missing_count ?? 0) > 0) {
         this.logger.error(
-          `Database schema readiness probe failed; missing dashboard contract: ${contract.missing}`,
+          `Database schema readiness probe failed; missing student contract: ${contract.missing}`,
         );
         throw new ServiceUnavailableException({
           status: 'not_ready',
