@@ -133,8 +133,9 @@
     left: calc(12px + var(--mdp-safe-left)) !important;
     right: calc(12px + var(--mdp-safe-right)) !important;
     top: calc(66px + var(--mdp-safe-top)) !important;
-    bottom: calc(12px + var(--mdp-safe-bottom));
-    max-height: none !important;
+    bottom: auto !important;
+    height: auto !important;
+    max-height: calc(100dvh - 82px - var(--mdp-safe-top) - var(--mdp-safe-bottom)) !important;
     overflow: auto;
     -webkit-overflow-scrolling: touch;
   }

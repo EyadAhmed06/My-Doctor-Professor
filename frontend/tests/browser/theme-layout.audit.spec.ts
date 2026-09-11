@@ -323,6 +323,45 @@ test('mobile workspace menu keeps essential tools reachable', async ({ page }) =
   await expectNoHorizontalOverflow(page);
 });
 
+test('mobile profile menu opens as a readable action panel', async ({ page }) => {
+  await page.setViewportSize({ width: 412, height: 915 });
+  await installApi(page, 'STUDENT', 'dark');
+  await page.goto('/notifications');
+
+  const trigger = page.locator('.profile-menu-trigger');
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+
+  const menu = page.getByRole('menu');
+  await expect(menu).toBeVisible();
+  await expect(menu.getByText('Eyad Student', { exact: true })).toBeVisible();
+  await expect(menu.getByText('student@example.test', { exact: true })).toBeVisible();
+  await expect(menu.getByText('Theme', { exact: true })).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: 'Settings' })).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: 'Log out' })).toBeVisible();
+
+  for (const width of [360, 412, 820]) {
+    await page.setViewportSize({ width, height: 915 });
+    const layout = await menu.evaluate(element => {
+      const box = element.getBoundingClientRect();
+      return {
+        height: box.height,
+        left: box.left,
+        right: box.right,
+        width: box.width,
+        viewportWidth: window.innerWidth,
+        fitsContent: element.scrollHeight <= element.clientHeight + 1,
+      };
+    });
+    expect(layout.height).toBeGreaterThanOrEqual(180);
+    expect(layout.width).toBeGreaterThanOrEqual(width - 28);
+    expect(layout.left).toBeGreaterThanOrEqual(8);
+    expect(layout.right).toBeLessThanOrEqual(layout.viewportWidth - 8);
+    expect(layout.fitsContent).toBe(true);
+    await expectNoHorizontalOverflow(page);
+  }
+});
+
 test('administrator navigation is limited to operational tools', async ({ page }) => {
   await installApi(page, 'SYSTEM_ADMIN', 'light');
   await page.goto('/admin');
