@@ -40,6 +40,29 @@ export function normalizePdfSymbolsForDisplay(value: string): string {
     .replace(/->/g, '→');
 }
 
+/** Remove visual template furniture that must never become part of a stem/option. */
+export function stripCanonicalPageFurniture(value: string): string {
+  return value
+    .split('\n')
+    .filter((line) => {
+      const compact = line.replace(/\s+/g, ' ').trim();
+      if (!compact) return true;
+      if (/^My Doctor\s*&\s*The Professor$/i.test(compact)) return false;
+      if (/^\(Week\s+\d+\)$/i.test(compact)) return false;
+      if (/^Page\s*\|\s*\d+$/i.test(compact)) return false;
+      if (
+        /^My Doctor\s*&\s*The Professor\b/i.test(compact) &&
+        (/\(Week\s+\d+\)/i.test(compact) || /Page\s*\|\s*\d+/i.test(compact))
+      ) {
+        return false;
+      }
+      return true;
+    })
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trimEnd();
+}
+
 /**
  * pdftotext separates pages using form-feed. Keep empty pages because the
  * canonical MCQ template deliberately contains a watermark-only second page.
@@ -141,7 +164,11 @@ export class PdfTextExtractionService {
         processOptions,
       );
       const extractedText = readFileSync(textPath, 'utf8');
-      const pages = splitPdftotextPages(extractedText, pageCount);
+      const rawPages = splitPdftotextPages(extractedText, pageCount);
+      const pages = rawPages.map((page) => ({
+        ...page,
+        text: stripCanonicalPageFurniture(page.text),
+      }));
       const text = pages.map((page) => page.text).join('\n');
 
       return {
