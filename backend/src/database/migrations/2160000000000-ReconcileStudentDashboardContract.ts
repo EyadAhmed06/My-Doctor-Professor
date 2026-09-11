@@ -128,8 +128,29 @@ export class ReconcileStudentDashboardContract2160000000000
         ADD COLUMN IF NOT EXISTS essay_answer text,
         ADD COLUMN IF NOT EXISTS answered_at timestamp;
 
+      /*
+       * student_answers intentionally has no created_at column in the canonical
+       * assessment schema. Older reconciliation code tried to backfill answered_at
+       * from student_answers.created_at, which makes this migration fail on a valid
+       * database. Use the parent attempt timestamps instead: they are part of the
+       * canonical test_attempts contract and provide the closest historical signal.
+       */
+      UPDATE student_answers answer
+      SET answered_at = COALESCE(
+        answer.answered_at,
+        attempt.submitted_at,
+        attempt.last_activity_at,
+        attempt.started_at,
+        attempt.created_at,
+        CURRENT_TIMESTAMP
+      )
+      FROM test_attempts attempt
+      WHERE attempt.id = answer.attempt_id
+        AND answer.answered_at IS NULL;
+
+      /* Defensive fallback for any historical row whose parent is temporarily absent. */
       UPDATE student_answers
-      SET answered_at = COALESCE(answered_at, created_at, CURRENT_TIMESTAMP)
+      SET answered_at = CURRENT_TIMESTAMP
       WHERE answered_at IS NULL;
 
       ALTER TABLE student_answers
