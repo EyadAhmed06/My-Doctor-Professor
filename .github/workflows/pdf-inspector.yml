@@ -1,0 +1,44 @@
+name: PDF Inspector Contract
+
+on:
+  push:
+    branches:
+      - agent/phase1-interactions
+    paths:
+      - 'backend/src/modules/questions/**'
+      - 'backend/scripts/audit-canonical-mcq-pdf.ts'
+      - 'backend/Dockerfile'
+      - 'backend/package.json'
+      - 'backend/package-lock.json'
+      - '.github/workflows/pdf-inspector.yml'
+  pull_request:
+    paths:
+      - 'backend/src/modules/questions/**'
+      - 'backend/scripts/audit-canonical-mcq-pdf.ts'
+      - 'backend/Dockerfile'
+      - 'backend/package.json'
+      - 'backend/package-lock.json'
+      - '.github/workflows/pdf-inspector.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  canonical-pdf-inspector:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install backend dependencies
+        run: npm ci
+      - name: Build backend
+        run: npm run build
+      - name: Run PDF extraction and canonical parser tests
+        run: npm test -- --runInBand pdf-text-extraction.service.spec.ts canonical-mcq-parser.spec.ts
