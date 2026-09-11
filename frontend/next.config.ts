@@ -9,9 +9,8 @@ const apiOrigin = (() => {
  * Origin the anatomy .glb models are served from.
  *
  * Empty means same-origin (`/anatomy/<region>.glb` out of `public/`), which is the local
- * development default. In production the models live on S3/CDN instead: they are ~20 MB
- * compressed across eight regions, are gitignored, and are not copied into the Docker image,
- * so serving them from the app container is not an option.
+ * development default. In production the models live on S3/CDN instead: the binaries are
+ * intentionally gitignored and are not copied into the Docker image.
  */
 const anatomyAssetOrigin = (() => {
   const base = process.env.NEXT_PUBLIC_ANATOMY_ASSET_BASE?.trim();
@@ -22,8 +21,9 @@ const anatomyAssetOrigin = (() => {
 /**
  * @param wasm grant 'wasm-unsafe-eval'. Needed only where a WebAssembly module is compiled.
  * @param extraConnect additional connect-src origins, for routes that fetch from a CDN.
+ * @param extraImg additional img-src origins, for CDN-hosted static fallbacks/posters.
  */
-function buildContentSecurityPolicy({ wasm = false, extraConnect = "" } = {}) {
+function buildContentSecurityPolicy({ wasm = false, extraConnect = "", extraImg = "" } = {}) {
   return [
     "default-src 'self'",
     "base-uri 'self'",
@@ -39,7 +39,7 @@ function buildContentSecurityPolicy({ wasm = false, extraConnect = "" } = {}) {
     // does NOT permit eval() of strings, which is what 'unsafe-eval' would allow.
     `script-src 'self' 'unsafe-inline'${wasm ? " 'wasm-unsafe-eval'" : ""} https://accounts.google.com`,
     "style-src 'self' 'unsafe-inline' https://accounts.google.com",
-    `img-src 'self' data: blob: ${apiOrigin} https://lh3.googleusercontent.com`,
+    `img-src 'self' data: blob: ${apiOrigin} https://lh3.googleusercontent.com${extraImg}`,
     `media-src 'self' blob: ${apiOrigin}`,
     `connect-src 'self' ${apiOrigin} https://accounts.google.com https://www.googleapis.com${extraConnect}`,
     "frame-src https://accounts.google.com",
@@ -79,6 +79,7 @@ const anatomySecurityHeaders = [
   ...productionOnly(buildContentSecurityPolicy({
     wasm: true,
     extraConnect: anatomyAssetOrigin ? ` ${anatomyAssetOrigin}` : "",
+    extraImg: anatomyAssetOrigin ? ` ${anatomyAssetOrigin}` : "",
   })),
 ];
 
