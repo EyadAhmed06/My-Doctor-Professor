@@ -65,6 +65,29 @@ jobs:
           [[ "$SMTP_USER$SMTP_PASSWORD$SMTP_FROM$FRONTEND_URL" != *"REPLACE"* && "$SMTP_USER$SMTP_PASSWORD$SMTP_FROM$FRONTEND_URL" != *"YOUR_"* ]] || { echo "Authentication configuration still contains placeholders"; exit 1; }
           [[ "$FRONTEND_URL" == https://* ]] || { echo "FRONTEND_URL must be the deployed HTTPS origin"; exit 1; }
 
+      - name: Validate anatomy production assets
+        env:
+          ANATOMY_BASE: ${{ vars.NEXT_PUBLIC_ANATOMY_ASSET_BASE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$ANATOMY_BASE" || {
+            echo "Missing repository variable NEXT_PUBLIC_ANATOMY_ASSET_BASE."
+            echo "Publish the anatomy asset package with scripts/publish-anatomy-assets.ps1 before deploying."
+            exit 1
+          }
+          [[ "$ANATOMY_BASE" == https://* ]] || { echo "NEXT_PUBLIC_ANATOMY_ASSET_BASE must be an HTTPS origin/prefix"; exit 1; }
+          ANATOMY_BASE="${ANATOMY_BASE%/}"
+          regions=(skeleton skull skull-exploded skull-base vertebrae upper-limb lower-limb hand)
+          for region in "${regions[@]}"; do
+            model="$ANATOMY_BASE/anatomy/$region.glb"
+            poster="$ANATOMY_BASE/anatomy/$region-fallback.png"
+            magic="$(curl -fsSL --retry 3 --retry-delay 1 --range 0-3 "$model")"
+            [[ "$magic" == "glTF" ]] || { echo "Invalid or missing GLB: $model"; exit 1; }
+            curl -fsSI --retry 3 --retry-delay 1 "$poster" >/dev/null || { echo "Missing poster: $poster"; exit 1; }
+          done
+          echo "All eight anatomy models and posters are reachable and valid."
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
