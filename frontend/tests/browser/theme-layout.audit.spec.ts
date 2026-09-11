@@ -35,6 +35,25 @@ const testRecord = {
   createdAt: '2026-08-06T10:00:00.000Z', updatedAt: '2026-08-06T10:00:00.000Z', course,
 };
 
+const attachedQuestions = Array.from({ length: 3 }, (_, index) => ({
+  id: `test-question-${index + 1}`,
+  questionId: `question-${index + 1}`,
+  displayOrder: index + 1,
+  marks: '1.00',
+  timeLimitSeconds: null,
+  question: {
+    id: `question-${index + 1}`,
+    questionType: 'MCQ',
+    title: 'Diabetic and Hypertensive Kidney Disease',
+    questionText: 'Which finding best supports the diagnosis?',
+    explanation: null,
+    difficulty: index === 2 ? 'HARD' : 'MEDIUM',
+    marks: '1.00',
+    isActive: true,
+    options: [],
+  },
+}));
+
 function endpointOf(url: string) {
   const pathname = new URL(url).pathname;
   const marker = '/api/v1';
@@ -42,7 +61,7 @@ function endpointOf(url: string) {
   return index >= 0 ? pathname.slice(index + marker.length) || '/' : pathname;
 }
 
-async function installApi(page: Page, role: Role, theme: 'light' | 'dark') {
+async function installApi(page: Page, role: Role, theme: 'light' | 'dark', testQuestions = attachedQuestions.slice(0, 0)) {
   await page.addInitScript(({ selectedTheme }) => {
     localStorage.removeItem('mdp_logged_out_at');
     localStorage.removeItem('mdp_access_token');
@@ -112,13 +131,19 @@ async function installApi(page: Page, role: Role, theme: 'light' | 'dark') {
     if (endpoint === '/academic/courses') return respond({ data: [course], total: 1, page: 1, limit: 100, total_pages: 1 });
     if (endpoint === '/academic/courses/course-1') return respond(course);
     if (endpoint === '/questions') return respond({ data: [], total: 0, page: 1, limit: 100, total_pages: 0 });
-    if (endpoint === '/tests/test-1/questions') return respond([]);
+    if (endpoint === '/tests/test-1/questions') return respond(testQuestions);
     if (endpoint === '/tests/test-1/attempts') return respond([]);
     if (endpoint === '/tests/test-1/authoring-state') return respond({
-      validation: {
+      validation: testQuestions.length ? {
+        publishable: true,
+        issues: [],
+        question_count: testQuestions.length,
+        total_marks: testQuestions.length,
+      } : {
         publishable: false,
         issues: [{ code: 'NO_QUESTIONS', severity: 'ERROR', message: 'Attach at least one active question before publishing.' }],
-        question_count: 0, total_marks: 0,
+        question_count: 0,
+        total_marks: 0,
       },
       permissions: { mutable: true, can_unpublish: false, can_delete: true, can_duplicate: true },
       activity: [{ type: 'CREATED', at: '2026-08-06T10:00:00.000Z', label: 'Assessment created' }],
@@ -191,6 +216,51 @@ for (const theme of ['light', 'dark'] as const) {
     await expectNoHorizontalOverflow(page);
   });
 }
+
+test('assessment question cards keep their number, copy, and controls separated on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 412, height: 915 });
+  await installApi(page, 'INSTRUCTOR', 'dark', attachedQuestions);
+  await page.goto('/instructor/assessments');
+
+  const cards = page.locator('.assessment-question-stack .draggable-question');
+  await expect(cards).toHaveCount(attachedQuestions.length);
+  await expect(cards.first().getByText('Diabetic and Hypertensive Kidney Disease')).toBeVisible();
+
+  for (const width of [360, 412]) {
+    await page.setViewportSize({ width, height: 915 });
+    for (let index = 0; index < attachedQuestions.length; index += 1) {
+      const card = cards.nth(index);
+      await card.scrollIntoViewIfNeeded();
+      await expect(card).toBeVisible();
+      const layout = await card.evaluate((element) => {
+        const number = element.querySelector<HTMLElement>('.assessment-question-select')!;
+        const copy = element.querySelector<HTMLElement>('.assessment-question-copy')!;
+        const actions = element.querySelector<HTMLElement>('.question-order-actions')!;
+        const cardBox = element.getBoundingClientRect();
+        const numberBox = number.getBoundingClientRect();
+        const copyBox = copy.getBoundingClientRect();
+        const actionsBox = actions.getBoundingClientRect();
+        return {
+          numberRight: numberBox.right,
+          copyLeft: copyBox.left,
+          copyBottom: copyBox.bottom,
+          actionsTop: actionsBox.top,
+          actionsRight: actionsBox.right,
+          cardRight: cardBox.right,
+          actionsBottom: actionsBox.bottom,
+          cardBottom: cardBox.bottom,
+          fitsWidth: element.scrollWidth <= element.clientWidth + 1,
+        };
+      });
+      expect(layout.copyLeft).toBeGreaterThanOrEqual(layout.numberRight + 8);
+      expect(layout.actionsTop).toBeGreaterThanOrEqual(layout.copyBottom + 7);
+      expect(layout.actionsRight).toBeLessThanOrEqual(layout.cardRight - 10);
+      expect(layout.actionsBottom).toBeLessThanOrEqual(layout.cardBottom - 10);
+      expect(layout.fitsWidth).toBe(true);
+    }
+    await expectNoHorizontalOverflow(page);
+  }
+});
 
 test('instructor lecture card fills its row without clipping its status', async ({ page }) => {
   await installApi(page, 'INSTRUCTOR', 'dark');
