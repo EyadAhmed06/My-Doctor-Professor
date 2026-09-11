@@ -11,11 +11,13 @@ import { BundleAccessModule } from '../bundle-access/bundle-access.module';
 import { EssayQuestionImportController } from './essay-question-import.controller';
 import { EssayQuestionImportService } from './essay-question-import.service';
 import { InstructorQuestionAccessService } from './instructor-question-access.service';
+import { PdfTextExtractionService } from './pdf-text-extraction.service';
 import { QuestionImportEnrichmentService } from './question-import-enrichment.service';
 import { QuestionImportService } from './question-import.service';
 import { QuestionsController } from './questions.controller';
 import { QuestionsService } from './questions.service';
 import { StudentQuestionAccessService } from './student-question-access.service';
+import { UnicodeQuestionImportService } from './unicode-question-import.service';
 
 @Module({
   imports: [
@@ -35,7 +37,12 @@ import { StudentQuestionAccessService } from './student-question-access.service'
     QuestionsService,
     StudentQuestionAccessService,
     InstructorQuestionAccessService,
-    QuestionImportService,
+    PdfTextExtractionService,
+    UnicodeQuestionImportService,
+    {
+      provide: QuestionImportService,
+      useExisting: UnicodeQuestionImportService,
+    },
     QuestionImportEnrichmentService,
     EssayQuestionImportService,
   ],
