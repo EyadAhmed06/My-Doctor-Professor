@@ -12,7 +12,8 @@ type ResourceType="PDF"|"IMAGE"|"VIDEO";
 type Resource={id:string;resourceName:string;resourceType:ResourceType;uploadStatus:string;fileSize:string|null;mimeType:string|null;description:string|null;originalFilename:string|null};
 type Lecture={id:string;lectureNumber:number;title:string;isPublished:boolean;resources?:Resource[]};
 type Week={id:string;weekNumber:number;title:string|null;lectures:Lecture[]};
-type Course={id:string;courseCode:string;courseName:string;weeks?:Week[]};
+type Semester={semesterNumber:number;title?:string|null};
+type Course={id:string;courseCode:string;courseName:string;semester?:Semester;weeks?:Week[]};
 type PageResponse<T>={data:T[]};
 
 type UploadResult={status:number;message:string|null};
@@ -66,11 +67,12 @@ export function ResourceUploadPage(){
     setError(null);setProgress(0);
     if(!next){setFile(null);return;}
     const resourceType=typeFor(next);
-    if(!resourceType){setFile(null);setError("Allowed files: PDF, PNG, JPEG, WebP, MP4, and WebM.");return;}
-    if(next.size<=0||next.size>maxBytes){setFile(null);setError("The file must be non-empty and no larger than 50 MB.");return;}
+    if(!resourceType){setFile(null);if(inputRef.current)inputRef.current.value="";setError("That file type is not supported. Choose a PDF, PNG, JPEG, WebP, MP4, or WebM file.");return;}
+    if(next.size<=0||next.size>maxBytes){setFile(null);if(inputRef.current)inputRef.current.value="";setError("The selected file must be non-empty and no larger than 50 MB.");return;}
     const derivedName=next.name.replace(/\.[^.]+$/,"").slice(0,200);
     setFile(next);setName(current=>current.trim()?current:derivedName);
   }
+  function openFilePicker(){inputRef.current?.click();}
   function drop(event:DragEvent<HTMLDivElement>){event.preventDefault();setDragging(false);chooseFile(event.dataTransfer.files[0]||null);}
   function browse(event:ChangeEvent<HTMLInputElement>){chooseFile(event.target.files?.[0]||null);}
 
@@ -93,7 +95,7 @@ export function ResourceUploadPage(){
       setCourse(current=>current?{...current,weeks:current.weeks?.map(week=>({...week,lectures:week.lectures.map(lecture=>lecture.id===lectureToUpdate?{...lecture,isPublished:false}:lecture)}))}:current);
       notify({title:"Lecture returned to draft",description:"Your selected file, resource name, and description were preserved. You can upload now.",tone:"success"});
       return true;
-    }catch(cause){setError(cause instanceof Error?cause.message:"Unable to return the lecture to draft.");return false;}
+    }catch(cause){const message=cause instanceof Error?cause.message:"Unable to return the lecture to draft.";setError(message);notify({title:"Could not return lecture to draft",description:message,tone:"error"});return false;}
     finally{setChangingPublication(false);}
   }
 
@@ -115,8 +117,8 @@ export function ResourceUploadPage(){
       }
       if(result.status<200||result.status>=300)throw new Error(result.message||`Upload failed (${result.status})`);
       setProgress(100);setFile(null);setName("");setDescription("");if(inputRef.current)inputRef.current.value="";await loadResources();notify({title:"Resource uploaded",description:"The server verified the file signature and stored it as a managed lecture resource.",tone:"success"});
-    }catch(cause){setError(cause instanceof Error?cause.message:"Unable to upload resource.");}
-    finally{setUploading(false);}
+    }catch(cause){const message=cause instanceof Error?cause.message:"Unable to upload resource.";setError(message);notify({title:"Upload failed",description:message,tone:"error"});}
+    finally{setUploading(false);setProgress(0);}
   }
 
   async function remove(resource:Resource){
@@ -130,8 +132,8 @@ export function ResourceUploadPage(){
     <header className="pp-title hero"><div><small className="page-eyebrow">CONTENT DELIVERY</small><h1>Resource upload</h1><p>Upload verified PDFs, images, and videos into an unpublished lecture, then preview them through the student Study Guides workflow.</p></div><button className="pp-button secondary" onClick={()=>void loadCourses()}><FiRefreshCw/> Refresh</button></header>
     {error&&<p className="form-error" role="alert">{error}</p>}
     {loading?<PageSkeleton variant="workspace" label="Loading resource workspace"/>:<div className="resource-upload-layout">
-      <Panel title="Destination"><div className="resource-destination-grid"><label>Course<select value={courseId} onChange={event=>setCourseId(event.target.value)}>{courses.map(item=><option key={item.id} value={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label><label>Lecture<select value={lectureId} onChange={event=>setLectureId(event.target.value)} disabled={detailLoading}>{lectures.map(item=><option key={item.id} value={item.id}>Week {item.week.weekNumber} · {item.lectureNumber}. {item.title}{item.isPublished?" · published":""}</option>)}</select></label></div>{selectedLecture?.isPublished&&<div className="resource-publish-warning"><FiBookOpen/><div><b>Lecture is published</b><p>The upload action will safely return this lecture to draft first. Your selected file and all upload fields will stay exactly as they are.</p></div><button className="pp-button secondary resource-draft-action" type="button" disabled={changingPublication||uploading} onClick={()=>void returnSelectedLectureToDraft()}><FiEdit3/>{changingPublication?"Changing status…":"Return to draft now"}</button></div>}</Panel>
-      <Panel title="Upload managed file"><form onSubmit={upload} className="resource-upload-form"><div className={`resource-dropzone ${dragging?"dragging":""}`} onDragOver={event=>{event.preventDefault();setDragging(true)}} onDragLeave={()=>setDragging(false)} onDrop={drop} onClick={()=>inputRef.current?.click()} role="button" tabIndex={0} onKeyDown={event=>{if(event.key==="Enter"||event.key===" ")inputRef.current?.click()}}><FiUploadCloud/><b>{file?file.name:"Drop a resource here or browse"}</b><small>{file?`${typeFor(file)} · ${sizeLabel(file.size)}`:"PDF · PNG/JPEG/WebP · MP4/WebM · max 50 MB"}</small><input ref={inputRef} hidden type="file" accept={accept} onChange={browse}/></div><div className="resource-upload-fields"><label>Resource name<input required maxLength={200} value={name} onChange={event=>setName(event.target.value)}/></label><label>Description<textarea maxLength={5000} rows={3} value={description} onChange={event=>setDescription(event.target.value)}/></label></div>{(uploading||progress>0)&&<div className="resource-upload-progress"><Progress value={progress}/><span>{progress}% {uploading?"uploading":"uploaded"}</span></div>}<button className="pp-button" disabled={!file||!lectureId||!name.trim()||uploading||changingPublication}><FiUploadCloud/> {uploading?"Uploading…":selectedLecture?.isPublished?"Return to draft & upload":"Upload resource"}</button></form></Panel>
+      <Panel title="Destination"><div className="resource-destination-grid"><label>Course<select value={courseId} onChange={event=>setCourseId(event.target.value)}>{courses.map(item=><option key={item.id} value={item.id}>{item.courseCode} · {item.courseName}{item.semester?.semesterNumber&&!item.courseName.toLowerCase().includes(`semester ${item.semester.semesterNumber}`)?` · Semester ${item.semester.semesterNumber}`:""}</option>)}</select></label><label>Lecture<select value={lectureId} onChange={event=>setLectureId(event.target.value)} disabled={detailLoading}>{lectures.map(item=><option key={item.id} value={item.id}>Week {item.week.weekNumber} · {item.lectureNumber}. {item.title}{item.isPublished?" · published":""}</option>)}</select></label></div>{selectedLecture?.isPublished&&<div className="resource-publish-warning"><FiBookOpen/><div><b>Lecture is published</b><p>The upload action will safely return this lecture to draft first. Your selected file and all upload fields will stay exactly as they are.</p></div><button className="pp-button secondary resource-draft-action" type="button" disabled={changingPublication||uploading} onClick={()=>void returnSelectedLectureToDraft()}><FiEdit3/>{changingPublication?"Changing status…":"Return to draft now"}</button></div>}</Panel>
+      <Panel title="Upload managed file"><form onSubmit={upload} className="resource-upload-form"><div className={`resource-dropzone ${dragging?"dragging":""}`} onDragOver={event=>{event.preventDefault();setDragging(true)}} onDragLeave={()=>setDragging(false)} onDrop={drop} onClick={openFilePicker} role="button" tabIndex={0} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();openFilePicker();}}}><FiUploadCloud/><b>{file?file.name:"Drop a resource here or browse"}</b><small>{file?`${typeFor(file)} · ${sizeLabel(file.size)}`:"PDF · PNG/JPEG/WebP · MP4/WebM · max 50 MB"}</small><input ref={inputRef} hidden type="file" accept={accept} onChange={browse}/></div><div className="resource-upload-fields"><label>Resource name<input required maxLength={200} value={name} onChange={event=>setName(event.target.value)}/></label><label>Description<textarea maxLength={5000} rows={3} value={description} onChange={event=>setDescription(event.target.value)}/></label></div>{uploading&&<div className="resource-upload-progress" role="status"><Progress value={progress}/><span>{progress<100?`${progress}% sent`:"Sent · verifying…"}</span></div>}<button className="pp-button" type={file?"submit":"button"} onClick={file?undefined:openFilePicker} disabled={!lectureId||uploading||changingPublication||(Boolean(file)&&!name.trim())}><FiUploadCloud/> {uploading?"Uploading…":!file?"Choose a file":selectedLecture?.isPublished?"Return to draft & upload":"Upload resource"}</button></form></Panel>
       <Panel title={`Lecture resources · ${resources.length}`}><div className="resource-managed-list">{resources.length?resources.map(resource=>{const Icon=resource.resourceType==="IMAGE"?FiImage:resource.resourceType==="VIDEO"?FiVideo:FiFile;return <article key={resource.id}><span><Icon/></span><div><b>{resource.resourceName}</b><small>{resource.resourceType} · {resource.mimeType||"external"} · {resource.fileSize?sizeLabel(Number(resource.fileSize)):"size unavailable"}</small><p>{resource.description||resource.originalFilename||"No description"}</p></div><span className="resource-upload-status"><FiCheckCircle/> {resource.uploadStatus}</span><button className="danger" disabled={Boolean(selectedLecture?.isPublished)} onClick={()=>void remove(resource)} title="Delete resource"><FiTrash2/></button></article>;}):<EmptyState title="No resources in this lecture" description="Upload the first managed file above."/>}</div></Panel>
     </div>}
   </main></ProductShell>;
