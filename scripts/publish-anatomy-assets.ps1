@@ -113,13 +113,29 @@ try {
   Write-Host "Release id: $releaseId"
 
   Write-Host "[2/7] Ensuring dedicated public-read anatomy bucket exists..."
-  & aws s3api head-bucket --bucket $bucket 2>$null
-  if ($LASTEXITCODE -ne 0) {
+  # A missing bucket is an expected branch on the first publication. Windows PowerShell 5
+  # promotes native stderr to an ErrorRecord, and with ErrorActionPreference=Stop the AWS
+  # CLI's normal 404 from head-bucket aborts the script before we can inspect LASTEXITCODE.
+  # Temporarily make native stderr non-terminating for this existence probe only.
+  $bucketExists = $false
+  $savedErrorActionPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = "Continue"
+    & aws s3api head-bucket --bucket $bucket *> $null
+    $bucketExists = ($LASTEXITCODE -eq 0)
+  } finally {
+    $ErrorActionPreference = $savedErrorActionPreference
+  }
+
+  if (-not $bucketExists) {
+    Write-Host "Bucket $bucket does not exist yet; creating it in $Region..."
     if ($Region -eq "us-east-1") {
       Invoke-Native { aws s3api create-bucket --bucket $bucket --region $Region | Out-Null } "Could not create S3 bucket $bucket."
     } else {
       Invoke-Native { aws s3api create-bucket --bucket $bucket --region $Region --create-bucket-configuration "LocationConstraint=$Region" | Out-Null } "Could not create S3 bucket $bucket."
     }
+  } else {
+    Write-Host "Bucket $bucket already exists."
   }
 
   $publicAccessPath = Join-Path $tempRoot "public-access.json"
