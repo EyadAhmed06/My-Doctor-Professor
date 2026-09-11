@@ -2,6 +2,7 @@ import {
   calculatePdfExtractionConfidence,
   normalizePdfSymbolsForDisplay,
   splitPdftotextPages,
+  stripCanonicalPageFurniture,
 } from './pdf-text-extraction.service';
 
 describe('PDF text extraction contract', () => {
@@ -19,6 +20,33 @@ describe('PDF text extraction contract', () => {
         text: 'Gastroenterology Week 1\n1) Question\nA) One\nB) Two\nC) Three\nD) Four\nE) Five',
       },
     ]);
+  });
+
+  it('strips repeated header/footer furniture without touching medical text', () => {
+    const source = [
+      'My Doctor& The Professor',
+      '(Week 1)',
+      'Page|9',
+      'GERD',
+      '12) Which grade contains a mucosal break <=5 mm?',
+      'A) <=5 mm',
+      'B) >5 mm',
+      'C) <75%',
+      'D) >75%',
+      'E) 100%',
+    ].join('\n');
+
+    expect(stripCanonicalPageFurniture(source)).toBe(
+      [
+        'GERD',
+        '12) Which grade contains a mucosal break <=5 mm?',
+        'A) <=5 mm',
+        'B) >5 mm',
+        'C) <75%',
+        'D) >75%',
+        'E) 100%',
+      ].join('\n'),
+    );
   });
 
   it('keeps canonical medical and mathematical symbols unchanged in raw text', () => {
