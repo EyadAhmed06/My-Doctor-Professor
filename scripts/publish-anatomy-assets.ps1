@@ -34,6 +34,11 @@ function Invoke-Native([scriptblock]$Command, [string]$FailureMessage) {
   if ($LASTEXITCODE -ne 0) { throw $FailureMessage }
 }
 
+function Write-Utf8NoBom([string]$Path, [string]$Content) {
+  $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+  [IO.File]::WriteAllText($Path, $Content, $utf8NoBom)
+}
+
 Require-Command "aws"
 Require-Command "gh"
 Require-Command "curl.exe"
@@ -76,15 +81,28 @@ try {
     if (-not (Test-Path $poster -PathType Leaf)) { throw "Missing required poster: anatomy/$regionName-fallback.png" }
 
     $bytes = [IO.File]::ReadAllBytes($glb)
-    if ($bytes.Length -lt 12) { throw "Invalid GLB (too short): $glb" }
+    if ($bytes.Length -lt 20) { throw "Invalid GLB (too short): $glb" }
     $magic = [Text.Encoding]::ASCII.GetString($bytes, 0, 4)
     $version = [BitConverter]::ToUInt32($bytes, 4)
     $declaredLength = [BitConverter]::ToUInt32($bytes, 8)
+    $jsonChunkLength = [BitConverter]::ToUInt32($bytes, 12)
+    $jsonChunkType = [BitConverter]::ToUInt32($bytes, 16)
     if ($magic -ne "glTF" -or $version -ne 2 -or $declaredLength -ne $bytes.Length) {
       throw "Invalid GLB header/length: $glb"
     }
+    if ($jsonChunkType -ne 0x4E4F534A -or (20 + $jsonChunkLength) -gt $bytes.Length) {
+      throw "Invalid GLB JSON chunk: $glb"
+    }
+    try {
+      $jsonText = [Text.Encoding]::UTF8.GetString($bytes, 20, $jsonChunkLength).Trim([char]0, ' ', "`t", "`r", "`n")
+      $null = $jsonText | ConvertFrom-Json
+    } catch {
+      throw "Invalid GLB JSON payload: $glb ($($_.Exception.Message))"
+    }
 
-    $pngHeader = [IO.File]::ReadAllBytes($poster)[0..7]
+    $posterBytes = [IO.File]::ReadAllBytes($poster)
+    if ($posterBytes.Length -lt 8) { throw "Invalid PNG poster (too short): $poster" }
+    $pngHeader = $posterBytes[0..7]
     $expectedPngHeader = [byte[]](137,80,78,71,13,10,26,10)
     if ([Convert]::ToBase64String($pngHeader) -ne [Convert]::ToBase64String($expectedPngHeader)) {
       throw "Invalid PNG poster: $poster"
@@ -105,18 +123,18 @@ try {
   }
 
   $publicAccessPath = Join-Path $tempRoot "public-access.json"
-  @'
+  Write-Utf8NoBom $publicAccessPath @'
 {
   "BlockPublicAcls": true,
   "IgnorePublicAcls": true,
   "BlockPublicPolicy": false,
   "RestrictPublicBuckets": false
 }
-'@ | Set-Content -LiteralPath $publicAccessPath -Encoding utf8
+'@
   Invoke-Native { aws s3api put-public-access-block --bucket $bucket --public-access-block-configuration "file://$publicAccessPath" | Out-Null } "Could not configure S3 public access block for anatomy assets."
 
   $policyPath = Join-Path $tempRoot "bucket-policy.json"
-  @"
+  Write-Utf8NoBom $policyPath @"
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -129,11 +147,11 @@ try {
     }
   ]
 }
-"@ | Set-Content -LiteralPath $policyPath -Encoding utf8
+"@
   Invoke-Native { aws s3api put-bucket-policy --bucket $bucket --policy "file://$policyPath" | Out-Null } "Could not apply the public-read policy. If account-level S3 Block Public Access is enabled, use CloudFront/OAC instead of disabling it account-wide."
 
   $corsPath = Join-Path $tempRoot "cors.json"
-  @"
+  Write-Utf8NoBom $corsPath @"
 {
   "CORSRules": [
     {
@@ -145,7 +163,7 @@ try {
     }
   ]
 }
-"@ | Set-Content -LiteralPath $corsPath -Encoding utf8
+"@
   Invoke-Native { aws s3api put-bucket-cors --bucket $bucket --cors-configuration "file://$corsPath" | Out-Null } "Could not configure S3 CORS."
 
   Write-Host "[3/7] Uploading immutable release to S3..."
