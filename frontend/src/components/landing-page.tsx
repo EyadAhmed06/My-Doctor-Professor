@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import {
-  FiArrowRight, FiBarChart2, FiBookOpen, FiCpu, FiCheckCircle,
-  FiClipboard, FiLayers, FiMenu, FiShield, FiTarget, FiUsers, FiX,
+  FiActivity, FiArrowRight, FiAward, FiBarChart2, FiBookOpen, FiBox, FiCpu,
+  FiCheckCircle, FiClipboard, FiDatabase, FiEdit3, FiFileText, FiLayers,
+  FiMenu, FiPackage, FiRefreshCw, FiShield, FiTag, FiTarget, FiX,
 } from "react-icons/fi";
 import { useState } from "react";
 import { BRAND_NAME, BRAND_TAGLINE, BrandLockup } from "./brand";
@@ -46,10 +47,17 @@ const features = [
 ];
 
 const reasons = [
-  { icon: FiUsers, title: { en: "Built by doctors who understand the journey", ar: "صممه أطباء يفهمون الرحلة" }, text: { en: "The platform is shaped by people who faced the same lectures, exam pressure, and search for trustworthy study material.", ar: "صُممت المنصة على يد أشخاص واجهوا المحاضرات نفسها وضغط الاختبارات والبحث عن مصادر دراسية موثوقة." } },
-  { icon: FiTarget, title: { en: "High-yield without losing understanding", ar: "تركيز على المهم دون فقدان الفهم" }, text: { en: "Questions and explanations focus on the details that matter in exams while preserving the clinical reasoning behind every answer.", ar: "تركز الأسئلة والشروحات على التفاصيل المهمة في الاختبارات مع الحفاظ على التفكير السريري وراء كل إجابة." } },
-  { icon: FiLayers, title: { en: "MCQs, essays, and revision in one structure", ar: "اختيار من متعدد ومقالي ومراجعة في نظام واحد" }, text: { en: "Weekly content, question banks, notes, flashcards, and progress tracking stay connected to the same academic path.", ar: "يبقى المحتوى الأسبوعي وبنوك الأسئلة والملاحظات والبطاقات ومتابعة التقدم مرتبطًا بالمسار الأكاديمي نفسه." } },
-  { icon: FiCheckCircle, title: { en: "Continuously improved with student feedback", ar: "يتطور باستمرار مع آراء الطلاب" }, text: { en: "Content and workflows evolve around what students actually struggle with, need clarified, and want to practise next.", ar: "يتطور المحتوى وسير العمل وفق ما يواجهه الطلاب فعليًا وما يحتاجون إلى توضيحه والتدرب عليه." } },
+  { icon: FiDatabase, title: { en: "Massive, high-yield MCQ bank", ar: "بنك ضخم لأسئلة الاختيار من متعدد عالية الأهمية" }, text: { en: "MCQs spanning all academic years, organized with specific guidelines for focused practice.", ar: "أسئلة اختيار من متعدد تغطي جميع السنوات الدراسية، ومنظمة بإرشادات محددة للتدريب المركز." } },
+  { icon: FiRefreshCw, title: { en: "Updated daily", ar: "تحديثات يومية" }, text: { en: "Questions are updated daily to reflect recent exam trends and professor-preferred topics.", ar: "تُحدّث الأسئلة يوميًا لتعكس أحدث اتجاهات الاختبارات والموضوعات التي يفضلها الأساتذة." } },
+  { icon: FiEdit3, title: { en: "First-ever weekly essay booklets", ar: "أول كتيبات مقالية أسبوعية من نوعها" }, text: { en: "Master written exams with weekly essay booklets featuring high-frequency short answers.", ar: "أتقن الاختبارات التحريرية من خلال كتيبات مقالية أسبوعية تضم أكثر أسئلة الإجابات القصيرة تكرارًا." } },
+  { icon: FiActivity, title: { en: "Official-format clinical cases", ar: "حالات سريرية بصيغة الاختبارات الرسمية" }, text: { en: "Train under real pressure with comprehensive clinical cases matching official exam formats.", ar: "تدرّب تحت ضغط حقيقي مع حالات سريرية شاملة تحاكي صيغ الاختبارات الرسمية." } },
+  { icon: FiBox, title: { en: "Interactive AI anatomy", ar: "تشريح تفاعلي مدعوم بالذكاء الاصطناعي" }, text: { en: "Visualize and interact with human structures using our advanced AI learning tool for anatomy.", ar: "شاهد تراكيب جسم الإنسان وتفاعل معها باستخدام أداة التعلم المتقدمة للتشريح والمدعومة بالذكاء الاصطناعي." } },
+  { icon: FiFileText, title: { en: "Smart study guides", ar: "أدلة مذاكرة ذكية" }, text: { en: "Save hours of revision with lectures distilled into high-density, actionable bullet points.", ar: "وفّر ساعات من المراجعة مع محاضرات مختصرة في نقاط مركزة وعملية عالية الكثافة." } },
+  { icon: FiLayers, title: { en: "Dynamic medical flashcards", ar: "بطاقات طبية ديناميكية" }, text: { en: "Boost long-term retention using dynamic digital flashcards built for medical students.", ar: "عزّز الاحتفاظ بالمعلومات على المدى الطويل ببطاقات رقمية ديناميكية مصممة لطلاب الطب." } },
+  { icon: FiBookOpen, title: { en: "Built-in personal notebook", ar: "دفتر ملاحظات شخصي مدمج" }, text: { en: "Save questions and log personal notes directly inside the platform.", ar: "احفظ الأسئلة وسجّل ملاحظاتك الشخصية مباشرة داخل المنصة." } },
+  { icon: FiAward, title: { en: "Frequent milestone exams", ar: "اختبارات مرحلية متكررة" }, text: { en: "Test your knowledge every three weeks to win valuable vouchers, gifts, and surprises.", ar: "اختبر معرفتك كل ثلاثة أسابيع للفوز بقسائم قيمة وهدايا ومفاجآت." } },
+  { icon: FiTag, title: { en: "Budget-friendly packages", ar: "باقات مناسبة للميزانية" }, text: { en: "Choose from accessible packages designed with exclusive discounts for everyone.", ar: "اختر من باقات ميسّرة صُممت بخصومات حصرية تناسب الجميع." } },
+  { icon: FiPackage, title: { en: "Ultimate final bundles", ar: "حزم المراجعة النهائية الشاملة" }, text: { en: "Lock in top marks with all-inclusive revision packs covering past papers and high-yield points.", ar: "ثبّت أعلى الدرجات مع حزم مراجعة متكاملة تغطي الاختبارات السابقة وأهم النقاط عالية العائد." } },
 ];
 
 export function LandingPage() {
@@ -104,8 +112,8 @@ export function LandingPage() {
     <section className="public-goal" id="goal"><span><FiTarget /></span><div><small>{t("OUR GOAL", "هدفنا")}</small><h2>{t("Make studying medicine clearer, smarter, and more reliable.", "نجعل دراسة الطب أوضح وأذكى وأكثر موثوقية.")}</h2><p>{t("Our goal has always been to make your life easier, helping you study smarter, master your courses, and excel in your exams. We continuously work on improving our content, listening to your feedback, and providing the reliable academic support you deserve.", "هدفنا دائمًا أن نجعل رحلتك أسهل، فنساعدك على المذاكرة بذكاء وإتقان مقرراتك والتفوق في اختباراتك. نطور المحتوى باستمرار، ونستمع إلى ملاحظاتك، ونقدم دعمًا أكاديميًا يمكنك الاعتماد عليه.")}</p></div></section>
 
     <section className="public-section why-section" id="why-us">
-      <div className="section-heading narrow"><span>{t("WHY CHOOSE US", "لماذا تختارنا")}</span><h2>{t("Academic support built around the realities of medical school.", "دعم أكاديمي مصمم حول واقع دراسة الطب.")}</h2><p>{t("Everything is designed to reduce uncertainty: what to study, what is important, how it may be examined, and how well you actually understand it.", "كل شيء مصمم لتقليل الحيرة: ماذا تذاكر، وما المهم، وكيف قد يأتي في الاختبار، ومدى فهمك الحقيقي له.")}</p></div>
-      <div className="why-grid">{reasons.map(({icon:Icon,title,text}) => <article key={title.en}><Icon /><div><h3>{local(locale, title)}</h3><p>{local(locale, text)}</p></div></article>)}</div>
+      <div className="section-heading narrow"><span>{t("WHY CHOOSE US", "لماذا تختارنا")}</span><h2>{t("Everything you need to master medical school.", "كل ما تحتاجه لإتقان رحلتك في كلية الطب.")}</h2><p>{t("One complete learning system for daily study, exam practice, long-term retention, and final revision.", "نظام تعلم متكامل للمذاكرة اليومية والتدريب على الاختبارات والاحتفاظ طويل المدى والمراجعة النهائية.")}</p></div>
+      <div className="why-grid">{reasons.map(({icon:Icon,title,text}, index) => <article className={index === 0 ? "why-card-featured" : undefined} key={title.en}><span className="why-icon"><Icon /></span><div><small>{String(index + 1).padStart(2, "0")}</small><h3>{local(locale, title)}</h3><p>{local(locale, text)}</p></div></article>)}</div>
     </section>
 
     
