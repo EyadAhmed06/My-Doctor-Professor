@@ -1,5 +1,10 @@
 # syntax=docker/dockerfile:1.7
-FROM node:24-bookworm-slim AS dependencies
+FROM node:24-bookworm-slim AS base
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends poppler-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM base AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -8,7 +13,7 @@ FROM dependencies AS builder
 COPY . .
 RUN npm run build
 
-FROM node:24-bookworm-slim AS runner
+FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 RUN groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 --gid nodejs app
