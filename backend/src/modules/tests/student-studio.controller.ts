@@ -25,8 +25,11 @@ const FULL_COURSE_ENTITLEMENT = buildFullCourseBundleSql('bundle', RESOLVED_COUR
  * NORMAL means "review later" and HARD means "I personally struggled with this".
  * Answers are exposed only after the originating attempt is closed and while the student
  * still has a live entitlement to the test or its academic content.
+ *
+ * `student/studio` is the canonical namespace. `tests/studio` remains as a legacy alias,
+ * but it must be registered before parameterized test routes such as `tests/:testId/questions`.
  */
-@Controller('tests/studio')
+@Controller(['student/studio', 'tests/studio'])
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.STUDENT)
 export class StudentStudioController {
@@ -40,7 +43,7 @@ export class StudentStudioController {
     return this.savedQuestions(actor, this.normalizeFilter(requestedFilter));
   }
 
-  /** Backwards-compatible endpoint for older clients. */
+  /** Backwards-compatible hard-only view for older clients. */
   @Get('hard-questions')
   hardQuestions(@CurrentUser() actor: AuthenticatedUser) {
     return this.savedQuestions(actor, 'HARD');

@@ -359,8 +359,16 @@ async function main() {
     );
 
     await manager.query(
-      `INSERT INTO flashcard_decks(id,course_id,topic_id,lecture_id,created_by,title,description,is_published,display_order) VALUES($1,$2,$3,$4,$5,'Cardiovascular High-Yield Review','Front-and-back cards linked to the seeded bundle.',TRUE,1) ON CONFLICT(id) DO UPDATE SET is_published=TRUE,title=EXCLUDED.title`,
-      [ids.deck, ids.course, ids.topics[5], ids.lectures[5], instructorId],
+      `INSERT INTO flashcard_decks(id,course_id,week_id,lecture_id,topic_id,created_by,title,description,is_published,display_order)
+       VALUES($1,$2,$3,$4,NULL,$5,'Cardiovascular High-Yield Review','Front-and-back cards linked to the seeded bundle.',TRUE,1)
+       ON CONFLICT(id) DO UPDATE SET
+         course_id=EXCLUDED.course_id,
+         week_id=EXCLUDED.week_id,
+         lecture_id=EXCLUDED.lecture_id,
+         topic_id=NULL,
+         is_published=TRUE,
+         title=EXCLUDED.title`,
+      [ids.deck, ids.course, ids.weeks[2], ids.lectures[5], instructorId],
     );
     for (let i = 0; i < Math.min(questionData.length, 8); i++)
       await manager.query(

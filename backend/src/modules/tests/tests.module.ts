@@ -36,7 +36,9 @@ import { TestsService } from './tests.service';
    Question,McqOption,EssayConfiguration,Course,Week,Lecture,Student,
   ]),
  ],
- controllers:[TestsController,TestLaunchController,McqPracticeController,EssayPracticeController,StudentStudioController],
+ // Studio owns the legacy /tests/studio/* alias. Keep it ahead of TestsController so
+ // /tests/:testId/questions can never parse "studio" as a UUID.
+ controllers:[StudentStudioController,TestsController,TestLaunchController,McqPracticeController,EssayPracticeController],
  providers:[TestsService,AssessmentAttemptService,AssessmentAuthoringService,McqPracticeService,McqPracticeCatalogService,EssayPracticeService],
  exports:[TestsService,AssessmentAttemptService,TypeOrmModule],
 })

@@ -702,15 +702,23 @@ async function main() {
 
           const deckId = uuid(`deck:${course.code}:${weekNumber}`);
           await manager.query(
-            `INSERT INTO flashcard_decks(id,course_id,topic_id,lecture_id,created_by,title,description,is_published,display_order)
-             VALUES($1,$2,$3,$4,$5,$6,$7,TRUE,$8)
-             ON CONFLICT(id) DO UPDATE SET course_id=EXCLUDED.course_id,topic_id=EXCLUDED.topic_id,lecture_id=EXCLUDED.lecture_id,
-               created_by=EXCLUDED.created_by,title=EXCLUDED.title,description=EXCLUDED.description,is_published=TRUE,
-               display_order=EXCLUDED.display_order,updated_at=CURRENT_TIMESTAMP`,
+            `INSERT INTO flashcard_decks(id,course_id,week_id,lecture_id,topic_id,created_by,title,description,is_published,display_order)
+             VALUES($1,$2,$3,$4,NULL,$5,$6,$7,TRUE,$8)
+             ON CONFLICT(id) DO UPDATE SET
+               course_id=EXCLUDED.course_id,
+               week_id=EXCLUDED.week_id,
+               lecture_id=EXCLUDED.lecture_id,
+               topic_id=NULL,
+               created_by=EXCLUDED.created_by,
+               title=EXCLUDED.title,
+               description=EXCLUDED.description,
+               is_published=TRUE,
+               display_order=EXCLUDED.display_order,
+               updated_at=CURRENT_TIMESTAMP`,
             [
               deckId,
               courseId,
-              topicId,
+              week.id,
               lectureRow.id,
               ownerId,
               `${lecture.title} Review`,
