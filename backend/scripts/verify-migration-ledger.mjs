@@ -9,6 +9,17 @@ const ledger = fs.readFileSync(
   'utf8',
 );
 
+/**
+ * The SQL bootstrap represents the schema through this migration timestamp.
+ * Those migrations are inserted into 10z_migration_ledger.sql so TypeORM does
+ * not replay changes already represented by the fresh-install schema files.
+ *
+ * Migrations newer than the baseline MUST remain outside that ledger: they are
+ * the forward upgrade path from the bootstrap schema to the current schema and
+ * must execute on a fresh install as well as on an existing deployment.
+ */
+const BASELINE_MAX_TIMESTAMP = 2100000000000;
+
 const migrations = fs
   .readdirSync(migrationDirectory)
   .filter((file) => file.endsWith('.ts'))
@@ -16,7 +27,12 @@ const migrations = fs
     const source = fs.readFileSync(path.join(migrationDirectory, file), 'utf8');
     const match = source.match(/export\s+class\s+([A-Za-z0-9_]*?(\d{13}))/);
     assert(match, `Migration ${file} must export a class ending in a 13-digit timestamp`);
-    return { file, name: match[1], timestamp: match[2] };
+    return {
+      file,
+      name: match[1],
+      timestamp: match[2],
+      timestampNumber: Number(match[2]),
+    };
   });
 
 const timestamps = migrations.map((migration) => migration.timestamp);
@@ -27,14 +43,24 @@ assert.equal(
 );
 
 for (const migration of migrations) {
-  assert(
-    ledger.includes(`'${migration.name}'`),
-    `Fresh-install migration ledger is missing ${migration.name}`,
-  );
-  assert(
-    ledger.includes(`${migration.timestamp}::bigint`),
-    `Fresh-install migration ledger is missing timestamp ${migration.timestamp}`,
-  );
+  const ledgerHasName = ledger.includes(`'${migration.name}'`);
+  const ledgerHasTimestamp = ledger.includes(`${migration.timestamp}::bigint`);
+
+  if (migration.timestampNumber <= BASELINE_MAX_TIMESTAMP) {
+    assert(
+      ledgerHasName,
+      `Fresh-install migration ledger is missing baseline migration ${migration.name}`,
+    );
+    assert(
+      ledgerHasTimestamp,
+      `Fresh-install migration ledger is missing baseline timestamp ${migration.timestamp}`,
+    );
+  } else {
+    assert(
+      !ledgerHasName && !ledgerHasTimestamp,
+      `Post-baseline migration ${migration.name} must not be pre-recorded in the fresh-install ledger`,
+    );
+  }
 }
 
 assert(
@@ -43,5 +69,6 @@ assert(
 );
 
 console.log(
-  `Migration ledger verified ${migrations.length} unique TypeORM migrations.`,
+  `Migration ledger verified ${migrations.length} unique TypeORM migrations; ` +
+    `baseline <= ${BASELINE_MAX_TIMESTAMP}, newer migrations execute after bootstrap.`,
 );
