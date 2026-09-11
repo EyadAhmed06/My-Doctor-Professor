@@ -1,9 +1,9 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class NormalizeAcademicSemesters2110000000000
+export class NormalizeAcademicSemesters2115000000000
   implements MigrationInterface
 {
-  name = 'NormalizeAcademicSemesters2110000000000';
+  name = 'NormalizeAcademicSemesters2115000000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
