@@ -113,3 +113,23 @@
     }
   }
 }
+
+@media (max-width: 760px) {
+  /* On phones the page title already provides location context. The desktop
+     breadcrumb consumes a narrow row directly below the topbar and, under the
+     compact theme layers, can collapse visually into an empty outlined strip.
+     Remove that redundant row rather than reserving unusable vertical space. */
+  .product-app > .phase5-breadcrumbs {
+    display: none !important;
+  }
+
+  /* Fixed role docks must never make the final controls unreachable. */
+  .product-app .phase5-workspace-main {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .product-app .pp-page {
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+}
