@@ -33,7 +33,7 @@
 }
 .countrySelect{
   padding:0 14px;
-  border-right:1px solid var(--pub-line);
+  border-inline-end:1px solid var(--pub-line);
   cursor:pointer;
 }
 .countrySelect option{
@@ -55,4 +55,19 @@
   .phoneShell{grid-template-columns:minmax(126px,42%) 1fr;min-height:54px}
   .countrySelect{padding:0 10px}
   .phoneInput{padding:0 12px}
+}
+@media(max-width:390px){
+  .phoneShell{
+    grid-template-columns:1fr;
+    min-height:0;
+  }
+  .countrySelect,.phoneInput{
+    min-height:52px;
+    font-size:16px;
+  }
+  .countrySelect{
+    border-inline-end:0;
+    border-bottom:1px solid var(--pub-line);
+    padding-inline:12px;
+  }
 }
