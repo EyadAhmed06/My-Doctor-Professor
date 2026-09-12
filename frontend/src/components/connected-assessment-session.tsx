@@ -252,7 +252,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
     if (eraserMode === "pen") { eraseDrawingAt(event); return; }
     if (!penMode || activeStroke.current === null) return;
     const point = drawingPoint(event); if (!point) return;
-    setDrawings((value) => { const strokes = [...(value[current.question.id] || [])]; const stroke = strokes[activeStroke.current!]; if (!stroke) return value; strokes[activeStroke.current!] = { points: [...stroke.points, point] }; return { ...value, [current.question.id]: strokes }; });
+    setDrawings((value) => { const strokes = [...(value[current.question.id] || [])]; const stroke = strokes[activeStroke.current!]; if (!stroke) return value; strokes[activeStroke.current!] = { ...stroke, points: [...stroke.points, point] }; return { ...value, [current.question.id]: strokes }; });
   }
   function stopDrawing() { activeStroke.current = null; }
   function eraseDrawingAt(event: ReactPointerEvent<HTMLDivElement>) {

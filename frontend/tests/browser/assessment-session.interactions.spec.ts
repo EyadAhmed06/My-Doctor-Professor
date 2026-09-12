@@ -228,6 +228,30 @@ test('Tutor mode supports highlighter, strike-out, flags, notes, labs, and immed
   await expect(page.locator('.exam-question-stem-text mark')).toHaveCount(0);
 });
 
+test('Pen preserves every selected colour while a stroke grows', async ({ page }) => {
+  await installAssessmentMock(page, 'TUTOR');
+  await page.goto(`/mock-exam/session?attempt=${attemptId}&test=${testId}&source=rounds`);
+
+  await page.getByRole('button', { name: /^Pen$/ }).click();
+  const surface = page.locator('.exam-annotation-surface');
+  const box = await surface.boundingBox();
+  if (!box) throw new Error('Pen drawing surface is not visible');
+
+  for (const [index, color] of ['blue', 'green', 'black', 'red'].entries()) {
+    const colourButton = page.getByRole('button', { name: `${color} pen` });
+    await colourButton.click();
+    await expect(colourButton).toHaveAttribute('aria-pressed', 'true');
+
+    const y = box.y + 24 + index * 16;
+    await page.mouse.move(box.x + 24, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 70, y + 4, { steps: 4 });
+    await page.mouse.up();
+
+    await expect(page.locator('.exam-pen-layer polyline').nth(index)).toHaveAttribute('stroke', color);
+  }
+});
+
 test('Timed mode hides live explanations, uses the countdown controls, and reveals explanations after submission', async ({ page }) => {
   const deadline = new Date(Date.now() + 5 * 60_000).toISOString();
   await installAssessmentMock(page, 'TIMED', deadline);
