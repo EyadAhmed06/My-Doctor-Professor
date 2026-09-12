@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthSession } from './entities/auth-session.entity';
+import { DeviceBinding } from './entities/device-binding.entity';
 import { InstructorAvailability } from './entities/instructor-availability.entity';
 import { Instructor } from './entities/instructor.entity';
 import { Student } from './entities/student.entity';
@@ -12,7 +13,7 @@ import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Student, Instructor, SystemAdmin, InstructorAvailability, AuthSession])],
+  imports: [TypeOrmModule.forFeature([User, Student, Instructor, SystemAdmin, InstructorAvailability, AuthSession, DeviceBinding])],
   controllers: [UsersController, ProfilePicturesController],
   providers: [UsersService, ProfilePictureStorageService],
   exports: [UsersService, ProfilePictureStorageService],

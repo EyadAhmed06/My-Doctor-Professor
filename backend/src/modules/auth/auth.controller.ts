@@ -35,11 +35,13 @@ import type { AuthenticatedUser } from './strategies/jwt.strategy';
 interface MessageResponse { message: string }
 const REFRESH_COOKIE = 'mdp_refresh';
 const REFRESH_MODE_COOKIE = 'mdp_refresh_mode';
+const DEVICE_COOKIE_PREFIX = 'mdp_device_';
 const SIGNUP_RESPONSE = 'If registration can be completed, check your email to continue. Otherwise use sign in or account recovery.';
 
 @Controller('auth')
 export class AuthController {
   private readonly refreshLifetimeSeconds: number;
+  private readonly deviceCookieLifetimeSeconds: number;
   private readonly allowedOrigins: ReadonlySet<string>;
 
   constructor(
@@ -49,6 +51,7 @@ export class AuthController {
     private readonly config: ConfigService,
   ) {
     this.refreshLifetimeSeconds = this.readPositiveInteger('JWT_REFRESH_TTL_SECONDS', 604800);
+    this.deviceCookieLifetimeSeconds = this.readPositiveInteger('AUTH_DEVICE_COOKIE_TTL_DAYS', 3650) * 86400;
     this.allowedOrigins = parseAllowedOrigins(
       this.config.get('FRONTEND_URL'),
       this.config.get('CORS_ORIGINS'),
@@ -70,8 +73,10 @@ export class AuthController {
       dto,
       request.ip ?? request.socket.remoteAddress ?? 'unknown',
       userAgent,
+      this.readDeviceCookies(request),
     );
     this.writeRefreshCookies(request, response, auth.refresh_token, dto.remember !== false);
+    this.writeDeviceCookieIfIssued(request, response, auth.user.id, auth.device_token);
     return this.forTransport(auth, request);
   }
 
@@ -98,9 +103,11 @@ export class AuthController {
       dto.credential,
       request.ip ?? request.socket.remoteAddress ?? 'unknown',
       userAgent,
+      this.readDeviceCookies(request),
     );
     if ('refresh_token' in result) {
       this.writeRefreshCookies(request, response, result.refresh_token, dto.remember !== false);
+      this.writeDeviceCookieIfIssued(request, response, result.user.id, result.device_token);
       return this.forTransport(result, request);
     }
     return result;
@@ -121,8 +128,10 @@ export class AuthController {
       dto,
       request.ip ?? request.socket.remoteAddress ?? 'unknown',
       userAgent,
+      this.readDeviceCookies(request),
     );
     this.writeRefreshCookies(request, response, auth.refresh_token, true);
+    this.writeDeviceCookieIfIssued(request, response, auth.user.id, auth.device_token);
     return this.forTransport(auth, request);
   }
 
@@ -281,8 +290,11 @@ export class AuthController {
   }
 
   private forTransport(auth: AuthResponseDto, request: Request): AuthResponseDto {
-    if (!this.isFrontendBrowserRequest(request)) return auth;
-    const { refresh_token: refreshToken, ...browserAuth } = auth;
+    const internalAuth = auth as AuthResponseDto & { device_token?: string };
+    const { device_token: deviceToken, ...publicAuth } = internalAuth;
+    void deviceToken;
+    if (!this.isFrontendBrowserRequest(request)) return publicAuth as AuthResponseDto;
+    const { refresh_token: refreshToken, ...browserAuth } = publicAuth;
     void refreshToken;
     return browserAuth as AuthResponseDto;
   }
@@ -308,6 +320,36 @@ export class AuthController {
     const options = this.refreshCookieOptions(request);
     response.clearCookie(REFRESH_COOKIE, options);
     response.clearCookie(REFRESH_MODE_COOKIE, options);
+  }
+
+  private writeDeviceCookieIfIssued(
+    request: Request,
+    response: Response,
+    userId: string,
+    deviceToken?: string,
+  ): void {
+    if (!deviceToken) return;
+    response.cookie(`${DEVICE_COOKIE_PREFIX}${userId}`, deviceToken, {
+      ...this.refreshCookieOptions(request),
+      maxAge: this.deviceCookieLifetimeSeconds * 1000,
+    });
+  }
+
+  private readDeviceCookies(request: Request): Record<string, string> {
+    const tokens: Record<string, string> = {};
+    const header = request.headers.cookie;
+    if (!header) return tokens;
+    for (const part of header.split(';')) {
+      const separator = part.indexOf('=');
+      if (separator < 0) continue;
+      const name = part.slice(0, separator).trim();
+      if (!name.startsWith(DEVICE_COOKIE_PREFIX)) continue;
+      const userId = name.slice(DEVICE_COOKIE_PREFIX.length);
+      if (!/^[0-9a-f-]{36}$/i.test(userId)) continue;
+      const value = part.slice(separator + 1).trim();
+      try { tokens[userId] = decodeURIComponent(value); } catch { tokens[userId] = value; }
+    }
+    return tokens;
   }
 
   private refreshCookieOptions(request: Request): CookieOptions {

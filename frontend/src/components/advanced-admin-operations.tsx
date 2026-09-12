@@ -8,12 +8,15 @@ import {
   FiChevronRight,
   FiDownload,
   FiFileText,
+  FiLock,
+  FiMonitor,
   FiPlus,
   FiRefreshCw,
   FiSearch,
   FiShield,
   FiTrash2,
   FiUpload,
+  FiUnlock,
   FiX,
 } from "react-icons/fi";
 import { apiBaseUrl } from "@/lib/api";
@@ -22,6 +25,7 @@ import { EmptyState, ErrorState, PageSkeleton } from "./async-state";
 import { Panel, ProductShell } from "./product-shell";
 import { useUx } from "./ux-provider";
 import "./role-workspace.css";
+import "./device-binding-admin.css";
 
 type PageResponse<T> = { data: T[]; page: number; limit: number; total: number; total_pages: number };
 type ManagedUser = {
@@ -59,6 +63,25 @@ type ImportResult = {
   errors: Array<{ index: number; email: string; error: string }>;
   created_count: number;
   error_count: number;
+};
+type DeviceSecurity = {
+  device_binding: {
+    id: string;
+    ip_address: string | null;
+    user_agent: string | null;
+    bound_at: string;
+    last_seen_at: string | null;
+  } | null;
+  sessions: Array<{
+    id: string;
+    ip_address: string | null;
+    user_agent: string | null;
+    created_at: string;
+    last_used_at: string | null;
+    expires_at: string;
+    revoked_at: string | null;
+    is_active: boolean;
+  }>;
 };
 type AuditLog = {
   id: string;
@@ -192,6 +215,9 @@ export function AdvancedAdminUsersPage() {
   const [importRows, setImportRows] = useState<UserDraft[]>([]);
   const [importValidation, setImportValidation] = useState<string[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [securityTarget, setSecurityTarget] = useState<ManagedUser | null>(null);
+  const [deviceSecurity, setDeviceSecurity] = useState<DeviceSecurity | null>(null);
+  const [securityLoading, setSecurityLoading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -276,6 +302,38 @@ export function AdvancedAdminUsersPage() {
     }
   }
 
+  async function openDeviceSecurity(target: ManagedUser) {
+    setSecurityTarget(target);
+    setDeviceSecurity(null);
+    setSecurityLoading(true);
+    try {
+      setDeviceSecurity(await request<DeviceSecurity>(`/admin/users/${target.id}/sessions`));
+    } catch (cause) {
+      notify({ title: "Could not load device access", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+      setSecurityTarget(null);
+    } finally {
+      setSecurityLoading(false);
+    }
+  }
+
+  async function releaseDevice() {
+    if (!securityTarget || busy) return;
+    if (!window.confirm(`Release the registered device for ${securityTarget.email}? Their active session will be revoked immediately.`)) return;
+    setBusy(true);
+    try {
+      await request(`/admin/users/${securityTarget.id}/device-binding`, { method: "DELETE" });
+      setDeviceSecurity((current) => current ? {
+        device_binding: null,
+        sessions: current.sessions.map((session) => ({ ...session, is_active: false, revoked_at: session.revoked_at || new Date().toISOString() })),
+      } : current);
+      notify({ title: "Device released", description: `${securityTarget.full_name} can register a new browser on their next successful sign-in.`, tone: "success" });
+    } catch (cause) {
+      notify({ title: "Could not release device", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function parseImport(file: File) {
     setImportResult(null);
     try {
@@ -325,8 +383,10 @@ export function AdvancedAdminUsersPage() {
     {user?.role !== "SYSTEM_ADMIN" ? <Panel title="Administrator access required"><p>This workspace is restricted to system administrators.</p></Panel> : <>
       <Panel className="role-filter-panel"><div className="role-filters"><label><span>Search</span><div className="role-search"><FiSearch /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name, email, or phone" /></div></label><label><span>Role</span><select value={role} onChange={(event) => setRole(event.target.value)}><option value="">All roles</option><option value="STUDENT">Students</option><option value="INSTRUCTOR">Instructors</option><option value="SYSTEM_ADMIN">Administrators</option></select></label><label><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">All statuses</option><option value="ACTIVE">Active</option><option value="PENDING_VERIFICATION">Pending verification</option><option value="SUSPENDED">Suspended</option><option value="DEACTIVATED">Deactivated</option></select></label><label><span>Rows</span><select value={limit} onChange={(event) => setLimit(Number(event.target.value))}>{[10, 20, 50, 100].map((value) => <option value={value} key={value}>{value}</option>)}</select></label></div></Panel>
       {error && <ErrorState description={error} onRetry={() => void load()} />}
-      {loading ? <PageSkeleton variant="list" label="Loading users" /> : rows.length ? <Panel title={`${total} accounts`} className="role-table-panel"><div className="role-table-scroll"><table className="role-table"><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Role profile</th><th>Last login</th><th>Actions</th></tr></thead><tbody>{rows.map((target) => <tr key={target.id}><td><div className="role-person"><span>{target.full_name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}</span><div><b>{target.full_name}</b><small>{target.email}<br />{target.phone_number}</small></div></div></td><td><Status value={target.role} /></td><td><select className="role-inline-select" value={target.status} disabled={target.id === user.id || busy} onChange={(event) => void changeStatus(target, event.target.value as ManagedUser["status"])}><option value="ACTIVE">Active</option><option value="SUSPENDED">Suspended</option><option value="DEACTIVATED">Deactivated</option>{target.status === "PENDING_VERIFICATION" && <option value="PENDING_VERIFICATION">Pending verification</option>}</select></td><td><small>{target.role === "STUDENT" ? `${target.student_number || "No number"} · Semester ${target.current_semester || "—"}` : target.role === "INSTRUCTOR" ? `${target.specialization || "No specialization"}${target.office_location ? ` · ${target.office_location}` : ""}` : `${target.employee_number || "No employee number"}${target.is_super_admin ? " · Super admin" : ""}`}</small></td><td><small>{target.last_login_at ? new Date(target.last_login_at).toLocaleString() : "Never"}</small></td><td><div className="role-row-actions"><button type="button" onClick={() => void resetPassword(target)} title="Reset password"><FiShield /></button><button type="button" className="danger" disabled={target.id === user.id} onClick={() => void removeUser(target)} title="Deactivate user"><FiTrash2 /></button></div></td></tr>)}</tbody></table></div><Pagination page={page} totalPages={totalPages} total={total} limit={limit} onPage={setPage} /></Panel> : <EmptyState title="No accounts match these filters" description="Adjust the filters, move to another page, import a CSV, or create a new account." />}
+      {loading ? <PageSkeleton variant="list" label="Loading users" /> : rows.length ? <Panel title={`${total} accounts`} className="role-table-panel"><div className="role-table-scroll"><table className="role-table"><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Role profile</th><th>Last login</th><th>Actions</th></tr></thead><tbody>{rows.map((target) => <tr key={target.id}><td><div className="role-person"><span>{target.full_name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}</span><div><b>{target.full_name}</b><small>{target.email}<br />{target.phone_number}</small></div></div></td><td><Status value={target.role} /></td><td><select className="role-inline-select" value={target.status} disabled={target.id === user.id || busy} onChange={(event) => void changeStatus(target, event.target.value as ManagedUser["status"])}><option value="ACTIVE">Active</option><option value="SUSPENDED">Suspended</option><option value="DEACTIVATED">Deactivated</option>{target.status === "PENDING_VERIFICATION" && <option value="PENDING_VERIFICATION">Pending verification</option>}</select></td><td><small>{target.role === "STUDENT" ? `${target.student_number || "No number"} · Semester ${target.current_semester || "—"}` : target.role === "INSTRUCTOR" ? `${target.specialization || "No specialization"}${target.office_location ? ` · ${target.office_location}` : ""}` : `${target.employee_number || "No employee number"}${target.is_super_admin ? " · Super admin" : ""}`}</small></td><td><small>{target.last_login_at ? new Date(target.last_login_at).toLocaleString() : "Never"}</small></td><td><div className="role-row-actions">{target.role === "STUDENT" && <button type="button" onClick={() => void openDeviceSecurity(target)} title="Manage registered device"><FiLock /></button>}<button type="button" onClick={() => void resetPassword(target)} title="Reset password"><FiShield /></button><button type="button" className="danger" disabled={target.id === user.id} onClick={() => void removeUser(target)} title="Deactivate user"><FiTrash2 /></button></div></td></tr>)}</tbody></table></div><Pagination page={page} totalPages={totalPages} total={total} limit={limit} onPage={setPage} /></Panel> : <EmptyState title="No accounts match these filters" description="Adjust the filters, move to another page, import a CSV, or create a new account." />}
     </>}
+
+    <Modal title={`Device access${securityTarget ? ` · ${securityTarget.full_name}` : ""}`} open={Boolean(securityTarget)} onClose={() => { setSecurityTarget(null); setDeviceSecurity(null); }} wide><div className="admin-device-dialog">{securityLoading ? <PageSkeleton variant="list" label="Loading registered device" /> : deviceSecurity?.device_binding ? <><section className="admin-device-card"><FiMonitor /><div><small>REGISTERED BROWSER</small><h3>{deviceSecurity.device_binding.user_agent || "Unknown browser"}</h3><p>IP address: {deviceSecurity.device_binding.ip_address || "Not recorded"}</p><p>Registered: {new Date(deviceSecurity.device_binding.bound_at).toLocaleString()}</p><p>Last verified: {deviceSecurity.device_binding.last_seen_at ? new Date(deviceSecurity.device_binding.last_seen_at).toLocaleString() : "Never"}</p></div><FiLock /></section><p className="admin-device-warning"><FiAlertTriangle /> Releasing this device also revokes every active session. The next browser that successfully signs in becomes the registered device.</p></> : <section className="admin-device-card released"><FiUnlock /><div><small>DEVICE ACCESS OPEN</small><h3>No browser is currently registered</h3><p>The next successful student sign-in will bind this account to that browser.</p></div></section>}<footer><button className="pp-button secondary" type="button" onClick={() => { setSecurityTarget(null); setDeviceSecurity(null); }}>Close</button><button className="pp-button danger" type="button" disabled={busy || securityLoading || !deviceSecurity?.device_binding} onClick={() => void releaseDevice()}><FiUnlock /> {busy ? "Releasing…" : "Release registered device"}</button></footer></div></Modal>
 
     <Modal title="Create managed account" open={createOpen} onClose={() => setCreateOpen(false)} wide><form className="role-form" onSubmit={createUser}><div className="role-form-grid"><label>Full name<input required value={draft.full_name} onChange={(event) => setDraft((current) => ({ ...current, full_name: event.target.value }))} /></label><label>Email<input required type="email" value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} /></label><label>Phone number<input required placeholder="+201000000000" value={draft.phone_number} onChange={(event) => setDraft((current) => ({ ...current, phone_number: event.target.value }))} /></label><label>Initial password<input required minLength={12} type="password" value={draft.password} onChange={(event) => setDraft((current) => ({ ...current, password: event.target.value }))} /></label><label>Role<select value={draft.role} onChange={(event) => setDraft((current) => ({ ...current, role: event.target.value as UserRole }))}><option value="STUDENT">Student</option><option value="INSTRUCTOR">Instructor</option><option value="SYSTEM_ADMIN">System administrator</option></select></label>{draft.role === "STUDENT" && <><label>Student number<input required value={draft.student_number || ""} onChange={(event) => setDraft((current) => ({ ...current, student_number: event.target.value }))} /></label><label>Current semester<input required min={1} type="number" value={draft.current_semester || 1} onChange={(event) => setDraft((current) => ({ ...current, current_semester: Number(event.target.value) }))} /></label></>}{draft.role === "INSTRUCTOR" && <><label>Specialization<input value={draft.specialization || ""} onChange={(event) => setDraft((current) => ({ ...current, specialization: event.target.value }))} /></label><label>Office location<input value={draft.office_location || ""} onChange={(event) => setDraft((current) => ({ ...current, office_location: event.target.value }))} /></label></>}{draft.role === "SYSTEM_ADMIN" && <><label>Employee number<input required value={draft.employee_number || ""} onChange={(event) => setDraft((current) => ({ ...current, employee_number: event.target.value }))} /></label><label className="role-checkbox"><input type="checkbox" checked={Boolean(draft.is_super_admin)} onChange={(event) => setDraft((current) => ({ ...current, is_super_admin: event.target.checked }))} /> Grant super-administrator authority</label></>}</div><footer><button className="pp-button secondary" type="button" onClick={() => setCreateOpen(false)}>Cancel</button><button className="pp-button" disabled={busy} type="submit">{busy ? "Creating…" : "Create account"}</button></footer></form></Modal>
 

@@ -21,6 +21,7 @@ import { JwtPayload } from './dtos/jwt-payload.dto';
 import { LoginDto } from './dtos/login.dto';
 import { SignupDto } from './dtos/signup.dto';
 import { EmailService } from './email.service';
+import { DeviceBindingService } from './device-binding.service';
 import {
   AccountActionToken,
   AccountActionTokenPurpose,
@@ -29,6 +30,8 @@ import {
 interface MessageResponse {
   message: string;
 }
+
+export type DeviceBoundAuthResponse = AuthResponseDto & { device_token?: string };
 
 @Injectable()
 export class AuthService {
@@ -46,6 +49,7 @@ export class AuthService {
     private readonly emailService: EmailService,
     private readonly rateLimits: AuthRateLimitService,
     private readonly dataSource: DataSource,
+    private readonly deviceBindings: DeviceBindingService,
   ) {
     this.accessSecret = this.config.getOrThrow<string>('JWT_SECRET');
     this.refreshSecret = this.config.getOrThrow<string>('JWT_REFRESH_SECRET');
@@ -205,7 +209,12 @@ export class AuthService {
     return { message: 'Password reset successfully. Sign in with your new password.' };
   }
 
-  async login(dto: LoginDto, ip: string, userAgent?: string | null): Promise<AuthResponseDto> {
+  async login(
+    dto: LoginDto,
+    ip: string,
+    userAgent?: string | null,
+    deviceTokens?: Readonly<Record<string, string>>,
+  ): Promise<DeviceBoundAuthResponse> {
     const startedAt = Date.now();
     await this.rateLimits.enforceLogin(ip, dto.email);
     const user = await this.usersService.findByEmail(dto.email);
@@ -237,8 +246,15 @@ export class AuthService {
       await this.usersService.upgradePasswordHash(user.id, dto.password);
     }
     await this.usersService.resetFailedLoginAttempts(user.id);
-    await this.usersService.updateLastLogin(user.id);
-    return this.createSession(user, ip, userAgent);
+    const device = await this.deviceBindings.authorize(user, deviceTokens?.[user.id], ip, userAgent);
+    try {
+      const auth = await this.createSession(user, ip, userAgent);
+      await this.usersService.updateLastLogin(user.id);
+      return device?.issuedToken ? { ...auth, device_token: device.issuedToken } : auth;
+    } catch (error) {
+      await this.deviceBindings.releaseIfNew(device);
+      throw error;
+    }
   }
 
   async refreshAccessToken(refreshToken: string): Promise<AuthResponseDto> {

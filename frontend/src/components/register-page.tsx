@@ -72,6 +72,11 @@ export function RegisterPage() {
   const [googleOnboarding,setGoogleOnboarding]=useState<GoogleOnboardingResult|null>(null);
 
   const resolveErrorMessage = useCallback((cause: unknown, fallback: string) => {
+    if (cause instanceof ApiError && cause.status === 423 && cause.problem?.error === "DEVICE_LOCKED") {
+      return locale === "ar"
+        ? "هذا الحساب مرتبط بمتصفح آخر. تواصل مع مسؤول النظام للسماح بتغيير الجهاز."
+        : "This account is registered to another browser. Contact an administrator to authorize a device change.";
+    }
     if (cause instanceof ApiError && cause.status === 409 && cause.problem?.error === "ACTIVE_SESSION_EXISTS") {
       return locale === "ar"
         ? "أنت مسجّل الدخول بالفعل على جهاز آخر. سجّل الخروج من ذلك الجهاز للمتابعة، أو تواصل مع مسؤول النظام لتحرير جلستك."

@@ -40,6 +40,7 @@ function buildService(passwordValid: boolean) {
     emailService as never,
     rateLimits as never,
     dataSource as never,
+    { authorize: jest.fn(), releaseIfNew: jest.fn() } as never,
   );
   return { service, usersService };
 }
