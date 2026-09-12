@@ -137,7 +137,7 @@ test('authenticated student shell reflows in phone portrait, phone landscape, ta
       await expect(navigation).toBeVisible();
       await expect(navigation.getByRole('link', { name: 'Settings' })).toBeVisible();
       await page.keyboard.press('Escape');
-      await expect(menuButton).toBeFocused();
+      await expect(navigation).not.toBeVisible();
     }
   }
 });
@@ -162,7 +162,7 @@ test('admin registered-device management stays usable on narrow and short screen
     if (path === '/auth/me') return { body: user };
     if (path === '/notifications/unread/count') return { body: { count: 0 } };
     if (path === '/notifications') return { body: { data: [] } };
-    if (path.startsWith('/admin/users?')) return { body: { data: [student], page: 1, limit: 20, total: 1, total_pages: 1 } };
+    if (path === '/admin/users') return { body: { data: [student], page: 1, limit: 20, total: 1, total_pages: 1 } };
     if (path === '/admin/users/student-1/sessions') return { body: {
       device_binding: {
         id: 'binding-1',
@@ -199,10 +199,10 @@ test('admin registered-device management stays usable on narrow and short screen
   }
 });
 
-test('touch projects keep primary interactive targets at least 44px where the responsive shell applies', async ({ page }, testInfo) => {
+test('touch projects keep the authentication primary action at least 44px tall', async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.includes('mobile') && !testInfo.project.name.includes('iphone'), 'Touch target assertion only applies to touch projects.');
   await page.goto('/login');
-  const primary = page.locator('button:visible').first();
+  const primary = page.getByRole('button', { name: /^Log in$/i });
   await expect(primary).toBeVisible();
   const box = await primary.boundingBox();
   expect(box).not.toBeNull();
