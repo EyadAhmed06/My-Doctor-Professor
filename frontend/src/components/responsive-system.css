@@ -1,0 +1,217 @@
+/*
+ * Shared responsive layout system.
+ *
+ * Content-driven breakpoints used by the existing product shell:
+ *   1180px — primary navigation collapses into the off-canvas menu
+ *    820px — workspace columns/actions stack for touch-first layouts
+ *    560px — compact phone layout
+ *
+ * Height is intentionally considered separately. Short landscape screens use
+ * max-height rules only for overlays and other viewport-bound UI.
+ * Component-specific responsive behavior should stay with that component.
+ */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body,
+.product-app,
+.pp-page,
+.role-workspace,
+.dashboard-shell,
+.dashboard-embedded,
+.settings-complete-page {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.product-app :where(img, video, canvas, svg, iframe),
+.public-home :where(img, video, canvas, svg, iframe),
+.reference-login :where(img, video, canvas, svg, iframe),
+.reference-register :where(img, video, canvas, svg, iframe) {
+  max-inline-size: 100%;
+}
+
+.product-app :where(img, video),
+.public-home :where(img, video),
+.reference-login :where(img, video),
+.reference-register :where(img, video) {
+  block-size: auto;
+}
+
+.product-app :where(h1, h2, h3, p, small, td, th, dd, dt, label, a, button),
+.reference-login :where(h1, h2, h3, p, small, label, a, button),
+.reference-register :where(h1, h2, h3, p, small, label, a, button) {
+  overflow-wrap: anywhere;
+}
+
+.product-app :where(.role-table-scroll, .admin-table-wrap, .table-scroll, .pp-table-wrap, .admin-import-preview) {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.product-app :where(.role-table, .admin-table) {
+  max-inline-size: none;
+}
+
+@media (max-width: 1180px) {
+  .product-app .pp-topbar > nav {
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+
+  .product-app .pp-mobile-overlay {
+    inset: 0;
+  }
+}
+
+@media (max-width: 820px) {
+  .product-app :where(button, a[role="button"], input, select, textarea),
+  .product-app :where(.pp-button, .role-icon-button, .toast-action, .toast-dismiss) {
+    min-block-size: 44px;
+  }
+
+  .product-app :where(input, select, textarea),
+  .reference-login :where(input, select, textarea),
+  .reference-register :where(input, select, textarea) {
+    font-size: 16px;
+  }
+
+  .product-app .role-row-actions {
+    flex-wrap: wrap;
+  }
+
+  .product-app .role-row-actions button,
+  .product-app .role-icon-button {
+    min-inline-size: 44px;
+    min-block-size: 44px;
+  }
+
+  .product-app .role-modal-backdrop {
+    padding-top: max(8px, env(safe-area-inset-top));
+    padding-right: max(8px, env(safe-area-inset-right));
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    padding-left: max(8px, env(safe-area-inset-left));
+  }
+
+  .product-app .role-modal {
+    max-block-size: calc(100dvh - max(16px, env(safe-area-inset-top)) - max(16px, env(safe-area-inset-bottom)));
+    overscroll-behavior: contain;
+  }
+
+  .product-app .role-modal > header {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 2;
+    min-block-size: 56px;
+    block-size: auto;
+    background: var(--p-panel);
+  }
+
+  .product-app .role-modal > header button {
+    min-inline-size: 44px;
+    min-block-size: 44px;
+  }
+
+  .product-app :where(.role-form footer, .admin-import-workspace > footer) {
+    flex-wrap: wrap;
+  }
+
+  .product-app :where(.header-popover, .command-palette, .phase5-drawer, .resource-preview-drawer) {
+    overscroll-behavior: contain;
+  }
+
+  .product-app .mobile-role-dock {
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+
+  .toast-viewport {
+    bottom: max(16px, env(safe-area-inset-bottom));
+    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, env(safe-area-inset-right));
+  }
+}
+
+@media (max-width: 560px) {
+  .product-app :where(.role-form footer, .admin-import-workspace > footer) > .pp-button,
+  .product-app .pp-title > div:last-child > .pp-button {
+    flex: 1 1 100%;
+    inline-size: 100%;
+  }
+
+  .product-app .role-pagination,
+  .product-app .admin-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .product-app .role-pagination button,
+  .product-app .admin-pagination button {
+    flex: 1 1 132px;
+  }
+}
+
+/* Short mobile landscape: width alone does not guarantee usable vertical space. */
+@media (max-height: 500px) and (min-width: 480px) {
+  .product-app .pp-topbar > nav {
+    block-size: 100dvh;
+    padding-top: max(54px, env(safe-area-inset-top));
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+
+  .product-app .role-modal-backdrop {
+    place-items: stretch center;
+    padding-top: max(4px, env(safe-area-inset-top));
+    padding-bottom: max(4px, env(safe-area-inset-bottom));
+  }
+
+  .product-app .role-modal {
+    align-self: stretch;
+    max-block-size: calc(100dvh - max(8px, env(safe-area-inset-top)) - max(8px, env(safe-area-inset-bottom)));
+    border-radius: 10px;
+  }
+
+  .product-app .role-modal > header {
+    min-block-size: 48px;
+  }
+
+  .command-palette-backdrop {
+    place-items: stretch center;
+    padding-top: max(4px, env(safe-area-inset-top));
+    padding-bottom: max(4px, env(safe-area-inset-bottom));
+  }
+
+  .command-palette {
+    align-self: stretch;
+    max-block-size: calc(100dvh - max(8px, env(safe-area-inset-top)) - max(8px, env(safe-area-inset-bottom)));
+  }
+
+  .product-app .header-popover {
+    top: max(4px, env(safe-area-inset-top));
+    bottom: max(4px, env(safe-area-inset-bottom));
+    max-height: none;
+  }
+
+  .product-app .resource-preview-drawer {
+    inset-block: max(4px, env(safe-area-inset-top)) max(4px, env(safe-area-inset-bottom));
+    block-size: auto;
+  }
+}
+
+@media (pointer: coarse) {
+  .product-app :where(.pp-menu, .pp-nav-close, .phase5-header-action, .profile-menu-trigger),
+  .public-home :where(button, a),
+  .reference-login :where(button, a),
+  .reference-register :where(button, a) {
+    min-inline-size: 44px;
+    min-block-size: 44px;
+  }
+}

@@ -7,6 +7,7 @@
   grid-template-columns: 48px minmax(0, 1fr) 32px;
   gap: 14px;
   align-items: start;
+  min-width: 0;
   padding: 18px;
   border: 1px solid var(--p-line);
   border-radius: 14px;
@@ -43,6 +44,7 @@
   margin: 4px 0;
   color: var(--p-muted);
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .admin-device-card.released {
@@ -60,6 +62,7 @@
   background: color-mix(in srgb, var(--p-orange) 10%, transparent);
   font-size: 12px;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .admin-device-warning svg {
@@ -73,6 +76,7 @@
   gap: 9px;
   margin-top: 18px;
   padding-top: 16px;
+  padding-bottom: env(safe-area-inset-bottom);
   border-top: 1px solid var(--p-line);
 }
 
@@ -80,4 +84,60 @@
   color: #fff;
   background: var(--p-danger);
   border-color: var(--p-danger);
+}
+
+@media (max-width: 560px) {
+  .admin-device-dialog {
+    padding: 14px;
+  }
+
+  .admin-device-card,
+  .admin-device-card.released {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 11px;
+    padding: 14px;
+  }
+
+  .admin-device-card > svg:first-child {
+    width: 40px;
+    height: 40px;
+    padding: 10px;
+  }
+
+  .admin-device-card > svg:last-child {
+    grid-column: 2;
+    justify-self: end;
+  }
+
+  .admin-device-card h3 {
+    font-size: 16px;
+  }
+
+  .admin-device-dialog footer {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .admin-device-dialog footer .pp-button {
+    width: 100%;
+  }
+}
+
+@media (max-height: 500px) and (min-width: 480px) {
+  .admin-device-dialog {
+    padding-block: 10px;
+  }
+
+  .admin-device-card {
+    padding: 12px;
+  }
+
+  .admin-device-dialog footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin-inline: -10px;
+    padding: 10px;
+    background: var(--p-panel);
+  }
 }
