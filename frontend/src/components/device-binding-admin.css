@@ -1,0 +1,83 @@
+.admin-device-dialog {
+  padding: 20px;
+}
+
+.admin-device-card {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 32px;
+  gap: 14px;
+  align-items: start;
+  padding: 18px;
+  border: 1px solid var(--p-line);
+  border-radius: 14px;
+  background: var(--p-panel2);
+}
+
+.admin-device-card > svg:first-child {
+  width: 48px;
+  height: 48px;
+  padding: 13px;
+  border-radius: 12px;
+  color: var(--p-teal);
+  background: color-mix(in srgb, var(--p-teal) 13%, transparent);
+}
+
+.admin-device-card > svg:last-child {
+  color: var(--p-orange);
+  font-size: 22px;
+}
+
+.admin-device-card small {
+  color: var(--p-teal);
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+
+.admin-device-card h3 {
+  margin: 5px 0 10px;
+  font: 700 18px Georgia, serif;
+  overflow-wrap: anywhere;
+}
+
+.admin-device-card p {
+  margin: 4px 0;
+  color: var(--p-muted);
+  font-size: 12px;
+}
+
+.admin-device-card.released {
+  grid-template-columns: 48px minmax(0, 1fr);
+}
+
+.admin-device-warning {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 14px 0 0;
+  padding: 12px;
+  border-radius: 10px;
+  color: var(--p-orange);
+  background: color-mix(in srgb, var(--p-orange) 10%, transparent);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-device-warning svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.admin-device-dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--p-line);
+}
+
+.admin-device-dialog .pp-button.danger {
+  color: #fff;
+  background: var(--p-danger);
+  border-color: var(--p-danger);
+}

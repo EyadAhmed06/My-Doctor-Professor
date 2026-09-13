@@ -8,7 +8,7 @@ const authResponse = {
   access_token: 'access-token',
   refresh_token: 'refresh-token',
   user: {
-    id: 'user-1',
+    id: '11111111-1111-4111-8111-111111111111',
     email: 'student@example.test',
     full_name: 'Student User',
     role: UserRole.STUDENT,
@@ -94,6 +94,51 @@ describe('AuthController web refresh transport', () => {
       'mdp_refresh_mode',
       'persistent',
       expect.objectContaining({ httpOnly: true }),
+    );
+  });
+
+  it('writes a persistent HttpOnly device credential without exposing it in JSON', async () => {
+    const { controller, authService, response, cookie } = setup();
+    authService.login.mockResolvedValueOnce({ ...authResponse, device_token: 'device-secret' });
+
+    const result = await controller.login(
+      { email: 'student@example.test', password: 'password', remember: true },
+      request('http://localhost:3001'),
+      response,
+    );
+
+    expect(result).not.toHaveProperty('device_token');
+    expect(cookie).toHaveBeenCalledWith(
+      'mdp_device_11111111-1111-4111-8111-111111111111',
+      'device-secret',
+      expect.objectContaining({
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/api/v1/auth',
+        maxAge: 3650 * 86400 * 1000,
+      }),
+    );
+  });
+
+  it('passes account-scoped device credentials into authentication', async () => {
+    const { controller, authService, response } = setup();
+    await controller.login(
+      { email: 'student@example.test', password: 'password', remember: true },
+      request(
+        'http://localhost:3001',
+        'mdp_device_11111111-1111-4111-8111-111111111111=right-device; mdp_device_22222222-2222-4222-8222-222222222222=other-device',
+      ),
+      response,
+    );
+
+    expect(authService.login).toHaveBeenCalledWith(
+      expect.anything(),
+      '127.0.0.1',
+      null,
+      {
+        '11111111-1111-4111-8111-111111111111': 'right-device',
+        '22222222-2222-4222-8222-222222222222': 'other-device',
+      },
     );
   });
 

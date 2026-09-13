@@ -17,6 +17,8 @@ import { AuthResponseDto } from './dtos/auth-response.dto';
 import { CompleteGoogleSignupDto, GoogleOnboardingResponseDto } from './dtos/google-auth.dto';
 import { JwtPayload } from './dtos/jwt-payload.dto';
 import { GoogleIdentityService, VerifiedGoogleIdentity } from './google-identity.service';
+import { DeviceBindingService } from './device-binding.service';
+import type { DeviceBoundAuthResponse } from './auth.service';
 import type { AuthenticatedUser } from './strategies/jwt.strategy';
 
 type GoogleOnboardingPayload = {
@@ -47,6 +49,7 @@ export class GoogleAuthService {
     private readonly rateLimits: AuthRateLimitService,
     private readonly googleIdentity: GoogleIdentityService,
     private readonly dataSource: DataSource,
+    private readonly deviceBindings: DeviceBindingService,
   ) {
     this.accessSecret = this.config.getOrThrow<string>('JWT_SECRET');
     this.refreshSecret = this.config.getOrThrow<string>('JWT_REFRESH_SECRET');
@@ -59,7 +62,8 @@ export class GoogleAuthService {
     credential: string,
     ip: string,
     userAgent?: string | null,
-  ): Promise<AuthResponseDto | GoogleOnboardingResponseDto> {
+    deviceTokens?: Readonly<Record<string, string>>,
+  ): Promise<DeviceBoundAuthResponse | GoogleOnboardingResponseDto> {
     await this.rateLimits.enforceProvider(ip, 'google');
     const identity = await this.googleIdentity.verifyCredential(credential);
 
@@ -69,8 +73,7 @@ export class GoogleAuthService {
       if (!user) throw new UnauthorizedException('Linked account no longer exists');
       this.assertAccountEnabled(user);
       await this.touchIdentity(user.id, identity);
-      await this.usersService.updateLastLogin(user.id);
-      return this.createSession(user, ip, userAgent);
+      return this.createDeviceBoundSession(user, ip, userAgent, deviceTokens);
     }
 
     const existingUser = await this.usersService.findByEmail(identity.email);
@@ -120,7 +123,8 @@ export class GoogleAuthService {
     dto: CompleteGoogleSignupDto,
     ip: string,
     userAgent?: string | null,
-  ): Promise<AuthResponseDto> {
+    deviceTokens?: Readonly<Record<string, string>>,
+  ): Promise<DeviceBoundAuthResponse> {
     await this.rateLimits.enforceProvider(ip, 'google-signup');
     const onboarding = await this.verifyOnboardingToken(dto.onboarding_token);
 
@@ -158,8 +162,24 @@ export class GoogleAuthService {
     const refreshedUser = await this.usersService.findById(user.id);
     if (!refreshedUser) throw new UnauthorizedException('Account creation did not complete');
     user = refreshedUser;
-    await this.usersService.updateLastLogin(user.id);
-    return this.createSession(user, ip, userAgent);
+    return this.createDeviceBoundSession(user, ip, userAgent, deviceTokens);
+  }
+
+  private async createDeviceBoundSession(
+    user: User,
+    ip?: string | null,
+    userAgent?: string | null,
+    deviceTokens?: Readonly<Record<string, string>>,
+  ): Promise<DeviceBoundAuthResponse> {
+    const device = await this.deviceBindings.authorize(user, deviceTokens?.[user.id], ip, userAgent);
+    try {
+      const auth = await this.createSession(user, ip, userAgent);
+      await this.usersService.updateLastLogin(user.id);
+      return device?.issuedToken ? { ...auth, device_token: device.issuedToken } : auth;
+    } catch (error) {
+      await this.deviceBindings.releaseIfNew(device);
+      throw error;
+    }
   }
 
   private async createOnboardingResponse(identity: VerifiedGoogleIdentity): Promise<GoogleOnboardingResponseDto> {

@@ -11,10 +11,11 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { createHash, timingSafeEqual } from "crypto";
 import { InjectRepository } from "@nestjs/typeorm";
-import { DataSource, In, Not, Repository } from "typeorm";
+import { DataSource, In, IsNull, Not, Repository } from "typeorm";
 import { AuthService } from "../auth/auth.service";
 import { AuthenticatedUser } from "../auth/strategies/jwt.strategy";
 import { AuthSession } from "../users/entities/auth-session.entity";
+import { DeviceBinding } from "../users/entities/device-binding.entity";
 import { Instructor } from "../users/entities/instructor.entity";
 import { Student } from "../users/entities/student.entity";
 import { SystemAdmin } from "../users/entities/system-admin.entity";
@@ -475,12 +476,17 @@ export class AdminService {
 
   async getUserSessions(id: string, _actor: AuthenticatedUser) {
     await this.requireUser(id);
-    const sessions = await this.dataSource
-      .getRepository(AuthSession)
-      .createQueryBuilder("session")
-      .where("session.user_id = :id", { id })
-      .orderBy("session.created_at", "DESC")
-      .getMany();
+    const [sessions, deviceBinding] = await Promise.all([
+      this.dataSource
+        .getRepository(AuthSession)
+        .createQueryBuilder("session")
+        .where("session.user_id = :id", { id })
+        .orderBy("session.created_at", "DESC")
+        .getMany(),
+      this.dataSource.getRepository(DeviceBinding).findOne({
+        where: { userId: id, releasedAt: IsNull() },
+      }),
+    ]);
     return {
       sessions: sessions.map((session) => ({
         id: session.id,
@@ -492,7 +498,44 @@ export class AdminService {
         revoked_at: session.revokedAt,
         is_active: !session.revokedAt && session.expiresAt > new Date(),
       })),
+      device_binding: deviceBinding ? {
+        id: deviceBinding.id,
+        ip_address: deviceBinding.ipAddress,
+        user_agent: deviceBinding.userAgent,
+        bound_at: deviceBinding.boundAt,
+        last_seen_at: deviceBinding.lastSeenAt,
+      } : null,
     };
+  }
+
+  async releaseUserDevice(id: string, actor: AuthenticatedUser) {
+    const target = await this.requireUser(id);
+    await this.assertCanManageTarget(actor, target);
+    return this.dataSource.transaction(async (manager) => {
+      const binding = await manager.findOne(DeviceBinding, {
+        where: { userId: id, releasedAt: IsNull() },
+        lock: { mode: "pessimistic_write" },
+      });
+      const releasedAt = new Date();
+      if (binding) {
+        binding.releasedAt = releasedAt;
+        binding.releasedByAdminId = actor.userId;
+        await manager.save(DeviceBinding, binding);
+      }
+      const sessions = await manager
+        .createQueryBuilder()
+        .update(AuthSession)
+        .set({ revokedAt: releasedAt })
+        .where("user_id = :id AND revoked_at IS NULL", { id })
+        .execute();
+      return {
+        message: binding
+          ? "Registered device released and active sessions revoked successfully"
+          : "No registered device was active; active sessions were revoked",
+        device_released: Boolean(binding),
+        revoked_session_count: sessions.affected ?? 0,
+      };
+    });
   }
 
   async revokeUserSessions(id: string, actor: AuthenticatedUser) {

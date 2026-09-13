@@ -4,10 +4,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from '../users/users.module';
+import { DeviceBinding } from '../users/entities/device-binding.entity';
 import { AuthController } from './auth.controller';
 import { AuthRateLimitService } from './auth-rate-limit.service';
 import { AuthService } from './auth.service';
 import { EmailService } from './email.service';
+import { DeviceBindingService } from './device-binding.service';
 import { AccountActionToken } from './entities/account-action-token.entity';
 import { AuthRateLimit } from './entities/auth-rate-limit.entity';
 import { EmailOutbox } from './entities/email-outbox.entity';
@@ -20,7 +22,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 @Module({
   imports: [
     UsersModule,
-    TypeOrmModule.forFeature([AccountActionToken, AuthRateLimit, EmailOutbox]),
+    TypeOrmModule.forFeature([AccountActionToken, AuthRateLimit, EmailOutbox, DeviceBinding]),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -32,6 +34,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
   ],
   providers: [
     AuthService,
+    DeviceBindingService,
     AuthRateLimitService,
     EmailService,
     GoogleIdentityService,

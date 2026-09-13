@@ -44,6 +44,7 @@ function setup(queryImpl?: (sql: string, params?: unknown[]) => unknown) {
     rateLimits as never,
     googleIdentity as never,
     dataSource as never,
+    { authorize: jest.fn(), releaseIfNew: jest.fn() } as never,
   );
   return { service, usersService, googleIdentity, dataSource };
 }

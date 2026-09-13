@@ -1,4 +1,4 @@
-import { ConflictException, HttpStatus } from '@nestjs/common';
+import { ConflictException, HttpException, HttpStatus } from '@nestjs/common';
 import { QueryFailedError } from 'typeorm';
 import { AdminService } from '../admin/admin.service';
 import { AuthSession } from '../users/entities/auth-session.entity';
@@ -131,6 +131,24 @@ describe('Single Active Session Policy', () => {
   }
 
   function createAuthServices(usersService: ReturnType<typeof createMockUsersService>) {
+    const boundDevices = new Map<string, string>();
+    const deviceBindings = {
+      authorize: jest.fn(async (user: User, presented?: string | null) => {
+        if (user.role !== UserRole.STUDENT) return null;
+        const existing = boundDevices.get(user.id);
+        if (existing && presented !== existing) {
+          throw new HttpException({ statusCode: 423, error: 'DEVICE_LOCKED' }, 423);
+        }
+        if (existing) return { bindingId: user.id, issuedToken: null, created: false };
+        const issuedToken = `device-token-${user.id}`;
+        boundDevices.set(user.id, issuedToken);
+        return { bindingId: user.id, issuedToken, created: true };
+      }),
+      releaseIfNew: jest.fn(async (authorization?: { bindingId: string; created: boolean } | null) => {
+        if (authorization?.created) boundDevices.delete(authorization.bindingId);
+      }),
+      releaseForTest: (userId: string) => boundDevices.delete(userId),
+    };
     const jwtService = {
       signAsync: jest.fn().mockResolvedValue('mocked.jwt.token'),
     };
@@ -173,6 +191,7 @@ describe('Single Active Session Policy', () => {
       emailService as never,
       rateLimits as never,
       dataSource as never,
+      deviceBindings as never,
     );
 
     const googleAuthService = new GoogleAuthService(
@@ -182,9 +201,10 @@ describe('Single Active Session Policy', () => {
       rateLimits as never,
       googleIdentity as never,
       dataSource as never,
+      deviceBindings as never,
     );
 
-    return { authService, googleAuthService };
+    return { authService, googleAuthService, deviceBindings };
   }
 
   beforeEach(() => {
@@ -207,13 +227,14 @@ describe('Single Active Session Policy', () => {
     expect(mockSessions[0].ipAddress).toBe('192.168.1.1');
     expect(mockSessions[0].userAgent).toContain('Chrome/120.0');
 
-    // Second login attempt from another device is refused with 409 Conflict
+    // A second login from the same registered browser is refused with 409 Conflict.
     let caughtError: unknown;
     try {
       await authService.login(
         { email: studentUser.email, password: 'password123', remember: true },
         '10.0.0.5',
         'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148',
+        { [studentUser.id]: firstLogin.device_token! },
       );
     } catch (error) {
       caughtError = error;
@@ -236,12 +257,12 @@ describe('Single Active Session Policy', () => {
     expect(mockSessions[0].revokedAt).toBeNull();
   });
 
-  it('2. succeeds when logging in after logout on the held device', async () => {
+  it('2. keeps the account bound after logout and permits only the registered device', async () => {
     const usersService = createMockUsersService();
     const { authService } = createAuthServices(usersService);
 
     // Initial login
-    await authService.login(
+    const firstLogin = await authService.login(
       { email: studentUser.email, password: 'password123', remember: true },
       '192.168.1.1',
     );
@@ -251,10 +272,18 @@ describe('Single Active Session Policy', () => {
     await authService.revokeSession(mockSessions[0].id);
     expect(mockSessions[0].revokedAt).not.toBeNull();
 
-    // Second login on new device now succeeds
-    const secondLogin = await authService.login(
+    // Logout frees the session, but a browser without the device credential remains locked out.
+    await expect(authService.login(
       { email: studentUser.email, password: 'password123', remember: true },
       '10.0.0.5',
+    )).rejects.toMatchObject({ status: HttpStatus.LOCKED });
+
+    // The registered browser can sign in again after logout.
+    const secondLogin = await authService.login(
+      { email: studentUser.email, password: 'password123', remember: true },
+      '192.168.1.1',
+      undefined,
+      { [studentUser.id]: firstLogin.device_token! },
     );
     expect(secondLogin).toBeDefined();
     expect(mockSessions.filter((s) => !s.revokedAt)).toHaveLength(1);
@@ -296,7 +325,7 @@ describe('Single Active Session Policy', () => {
     usersService.hasActiveSession.mockResolvedValue(false);
 
     // First login succeeds and inserts
-    await authService.login(
+    const firstLogin = await authService.login(
       { email: studentUser.email, password: 'password123', remember: true },
       '192.168.1.1',
     );
@@ -307,6 +336,8 @@ describe('Single Active Session Policy', () => {
       await authService.login(
         { email: studentUser.email, password: 'password123', remember: true },
         '192.168.1.2',
+        undefined,
+        { [studentUser.id]: firstLogin.device_token! },
       );
     } catch (error) {
       caughtError = error;
@@ -341,6 +372,9 @@ describe('Single Active Session Policy', () => {
         'google-jwt-credential',
         '10.0.0.8',
         'GoogleApp/2.0',
+        'device_token' in firstGoogle && firstGoogle.device_token
+          ? { [studentUser.id]: firstGoogle.device_token }
+          : undefined,
       );
     } catch (error) {
       caughtError = error;
@@ -392,7 +426,7 @@ describe('Single Active Session Policy', () => {
 
   it('7. allows admin force-release to revoke live sessions and free the slot', async () => {
     const usersService = createMockUsersService();
-    const { authService } = createAuthServices(usersService);
+    const { authService, deviceBindings } = createAuthServices(usersService);
 
     // Student logs in on held device
     await authService.login(
@@ -409,7 +443,7 @@ describe('Single Active Session Policy', () => {
         '192.168.1.200',
         'Device B',
       ),
-    ).rejects.toThrow(ConflictException);
+    ).rejects.toMatchObject({ status: HttpStatus.LOCKED });
 
     // Admin force releases sessions
     const adminActor = {
@@ -469,6 +503,9 @@ describe('Single Active Session Policy', () => {
     expect(revokeResult.revoked_count).toBe(1);
     expect(mockSessions.find((s) => s.userId === studentUser.id)?.revokedAt).not.toBeNull();
 
+    // The dedicated admin device-release operation removes the persistent binding.
+    deviceBindings.releaseForTest(studentUser.id);
+
     // Student is now able to log in on Device B
     const deviceBLogin = await authService.login(
       { email: studentUser.email, password: 'password123', remember: true },
@@ -484,7 +521,7 @@ describe('Single Active Session Policy', () => {
     const { authService } = createAuthServices(usersService);
 
     // Initial login creates session
-    await authService.login(
+    const firstLogin = await authService.login(
       { email: studentUser.email, password: 'password123', remember: true },
       '192.168.1.1',
     );
@@ -497,6 +534,8 @@ describe('Single Active Session Policy', () => {
     const secondLogin = await authService.login(
       { email: studentUser.email, password: 'password123', remember: true },
       '192.168.1.2',
+      undefined,
+      { [studentUser.id]: firstLogin.device_token! },
     );
     expect(secondLogin).toBeDefined();
     expect(mockSessions[0].revokedAt).not.toBeNull();

@@ -120,6 +120,15 @@ export class AdminController {
     return this.admin.revokeUserSessions(id, actor);
   }
 
+  @Delete('users/:userId/device-binding')
+  @HttpCode(HttpStatus.OK)
+  releaseUserDevice(
+    @Param('userId', uuid) id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.admin.releaseUserDevice(id, actor);
+  }
+
   @Delete('users/:userId/sessions/:sessionId')
   @HttpCode(HttpStatus.OK)
   revokeUserSession(
