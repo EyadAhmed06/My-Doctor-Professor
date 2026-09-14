@@ -16,7 +16,19 @@ describe('ReconcileStudentDashboardContract2160000000000', () => {
     expect(sql).toContain('CREATE TABLE IF NOT EXISTS study_plan_items');
     expect(sql).toContain('ADD COLUMN IF NOT EXISTS completed_at timestamp');
     expect(sql).toContain('ADD COLUMN IF NOT EXISTS answered_at timestamp');
-    expect(sql).toContain('SET answered_at = COALESCE(answered_at, created_at, CURRENT_TIMESTAMP)');
+
+    // student_answers has no canonical created_at column. Historical rows are
+    // therefore backfilled from the parent attempt timestamps, followed by a
+    // defensive CURRENT_TIMESTAMP fallback for any orphaned legacy row.
+    expect(sql).toContain('UPDATE student_answers answer');
+    expect(sql).toContain('answer.answered_at');
+    expect(sql).toContain('attempt.submitted_at');
+    expect(sql).toContain('attempt.last_activity_at');
+    expect(sql).toContain('attempt.started_at');
+    expect(sql).toContain('attempt.created_at');
+    expect(sql).toContain('UPDATE student_answers\n      SET answered_at = CURRENT_TIMESTAMP');
+    expect(sql).not.toContain('COALESCE(answered_at, created_at, CURRENT_TIMESTAMP)');
+
     expect(sql).toContain('Student dashboard schema contract is incomplete after reconciliation');
     expect(sql).toContain("('essay_case_attempts','submitted_at')");
   });
