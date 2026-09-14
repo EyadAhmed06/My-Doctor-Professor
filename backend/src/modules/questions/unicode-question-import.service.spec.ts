@@ -1,4 +1,4 @@
-import { splitCanonicalMcqSections } from './unicode-question-import.service';
+import { splitCanonicalSections } from './canonical-mcq-parser';
 
 describe('canonical MCQ section parsing', () => {
   it('splits Gastroenterology Week 1 sections so repeated numbering and answer keys stay scoped', () => {
@@ -42,7 +42,7 @@ describe('canonical MCQ section parsing', () => {
       '1) D',
     ].join('\n');
 
-    const sections = splitCanonicalMcqSections(text);
+    const sections = splitCanonicalSections(text);
 
     expect(sections.map((section) => section.title)).toEqual([
       'Peptic ulcer',
@@ -59,7 +59,7 @@ describe('canonical MCQ section parsing', () => {
   });
 
   it('keeps the existing Lecture heading format supported', () => {
-    const sections = splitCanonicalMcqSections(
+    const sections = splitCanonicalSections(
       'Lecture One: Anatomy\n1) Question\nA) a\nB) b\nC) c\nD) d\nE) e',
     );
 
