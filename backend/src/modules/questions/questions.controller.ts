@@ -83,15 +83,11 @@ export class QuestionsController {
   }
 
   @Get('tags/all')
-  listTags() {
-    return this.questions.listTags();
-  }
+  listTags() { return this.questions.listTags(); }
 
   @Post('tags')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
-  createTag(@Body() dto: CreateTagDto) {
-    return this.questions.createTag(dto);
-  }
+  createTag(@Body() dto: CreateTagDto) { return this.questions.createTag(dto); }
 
   @RateLimit({ key: 'question-import-inspect', maximum: 10, windowSeconds: 3600 })
   @Post('imports/inspect')
@@ -166,11 +162,7 @@ export class QuestionsController {
 
   @Put('options/:optionId')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
-  updateOption(
-    @Param('optionId', uuid) id: string,
-    @Body() dto: UpdateMcqOptionDto,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
+  updateOption(@Param('optionId', uuid) id: string, @Body() dto: UpdateMcqOptionDto, @CurrentUser() actor: AuthenticatedUser) {
     return this.questions.updateOption(id, dto, actor);
   }
 
@@ -184,9 +176,7 @@ export class QuestionsController {
   @Delete('tags/:tagId')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async removeTag(@Param('tagId', uuid) id: string): Promise<void> {
-    await this.questions.removeTag(id);
-  }
+  async removeTag(@Param('tagId', uuid) id: string): Promise<void> { await this.questions.removeTag(id); }
 
   @Get(':questionId')
   async getOne(@Param('questionId', uuid) id: string, @CurrentUser() actor: AuthenticatedUser) {
@@ -196,11 +186,7 @@ export class QuestionsController {
 
   @Put(':questionId')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
-  update(
-    @Param('questionId', uuid) id: string,
-    @Body() dto: UpdateQuestionDto,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
+  update(@Param('questionId', uuid) id: string, @Body() dto: UpdateQuestionDto, @CurrentUser() actor: AuthenticatedUser) {
     return this.questions.update(id, dto, actor);
   }
 
@@ -226,31 +212,19 @@ export class QuestionsController {
 
   @Post(':questionId/options')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
-  async createOption(
-    @Param('questionId', uuid) id: string,
-    @Body() dto: CreateMcqOptionDto,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
-    return this.questions.createOption(id, dto, actor);
+  async createOption(@Param('questionId', uuid) id: string, @Body() dto: CreateMcqOptionDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.questions.addOption(id, dto, actor);
   }
 
   @Put(':questionId/essay-configuration')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
-  async configureEssay(
-    @Param('questionId', uuid) id: string,
-    @Body() dto: EssayConfigurationDto,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
-    return this.questions.configureEssay(id, dto, actor);
+  async configureEssay(@Param('questionId', uuid) id: string, @Body() dto: EssayConfigurationDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.questions.setEssayConfiguration(id, dto, actor);
   }
 
   @Post(':questionId/tags/:tagId')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
-  async addTag(
-    @Param('questionId', uuid) questionId: string,
-    @Param('tagId', uuid) tagId: string,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
+  async addTag(@Param('questionId', uuid) questionId: string, @Param('tagId', uuid) tagId: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.questions.addTag(questionId, tagId, actor);
   }
 
@@ -262,11 +236,11 @@ export class QuestionsController {
     @Param('tagId', uuid) tagId: string,
     @CurrentUser() actor: AuthenticatedUser,
   ): Promise<void> {
-    await this.questions.removeTagFromQuestion(questionId, tagId, actor);
+    await this.questions.removeQuestionTag(questionId, tagId, actor);
   }
 
   private async assertQuestionRead(questionId: string, actor: AuthenticatedUser): Promise<void> {
-    if (actor.role === UserRole.STUDENT) await this.studentQuestions.assertReadable(questionId, actor);
-    else if (actor.role === UserRole.INSTRUCTOR) await this.instructorQuestions.assertReadable(questionId, actor);
+    if (actor.role === UserRole.STUDENT) await this.access.assertQuestionReadable(questionId, actor);
+    else if (actor.role === UserRole.INSTRUCTOR) await this.access.assertQuestionManagedReadable(questionId, actor);
   }
 }
