@@ -204,7 +204,7 @@ describe('AssessmentAttemptService', () => {
     }));
   });
 
-  it('returns concise structured option explanations only after a tutor answer is saved', async () => {
+  it('returns concise selected-vs-correct option explanations only after a tutor answer is saved', async () => {
     const test = testRecord();
     const attempt = {
       id: '77777777-7777-4777-8777-777777777777',
@@ -258,7 +258,10 @@ describe('AssessmentAttemptService', () => {
     expect(attemptFind).toHaveBeenCalledWith(expect.objectContaining({ lock: { mode: 'pessimistic_write' } }));
     expect(answerSave).toHaveBeenCalledTimes(1);
     expect(optionFind).toHaveBeenCalledTimes(1);
-    expect(result.explanation).toBe(question.explanation);
+    expect(result.explanation).toBe(
+      `Your choice: ${option.explanation}\nCorrect answer: ${question.options[0].explanation}`,
+    );
+    expect(result.explanation.split('\n')).toHaveLength(2);
     expect(result.tutor_feedback).toEqual(expect.objectContaining({
       is_correct: false,
       question_explanation: question.explanation,
@@ -266,6 +269,57 @@ describe('AssessmentAttemptService', () => {
       correct_option: { id: question.options[0].id, explanation: question.options[0].explanation },
     }));
     expect(result.tutor_feedback.options).toHaveLength(5);
+  });
+
+  it('uses only the correct-option explanation for a correct tutor answer', async () => {
+    const test = testRecord();
+    const attempt = {
+      id: '77777777-7777-4777-8777-777777777777',
+      studentId: actor.userId,
+      testId: test.id,
+      testMode: TestMode.TUTOR,
+      status: TestAttemptStatus.IN_PROGRESS,
+      startedAt: new Date(),
+      lastActivityAt: new Date(),
+    } as TestAttempt;
+    const question = validMcq();
+    const item = assignment(question);
+    item.testId = test.id;
+    const option = question.options[0];
+    const savedAnswer = {
+      id: '88888888-8888-4888-8888-888888888888',
+      attemptId: attempt.id,
+      questionId: question.id,
+      selectedOptionId: option.id,
+      isCorrect: true,
+      awardedMarks: '1.00',
+    } as StudentAnswer;
+    const manager = {
+      getRepository: jest.fn().mockImplementation((entity) => {
+        if (entity === TestAttempt) return { findOne: jest.fn().mockResolvedValue(attempt), save: jest.fn().mockResolvedValue(attempt) };
+        if (entity === Test) return { findOne: jest.fn().mockResolvedValue(test) };
+        if (entity === TestQuestion) return { findOne: jest.fn().mockResolvedValue(item) };
+        if (entity === McqOption) return { findOne: jest.fn().mockResolvedValue(option), find: jest.fn().mockResolvedValue(question.options) };
+        if (entity === StudentAnswer) return {
+          findOne: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockImplementation((value) => value),
+          save: jest.fn().mockResolvedValue(savedAnswer),
+        };
+        throw new Error('Unexpected repository access');
+      }),
+    };
+    const service = baseService({
+      test,
+      dataSource: { transaction: jest.fn().mockImplementation(async (callback) => callback(manager)) },
+    });
+
+    const result = await service.saveAnswer(attempt.id, question.id, {
+      selected_option_id: option.id,
+      confidence_level: 'HIGH',
+    }, actor) as Record<string, any>;
+
+    expect(result.explanation).toBe(option.explanation);
+    expect(result.explanation).not.toContain('\n');
   });
 
   it('does not return grading or explanations while saving a timed answer', async () => {
