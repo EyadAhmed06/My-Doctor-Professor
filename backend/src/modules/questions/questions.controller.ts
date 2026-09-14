@@ -38,13 +38,13 @@ import {
   UpdateQuestionDto,
 } from './dtos/questions.dto';
 import { InstructorQuestionAccessService } from './instructor-question-access.service';
-import { QuestionImportEnrichmentService } from './question-import-enrichment.service';
+import { QuestionImportAiEnrichmentService } from './question-import-ai-enrichment.service';
 import { QuestionImportService } from './question-import.service';
 import { QuestionsService } from './questions.service';
 import { StudentQuestionAccessService } from './student-question-access.service';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
-const PDF_INSPECTOR_CONTRACT_VERSION = 3;
+const PDF_INSPECTOR_CONTRACT_VERSION = 4;
 
 @Controller('questions')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -56,7 +56,7 @@ export class QuestionsController {
     private readonly instructorQuestions: InstructorQuestionAccessService,
     private readonly access: AcademicAccessService,
     private readonly imports: QuestionImportService,
-    private readonly importEnrichment: QuestionImportEnrichmentService,
+    private readonly importEnrichment: QuestionImportAiEnrichmentService,
   ) {}
 
   @Post()
@@ -101,7 +101,7 @@ export class QuestionsController {
     @CurrentUser() actor: AuthenticatedUser,
   ) {
     const inspection = await this.imports.inspectPdf(dto, file, actor);
-    const enriched = await this.importEnrichment.enrichInspection(inspection, file);
+    const enriched = await this.importEnrichment.enrichInspection(inspection);
     const candidates = enriched.candidates.map((candidate) => ({
       ...candidate,
       issues: candidate.issues.filter((issue) => issue.code !== 'NO_SOURCE_EXPLANATION'),
@@ -109,7 +109,7 @@ export class QuestionsController {
     return {
       ...enriched,
       inspector_contract_version: PDF_INSPECTOR_CONTRACT_VERSION,
-      enrichment_contract: 'answer+explanation+difficulty',
+      enrichment_contract: 'source-answer+question-explanation+five-option-explanations+difficulty',
       candidates,
     };
   }
