@@ -103,4 +103,56 @@ describe('QuestionsController route registration', () => {
     expect(response.body.enrichment_contract).toBe('source-answer+question-explanation+five-option-explanations+difficulty');
     expect(response.body.candidates).toHaveLength(1);
   });
+
+  it('passes existing AI state and force-regeneration intent into enrichment', async () => {
+    enrichInspection.mockImplementationOnce(async (inspection) => inspection);
+    const options = ['A', 'B', 'C', 'D', 'E'].map((label, index) => ({
+      label,
+      option_text: `Option ${label}`,
+      is_correct: index === 2,
+      explanation: `${label} reason`,
+    }));
+
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/questions/imports/enrich')
+      .send({
+        topic_name: 'GERD',
+        force: true,
+        candidates: [{
+          candidate_id: 'candidate-cache',
+          question_text: 'Which treatment is preferred for this patient?',
+          explanation: 'Question reason',
+          difficulty: 'HARD',
+          options,
+          ai_enrichment: {
+            provider: 'OPENROUTER',
+            model: 'meta/muse-spark-1.3',
+            prompt_version: 'mcq-explanation-v2-concise',
+            content_hash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            confidence: 0.95,
+            answer_consistency: 'CONSISTENT',
+            status: 'GENERATED',
+          },
+        }],
+      });
+
+    expect(response.status).toBe(201);
+    expect(enrichInspection).toHaveBeenCalledTimes(1);
+    expect(enrichInspection.mock.calls[0][0]).toEqual(expect.objectContaining({
+      force_ai_regeneration: true,
+      candidates: [expect.objectContaining({
+        explanation: 'Question reason',
+        difficulty: 'HARD',
+        ai_enrichment: expect.objectContaining({
+          provider: 'OPENROUTER',
+          model: 'meta/muse-spark-1.3',
+          prompt_version: 'mcq-explanation-v2-concise',
+          status: 'GENERATED',
+        }),
+        options: expect.arrayContaining([
+          expect.objectContaining({ label: 'A', explanation: 'A reason' }),
+        ]),
+      })],
+    }));
+  });
 });
