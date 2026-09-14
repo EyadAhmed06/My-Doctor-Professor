@@ -3,6 +3,7 @@
 import { ApiError } from "@/lib/api";
 import { useAuth } from "./auth-provider";
 import { Panel, ProductShell, Progress } from "./product-shell";
+import { TutorOptionReview, type StructuredTutorFeedback } from "./tutor-option-review";
 import { type PointerEvent as ReactPointerEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FiArrowLeft,
@@ -42,7 +43,7 @@ type WorkspaceState = {
   hard_question_ids: string[];
   notes: Array<{ question_id: string; note: string }>;
 };
-type TutorFeedback = { isCorrect: boolean | null; explanation?: string | null };
+type TutorFeedback = { isCorrect: boolean | null; explanation?: string | null; tutor_feedback?: StructuredTutorFeedback | null };
 type ReviewOption = Option & { isCorrect?: boolean };
 type ReviewQuestion = Omit<Question, "options"> & { options: ReviewOption[]; explanation?: string | null };
 type ReviewAssignment = Omit<Assignment, "question"> & {
@@ -277,7 +278,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
       setAnswers((value) => ({ ...value, [questionId]: result.selectedOptionId || optionId }));
       setConfidence((value) => ({ ...value, [questionId]: result.confidenceLevel || confidenceLevel }));
       setPendingAnswers((value) => { const next = { ...value }; delete next[questionId]; return next; });
-      if (tutor) setFeedback((value) => ({ ...value, [questionId]: { isCorrect: result.isCorrect ?? null, explanation: result.explanation } }));
+      if (tutor) setFeedback((value) => ({ ...value, [questionId]: { isCorrect: result.isCorrect ?? null, explanation: result.explanation, tutor_feedback: result.tutor_feedback ?? null } }));
       celebrate({ id: "assessment-first-answer", title: "First answer recorded", description: "Your answer and confidence were saved.", points: 20 });
     } catch (cause) {
       setAnswers((value) => { const next = { ...value }; if (previous) next[questionId] = previous; else delete next[questionId]; return next; });
@@ -386,7 +387,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
           <div className="exam-answer-list" role="radiogroup" aria-label={`Answers for question ${index + 1}`}>{current.question.options.map((option, i) => { const selected = (pendingAnswers[current.question.id] || answers[current.question.id]) === option.id; const crossed = (struck[current.question.id] || []).includes(option.id); const tutorResult = feedback[current.question.id]; const judgedClass = tutorResult && selected ? (tutorResult.isCorrect ? "answer-correct" : "answer-incorrect") : ""; return <div className={`exam-answer-row ${selected ? "selected" : ""} ${crossed ? "struck" : ""} ${judgedClass}`} key={option.id}><button type="button" role="radio" aria-checked={selected} disabled={expired || savingQuestionId === current.question.id || Boolean(tutor && feedback[current.question.id])} onClick={() => { if (highlightMode) return; if (strikeMode) { toggleStrike(option.id); return; } selectOption(option.id); }}><b>{String.fromCharCode(65 + i)}</b><span><HighlightableText className="exam-option-highlight-text" text={option.optionText} ranges={questionHighlights(current.question.id).options[option.id] || []} enabled={highlightMode} eraserEnabled={eraserMode === "highlight"} onHighlight={(start, end) => addHighlight(current.question.id, option.id, start, end)} onErase={(start, end) => eraseHighlight(current.question.id, option.id, start, end)} /></span>{savingQuestionId === current.question.id && selected ? <small>Saving…</small> : selected ? <FiCheck /> : null}</button><button type="button" className="exam-strike-toggle" aria-label={`${crossed ? "Restore" : "Strike out"} option ${String.fromCharCode(65 + i)}`} aria-pressed={crossed} disabled={expired} onClick={() => toggleStrike(option.id)}>S̶</button></div>; })}</div>
           {(pendingAnswers[current.question.id] || answers[current.question.id]) && <section className="exam-confidence" aria-label="Answer confidence"><div><b>How confident are you?</b><small>Required before this answer is saved. You can change it later.</small></div><div>{(["LOW", "MEDIUM", "HIGH"] as ConfidenceLevel[]).map((level) => <button type="button" key={level} className={confidence[current.question.id] === level ? "active" : ""} aria-pressed={confidence[current.question.id] === level} disabled={expired || savingQuestionId === current.question.id} onClick={() => void choose(pendingAnswers[current.question.id] || answers[current.question.id], level)}>{level === "LOW" ? "Low" : level === "MEDIUM" ? "Medium" : "High"}</button>)}</div></section>}
           </div>
-          {tutor && feedback[current.question.id] && <div className={`tutor-explanation ${feedback[current.question.id].isCorrect ? "correct" : "incorrect"}`} role="status"><b>{feedback[current.question.id].isCorrect ? "Correct" : "Incorrect"}</b><p>{feedback[current.question.id].explanation || "No explanation has been published for this question."}</p></div>}
+          {tutor && feedback[current.question.id] && <div className={`tutor-explanation ${feedback[current.question.id].isCorrect ? "correct" : "incorrect"}`} role="status"><b>{feedback[current.question.id].isCorrect ? "Correct" : "Incorrect"}</b><p>{feedback[current.question.id].explanation || "No explanation has been published for this question."}</p>{feedback[current.question.id].tutor_feedback && <TutorOptionReview feedback={feedback[current.question.id].tutor_feedback!} options={current.question.options} />}</div>}
         </article>
         <div className="exam-lower-grid exam-lower-grid--notes-only"><section className="exam-scratchpad-card" id="exam-question-notes"><nav><span>Notes</span></nav><div><small>Private question note — saved to your account and tied to this assessment attempt + question.</small><textarea disabled={expired} value={notes[current.question.id] || ""} onChange={(event) => { setSavedNoteId(null); setNotes((value) => ({ ...value, [current.question.id]: event.target.value })); }} placeholder="Save a private note for this question…" /><button type="button" disabled={expired || savingNoteId === current.question.id} onClick={() => void saveNote()}><FiSave /> {savingNoteId === current.question.id ? "Saving…" : savedNoteId === current.question.id ? "Saved" : "Save note"}</button></div></section></div>
         </section>
