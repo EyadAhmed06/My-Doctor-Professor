@@ -64,6 +64,18 @@ function wait(milliseconds: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
 }
 
+function isRetryableAssessmentMutation(path: string, method?: string) {
+  const normalized = path.replace(/^\//, "");
+  const verb = String(method || "GET").toUpperCase();
+  return (verb === "PUT" && /^tests\/attempts\/[^/]+\/answers\/[^/]+$/.test(normalized))
+    || (verb === "POST" && /^tests\/attempts\/[^/]+\/submit$/.test(normalized));
+}
+
+function isTransientRequestFailure(error: unknown) {
+  if (!(error instanceof ApiError)) return true;
+  return [408, 425, 429, 502, 503, 504].includes(error.status);
+}
+
 function accessTokenExpiresAt(token: string): number | null {
   try {
     const payload = token.split(".")[1];
@@ -328,13 +340,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const request = useCallback(async <T,>(path: string, options: Omit<Parameters<typeof apiRequest<T>>[1], "accessToken"> = {}) => {
     let token = accessToken;
+    const run = (currentToken: string | null) => apiRequest<T>(path, { ...options, accessToken: currentToken });
     try {
-      return await apiRequest<T>(path, { ...options, accessToken: token });
+      return await run(token);
     } catch (error) {
-      if (!(error instanceof Error) || !("status" in error) || error.status !== 401) throw error;
-      token = await refresh();
-      if (!token) throw error;
-      return apiRequest<T>(path, { ...options, accessToken: token });
+      if (error instanceof ApiError && error.status === 401) {
+        token = await refresh();
+        if (!token) throw error;
+        return run(token);
+      }
+      if (isRetryableAssessmentMutation(path, options.method) && isTransientRequestFailure(error)) {
+        // Answer PUT and submit POST are deliberately idempotent on the backend.
+        // A single retry covers the common "commit succeeded but response was lost"
+        // case without teaching the client to replay arbitrary mutations.
+        await wait(250);
+        return run(token);
+      }
+      throw error;
     }
   }, [accessToken, refresh]);
 
