@@ -55,13 +55,21 @@ jobs:
         run: npm test -- --runInBand
 
   dependency-review:
+    name: Dependency review (advisory until Dependency Graph is enabled)
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/dependency-review-action@v4
+      - name: Review dependency changes
+        id: dependency_review
+        continue-on-error: true
+        uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
+      - name: Explain unavailable dependency review
+        if: steps.dependency_review.outcome == 'failure'
+        run: |
+          echo '::warning::GitHub dependency review could not run. Enable the repository Dependency Graph to restore this advisory PR-level check. Production npm audits remain blocking for frontend and backend.'
 
   codeql:
     name: CodeQL
