@@ -102,6 +102,7 @@ export class InspectQuestionImportDto {
 
 export class PublishImportedOptionDto {
   @IsString() @IsNotEmpty() @MaxLength(2000) option_text: string;
+  @IsOptional() @IsString() @MaxLength(8000) explanation?: string;
   @IsBoolean() is_correct: boolean;
 }
 
