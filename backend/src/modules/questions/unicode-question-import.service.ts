@@ -18,6 +18,8 @@ import {
 import { QuestionDocumentType } from './question-document-type';
 import { QuestionImportService } from './question-import.service';
 
+const OPTION_EXPLANATION_HEADER = '--- Option explanations ---';
+
 /**
  * Transitional adapter for the MCQ inspector.
  *
@@ -67,24 +69,43 @@ export class UnicodeQuestionImportService extends QuestionImportService {
   }
 
   override async publish(dto: PublishQuestionImportDto, actor: AuthenticatedUser) {
-    const result = await super.publish(dto, actor);
+    // Capture explanations before publication because legacy clients currently submit
+    // the human-editable serialized A-E block through question.explanation.
     const selected = dto.candidates.filter((candidate) => candidate.approved);
+    const prepared = selected.map((candidate) => ({
+      questionExplanation: this.questionOnlyExplanation(candidate.explanation),
+      optionExplanations: candidate.options.some((option) => Boolean(option.explanation?.trim()))
+        ? candidate.options.map((option) => option.explanation?.trim() || null)
+        : this.optionExplanationsFromSerialized(candidate.explanation),
+    }));
 
+    // Keep the question-level explanation clean in the persisted Question row.
+    const publishDto: PublishQuestionImportDto = {
+      ...dto,
+      candidates: dto.candidates.map((candidate) => {
+        if (!candidate.approved) return candidate;
+        const selectedIndex = selected.indexOf(candidate);
+        return { ...candidate, explanation: prepared[selectedIndex]?.questionExplanation || candidate.explanation };
+      }),
+    };
+
+    const result = await super.publish(publishDto, actor);
     const explanationUpdates: Array<{
       questionId: string;
       optionExplanations: Array<string | null>;
     }> = [];
 
     result.questions.forEach((published, index) => {
-      const candidate = selected[index];
-      if (!candidate || published.action !== 'CREATED') return;
+      if (published.action !== 'CREATED') return;
+      const optionExplanations = prepared[index]?.optionExplanations || [];
+      if (!optionExplanations.some(Boolean)) return;
       explanationUpdates.push({
         questionId: published.question_id,
-        optionExplanations: candidate.options.map((option) => option.explanation?.trim() || null),
+        optionExplanations,
       });
     });
 
-    if (explanationUpdates.some((update) => update.optionExplanations.some(Boolean))) {
+    if (explanationUpdates.length) {
       await this.importDataSource.transaction(async (manager) => {
         for (const update of explanationUpdates) {
           const options = await manager.find(McqOption, {
@@ -103,5 +124,19 @@ export class UnicodeQuestionImportService extends QuestionImportService {
     }
 
     return result;
+  }
+
+  private questionOnlyExplanation(value?: string): string | undefined {
+    if (!value?.trim()) return undefined;
+    const marker = value.indexOf(OPTION_EXPLANATION_HEADER);
+    return (marker >= 0 ? value.slice(0, marker) : value).trim() || undefined;
+  }
+
+  private optionExplanationsFromSerialized(value?: string): Array<string | null> {
+    if (!value?.includes(OPTION_EXPLANATION_HEADER)) return [null, null, null, null, null];
+    const block = value.slice(value.indexOf(OPTION_EXPLANATION_HEADER) + OPTION_EXPLANATION_HEADER.length).trim();
+    const matches = Array.from(block.matchAll(/^([A-E])\)\s+([\s\S]*?)(?=^[A-E]\)\s+|$)/gm));
+    const byLabel = new Map(matches.map((match) => [match[1], match[2].trim()]));
+    return ['A', 'B', 'C', 'D', 'E'].map((label) => byLabel.get(label) || null);
   }
 }
