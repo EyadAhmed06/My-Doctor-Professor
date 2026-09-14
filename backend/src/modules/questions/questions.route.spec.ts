@@ -52,7 +52,7 @@ describe('QuestionsController route registration', () => {
   afterAll(async () => { if (app) await app.close(); });
   beforeEach(() => { inspectPdf.mockClear(); enrichInspection.mockClear(); });
 
-  it('registers POST /api/v1/questions/imports/inspect as multipart', async () => {
+  it('registers POST /api/v1/questions/imports/inspect as multipart without blocking on AI', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/v1/questions/imports/inspect')
       .field('topic_id', '60000000-0000-4000-8000-000000000001')
@@ -64,13 +64,43 @@ describe('QuestionsController route registration', () => {
 
     expect(response.status).toBe(201);
     expect(inspectPdf).toHaveBeenCalledTimes(1);
-    expect(enrichInspection).toHaveBeenCalledTimes(1);
+    expect(enrichInspection).not.toHaveBeenCalled();
     expect(response.body).toEqual({
       status: 'OK',
       candidates: [],
       issues: [],
-      inspector_contract_version: 4,
-      enrichment_contract: 'source-answer+question-explanation+five-option-explanations+difficulty',
+      inspector_contract_version: 5,
+      enrichment_contract: 'deferred-source-answer+question-explanation+five-option-explanations+difficulty',
     });
+  });
+
+  it('registers POST /api/v1/questions/imports/enrich for bounded AI batches', async () => {
+    enrichInspection.mockImplementationOnce(async (inspection) => ({
+      ...inspection,
+      candidates: inspection.candidates.map((candidate: Record<string, unknown>) => ({
+        ...candidate,
+        explanation: 'Concise explanation.',
+      })),
+    }));
+
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/questions/imports/enrich')
+      .send({
+        topic_name: 'GERD',
+        candidates: [{
+          candidate_id: 'candidate-1',
+          question_text: 'Which treatment is preferred for this patient?',
+          options: ['A', 'B', 'C', 'D', 'E'].map((label, index) => ({
+            label,
+            option_text: `Option ${label}`,
+            is_correct: index === 2,
+          })),
+        }],
+      });
+
+    expect(response.status).toBe(201);
+    expect(enrichInspection).toHaveBeenCalledTimes(1);
+    expect(response.body.enrichment_contract).toBe('source-answer+question-explanation+five-option-explanations+difficulty');
+    expect(response.body.candidates).toHaveLength(1);
   });
 });
