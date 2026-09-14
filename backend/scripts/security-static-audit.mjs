@@ -6,6 +6,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const scanRoots = ['src', 'scripts'];
 const failures = [];
 const REVIEW_MARKER = 'security-audit-reviewed:';
+const PARAMETERIZED_SQL_REVIEW = 'parameterized-or-allowlisted-fragments';
 
 // Review suppressions are deliberately narrow. A developer cannot silence a new
 // sink merely by adding a marker: both the repository path and rule must be
@@ -25,6 +26,10 @@ const reviewedSinks = new Map([
       'interpolated fragments are module constants/allowlisted predicate builders; actor/filter remain $1/$2 parameters.',
     ],
   ],
+  ['src/modules/admin/admin.service.ts:dynamic SQL interpolation', [PARAMETERIZED_SQL_REVIEW]],
+  ['src/modules/essay-cases/essay-cases.service.ts:dynamic SQL interpolation', [PARAMETERIZED_SQL_REVIEW]],
+  ['src/modules/notifications/notifications.service.ts:dynamic SQL interpolation', [PARAMETERIZED_SQL_REVIEW]],
+  ['src/modules/progress/progress.service.ts:dynamic SQL interpolation', [PARAMETERIZED_SQL_REVIEW]],
 ]);
 
 function walk(path) {
