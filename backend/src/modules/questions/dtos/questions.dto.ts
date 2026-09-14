@@ -104,6 +104,17 @@ export class EnrichQuestionImportOptionDto {
   @IsString() @IsNotEmpty() @MaxLength(4) label: string;
   @IsString() @IsNotEmpty() @MaxLength(2000) option_text: string;
   @IsBoolean() is_correct: boolean;
+  @IsOptional() @IsString() @MaxLength(220) explanation?: string;
+}
+
+export class EnrichQuestionImportMetadataDto {
+  @IsOptional() @IsString() @MaxLength(32) provider?: string;
+  @IsOptional() @IsString() @MaxLength(160) model?: string;
+  @IsOptional() @IsString() @MaxLength(160) prompt_version?: string;
+  @IsOptional() @IsString() @MaxLength(64) content_hash?: string;
+  @IsOptional() @IsNumber() @Min(0) @Max(1) confidence?: number;
+  @IsOptional() @IsString() @MaxLength(32) answer_consistency?: string;
+  @IsOptional() @IsString() @MaxLength(32) status?: string;
 }
 
 export class EnrichQuestionImportCandidateDto {
@@ -113,11 +124,16 @@ export class EnrichQuestionImportCandidateDto {
   @ValidateNested({ each: true })
   @Type(() => EnrichQuestionImportOptionDto)
   options: EnrichQuestionImportOptionDto[];
+  @IsOptional() @IsString() @MaxLength(220) explanation?: string;
+  @IsOptional() @IsEnum(QuestionDifficulty) difficulty?: QuestionDifficulty;
   @IsOptional() @IsString() @MaxLength(255) source_section?: string;
+  @IsOptional() @ValidateNested() @Type(() => EnrichQuestionImportMetadataDto)
+  ai_enrichment?: EnrichQuestionImportMetadataDto;
 }
 
 export class EnrichQuestionImportDto {
   @IsOptional() @IsString() @MaxLength(255) topic_name?: string;
+  @IsOptional() @IsBoolean() force?: boolean;
   @IsArray() @ArrayMinSize(1) @ArrayMaxSize(10)
   @ValidateNested({ each: true })
   @Type(() => EnrichQuestionImportCandidateDto)
@@ -126,14 +142,14 @@ export class EnrichQuestionImportDto {
 
 export class PublishImportedOptionDto {
   @IsString() @IsNotEmpty() @MaxLength(2000) option_text: string;
-  @IsOptional() @IsString() @MaxLength(8000) explanation?: string;
+  @IsOptional() @IsString() @MaxLength(220) explanation?: string;
   @IsBoolean() is_correct: boolean;
 }
 
 export class PublishImportedQuestionDto {
   @IsBoolean() approved: boolean;
   @IsString() @IsNotEmpty() question_text: string;
-  @IsOptional() @IsString() explanation?: string;
+  @IsOptional() @IsString() @MaxLength(220) explanation?: string;
   @IsEnum(QuestionDifficulty) difficulty: QuestionDifficulty;
   @IsInt() @Min(1) @Max(999) marks: number;
   @IsArray() @ArrayMinSize(5) @ArrayMaxSize(5)
