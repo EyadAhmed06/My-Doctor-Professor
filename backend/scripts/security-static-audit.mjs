@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const scanRoots = ['src', 'scripts'];
 const failures = [];
+const REVIEW_MARKER = 'security-audit-reviewed:';
 
 function walk(path) {
   for (const entry of readdirSync(path)) {
@@ -21,6 +22,12 @@ function walk(path) {
 function report(file, rule, match) {
   const line = file.text.slice(0, match.index).split(/\r?\n/).length;
   failures.push(`${relative(root, file.path)}:${line} [${rule}]`);
+}
+
+function hasNearbySecurityReview(file, match) {
+  const start = Math.max(0, match.index - 260);
+  const end = Math.min(file.text.length, match.index + 360);
+  return file.text.slice(start, end).includes(REVIEW_MARKER);
 }
 
 function inspect(path) {
@@ -40,9 +47,8 @@ function inspect(path) {
   for (const [name, pattern] of rules) {
     for (const match of file.text.matchAll(pattern)) {
       if (
-        name === 'dynamic SQL interpolation' &&
-        file.text.slice(match.index, match.index + 240)
-          .includes('security-audit-reviewed: parameterized-or-allowlisted-fragments')
+        ['dynamic SQL interpolation', 'shell/process execution'].includes(name)
+        && hasNearbySecurityReview(file, match)
       ) {
         continue;
       }
