@@ -7,6 +7,26 @@ const scanRoots = ['src', 'scripts'];
 const failures = [];
 const REVIEW_MARKER = 'security-audit-reviewed:';
 
+// Review suppressions are deliberately narrow. A developer cannot silence a new
+// sink merely by adding a marker: both the repository path and rule must be
+// explicitly allowlisted here after security review.
+const reviewedSinks = new Map([
+  [
+    'src/modules/questions/pdf-text-extraction.service.ts:shell/process execution',
+    [
+      'execFileSync uses no shell, fixed argument arrays, bounded time/buffer, and server-controlled binary paths.',
+      'execFileSync avoids shell parsing; pdfPath is generated in our private temp directory.',
+      'execFileSync avoids shell parsing; every argument is a separate fixed/value argument.',
+    ],
+  ],
+  [
+    'src/modules/tests/student-studio.controller.ts:dynamic SQL interpolation',
+    [
+      'interpolated fragments are module constants/allowlisted predicate builders; actor/filter remain $1/$2 parameters.',
+    ],
+  ],
+]);
+
 function walk(path) {
   for (const entry of readdirSync(path)) {
     const full = join(path, entry);
@@ -19,26 +39,35 @@ function walk(path) {
   }
 }
 
-function report(file, rule, match) {
-  const line = file.text.slice(0, match.index).split(/\r?\n/).length;
-  failures.push(`${relative(root, file.path)}:${line} [${rule}]`);
+function repoPath(path) {
+  return relative(root, path).replace(/\\/g, '/');
 }
 
-function hasNearbySecurityReview(file, match) {
-  const start = Math.max(0, match.index - 260);
-  const end = Math.min(file.text.length, match.index + 360);
-  return file.text.slice(start, end).includes(REVIEW_MARKER);
+function report(file, rule, match) {
+  const line = file.text.slice(0, match.index).split(/\r?\n/).length;
+  failures.push(`${repoPath(file.path)}:${line} [${rule}]`);
+}
+
+function hasApprovedSecurityReview(file, rule, match) {
+  const key = `${repoPath(file.path)}:${rule}`;
+  const approvedReasons = reviewedSinks.get(key);
+  if (!approvedReasons?.length) return false;
+
+  const start = Math.max(0, match.index - 320);
+  const end = Math.min(file.text.length, match.index + 420);
+  const nearby = file.text.slice(start, end);
+  return approvedReasons.some((reason) => nearby.includes(`${REVIEW_MARKER} ${reason}`));
 }
 
 function inspect(path) {
   const file = { path, text: readFileSync(path, 'utf8') };
-  const repoPath = relative(root, path).replace(/\\/g, '/');
+  const pathInRepo = repoPath(path);
   const rules = [
     ['dynamic SQL interpolation', /(?:\.query|\.execute)\s*\(\s*`[^`]*\$\{/g],
     ['runtime code evaluation', /\b(?:eval\s*\(|new\s+Function\s*\()/g],
     ['non-cryptographic randomness', /\bMath\.random\s*\(/g],
   ];
-  if (repoPath.startsWith('src/')) {
+  if (pathInRepo.startsWith('src/')) {
     rules.push([
       'shell/process execution',
       /(?:node:)?child_process|\bexecFile?Sync?\s*\(|\bspawnSync?\s*\(/g,
@@ -48,7 +77,7 @@ function inspect(path) {
     for (const match of file.text.matchAll(pattern)) {
       if (
         ['dynamic SQL interpolation', 'shell/process execution'].includes(name)
-        && hasNearbySecurityReview(file, match)
+        && hasApprovedSecurityReview(file, name, match)
       ) {
         continue;
       }
@@ -75,8 +104,23 @@ function guardPatchedProductionDependencies() {
   }
 }
 
+function guardReviewedSinkRegistry() {
+  for (const [key, reasons] of reviewedSinks) {
+    const separator = key.lastIndexOf(':');
+    const path = key.slice(0, separator);
+    const rule = key.slice(separator + 1);
+    const text = readFileSync(join(root, path), 'utf8');
+    for (const reason of reasons) {
+      if (!text.includes(`${REVIEW_MARKER} ${reason}`)) {
+        failures.push(`${path} [missing approved ${rule} review marker: ${reason}]`);
+      }
+    }
+  }
+}
+
 for (const directory of scanRoots) walk(join(root, directory));
 guardPatchedProductionDependencies();
+guardReviewedSinkRegistry();
 
 if (failures.length) {
   console.error('Backend security static audit failed:\n' + failures.join('\n'));
