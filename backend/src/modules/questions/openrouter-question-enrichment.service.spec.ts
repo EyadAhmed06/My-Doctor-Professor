@@ -23,11 +23,13 @@ describe('OpenRouterQuestionEnrichmentService', () => {
       candidate_id: 'q1',
       source_correct_label: 'C',
       answer_consistency: 'CONSISTENT',
-      question_explanation: 'Core explanation',
+      question_explanation: 'C matches the defining finding; the alternatives do not.',
       options: ['A', 'B', 'C', 'D', 'E'].map((label) => ({
         label,
         assessment: label === 'C' ? 'CORRECT' : 'INCORRECT',
-        explanation: `${label} explanation`,
+        explanation: label === 'C'
+          ? 'This is the defining finding in the stem.'
+          : 'This finding does not match the key feature in the stem.',
       })),
       difficulty: 'MEDIUM',
       confidence: 0.9,
@@ -39,14 +41,14 @@ describe('OpenRouterQuestionEnrichmentService', () => {
     return { ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify(content) } }] }) } as Response;
   }
 
-  it('accepts a valid five-option explanation without changing the source answer', async () => {
+  it('accepts a valid concise five-option explanation without changing the source answer', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     global.fetch = jest.fn().mockResolvedValue(response(validPayload()));
     const result = await new OpenRouterQuestionEnrichmentService().generate(input);
     expect(result.sourceCorrectLabel).toBe('C');
     expect(result.optionExplanations).toHaveLength(5);
     expect(result.model).toBe('meta/muse-spark-1.3');
-    expect(result.promptVersion).toBe('mcq-explanation-v1');
+    expect(result.promptVersion).toBe('mcq-explanation-v2-concise');
   });
 
   it('rejects an AI attempt to change the source answer', async () => {
@@ -60,6 +62,34 @@ describe('OpenRouterQuestionEnrichmentService', () => {
     global.fetch = jest.fn();
     await expect(new OpenRouterQuestionEnrichmentService().generate({ ...input, options: input.options.slice(0, 4) })).rejects.toThrow('exactly five');
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects explanations longer than two sentences', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const payload = validPayload();
+    payload.question_explanation = 'First useful point. Second useful point. Third unnecessary point.';
+    global.fetch = jest.fn().mockResolvedValue(response(payload));
+
+    await expect(new OpenRouterQuestionEnrichmentService().generate(input)).rejects.toThrow('exceeded 2 sentences');
+  });
+
+  it('rejects explanations that exceed the concise character budget', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const payload = validPayload();
+    payload.options[0].explanation = 'A'.repeat(221);
+    global.fetch = jest.fn().mockResolvedValue(response(payload));
+
+    await expect(new OpenRouterQuestionEnrichmentService().generate(input)).rejects.toThrow('exceeded 220 characters');
+  });
+
+  it('normalizes multiline explanations into compact student-facing text', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const payload = validPayload();
+    payload.question_explanation = 'Key finding\n\npoints directly to C.';
+    global.fetch = jest.fn().mockResolvedValue(response(payload));
+
+    const result = await new OpenRouterQuestionEnrichmentService().generate(input);
+    expect(result.questionExplanation).toBe('Key finding points directly to C.');
   });
 
   it('retries transient 429 responses and succeeds', async () => {
