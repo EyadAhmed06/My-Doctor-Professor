@@ -5,7 +5,7 @@ import { AcademicAccessService } from '../academic/academic-access.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { InstructorQuestionAccessService } from './instructor-question-access.service';
-import { QuestionImportEnrichmentService } from './question-import-enrichment.service';
+import { QuestionImportAiEnrichmentService } from './question-import-ai-enrichment.service';
 import { QuestionImportService } from './question-import.service';
 import { QuestionsController } from './questions.controller';
 import { QuestionsService } from './questions.service';
@@ -13,7 +13,7 @@ import { StudentQuestionAccessService } from './student-question-access.service'
 
 describe('QuestionsController route registration', () => {
   let app: INestApplication;
-  const inspectPdf = jest.fn().mockResolvedValue({ status: 'OK', candidates: [] });
+  const inspectPdf = jest.fn().mockResolvedValue({ status: 'OK', candidates: [], issues: [] });
   const enrichInspection = jest.fn().mockImplementation(async (inspection) => inspection);
 
   beforeAll(async () => {
@@ -25,7 +25,7 @@ describe('QuestionsController route registration', () => {
         { provide: InstructorQuestionAccessService, useValue: {} },
         { provide: AcademicAccessService, useValue: {} },
         { provide: QuestionImportService, useValue: { inspectPdf, publish: jest.fn() } },
-        { provide: QuestionImportEnrichmentService, useValue: { enrichInspection } },
+        { provide: QuestionImportAiEnrichmentService, useValue: { enrichInspection } },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -49,14 +49,8 @@ describe('QuestionsController route registration', () => {
     await app.init();
   });
 
-  afterAll(async () => {
-    if (app) await app.close();
-  });
-
-  beforeEach(() => {
-    inspectPdf.mockClear();
-    enrichInspection.mockClear();
-  });
+  afterAll(async () => { if (app) await app.close(); });
+  beforeEach(() => { inspectPdf.mockClear(); enrichInspection.mockClear(); });
 
   it('registers POST /api/v1/questions/imports/inspect as multipart', async () => {
     const response = await request(app.getHttpServer())
@@ -74,8 +68,9 @@ describe('QuestionsController route registration', () => {
     expect(response.body).toEqual({
       status: 'OK',
       candidates: [],
-      inspector_contract_version: 3,
-      enrichment_contract: 'answer+explanation+difficulty',
+      issues: [],
+      inspector_contract_version: 4,
+      enrichment_contract: 'source-answer+question-explanation+five-option-explanations+difficulty',
     });
   });
 });
