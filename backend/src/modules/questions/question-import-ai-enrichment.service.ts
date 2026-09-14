@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { QuestionDifficulty } from '../../common/entities/question.entity';
 import { OpenRouterQuestionEnrichmentService } from './openrouter-question-enrichment.service';
 
-type ImportIssue = { code: string; severity: 'INFO' | 'WARNING' | 'ERROR'; message: string };
+type ImportIssue = { code: string; severity: string; message: string };
 type ImportOption = {
   label: string;
   option_text: string;
@@ -138,8 +138,6 @@ export class QuestionImportAiEnrichmentService {
 
     return {
       ...candidate,
-      // Keep a human-editable serialized copy because the current Inspector has one explanation editor.
-      // The publish adapter deterministically splits the A-E block back into mcq_options.explanation.
       explanation: this.serializeForInspector(result.questionExplanation, optionExplanations),
       options: candidate.options.map((option) => ({
         ...option,
@@ -173,7 +171,7 @@ export class QuestionImportAiEnrichmentService {
   private markFailure(candidate: ImportCandidate, message: string): ImportCandidate {
     const issues = [
       ...candidate.issues.filter((issue) => issue.code !== 'AI_ENRICHMENT_FAILED'),
-      { code: 'AI_ENRICHMENT_FAILED', severity: 'WARNING' as const, message },
+      { code: 'AI_ENRICHMENT_FAILED', severity: 'WARNING', message },
     ];
     return { ...candidate, status: candidate.status === 'INVALID' ? 'INVALID' : 'NEEDS_REVIEW', issues };
   }
