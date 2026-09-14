@@ -69,27 +69,18 @@ export class UnicodeQuestionImportService extends QuestionImportService {
   }
 
   override async publish(dto: PublishQuestionImportDto, actor: AuthenticatedUser) {
-    // Capture explanations before publication because legacy clients currently submit
-    // the human-editable serialized A-E block through question.explanation.
     const selected = dto.candidates.filter((candidate) => candidate.approved);
     const prepared = selected.map((candidate) => ({
-      questionExplanation: this.questionOnlyExplanation(candidate.explanation),
       optionExplanations: candidate.options.some((option) => Boolean(option.explanation?.trim()))
         ? candidate.options.map((option) => option.explanation?.trim() || null)
         : this.optionExplanationsFromSerialized(candidate.explanation),
     }));
 
-    // Keep the question-level explanation clean in the persisted Question row.
-    const publishDto: PublishQuestionImportDto = {
-      ...dto,
-      candidates: dto.candidates.map((candidate) => {
-        if (!candidate.approved) return candidate;
-        const selectedIndex = selected.indexOf(candidate);
-        return { ...candidate, explanation: prepared[selectedIndex]?.questionExplanation || candidate.explanation };
-      }),
-    };
-
-    const result = await super.publish(publishDto, actor);
+    // Keep the serialized explanation block on Question.explanation as a compatibility
+    // path for the existing Tutor-mode API, which already reveals question.explanation
+    // only after the student submits an answer. The same rationales are also persisted
+    // structurally on mcq_options.explanation for future richer clients/analytics.
+    const result = await super.publish(dto, actor);
     const explanationUpdates: Array<{
       questionId: string;
       optionExplanations: Array<string | null>;
@@ -99,10 +90,7 @@ export class UnicodeQuestionImportService extends QuestionImportService {
       if (published.action !== 'CREATED') return;
       const optionExplanations = prepared[index]?.optionExplanations || [];
       if (!optionExplanations.some(Boolean)) return;
-      explanationUpdates.push({
-        questionId: published.question_id,
-        optionExplanations,
-      });
+      explanationUpdates.push({ questionId: published.question_id, optionExplanations });
     });
 
     if (explanationUpdates.length) {
@@ -124,12 +112,6 @@ export class UnicodeQuestionImportService extends QuestionImportService {
     }
 
     return result;
-  }
-
-  private questionOnlyExplanation(value?: string): string | undefined {
-    if (!value?.trim()) return undefined;
-    const marker = value.indexOf(OPTION_EXPLANATION_HEADER);
-    return (marker >= 0 ? value.slice(0, marker) : value).trim() || undefined;
   }
 
   private optionExplanationsFromSerialized(value?: string): Array<string | null> {
