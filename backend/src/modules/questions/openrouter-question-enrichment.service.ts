@@ -1,10 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-export type McqOptionInput = {
-  label: string;
-  text: string;
-};
-
+export type McqOptionInput = { label: string; text: string };
 export type McqExplanationInput = {
   candidateId: string;
   questionText: string;
@@ -13,13 +9,11 @@ export type McqExplanationInput = {
   subject?: string | null;
   section?: string | null;
 };
-
 export type McqOptionExplanation = {
   label: string;
   assessment: 'CORRECT' | 'INCORRECT';
   explanation: string;
 };
-
 export type McqExplanationResult = {
   candidateId: string;
   sourceCorrectLabel: string;
@@ -37,6 +31,13 @@ const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
 const DEFAULT_MODEL = 'meta/muse-spark-1.3';
 const PROMPT_VERSION = 'mcq-explanation-v1';
 const REQUEST_TIMEOUT_MS = 45_000;
+const MAX_ATTEMPTS = 3;
+
+class OpenRouterHttpError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+  }
+}
 
 @Injectable()
 export class OpenRouterQuestionEnrichmentService {
@@ -44,14 +45,26 @@ export class OpenRouterQuestionEnrichmentService {
   private readonly baseUrl = (process.env.OPENROUTER_BASE_URL?.trim() || DEFAULT_BASE_URL).replace(/\/$/, '');
   private readonly model = process.env.OPENROUTER_MODEL?.trim() || DEFAULT_MODEL;
 
-  isConfigured(): boolean {
-    return Boolean(this.apiKey);
-  }
+  isConfigured(): boolean { return Boolean(this.apiKey); }
 
   async generate(input: McqExplanationInput): Promise<McqExplanationResult> {
     if (!this.apiKey) throw new Error('OPENROUTER_API_KEY is not configured on the backend.');
     this.assertInput(input);
 
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+      try {
+        return await this.generateOnce(input);
+      } catch (error) {
+        lastError = error;
+        if (!this.shouldRetry(error) || attempt === MAX_ATTEMPTS) throw error;
+        await this.delay(this.retryDelayMs(attempt));
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error('OpenRouter enrichment failed.');
+  }
+
+  private async generateOnce(input: McqExplanationInput): Promise<McqExplanationResult> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
@@ -69,11 +82,7 @@ export class OpenRouterQuestionEnrichmentService {
           temperature: 0.1,
           response_format: {
             type: 'json_schema',
-            json_schema: {
-              name: 'mcq_explanation',
-              strict: true,
-              schema: this.responseSchema(),
-            },
+            json_schema: { name: 'mcq_explanation', strict: true, schema: this.responseSchema() },
           },
           messages: [
             {
@@ -104,33 +113,39 @@ export class OpenRouterQuestionEnrichmentService {
 
       if (!response.ok) {
         const text = await response.text().catch(() => '');
-        throw new Error(`OpenRouter request failed (${response.status})${text ? `: ${text.slice(0, 500)}` : ''}`);
+        throw new OpenRouterHttpError(
+          response.status,
+          `OpenRouter request failed (${response.status})${text ? `: ${text.slice(0, 300)}` : ''}`,
+        );
       }
 
-      const payload = await response.json() as {
-        choices?: Array<{ message?: { content?: string } }>;
-      };
+      const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
       const content = payload.choices?.[0]?.message?.content;
       if (!content) throw new Error('OpenRouter returned no message content.');
 
       let parsed: unknown;
-      try {
-        parsed = JSON.parse(content);
-      } catch {
-        throw new Error('OpenRouter returned non-JSON content for a structured explanation request.');
-      }
-
+      try { parsed = JSON.parse(content); }
+      catch { throw new Error('OpenRouter returned non-JSON content for a structured explanation request.'); }
       return this.validateOutput(input, parsed);
     } finally {
       clearTimeout(timeout);
     }
   }
 
+  private shouldRetry(error: unknown): boolean {
+    if (error instanceof OpenRouterHttpError) return error.status === 429 || error.status >= 500;
+    return error instanceof Error && (error.name === 'AbortError' || /fetch failed|network|socket/i.test(error.message));
+  }
+
+  private retryDelayMs(attempt: number): number {
+    return Math.min(4_000, 500 * (2 ** (attempt - 1)));
+  }
+
+  private delay(ms: number): Promise<void> { return new Promise((resolve) => setTimeout(resolve, ms)); }
+
   private assertInput(input: McqExplanationInput): void {
     const labels = input.options.map((option) => option.label.trim().toUpperCase());
-    if (input.options.length !== 5 || labels.join(',') !== 'A,B,C,D,E') {
-      throw new Error('AI enrichment requires exactly five sequential options labelled A-E.');
-    }
+    if (input.options.length !== 5 || labels.join(',') !== 'A,B,C,D,E') throw new Error('AI enrichment requires exactly five sequential options labelled A-E.');
     const correct = input.sourceCorrectLabel.trim().toUpperCase();
     if (!labels.includes(correct)) throw new Error('The source correct answer is not present in the supplied options.');
   }
@@ -138,6 +153,7 @@ export class OpenRouterQuestionEnrichmentService {
   private validateOutput(input: McqExplanationInput, value: unknown): McqExplanationResult {
     if (!value || typeof value !== 'object') throw new Error('AI explanation payload is not an object.');
     const row = value as Record<string, unknown>;
+    if (String(row.candidate_id || '') !== input.candidateId) throw new Error('AI returned the wrong candidate id.');
     const sourceCorrectLabel = String(row.source_correct_label || '').trim().toUpperCase();
     const expectedCorrect = input.sourceCorrectLabel.trim().toUpperCase();
     if (sourceCorrectLabel !== expectedCorrect) throw new Error('AI attempted to change the source answer key.');
@@ -153,32 +169,25 @@ export class OpenRouterQuestionEnrichmentService {
         explanation: String(option.explanation || '').trim(),
       };
     });
-    if (normalized.map((option) => option.label).join(',') !== 'A,B,C,D,E') {
-      throw new Error('AI option labels did not match A-E exactly.');
-    }
+    if (normalized.map((option) => option.label).join(',') !== 'A,B,C,D,E') throw new Error('AI option labels did not match A-E exactly.');
+    if (normalized.some((option) => !['CORRECT', 'INCORRECT'].includes(option.assessment))) throw new Error('AI returned an invalid option assessment.');
     const correctRows = normalized.filter((option) => option.assessment === 'CORRECT');
-    if (correctRows.length !== 1 || correctRows[0].label !== expectedCorrect) {
-      throw new Error('AI option assessments contradict the source answer key.');
-    }
+    if (correctRows.length !== 1 || correctRows[0].label !== expectedCorrect) throw new Error('AI option assessments contradict the source answer key.');
     if (normalized.some((option) => !option.explanation)) throw new Error('AI returned an empty option explanation.');
 
     const questionExplanation = String(row.question_explanation || '').trim();
     if (!questionExplanation) throw new Error('AI returned an empty question explanation.');
-
     const answerConsistency = String(row.answer_consistency || '').trim().toUpperCase();
     if (!['CONSISTENT', 'QUESTIONABLE'].includes(answerConsistency)) throw new Error('AI returned an invalid answer consistency status.');
-
     const difficulty = String(row.difficulty || '').trim().toUpperCase();
     if (!['EASY', 'MEDIUM', 'HARD'].includes(difficulty)) throw new Error('AI returned an invalid difficulty.');
-
     const confidence = Number(row.confidence);
     if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) throw new Error('AI returned an invalid confidence value.');
-
     const reviewReason = row.review_reason == null ? null : String(row.review_reason).trim() || null;
     if (answerConsistency === 'QUESTIONABLE' && !reviewReason) throw new Error('Questionable answer consistency requires a review reason.');
 
     return {
-      candidateId: String(row.candidate_id || input.candidateId),
+      candidateId: input.candidateId,
       sourceCorrectLabel,
       answerConsistency: answerConsistency as 'CONSISTENT' | 'QUESTIONABLE',
       questionExplanation,
@@ -193,30 +202,17 @@ export class OpenRouterQuestionEnrichmentService {
 
   private responseSchema(): Record<string, unknown> {
     return {
-      type: 'object',
-      additionalProperties: false,
-      required: [
-        'candidate_id',
-        'source_correct_label',
-        'answer_consistency',
-        'question_explanation',
-        'options',
-        'difficulty',
-        'confidence',
-        'review_reason',
-      ],
+      type: 'object', additionalProperties: false,
+      required: ['candidate_id', 'source_correct_label', 'answer_consistency', 'question_explanation', 'options', 'difficulty', 'confidence', 'review_reason'],
       properties: {
         candidate_id: { type: 'string' },
         source_correct_label: { type: 'string', enum: ['A', 'B', 'C', 'D', 'E'] },
         answer_consistency: { type: 'string', enum: ['CONSISTENT', 'QUESTIONABLE'] },
         question_explanation: { type: 'string', minLength: 1 },
         options: {
-          type: 'array',
-          minItems: 5,
-          maxItems: 5,
+          type: 'array', minItems: 5, maxItems: 5,
           items: {
-            type: 'object',
-            additionalProperties: false,
+            type: 'object', additionalProperties: false,
             required: ['label', 'assessment', 'explanation'],
             properties: {
               label: { type: 'string', enum: ['A', 'B', 'C', 'D', 'E'] },
