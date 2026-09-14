@@ -11,7 +11,9 @@ import { BundleAccessModule } from '../bundle-access/bundle-access.module';
 import { EssayQuestionImportController } from './essay-question-import.controller';
 import { EssayQuestionImportService } from './essay-question-import.service';
 import { InstructorQuestionAccessService } from './instructor-question-access.service';
+import { OpenRouterQuestionEnrichmentService } from './openrouter-question-enrichment.service';
 import { PdfTextExtractionService } from './pdf-text-extraction.service';
+import { QuestionImportAiEnrichmentService } from './question-import-ai-enrichment.service';
 import { QuestionImportEnrichmentService } from './question-import-enrichment.service';
 import { QuestionImportService } from './question-import.service';
 import { QuestionsController } from './questions.controller';
@@ -43,6 +45,8 @@ import { UnicodeQuestionImportService } from './unicode-question-import.service'
       provide: QuestionImportService,
       useExisting: UnicodeQuestionImportService,
     },
+    OpenRouterQuestionEnrichmentService,
+    QuestionImportAiEnrichmentService,
     QuestionImportEnrichmentService,
     EssayQuestionImportService,
   ],
@@ -51,6 +55,7 @@ import { UnicodeQuestionImportService } from './unicode-question-import.service'
     StudentQuestionAccessService,
     InstructorQuestionAccessService,
     QuestionImportService,
+    QuestionImportAiEnrichmentService,
     QuestionImportEnrichmentService,
     EssayQuestionImportService,
     TypeOrmModule,
