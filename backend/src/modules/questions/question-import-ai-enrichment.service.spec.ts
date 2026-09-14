@@ -30,7 +30,7 @@ function inspection(row = candidate()) {
 }
 
 describe('QuestionImportAiEnrichmentService', () => {
-  it('persists a reviewable question explanation plus A-E explanations without changing the answer key', async () => {
+  it('returns a question explanation plus A-E explanations without changing the answer key', async () => {
     const openRouter = {
       isConfigured: () => true,
       generate: jest.fn().mockResolvedValue({
@@ -47,7 +47,7 @@ describe('QuestionImportAiEnrichmentService', () => {
         confidence: 0.94,
         reviewReason: null,
         model: 'meta/muse-spark-1.3',
-        promptVersion: 'mcq-explanation-v1',
+        promptVersion: 'mcq-explanation-v2-concise',
       }),
     } as unknown as OpenRouterQuestionEnrichmentService;
 
@@ -60,8 +60,7 @@ describe('QuestionImportAiEnrichmentService', () => {
     expect(enriched.options.map((option) => option.explanation)).toEqual([
       'A rationale', 'B rationale', 'C rationale', 'D rationale', 'E rationale',
     ]);
-    expect(enriched.explanation).toContain('--- Option explanations ---');
-    expect(enriched.explanation).toContain('C) C rationale');
+    expect(enriched.explanation).toBe('The stem tests the preferred management principle.');
     expect(enriched.issues.some((issue) => issue.code === 'AI_ENRICHED')).toBe(true);
   });
 
@@ -97,7 +96,7 @@ describe('QuestionImportAiEnrichmentService', () => {
         confidence: 0.55,
         reviewReason: 'The keyed answer conflicts with standard management guidance.',
         model: 'meta/muse-spark-1.3',
-        promptVersion: 'mcq-explanation-v1',
+        promptVersion: 'mcq-explanation-v2-concise',
       }),
     } as unknown as OpenRouterQuestionEnrichmentService;
 
