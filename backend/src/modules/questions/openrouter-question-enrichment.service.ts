@@ -50,6 +50,10 @@ export class OpenRouterQuestionEnrichmentService {
 
   isConfigured(): boolean { return Boolean(this.apiKey); }
 
+  getSignature(): { provider: 'OPENROUTER'; model: string; promptVersion: string } {
+    return { provider: 'OPENROUTER', model: this.model, promptVersion: PROMPT_VERSION };
+  }
+
   async generate(input: McqExplanationInput): Promise<McqExplanationResult> {
     if (!this.apiKey) throw new Error('OPENROUTER_API_KEY is not configured on the backend.');
     this.assertInput(input);
