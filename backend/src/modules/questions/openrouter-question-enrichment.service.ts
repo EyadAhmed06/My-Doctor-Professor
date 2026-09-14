@@ -29,9 +29,12 @@ export type McqExplanationResult = {
 
 const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
 const DEFAULT_MODEL = 'meta/muse-spark-1.3';
-const PROMPT_VERSION = 'mcq-explanation-v1';
+const PROMPT_VERSION = 'mcq-explanation-v2-concise';
 const REQUEST_TIMEOUT_MS = 45_000;
 const MAX_ATTEMPTS = 3;
+const MAX_EXPLANATION_CHARS = 220;
+const MAX_EXPLANATION_SENTENCES = 2;
+const MAX_REVIEW_REASON_CHARS = 180;
 
 class OpenRouterHttpError extends Error {
   constructor(readonly status: number, message: string) {
@@ -88,10 +91,13 @@ export class OpenRouterQuestionEnrichmentService {
             {
               role: 'system',
               content: [
-                'You generate educational explanations for medical MCQs.',
+                'You generate concise educational explanations for medical MCQs.',
                 'The supplied source answer is authoritative and must never be changed.',
                 'Never rewrite the question or any option text.',
-                'Explain why the source-correct option is correct and why each other supplied option is incorrect.',
+                'Explain only the decisive fact or distinction that helps the student understand why an option is correct or incorrect.',
+                'Do not add background teaching, definitions, repetition, filler, or a restatement of the question unless essential to the distinction.',
+                'Every question explanation and every option explanation must be at most two short sentences, preferably one sentence, and no more than 220 characters.',
+                'Write the minimum useful explanation: direct, specific, and exam-relevant.',
                 'If the source answer appears medically inconsistent, keep it unchanged and mark answer_consistency as QUESTIONABLE with a concise review_reason.',
                 'Return exactly one explanation for each of A, B, C, D and E.',
               ].join(' '),
@@ -105,6 +111,12 @@ export class OpenRouterQuestionEnrichmentService {
                 question: input.questionText,
                 options: input.options,
                 source_correct_label: input.sourceCorrectLabel,
+                explanation_style: {
+                  objective: 'minimum useful explanation for the student',
+                  max_sentences: MAX_EXPLANATION_SENTENCES,
+                  max_characters: MAX_EXPLANATION_CHARS,
+                  preferred_sentences: 1,
+                },
               }),
             },
           ],
@@ -166,7 +178,7 @@ export class OpenRouterQuestionEnrichmentService {
       return {
         label: String(option.label || '').trim().toUpperCase(),
         assessment: String(option.assessment || '').trim().toUpperCase() as 'CORRECT' | 'INCORRECT',
-        explanation: String(option.explanation || '').trim(),
+        explanation: this.normalizeExplanation(String(option.explanation || '')),
       };
     });
     if (normalized.map((option) => option.label).join(',') !== 'A,B,C,D,E') throw new Error('AI option labels did not match A-E exactly.');
@@ -174,17 +186,21 @@ export class OpenRouterQuestionEnrichmentService {
     const correctRows = normalized.filter((option) => option.assessment === 'CORRECT');
     if (correctRows.length !== 1 || correctRows[0].label !== expectedCorrect) throw new Error('AI option assessments contradict the source answer key.');
     if (normalized.some((option) => !option.explanation)) throw new Error('AI returned an empty option explanation.');
+    normalized.forEach((option) => this.assertConciseExplanation(option.explanation, `Option ${option.label}`));
 
-    const questionExplanation = String(row.question_explanation || '').trim();
+    const questionExplanation = this.normalizeExplanation(String(row.question_explanation || ''));
     if (!questionExplanation) throw new Error('AI returned an empty question explanation.');
+    this.assertConciseExplanation(questionExplanation, 'Question');
+
     const answerConsistency = String(row.answer_consistency || '').trim().toUpperCase();
     if (!['CONSISTENT', 'QUESTIONABLE'].includes(answerConsistency)) throw new Error('AI returned an invalid answer consistency status.');
     const difficulty = String(row.difficulty || '').trim().toUpperCase();
     if (!['EASY', 'MEDIUM', 'HARD'].includes(difficulty)) throw new Error('AI returned an invalid difficulty.');
     const confidence = Number(row.confidence);
     if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) throw new Error('AI returned an invalid confidence value.');
-    const reviewReason = row.review_reason == null ? null : String(row.review_reason).trim() || null;
+    const reviewReason = row.review_reason == null ? null : this.normalizeExplanation(String(row.review_reason)) || null;
     if (answerConsistency === 'QUESTIONABLE' && !reviewReason) throw new Error('Questionable answer consistency requires a review reason.');
+    if (reviewReason && reviewReason.length > MAX_REVIEW_REASON_CHARS) throw new Error('AI review reason exceeded the concise review limit.');
 
     return {
       candidateId: input.candidateId,
@@ -200,6 +216,23 @@ export class OpenRouterQuestionEnrichmentService {
     };
   }
 
+  private normalizeExplanation(value: string): string {
+    return value.replace(/\s+/g, ' ').trim();
+  }
+
+  private assertConciseExplanation(value: string, field: string): void {
+    if (value.length > MAX_EXPLANATION_CHARS) {
+      throw new Error(`${field} explanation exceeded ${MAX_EXPLANATION_CHARS} characters.`);
+    }
+    const sentences = value
+      .split(/(?<=[.!?])\s+/)
+      .map((sentence) => sentence.trim())
+      .filter(Boolean);
+    if (sentences.length > MAX_EXPLANATION_SENTENCES) {
+      throw new Error(`${field} explanation exceeded ${MAX_EXPLANATION_SENTENCES} sentences.`);
+    }
+  }
+
   private responseSchema(): Record<string, unknown> {
     return {
       type: 'object', additionalProperties: false,
@@ -208,7 +241,7 @@ export class OpenRouterQuestionEnrichmentService {
         candidate_id: { type: 'string' },
         source_correct_label: { type: 'string', enum: ['A', 'B', 'C', 'D', 'E'] },
         answer_consistency: { type: 'string', enum: ['CONSISTENT', 'QUESTIONABLE'] },
-        question_explanation: { type: 'string', minLength: 1 },
+        question_explanation: { type: 'string', minLength: 1, maxLength: MAX_EXPLANATION_CHARS },
         options: {
           type: 'array', minItems: 5, maxItems: 5,
           items: {
@@ -217,13 +250,13 @@ export class OpenRouterQuestionEnrichmentService {
             properties: {
               label: { type: 'string', enum: ['A', 'B', 'C', 'D', 'E'] },
               assessment: { type: 'string', enum: ['CORRECT', 'INCORRECT'] },
-              explanation: { type: 'string', minLength: 1 },
+              explanation: { type: 'string', minLength: 1, maxLength: MAX_EXPLANATION_CHARS },
             },
           },
         },
         difficulty: { type: 'string', enum: ['EASY', 'MEDIUM', 'HARD'] },
         confidence: { type: 'number', minimum: 0, maximum: 1 },
-        review_reason: { type: ['string', 'null'] },
+        review_reason: { type: ['string', 'null'], maxLength: MAX_REVIEW_REASON_CHARS },
       },
     };
   }
