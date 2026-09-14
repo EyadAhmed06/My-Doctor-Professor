@@ -12,11 +12,14 @@ function endpoint(url: string) {
 }
 
 function questionId(index: number) {
-  return `a1${String(index).padStart(2, '0')}3333-3333-4333-8333-${String(index).padStart(12, '0')}`;
+  const head = `a1${index.toString(16).padStart(6, '0')}`;
+  return `${head}-3333-4333-8333-${index.toString(16).padStart(12, '0')}`;
 }
 
 function optionId(index: number, option: number) {
-  return `b${String(index).padStart(2, '0')}${option}444-4444-4444-8444-${String(index * 10 + option).padStart(12, '0')}`;
+  const value = index * 10 + option;
+  const head = `b1${value.toString(16).padStart(6, '0')}`;
+  return `${head}-4444-4444-8444-${value.toString(16).padStart(12, '0')}`;
 }
 
 function assignment(index: number) {
@@ -96,21 +99,30 @@ test('200-question timed final uses five 40-question blocks and restores server 
     if (answerMatch && request.method() === 'PUT') {
       const body = request.postDataJSON() as { selected_option_id: string; confidence_level: string };
       answers.set(answerMatch[1], { selectedOptionId: body.selected_option_id, confidenceLevel: body.confidence_level });
-      // Timed mode deliberately returns no grading or explanation fields.
       return respond({ questionId: answerMatch[1], selectedOptionId: body.selected_option_id, confidenceLevel: body.confidence_level });
     }
 
     const hardMatch = target.match(new RegExp(`^/tests/attempts/${attemptId}/hard-flags/(.+)$`));
     if (hardMatch) {
-      if (request.method() === 'POST') hardFlags.add(hardMatch[1]);
-      if (request.method() === 'DELETE') hardFlags.delete(hardMatch[1]);
-      return respond({}, request.method() === 'DELETE' ? 204 : 200);
+      if (request.method() === 'POST') {
+        hardFlags.add(hardMatch[1]);
+        return respond({});
+      }
+      if (request.method() === 'DELETE') {
+        hardFlags.delete(hardMatch[1]);
+        return route.fulfill({ status: 204, headers });
+      }
     }
     const flagMatch = target.match(new RegExp(`^/tests/attempts/${attemptId}/flags/(.+)$`));
     if (flagMatch) {
-      if (request.method() === 'POST') normalFlags.add(flagMatch[1]);
-      if (request.method() === 'DELETE') normalFlags.delete(flagMatch[1]);
-      return respond({}, request.method() === 'DELETE' ? 204 : 200);
+      if (request.method() === 'POST') {
+        normalFlags.add(flagMatch[1]);
+        return respond({});
+      }
+      if (request.method() === 'DELETE') {
+        normalFlags.delete(flagMatch[1]);
+        return route.fulfill({ status: 204, headers });
+      }
     }
 
     return respond({});
