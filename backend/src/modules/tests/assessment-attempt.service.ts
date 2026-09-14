@@ -151,10 +151,18 @@ export class AssessmentAttemptService {
         });
         const correctOption = optionRows.find((option) => option.isCorrect);
         if (!correctOption) throw new ConflictException('MCQ has no correct option');
+        const conciseFeedback = this.conciseTutorExplanation(
+          Boolean(saved.isCorrect),
+          selectedOption!,
+          correctOption,
+          question.explanation,
+        );
         value = {
           ...saved,
-          // Backward compatibility for clients that only know the old question-level field.
-          explanation: question.explanation,
+          // Backward-compatible field used by the current student UI. It is now
+          // answer-aware, so an incorrect response immediately explains both the
+          // student's misconception and the correct option in at most two lines.
+          explanation: conciseFeedback,
           tutor_feedback: {
             is_correct: saved.isCorrect,
             question_explanation: question.explanation,
@@ -221,6 +229,23 @@ export class AssessmentAttemptService {
       const finalized = await this.finalizeLockedAttempt(manager, attempt, test, false);
       return this.attemptView(finalized, test);
     });
+  }
+
+  private conciseTutorExplanation(
+    isCorrect: boolean,
+    selectedOption: McqOption,
+    correctOption: McqOption,
+    questionExplanation: string | null,
+  ): string | null {
+    const compact = (value: string | null | undefined) => value?.replace(/\s+/g, ' ').trim() || null;
+    const selected = compact(selectedOption.explanation);
+    const correct = compact(correctOption.explanation);
+    const general = compact(questionExplanation);
+
+    if (isCorrect) return correct || general;
+    const first = selected ? `Your choice: ${selected}` : null;
+    const second = correct ? `Correct answer: ${correct}` : general ? `Correct answer: ${general}` : null;
+    return [first, second].filter(Boolean).join('\n') || general;
   }
 
   private async requireTest(id: string): Promise<Test> {
