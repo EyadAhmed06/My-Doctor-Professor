@@ -6,8 +6,10 @@ import { DataSource } from 'typeorm';
  * question stem, option text, option correctness, or option cardinality, the
  * previous explanation can no longer be assumed to describe the current MCQ.
  *
- * Fail closed: clear all derived explanations for the MCQ. The instructor can
- * then regenerate/review them before relying on them again.
+ * Fail closed: clear stale derived explanations. A caller may preserve the
+ * question-level explanation only when the same update explicitly supplied a
+ * replacement for it; option explanations are always invalidated when source
+ * MCQ semantics change.
  */
 @Injectable()
 export class QuestionExplanationLifecycleService {
@@ -21,12 +23,14 @@ export class QuestionExplanationLifecycleService {
     return rows[0]?.question_id ?? null;
   }
 
-  async invalidateQuestion(questionId: string): Promise<void> {
+  async invalidateQuestion(questionId: string, preserveQuestionExplanation = false): Promise<void> {
     await this.dataSource.transaction(async (manager) => {
-      await manager.query(
-        'UPDATE questions SET explanation = NULL WHERE id = $1',
-        [questionId],
-      );
+      if (!preserveQuestionExplanation) {
+        await manager.query(
+          'UPDATE questions SET explanation = NULL WHERE id = $1',
+          [questionId],
+        );
+      }
       await manager.query(
         'UPDATE mcq_options SET explanation = NULL WHERE question_id = $1',
         [questionId],
