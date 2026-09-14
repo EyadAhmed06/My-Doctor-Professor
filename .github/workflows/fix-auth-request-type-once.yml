@@ -1,0 +1,48 @@
+name: One-shot auth request type repair
+
+on:
+  push:
+    branches:
+      - agent/phase1-interactions
+    paths:
+      - .github/workflows/fix-auth-request-type-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/phase1-interactions
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Repair request option type
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('frontend/src/components/auth-provider.tsx')
+          text = path.read_text()
+          old = 'Omit<Parameters<typeof apiRequest<T>>[1], "accessToken">'
+          new = 'Omit<NonNullable<Parameters<typeof apiRequest<T>>[1]>, "accessToken">'
+          count = text.count(old)
+          if count != 2:
+              raise SystemExit(f'Expected two request option type occurrences, found {count}')
+          path.write_text(text.replace(old, new))
+          PY
+      - name: Verify production frontend build
+        working-directory: frontend
+        run: |
+          npm ci --ignore-scripts
+          npm run build
+      - name: Remove one-shot workflow and commit repair
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/fix-auth-request-type-once.yml
+          git add frontend/src/components/auth-provider.tsx
+          git commit -m 'fix: narrow authenticated request option type'
+          git push origin HEAD:agent/phase1-interactions
