@@ -5,6 +5,7 @@ import { AcademicAccessService } from '../academic/academic-access.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { InstructorQuestionAccessService } from './instructor-question-access.service';
+import { QuestionExplanationLifecycleService } from './question-explanation-lifecycle.service';
 import { QuestionImportAiEnrichmentService } from './question-import-ai-enrichment.service';
 import { QuestionImportService } from './question-import.service';
 import { QuestionsController } from './questions.controller';
@@ -26,6 +27,7 @@ describe('QuestionsController route registration', () => {
         { provide: AcademicAccessService, useValue: {} },
         { provide: QuestionImportService, useValue: { inspectPdf, publish: jest.fn() } },
         { provide: QuestionImportAiEnrichmentService, useValue: { enrichInspection } },
+        { provide: QuestionExplanationLifecycleService, useValue: { questionIdForOption: jest.fn(), invalidateQuestion: jest.fn() } },
       ],
     })
       .overrideGuard(JwtAuthGuard)
