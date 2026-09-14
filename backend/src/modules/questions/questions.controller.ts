@@ -106,6 +106,7 @@ export class QuestionsController {
     const candidates = inspection.candidates.map((candidate) => ({
       ...candidate,
       issues: candidate.issues.filter((issue) => issue.code !== 'NO_SOURCE_EXPLANATION'),
+      ai_enrichment: null,
     }));
     return {
       ...inspection,
@@ -122,6 +123,7 @@ export class QuestionsController {
     const inspection = {
       topic: { name: dto.topic_name ?? undefined },
       issues: [],
+      force_ai_regeneration: Boolean(dto.force),
       candidates: dto.candidates.map((candidate) => ({
         candidate_id: candidate.candidate_id,
         question_text: candidate.question_text,
@@ -129,13 +131,22 @@ export class QuestionsController {
           label: option.label,
           option_text: option.option_text,
           is_correct: option.is_correct,
-          explanation: null,
+          explanation: option.explanation?.trim() || null,
         })),
-        explanation: null,
-        difficulty: QuestionDifficulty.MEDIUM,
+        explanation: candidate.explanation?.trim() || null,
+        difficulty: candidate.difficulty ?? QuestionDifficulty.MEDIUM,
         status: 'VALID' as const,
         issues: [],
         source_section: candidate.source_section ?? null,
+        ai_enrichment: candidate.ai_enrichment ? {
+          provider: candidate.ai_enrichment.provider,
+          model: candidate.ai_enrichment.model,
+          prompt_version: candidate.ai_enrichment.prompt_version,
+          content_hash: candidate.ai_enrichment.content_hash,
+          confidence: candidate.ai_enrichment.confidence,
+          answer_consistency: candidate.ai_enrichment.answer_consistency,
+          status: candidate.ai_enrichment.status as 'GENERATED' | 'STALE' | 'FAILED' | undefined,
+        } : null,
       })),
     };
     const enriched = await this.importEnrichment.enrichInspection(inspection);
