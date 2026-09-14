@@ -13,6 +13,7 @@ import { EssayQuestionImportService } from './essay-question-import.service';
 import { InstructorQuestionAccessService } from './instructor-question-access.service';
 import { OpenRouterQuestionEnrichmentService } from './openrouter-question-enrichment.service';
 import { PdfTextExtractionService } from './pdf-text-extraction.service';
+import { QuestionExplanationLifecycleService } from './question-explanation-lifecycle.service';
 import { QuestionImportAiEnrichmentService } from './question-import-ai-enrichment.service';
 import { QuestionImportEnrichmentService } from './question-import-enrichment.service';
 import { QuestionImportService } from './question-import.service';
@@ -48,6 +49,7 @@ import { UnicodeQuestionImportService } from './unicode-question-import.service'
     OpenRouterQuestionEnrichmentService,
     QuestionImportAiEnrichmentService,
     QuestionImportEnrichmentService,
+    QuestionExplanationLifecycleService,
     EssayQuestionImportService,
   ],
   exports: [
@@ -57,6 +59,7 @@ import { UnicodeQuestionImportService } from './unicode-question-import.service'
     QuestionImportService,
     QuestionImportAiEnrichmentService,
     QuestionImportEnrichmentService,
+    QuestionExplanationLifecycleService,
     EssayQuestionImportService,
     TypeOrmModule,
   ],
