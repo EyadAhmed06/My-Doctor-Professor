@@ -238,6 +238,6 @@ test('timed assessment reveals A-E rationales only after submission', async ({ p
   await expect(page.locator('.tutor-option-review-row')).toHaveCount(5);
   await expect(page.getByText('Question takeaway')).toBeVisible();
   await expect(page.getByText('Option 5 rationale.')).toBeVisible();
-  await expect(page.getByText('Your choice')).toBeVisible();
-  await expect(page.getByText('Correct answer')).toBeVisible();
+  await expect(page.locator('.tutor-option-badges').filter({ hasText: 'Your choice' })).toHaveCount(1);
+  await expect(page.locator('.tutor-option-badges').filter({ hasText: 'Correct answer' })).toHaveCount(1);
 });
