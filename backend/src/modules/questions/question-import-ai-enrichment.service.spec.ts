@@ -2,6 +2,12 @@ import { QuestionDifficulty } from '../../common/entities/question.entity';
 import { QuestionImportAiEnrichmentService } from './question-import-ai-enrichment.service';
 import { OpenRouterQuestionEnrichmentService } from './openrouter-question-enrichment.service';
 
+const signature = {
+  provider: 'OPENROUTER' as const,
+  model: 'meta/muse-spark-1.3',
+  promptVersion: 'mcq-explanation-v2-concise',
+};
+
 function candidate(overrides: Record<string, unknown> = {}) {
   return {
     candidate_id: 'candidate-1',
@@ -33,6 +39,7 @@ describe('QuestionImportAiEnrichmentService', () => {
   it('returns a question explanation plus A-E explanations without changing the answer key', async () => {
     const openRouter = {
       isConfigured: () => true,
+      getSignature: () => signature,
       generate: jest.fn().mockResolvedValue({
         candidateId: 'candidate-1',
         sourceCorrectLabel: 'C',
@@ -66,7 +73,7 @@ describe('QuestionImportAiEnrichmentService', () => {
 
   it('does not ask AI to invent a missing source answer', async () => {
     const generate = jest.fn();
-    const openRouter = { isConfigured: () => true, generate } as unknown as OpenRouterQuestionEnrichmentService;
+    const openRouter = { isConfigured: () => true, getSignature: () => signature, generate } as unknown as OpenRouterQuestionEnrichmentService;
     const service = new QuestionImportAiEnrichmentService(openRouter);
     const row = candidate({
       status: 'NEEDS_REVIEW',
@@ -82,6 +89,7 @@ describe('QuestionImportAiEnrichmentService', () => {
   it('flags a questionable source key for instructor review while preserving it', async () => {
     const openRouter = {
       isConfigured: () => true,
+      getSignature: () => signature,
       generate: jest.fn().mockResolvedValue({
         candidateId: 'candidate-1',
         sourceCorrectLabel: 'C',
