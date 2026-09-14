@@ -15,6 +15,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { QuestionDifficulty } from '../../common/entities/question.entity';
 import { AcademicAccessService } from '../academic/academic-access.service';
 import type { UploadedResourceFile } from '../academic/resource-storage.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -29,6 +30,7 @@ import {
   CreateMcqOptionDto,
   CreateQuestionDto,
   CreateTagDto,
+  EnrichQuestionImportDto,
   EssayConfigurationDto,
   InspectQuestionImportDto,
   PublishQuestionImportDto,
@@ -44,7 +46,7 @@ import { QuestionsService } from './questions.service';
 import { StudentQuestionAccessService } from './student-question-access.service';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
-const PDF_INSPECTOR_CONTRACT_VERSION = 4;
+const PDF_INSPECTOR_CONTRACT_VERSION = 5;
 
 @Controller('questions')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -101,16 +103,46 @@ export class QuestionsController {
     @CurrentUser() actor: AuthenticatedUser,
   ) {
     const inspection = await this.imports.inspectPdf(dto, file, actor);
-    const enriched = await this.importEnrichment.enrichInspection(inspection);
-    const candidates = enriched.candidates.map((candidate) => ({
+    const candidates = inspection.candidates.map((candidate) => ({
       ...candidate,
       issues: candidate.issues.filter((issue) => issue.code !== 'NO_SOURCE_EXPLANATION'),
     }));
     return {
-      ...enriched,
+      ...inspection,
       inspector_contract_version: PDF_INSPECTOR_CONTRACT_VERSION,
-      enrichment_contract: 'source-answer+question-explanation+five-option-explanations+difficulty',
+      enrichment_contract: 'deferred-source-answer+question-explanation+five-option-explanations+difficulty',
       candidates,
+    };
+  }
+
+  @RateLimit({ key: 'question-import-enrich', maximum: 120, windowSeconds: 3600 })
+  @Post('imports/enrich')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  async enrichImport(@Body() dto: EnrichQuestionImportDto) {
+    const inspection = {
+      topic: { name: dto.topic_name ?? undefined },
+      issues: [],
+      candidates: dto.candidates.map((candidate) => ({
+        candidate_id: candidate.candidate_id,
+        question_text: candidate.question_text,
+        options: candidate.options.map((option) => ({
+          label: option.label,
+          option_text: option.option_text,
+          is_correct: option.is_correct,
+          explanation: null,
+        })),
+        explanation: null,
+        difficulty: QuestionDifficulty.MEDIUM,
+        status: 'VALID' as const,
+        issues: [],
+        source_section: candidate.source_section ?? null,
+      })),
+    };
+    const enriched = await this.importEnrichment.enrichInspection(inspection);
+    return {
+      enrichment_contract: 'source-answer+question-explanation+five-option-explanations+difficulty',
+      candidates: enriched.candidates,
+      issues: enriched.issues,
     };
   }
 
@@ -183,33 +215,27 @@ export class QuestionsController {
 
   @Post(':questionId/options')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
-  addOption(
+  async createOption(
     @Param('questionId', uuid) id: string,
     @Body() dto: CreateMcqOptionDto,
     @CurrentUser() actor: AuthenticatedUser,
   ) {
-    return this.questions.addOption(id, dto, actor);
+    return this.questions.createOption(id, dto, actor);
   }
 
-  @Post(':questionId/essay-configuration')
+  @Put(':questionId/essay-configuration')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
-  setEssayConfiguration(
+  async configureEssay(
     @Param('questionId', uuid) id: string,
     @Body() dto: EssayConfigurationDto,
     @CurrentUser() actor: AuthenticatedUser,
   ) {
-    return this.questions.setEssayConfiguration(id, dto, actor);
-  }
-
-  @Get(':questionId/essay-configuration')
-  async getEssayConfiguration(@Param('questionId', uuid) id: string, @CurrentUser() actor: AuthenticatedUser) {
-    await this.assertQuestionRead(id, actor);
-    return this.questions.getEssayConfiguration(id, actor);
+    return this.questions.configureEssay(id, dto, actor);
   }
 
   @Post(':questionId/tags/:tagId')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
-  addTag(
+  async addTag(
     @Param('questionId', uuid) questionId: string,
     @Param('tagId', uuid) tagId: string,
     @CurrentUser() actor: AuthenticatedUser,
@@ -225,12 +251,11 @@ export class QuestionsController {
     @Param('tagId', uuid) tagId: string,
     @CurrentUser() actor: AuthenticatedUser,
   ): Promise<void> {
-    await this.questions.removeQuestionTag(questionId, tagId, actor);
+    await this.questions.removeTagFromQuestion(questionId, tagId, actor);
   }
 
-  private async assertQuestionRead(id: string, actor: AuthenticatedUser) {
-    if (actor.role === UserRole.SYSTEM_ADMIN) return;
-    if (actor.role === UserRole.INSTRUCTOR) return this.access.assertQuestionManagedReadable(id, actor);
-    return this.access.assertQuestionReadable(id, actor);
+  private async assertQuestionRead(questionId: string, actor: AuthenticatedUser): Promise<void> {
+    if (actor.role === UserRole.STUDENT) await this.studentQuestions.assertReadable(questionId, actor);
+    else if (actor.role === UserRole.INSTRUCTOR) await this.instructorQuestions.assertReadable(questionId, actor);
   }
 }
