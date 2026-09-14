@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "./auth-provider";
 import { Panel, ProductShell } from "./product-shell";
 import { TutorOptionReview } from "./tutor-option-review";
+import "./assessment-session.css";
 
 type ReviewOption = {
   id: string;
