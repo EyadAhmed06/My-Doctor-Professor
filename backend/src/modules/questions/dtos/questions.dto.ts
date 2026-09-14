@@ -100,6 +100,30 @@ export class InspectQuestionImportDto {
   @BooleanQuery() @IsBoolean() copyright_confirmed: boolean;
 }
 
+export class EnrichQuestionImportOptionDto {
+  @IsString() @IsNotEmpty() @MaxLength(4) label: string;
+  @IsString() @IsNotEmpty() @MaxLength(2000) option_text: string;
+  @IsBoolean() is_correct: boolean;
+}
+
+export class EnrichQuestionImportCandidateDto {
+  @IsString() @IsNotEmpty() @MaxLength(200) candidate_id: string;
+  @IsString() @IsNotEmpty() @MaxLength(12000) question_text: string;
+  @IsArray() @ArrayMinSize(5) @ArrayMaxSize(5)
+  @ValidateNested({ each: true })
+  @Type(() => EnrichQuestionImportOptionDto)
+  options: EnrichQuestionImportOptionDto[];
+  @IsOptional() @IsString() @MaxLength(255) source_section?: string;
+}
+
+export class EnrichQuestionImportDto {
+  @IsOptional() @IsString() @MaxLength(255) topic_name?: string;
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => EnrichQuestionImportCandidateDto)
+  candidates: EnrichQuestionImportCandidateDto[];
+}
+
 export class PublishImportedOptionDto {
   @IsString() @IsNotEmpty() @MaxLength(2000) option_text: string;
   @IsOptional() @IsString() @MaxLength(8000) explanation?: string;
