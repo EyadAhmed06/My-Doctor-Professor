@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { Injectable } from '@nestjs/common';
 import { QuestionDifficulty } from '../../common/entities/question.entity';
 import { OpenRouterQuestionEnrichmentService } from './openrouter-question-enrichment.service';
@@ -9,6 +10,15 @@ type ImportOption = {
   is_correct: boolean;
   explanation?: string | null;
 };
+type AiEnrichmentMetadata = {
+  provider?: string;
+  model?: string;
+  prompt_version?: string;
+  content_hash?: string;
+  confidence?: number;
+  answer_consistency?: string;
+  status?: 'GENERATED' | 'STALE' | 'FAILED';
+};
 type ImportCandidate = {
   candidate_id: string;
   question_text: string;
@@ -18,6 +28,7 @@ type ImportCandidate = {
   status: 'VALID' | 'NEEDS_REVIEW' | 'INVALID';
   issues: ImportIssue[];
   source_section?: string | null;
+  ai_enrichment?: AiEnrichmentMetadata | null;
   [key: string]: unknown;
 };
 type ImportInspection = {
@@ -25,6 +36,7 @@ type ImportInspection = {
   summary?: { extracted: number; valid: number; needs_review: number; invalid: number; duplicates: number };
   issues: ImportIssue[];
   topic?: { id?: string; name?: string };
+  force_ai_regeneration?: boolean;
   [key: string]: unknown;
 };
 
@@ -46,8 +58,22 @@ export class QuestionImportAiEnrichmentService {
       });
     }
 
+    const force = Boolean(inspection.force_ai_regeneration);
+    const cachedIds = new Set(
+      force ? [] : eligible.filter((candidate) => this.isCurrentEnrichment(candidate)).map((candidate) => candidate.candidate_id),
+    );
+    const pending = eligible.filter((candidate) => !cachedIds.has(candidate.candidate_id));
+
+    if (!pending.length) {
+      return this.recalculate(inspection, inspection.candidates, {
+        code: 'AI_ENRICHMENT_CACHED',
+        severity: 'INFO',
+        message: `${cachedIds.size} question(s) already have current Muse explanations; no duplicate AI requests were made.`,
+      });
+    }
+
     if (!this.openRouter.isConfigured()) {
-      const ids = new Set(eligible.map((candidate) => candidate.candidate_id));
+      const ids = new Set(pending.map((candidate) => candidate.candidate_id));
       const candidates = inspection.candidates.map((candidate) => ids.has(candidate.candidate_id)
         ? this.markFailure(candidate, 'OPENROUTER_API_KEY is not configured on the backend.')
         : candidate);
@@ -61,8 +87,8 @@ export class QuestionImportAiEnrichmentService {
     const results = new Map<string, Awaited<ReturnType<OpenRouterQuestionEnrichmentService['generate']>>>();
     const failures = new Map<string, string>();
 
-    for (let offset = 0; offset < eligible.length; offset += MAX_PARALLEL_REQUESTS) {
-      const wave = eligible.slice(offset, offset + MAX_PARALLEL_REQUESTS);
+    for (let offset = 0; offset < pending.length; offset += MAX_PARALLEL_REQUESTS) {
+      const wave = pending.slice(offset, offset + MAX_PARALLEL_REQUESTS);
       const settled = await Promise.allSettled(wave.map((candidate) => {
         const correct = candidate.options.find((option) => option.is_correct)!;
         return this.openRouter.generate({
@@ -96,9 +122,32 @@ export class QuestionImportAiEnrichmentService {
       code: failedCount ? 'AI_ENRICHMENT_PARTIAL' : 'AI_ENRICHMENT_COMPLETE',
       severity: failedCount ? 'WARNING' : 'INFO',
       message: failedCount
-        ? `${results.size} question(s) received option-by-option explanations; ${failedCount} failed and remain reviewable.`
-        : `${results.size} question(s) received option-by-option explanations${reviewCount ? `; ${reviewCount} answer key(s) were flagged for instructor review` : ''}.`,
+        ? `${results.size} generated · ${cachedIds.size} reused · ${failedCount} failed and remain reviewable.`
+        : `${results.size} generated · ${cachedIds.size} reused${reviewCount ? ` · ${reviewCount} answer key(s) flagged for instructor review` : ''}.`,
     });
+  }
+
+  contentHash(candidate: Pick<ImportCandidate, 'question_text' | 'options'>): string {
+    const correct = candidate.options.find((option) => option.is_correct)?.label.trim().toUpperCase() ?? null;
+    const canonical = {
+      question: candidate.question_text.replace(/\s+/g, ' ').trim(),
+      options: candidate.options.map((option) => ({
+        label: option.label.trim().toUpperCase(),
+        text: option.option_text.replace(/\s+/g, ' ').trim(),
+      })),
+      correct,
+    };
+    return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+  }
+
+  private isCurrentEnrichment(candidate: ImportCandidate): boolean {
+    const signature = this.openRouter.getSignature();
+    const metadata = candidate.ai_enrichment;
+    if (!metadata || metadata.status === 'STALE' || metadata.status === 'FAILED') return false;
+    if (metadata.provider !== signature.provider || metadata.model !== signature.model || metadata.prompt_version !== signature.promptVersion) return false;
+    if (metadata.content_hash !== this.contentHash(candidate)) return false;
+    if (!candidate.explanation?.trim()) return false;
+    return candidate.options.length === 5 && candidate.options.every((option) => Boolean(option.explanation?.trim()));
   }
 
   private isEligible(candidate: ImportCandidate): boolean {
@@ -115,7 +164,7 @@ export class QuestionImportAiEnrichmentService {
   ): ImportCandidate {
     const byLabel = new Map(result.optionExplanations.map((row) => [row.label, row.explanation]));
     const issues = candidate.issues.filter((issue) =>
-      !['AI_ENRICHMENT_FAILED', 'AI_ENRICHED', 'AI_ANSWER_KEY_REVIEW_REQUIRED', 'NO_SOURCE_EXPLANATION', 'DIFFICULTY_ESTIMATED'].includes(issue.code),
+      !['AI_ENRICHMENT_FAILED', 'AI_ENRICHED', 'AI_ANSWER_KEY_REVIEW_REQUIRED', 'AI_EXPLANATION_STALE', 'NO_SOURCE_EXPLANATION', 'DIFFICULTY_ESTIMATED'].includes(issue.code),
     );
     issues.push({
       code: 'AI_ENRICHED',
@@ -130,7 +179,7 @@ export class QuestionImportAiEnrichmentService {
       });
     }
 
-    return {
+    const updated = {
       ...candidate,
       explanation: result.questionExplanation,
       options: candidate.options.map((option) => ({
@@ -138,14 +187,20 @@ export class QuestionImportAiEnrichmentService {
         explanation: byLabel.get(option.label.trim().toUpperCase()) || null,
       })),
       difficulty: result.difficulty as QuestionDifficulty,
-      status: result.answerConsistency === 'QUESTIONABLE' ? 'NEEDS_REVIEW' : this.statusFromIssues(issues),
+      status: result.answerConsistency === 'QUESTIONABLE' ? 'NEEDS_REVIEW' as const : this.statusFromIssues(issues),
       issues,
+    };
+
+    return {
+      ...updated,
       ai_enrichment: {
         provider: 'OPENROUTER',
         model: result.model,
         prompt_version: result.promptVersion,
+        content_hash: this.contentHash(updated),
         confidence: result.confidence,
         answer_consistency: result.answerConsistency,
+        status: 'GENERATED',
       },
     };
   }
@@ -155,7 +210,12 @@ export class QuestionImportAiEnrichmentService {
       ...candidate.issues.filter((issue) => issue.code !== 'AI_ENRICHMENT_FAILED'),
       { code: 'AI_ENRICHMENT_FAILED', severity: 'WARNING', message },
     ];
-    return { ...candidate, status: candidate.status === 'INVALID' ? 'INVALID' : 'NEEDS_REVIEW', issues };
+    return {
+      ...candidate,
+      status: candidate.status === 'INVALID' ? 'INVALID' : 'NEEDS_REVIEW',
+      issues,
+      ai_enrichment: { ...candidate.ai_enrichment, status: 'FAILED' },
+    };
   }
 
   private safeError(reason: unknown): string {
