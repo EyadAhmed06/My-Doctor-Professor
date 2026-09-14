@@ -56,6 +56,7 @@ jobs:
           openrouter-question-enrichment.service.spec.ts
           question-import-ai-enrichment.service.spec.ts
           question-explanation-lifecycle.service.spec.ts
+          questions.dto.spec.ts
           questions.route.spec.ts
           assessment-attempt.service.spec.ts
           mcq-practice.service.security.spec.ts
