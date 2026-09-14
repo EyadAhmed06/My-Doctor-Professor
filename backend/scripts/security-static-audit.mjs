@@ -51,7 +51,26 @@ function inspect(path) {
   }
 }
 
+function guardPatchedProductionDependencies() {
+  const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+  const expected = {
+    nodemailer: '9.1.1',
+    multer: '2.3.0',
+    qs: '6.16.0',
+  };
+  if (packageJson.dependencies?.nodemailer !== expected.nodemailer) {
+    failures.push(`package.json [nodemailer must stay pinned to patched ${expected.nodemailer}]`);
+  }
+  if (packageJson.overrides?.multer !== expected.multer) {
+    failures.push(`package.json [multer override must stay pinned to patched ${expected.multer}]`);
+  }
+  if (packageJson.overrides?.qs !== expected.qs) {
+    failures.push(`package.json [qs override must stay pinned to patched ${expected.qs}]`);
+  }
+}
+
 for (const directory of scanRoots) walk(join(root, directory));
+guardPatchedProductionDependencies();
 
 if (failures.length) {
   console.error('Backend security static audit failed:\n' + failures.join('\n'));
