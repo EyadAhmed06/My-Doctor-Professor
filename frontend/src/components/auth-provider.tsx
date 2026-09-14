@@ -45,7 +45,7 @@ type AuthContextValue = {
   logout(): Promise<void>;
   refreshUser(): Promise<AuthUser | null>;
   refreshAccessToken(): Promise<string | null>;
-  request<T>(path: string, options?: Omit<Parameters<typeof apiRequest<T>>[1], "accessToken">): Promise<T>;
+  request<T>(path: string, options?: Omit<NonNullable<Parameters<typeof apiRequest<T>>[1]>, "accessToken">): Promise<T>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -338,7 +338,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await Promise.allSettled(requests);
   }, [accessToken]);
 
-  const request = useCallback(async <T,>(path: string, options: Omit<Parameters<typeof apiRequest<T>>[1], "accessToken"> = {}) => {
+  const request = useCallback(async <T,>(path: string, options: Omit<NonNullable<Parameters<typeof apiRequest<T>>[1]>, "accessToken"> = {}) => {
     let token = accessToken;
     const run = (currentToken: string | null) => apiRequest<T>(path, { ...options, accessToken: currentToken });
     try {
