@@ -40,6 +40,7 @@ import {
   UpdateQuestionDto,
 } from './dtos/questions.dto';
 import { InstructorQuestionAccessService } from './instructor-question-access.service';
+import { QuestionExplanationLifecycleService } from './question-explanation-lifecycle.service';
 import { QuestionImportAiEnrichmentService } from './question-import-ai-enrichment.service';
 import { QuestionImportService } from './question-import.service';
 import { QuestionsService } from './questions.service';
@@ -59,6 +60,7 @@ export class QuestionsController {
     private readonly access: AcademicAccessService,
     private readonly imports: QuestionImportService,
     private readonly importEnrichment: QuestionImportAiEnrichmentService,
+    private readonly explanationLifecycle: QuestionExplanationLifecycleService,
   ) {}
 
   @Post()
@@ -162,15 +164,26 @@ export class QuestionsController {
 
   @Put('options/:optionId')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
-  updateOption(@Param('optionId', uuid) id: string, @Body() dto: UpdateMcqOptionDto, @CurrentUser() actor: AuthenticatedUser) {
-    return this.questions.updateOption(id, dto, actor);
+  async updateOption(
+    @Param('optionId', uuid) id: string,
+    @Body() dto: UpdateMcqOptionDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    const questionId = await this.explanationLifecycle.questionIdForOption(id);
+    const result = await this.questions.updateOption(id, dto, actor);
+    if (questionId && (dto.option_text !== undefined || dto.is_correct !== undefined)) {
+      await this.explanationLifecycle.invalidateQuestion(questionId);
+    }
+    return result;
   }
 
   @Delete('options/:optionId')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   async removeOption(@Param('optionId', uuid) id: string, @CurrentUser() actor: AuthenticatedUser): Promise<void> {
+    const questionId = await this.explanationLifecycle.questionIdForOption(id);
     await this.questions.removeOption(id, actor);
+    if (questionId) await this.explanationLifecycle.invalidateQuestion(questionId);
   }
 
   @Delete('tags/:tagId')
@@ -186,8 +199,12 @@ export class QuestionsController {
 
   @Put(':questionId')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
-  update(@Param('questionId', uuid) id: string, @Body() dto: UpdateQuestionDto, @CurrentUser() actor: AuthenticatedUser) {
-    return this.questions.update(id, dto, actor);
+  async update(@Param('questionId', uuid) id: string, @Body() dto: UpdateQuestionDto, @CurrentUser() actor: AuthenticatedUser) {
+    const result = await this.questions.update(id, dto, actor);
+    if (dto.question_text !== undefined) {
+      await this.explanationLifecycle.invalidateQuestion(id, dto.explanation !== undefined);
+    }
+    return result;
   }
 
   @Delete(':questionId')
@@ -213,7 +230,9 @@ export class QuestionsController {
   @Post(':questionId/options')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   async createOption(@Param('questionId', uuid) id: string, @Body() dto: CreateMcqOptionDto, @CurrentUser() actor: AuthenticatedUser) {
-    return this.questions.addOption(id, dto, actor);
+    const result = await this.questions.addOption(id, dto, actor);
+    await this.explanationLifecycle.invalidateQuestion(id);
+    return result;
   }
 
   @Put(':questionId/essay-configuration')
