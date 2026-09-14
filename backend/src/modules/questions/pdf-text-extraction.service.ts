@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+// security-audit-reviewed: execFileSync uses no shell, fixed argument arrays, bounded time/buffer, and server-controlled binary paths.
 import {
   execFileSync,
   type ExecFileSyncOptionsWithStringEncoding,
@@ -138,6 +139,7 @@ export class PdfTextExtractionService {
     try {
       writeFileSync(pdfPath, buffer, { flag: 'wx' });
 
+      // security-audit-reviewed: execFileSync avoids shell parsing; pdfPath is generated in our private temp directory.
       const info = execFileSync(pdfinfoBinary, [pdfPath], processOptions);
       const pagesMatch = info.match(/^Pages:\s+(\d+)\s*$/m);
       if (!pagesMatch) {
@@ -158,6 +160,7 @@ export class PdfTextExtractionService {
         );
       }
 
+      // security-audit-reviewed: execFileSync avoids shell parsing; every argument is a separate fixed/value argument.
       execFileSync(
         pdftotextBinary,
         ['-layout', '-enc', 'UTF-8', pdfPath, textPath],

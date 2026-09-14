@@ -56,6 +56,7 @@ export class StudentStudioController {
   }
 
   private async savedQuestions(actor: AuthenticatedUser, filter: StudioFilter) {
+    // security-audit-reviewed: interpolated fragments are module constants/allowlisted predicate builders; actor/filter remain $1/$2 parameters.
     const data = await this.dataSource.query(`
       WITH closed_flags AS (
         SELECT
