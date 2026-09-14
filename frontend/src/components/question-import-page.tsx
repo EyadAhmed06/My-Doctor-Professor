@@ -116,6 +116,7 @@ type PublishResult = { created: number; reused: number; skipped: number };
 
 const OPTION_LABELS = ["A", "B", "C", "D", "E"] as const;
 const EXPLANATION_MAX_LENGTH = 220;
+const EXPLANATION_MAX_SENTENCES = 2;
 const ENRICHMENT_BATCH_SIZE = 10;
 
 function normalizeOptions(options: CandidateOption[]) {
@@ -162,10 +163,24 @@ function isAiEligible(candidate: Candidate) {
     && candidate.options.filter((option) => option.is_correct).length === 1;
 }
 
+function explanationSentenceCount(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return 0;
+  const terminated = trimmed.match(/[.!?؟]+(?=\s|$)/g)?.length ?? 0;
+  return terminated + (/[.!?؟]+$/.test(trimmed) ? 0 : 1);
+}
+
+function isExplanationValid(value: string | null | undefined) {
+  const text = value ?? "";
+  return text.length <= EXPLANATION_MAX_LENGTH
+    && explanationSentenceCount(text) <= EXPLANATION_MAX_SENTENCES;
+}
+
 function hasCompleteExplanations(candidate: Candidate) {
   return Boolean(candidate.explanation?.trim())
+    && isExplanationValid(candidate.explanation)
     && candidate.options.length === 5
-    && candidate.options.every((option) => Boolean(option.explanation?.trim()));
+    && candidate.options.every((option) => Boolean(option.explanation?.trim()) && isExplanationValid(option.explanation));
 }
 
 function recalculateCandidate(candidate: Candidate): Candidate {
@@ -175,6 +190,8 @@ function recalculateCandidate(candidate: Candidate): Candidate {
     "NO_CORRECT_OPTION",
     "MULTIPLE_CORRECT_OPTIONS",
     "EMPTY_OPTION",
+    "INVALID_QUESTION_EXPLANATION",
+    "INVALID_OPTION_EXPLANATION",
   ]);
   const issues = (candidate.issues || []).filter((issue) => !structuralCodes.has(issue.code));
   if (candidate.question_text.trim().length < 8) {
@@ -189,6 +206,12 @@ function recalculateCandidate(candidate: Candidate): Candidate {
   const correctCount = candidate.options.filter((option) => option.is_correct).length;
   if (correctCount === 0) issues.push({ code: "NO_CORRECT_OPTION", severity: "ERROR", message: "Select the single correct answer." });
   if (correctCount > 1) issues.push({ code: "MULTIPLE_CORRECT_OPTIONS", severity: "ERROR", message: "Only one option can be correct." });
+  if (candidate.explanation && !isExplanationValid(candidate.explanation)) {
+    issues.push({ code: "INVALID_QUESTION_EXPLANATION", severity: "ERROR", message: "Question explanation must be at most 2 sentences and 220 characters." });
+  }
+  if (candidate.options.some((option) => option.explanation && !isExplanationValid(option.explanation))) {
+    issues.push({ code: "INVALID_OPTION_EXPLANATION", severity: "ERROR", message: "Each option explanation must be at most 2 sentences and 220 characters." });
+  }
 
   const hasError = issues.some((issue) => issue.severity === "ERROR");
   const hasWarning = issues.some((issue) => issue.severity === "WARNING")
