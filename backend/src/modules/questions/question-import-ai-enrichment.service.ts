@@ -29,6 +29,7 @@ type ImportInspection = {
 };
 
 const MAX_PARALLEL_REQUESTS = 3;
+const OPTION_EXPLANATION_HEADER = '--- Option explanations ---';
 
 @Injectable()
 export class QuestionImportAiEnrichmentService {
@@ -130,9 +131,16 @@ export class QuestionImportAiEnrichmentService {
       });
     }
 
+    const optionExplanations = candidate.options.map((option) => ({
+      label: option.label.trim().toUpperCase(),
+      explanation: byLabel.get(option.label.trim().toUpperCase()) || '',
+    }));
+
     return {
       ...candidate,
-      explanation: result.questionExplanation,
+      // Keep a human-editable serialized copy because the current Inspector has one explanation editor.
+      // The publish adapter deterministically splits the A-E block back into mcq_options.explanation.
+      explanation: this.serializeForInspector(result.questionExplanation, optionExplanations),
       options: candidate.options.map((option) => ({
         ...option,
         explanation: byLabel.get(option.label.trim().toUpperCase()) || null,
@@ -148,6 +156,18 @@ export class QuestionImportAiEnrichmentService {
         answer_consistency: result.answerConsistency,
       },
     };
+  }
+
+  private serializeForInspector(
+    questionExplanation: string,
+    options: Array<{ label: string; explanation: string }>,
+  ): string {
+    return [
+      questionExplanation.trim(),
+      '',
+      OPTION_EXPLANATION_HEADER,
+      ...options.map((option) => `${option.label}) ${option.explanation.trim()}`),
+    ].join('\n').trim();
   }
 
   private markFailure(candidate: ImportCandidate, message: string): ImportCandidate {
