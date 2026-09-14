@@ -1,0 +1,57 @@
+name: One-shot backend dependency repair
+
+on:
+  push:
+    branches:
+      - agent/phase1-interactions
+    paths:
+      - .github/workflows/fix-backend-audit-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/phase1-interactions
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Pin patched production dependency versions
+        working-directory: backend
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'package.json';
+          const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
+          pkg.dependencies.nodemailer = '9.1.1';
+          pkg.overrides = {
+            ...(pkg.overrides || {}),
+            multer: '2.3.0',
+            qs: '6.16.0',
+          };
+          fs.writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`);
+          NODE
+          npm install --package-lock-only --ignore-scripts
+      - name: Verify production audit is clean at high severity
+        working-directory: backend
+        run: npm audit --omit=dev --audit-level=high
+      - name: Verify reproducible install
+        working-directory: backend
+        run: npm ci --ignore-scripts
+      - name: Verify backend build
+        working-directory: backend
+        run: npm run build
+      - name: Remove one-shot workflow and commit repair
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/fix-backend-audit-once.yml
+          git add backend/package.json backend/package-lock.json
+          git commit -m 'fix: patch vulnerable backend production dependencies'
+          git push origin HEAD:agent/phase1-interactions
