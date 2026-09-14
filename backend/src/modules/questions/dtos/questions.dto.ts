@@ -20,6 +20,7 @@ import {
   QuestionDifficulty,
   QuestionType,
 } from '../../../common/entities/question.entity';
+import { IsConciseExplanation } from '../explanation-policy';
 
 const BooleanQuery = () =>
   Transform(({ value }) => {
@@ -104,7 +105,11 @@ export class EnrichQuestionImportOptionDto {
   @IsString() @IsNotEmpty() @MaxLength(4) label: string;
   @IsString() @IsNotEmpty() @MaxLength(2000) option_text: string;
   @IsBoolean() is_correct: boolean;
-  @IsOptional() @IsString() @MaxLength(220) explanation?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(220)
+  @IsConciseExplanation()
+  explanation?: string;
 }
 
 export class EnrichQuestionImportMetadataDto {
@@ -124,7 +129,11 @@ export class EnrichQuestionImportCandidateDto {
   @ValidateNested({ each: true })
   @Type(() => EnrichQuestionImportOptionDto)
   options: EnrichQuestionImportOptionDto[];
-  @IsOptional() @IsString() @MaxLength(220) explanation?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(220)
+  @IsConciseExplanation()
+  explanation?: string;
   @IsOptional() @IsEnum(QuestionDifficulty) difficulty?: QuestionDifficulty;
   @IsOptional() @IsString() @MaxLength(255) source_section?: string;
   @IsOptional() @ValidateNested() @Type(() => EnrichQuestionImportMetadataDto)
@@ -142,14 +151,22 @@ export class EnrichQuestionImportDto {
 
 export class PublishImportedOptionDto {
   @IsString() @IsNotEmpty() @MaxLength(2000) option_text: string;
-  @IsOptional() @IsString() @MaxLength(220) explanation?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(220)
+  @IsConciseExplanation()
+  explanation?: string;
   @IsBoolean() is_correct: boolean;
 }
 
 export class PublishImportedQuestionDto {
   @IsBoolean() approved: boolean;
   @IsString() @IsNotEmpty() question_text: string;
-  @IsOptional() @IsString() @MaxLength(220) explanation?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(220)
+  @IsConciseExplanation()
+  explanation?: string;
   @IsEnum(QuestionDifficulty) difficulty: QuestionDifficulty;
   @IsInt() @Min(1) @Max(999) marks: number;
   @IsArray() @ArrayMinSize(5) @ArrayMaxSize(5)
