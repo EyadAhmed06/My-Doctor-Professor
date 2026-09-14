@@ -142,9 +142,39 @@ export class AssessmentAttemptService {
       attempt.lastActivityAt = new Date();
       await manager.getRepository(TestAttempt).save(attempt);
       const saved = await repository.save(answer);
-      const value = attempt.testMode === TestMode.TUTOR && question.questionType === QuestionType.MCQ
-        ? { ...saved, explanation: question.explanation }
-        : this.hideGrade(saved);
+
+      let value: Record<string, unknown>;
+      if (attempt.testMode === TestMode.TUTOR && question.questionType === QuestionType.MCQ) {
+        const optionRows = await manager.getRepository(McqOption).find({
+          where: { questionId },
+          order: { displayOrder: 'ASC' },
+        });
+        const correctOption = optionRows.find((option) => option.isCorrect);
+        if (!correctOption) throw new ConflictException('MCQ has no correct option');
+        value = {
+          ...saved,
+          // Backward compatibility for clients that only know the old question-level field.
+          explanation: question.explanation,
+          tutor_feedback: {
+            is_correct: saved.isCorrect,
+            question_explanation: question.explanation,
+            selected_option: {
+              id: selectedOption!.id,
+              explanation: selectedOption!.explanation,
+            },
+            correct_option: {
+              id: correctOption.id,
+              explanation: correctOption.explanation,
+            },
+            options: optionRows.map((option) => ({
+              id: option.id,
+              explanation: option.explanation,
+            })),
+          },
+        };
+      } else {
+        value = this.hideGrade(saved) as unknown as Record<string, unknown>;
+      }
       return { expired: false as const, value };
     });
 
