@@ -50,13 +50,14 @@ function validMcq(): Question {
   return {
     id: '44444444-4444-4444-8444-444444444444',
     questionType: QuestionType.MCQ,
+    explanation: 'The key finding identifies the preferred answer.',
     options: Array.from({ length: 5 }, (_, index) => ({
       id: `55555555-5555-4555-8555-55555555555${index}`,
       questionId: '44444444-4444-4444-8444-444444444444',
       optionText: `Option ${index + 1}`,
       isCorrect: index === 0,
       displayOrder: index + 1,
-      explanation: null,
+      explanation: index === 0 ? 'This option directly matches the key finding.' : `Option ${index + 1} does not match the key finding.`,
       createdAt: new Date(),
     } as McqOption)),
   } as Question;
@@ -203,7 +204,7 @@ describe('AssessmentAttemptService', () => {
     }));
   });
 
-  it('locks the attempt before saving an answer so autosave cannot race submission', async () => {
+  it('returns concise structured option explanations only after a tutor answer is saved', async () => {
     const test = testRecord();
     const attempt = {
       id: '77777777-7777-4777-8777-777777777777',
@@ -217,24 +218,25 @@ describe('AssessmentAttemptService', () => {
     const question = validMcq();
     const item = assignment(question);
     item.testId = test.id;
-    const option = question.options[0];
+    const option = question.options[1];
     const savedAnswer = {
       id: '88888888-8888-4888-8888-888888888888',
       attemptId: attempt.id,
       questionId: question.id,
       selectedOptionId: option.id,
-      isCorrect: true,
-      awardedMarks: '1.00',
+      isCorrect: false,
+      awardedMarks: '0.00',
     } as StudentAnswer;
     const attemptFind = jest.fn().mockResolvedValue(attempt);
     const answerSave = jest.fn().mockResolvedValue(savedAnswer);
     const answerCreate = jest.fn().mockImplementation((value) => value);
+    const optionFind = jest.fn().mockResolvedValue(question.options);
     const manager = {
       getRepository: jest.fn().mockImplementation((entity) => {
         if (entity === TestAttempt) return { findOne: attemptFind, save: jest.fn().mockResolvedValue(attempt) };
         if (entity === Test) return { findOne: jest.fn().mockResolvedValue(test) };
         if (entity === TestQuestion) return { findOne: jest.fn().mockResolvedValue(item) };
-        if (entity === McqOption) return { findOne: jest.fn().mockResolvedValue(option) };
+        if (entity === McqOption) return { findOne: jest.fn().mockResolvedValue(option), find: optionFind };
         if (entity === StudentAnswer) return {
           findOne: jest.fn().mockResolvedValue(null),
           create: answerCreate,
@@ -251,10 +253,73 @@ describe('AssessmentAttemptService', () => {
     const result = await service.saveAnswer(attempt.id, question.id, {
       selected_option_id: option.id,
       confidence_level: 'HIGH',
-    }, actor);
+    }, actor) as Record<string, any>;
 
     expect(attemptFind).toHaveBeenCalledWith(expect.objectContaining({ lock: { mode: 'pessimistic_write' } }));
     expect(answerSave).toHaveBeenCalledTimes(1);
-    expect(result).toEqual(expect.objectContaining({ explanation: question.explanation }));
+    expect(optionFind).toHaveBeenCalledTimes(1);
+    expect(result.explanation).toBe(question.explanation);
+    expect(result.tutor_feedback).toEqual(expect.objectContaining({
+      is_correct: false,
+      question_explanation: question.explanation,
+      selected_option: { id: option.id, explanation: option.explanation },
+      correct_option: { id: question.options[0].id, explanation: question.options[0].explanation },
+    }));
+    expect(result.tutor_feedback.options).toHaveLength(5);
+  });
+
+  it('does not return grading or explanations while saving a timed answer', async () => {
+    const test = testRecord();
+    const attempt = {
+      id: '77777777-7777-4777-8777-777777777777',
+      studentId: actor.userId,
+      testId: test.id,
+      testMode: TestMode.TIMED,
+      status: TestAttemptStatus.IN_PROGRESS,
+      startedAt: new Date(),
+      lastActivityAt: new Date(),
+    } as TestAttempt;
+    const question = validMcq();
+    const item = assignment(question);
+    const option = question.options[0];
+    const savedAnswer = {
+      id: '88888888-8888-4888-8888-888888888888',
+      attemptId: attempt.id,
+      questionId: question.id,
+      selectedOptionId: option.id,
+      isCorrect: null,
+      awardedMarks: null,
+      feedback: null,
+      gradedBy: null,
+      gradedAt: null,
+    } as StudentAnswer;
+    const manager = {
+      getRepository: jest.fn().mockImplementation((entity) => {
+        if (entity === TestAttempt) return { findOne: jest.fn().mockResolvedValue(attempt), save: jest.fn().mockResolvedValue(attempt) };
+        if (entity === Test) return { findOne: jest.fn().mockResolvedValue(test) };
+        if (entity === TestQuestion) return { findOne: jest.fn().mockResolvedValue(item) };
+        if (entity === McqOption) return { findOne: jest.fn().mockResolvedValue(option), find: jest.fn() };
+        if (entity === StudentAnswer) return {
+          findOne: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockImplementation((value) => value),
+          save: jest.fn().mockResolvedValue(savedAnswer),
+        };
+        throw new Error('Unexpected repository access');
+      }),
+    };
+    const service = baseService({
+      test,
+      dataSource: { transaction: jest.fn().mockImplementation(async (callback) => callback(manager)) },
+    });
+
+    const result = await service.saveAnswer(attempt.id, question.id, {
+      selected_option_id: option.id,
+      confidence_level: 'MEDIUM',
+    }, actor) as Record<string, unknown>;
+
+    expect(result).not.toHaveProperty('isCorrect');
+    expect(result).not.toHaveProperty('awardedMarks');
+    expect(result).not.toHaveProperty('explanation');
+    expect(result).not.toHaveProperty('tutor_feedback');
   });
 });
