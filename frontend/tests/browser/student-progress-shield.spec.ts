@@ -1,6 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
 const frontendOrigin = 'http://127.0.0.1:3001';
+const student = { id: 'student-progress-shield', email: 'progress@example.test', full_name: 'Progress Student', role: 'STUDENT', status: 'ACTIVE', emailVerified: true };
 
 function endpoint(url: string) {
   const path = new URL(url).pathname;
@@ -11,7 +12,9 @@ function endpoint(url: string) {
 
 async function mockStudentWorkspace(page: Page) {
   await page.addInitScript(() => {
-    localStorage.setItem('mdp_access_token', 'student-progress-shield-token');
+    localStorage.removeItem('mdp_access_token');
+    sessionStorage.removeItem('mdp_access_token');
+    localStorage.removeItem('mdp_logged_out_at');
     localStorage.setItem('mdp-theme', 'dark');
     localStorage.setItem('mdp-locale', 'en');
   });
@@ -33,14 +36,8 @@ async function mockStudentWorkspace(page: Page) {
     const respond = (body: unknown) => route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify(body) });
     const path = endpoint(request.url());
 
-    if (path === '/auth/me') return respond({
-      id: 'student-progress-shield',
-      email: 'progress@example.test',
-      full_name: 'Progress Student',
-      role: 'STUDENT',
-      status: 'ACTIVE',
-      emailVerified: true,
-    });
+    if (path === '/auth/refresh') return respond({ access_token: 'student-progress-shield-token', user: student });
+    if (path === '/auth/me') return respond(student);
     if (path === '/notifications/unread/count') return respond({ count: 0 });
     if (path.startsWith('/notifications?')) return respond({ data: [] });
     if (path === '/dashboard/student') return respond({
