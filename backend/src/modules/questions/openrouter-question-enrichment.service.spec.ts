@@ -61,7 +61,38 @@ describe('OpenRouterQuestionEnrichmentService', () => {
     expect(JSON.parse(String(request.body))).toMatchObject({
       model: 'meta/muse-spark-1.3',
       max_tokens: 1200,
+      provider: { require_parameters: true },
+      plugins: [{ id: 'response-healing' }],
+      response_format: { type: 'json_schema' },
     });
+  });
+
+  it('accepts schema-valid JSON wrapped in a Markdown fence', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const payload = validPayload();
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: `\`\`\`json\n${JSON.stringify(payload)}\n\`\`\`` } }],
+      }),
+    } as Response);
+
+    await expect(new OpenRouterQuestionEnrichmentService().generate(input))
+      .resolves.toMatchObject({ sourceCorrectLabel: 'C' });
+  });
+
+  it('extracts schema-valid JSON from mixed provider text before validation', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const payload = validPayload();
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: `Structured result:\n${JSON.stringify(payload)}` } }],
+      }),
+    } as Response);
+
+    await expect(new OpenRouterQuestionEnrichmentService().generate(input))
+      .resolves.toMatchObject({ sourceCorrectLabel: 'C' });
   });
 
   it('rejects an AI attempt to change the source answer', async () => {

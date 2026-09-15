@@ -89,6 +89,8 @@ export class OpenRouterQuestionEnrichmentService {
           model: this.model,
           temperature: 0.1,
           max_tokens: MAX_OUTPUT_TOKENS,
+          provider: { require_parameters: true },
+          plugins: [{ id: 'response-healing' }],
           response_format: {
             type: 'json_schema',
             json_schema: { name: 'mcq_explanation', strict: true, schema: this.responseSchema() },
@@ -106,6 +108,7 @@ export class OpenRouterQuestionEnrichmentService {
                 'Write the minimum useful explanation: direct, specific, and exam-relevant.',
                 'If the source answer appears medically inconsistent, keep it unchanged and mark answer_consistency as QUESTIONABLE with a concise review_reason.',
                 'Return exactly one explanation for each of A, B, C, D and E.',
+                'Return only the JSON object required by the response schema, without prose or Markdown fences.',
               ].join(' '),
             },
             {
@@ -141,13 +144,27 @@ export class OpenRouterQuestionEnrichmentService {
       const content = payload.choices?.[0]?.message?.content;
       if (!content) throw new Error('OpenRouter returned no message content.');
 
-      let parsed: unknown;
-      try { parsed = JSON.parse(content); }
-      catch { throw new Error('OpenRouter returned non-JSON content for a structured explanation request.'); }
-      return this.validateOutput(input, parsed);
+      return this.validateOutput(input, this.parseStructuredContent(content));
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  private parseStructuredContent(content: string): unknown {
+    const trimmed = content.trim();
+    const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)?.[1]?.trim();
+    const objectStart = trimmed.indexOf('{');
+    const objectEnd = trimmed.lastIndexOf('}');
+    const embedded = objectStart >= 0 && objectEnd > objectStart
+      ? trimmed.slice(objectStart, objectEnd + 1)
+      : '';
+    const candidates = [...new Set([trimmed, fenced, embedded].filter(Boolean))];
+
+    for (const candidate of candidates) {
+      try { return JSON.parse(candidate); }
+      catch { /* Try the next safe extraction candidate. */ }
+    }
+    throw new Error('OpenRouter returned non-JSON content for a structured explanation request.');
   }
 
   private shouldRetry(error: unknown): boolean {
