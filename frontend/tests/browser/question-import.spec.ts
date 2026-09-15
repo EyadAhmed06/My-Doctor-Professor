@@ -19,7 +19,9 @@ async function authenticatedInstructor(page: Page) {
     emailVerified: true,
   };
   await page.addInitScript(() => {
-    localStorage.setItem('mdp_access_token', 'question-import-test-access');
+    localStorage.removeItem('mdp_access_token');
+    sessionStorage.removeItem('mdp_access_token');
+    localStorage.removeItem('mdp_logged_out_at');
     localStorage.setItem('mdp-theme', 'dark');
     localStorage.setItem('mdp-locale', 'en');
   });
@@ -116,6 +118,7 @@ function inspectionBody() {
 async function openInspection(page: Page) {
   const user = await authenticatedInstructor(page);
   await routeApi(page, async (path, method) => {
+    if (path === '/auth/refresh') return { body: { access_token: 'question-import-test-access', user } };
     if (path === '/auth/me') return { body: user };
     if (path === '/notifications/unread/count') return { body: { count: 0 } };
     if (path === '/notifications') return { body: { data: [] } };
