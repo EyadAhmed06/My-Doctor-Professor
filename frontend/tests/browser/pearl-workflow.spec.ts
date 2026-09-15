@@ -31,7 +31,9 @@ async function mockPearls(page: Page) {
   const writes: Array<Record<string, unknown>> = [];
 
   await page.addInitScript(() => {
-    localStorage.setItem('mdp_access_token', 'pearl-browser-token');
+    localStorage.removeItem('mdp_access_token');
+    sessionStorage.removeItem('mdp_access_token');
+    localStorage.removeItem('mdp_logged_out_at');
     localStorage.setItem('mdp-theme', 'light');
     localStorage.setItem('mdp-locale', 'en');
   });
@@ -50,6 +52,7 @@ async function mockPearls(page: Page) {
     const path = endpoint(request.url());
     const respond = (body: unknown, status = 200) => route.fulfill({ status, headers, contentType: 'application/json', body: JSON.stringify(body) });
 
+    if (path === '/auth/refresh') return respond({ access_token: 'pearl-browser-token', user });
     if (path === '/auth/me') return respond(user);
     if (path === '/notifications/unread/count') return respond({ count: 0 });
     if (path === '/notifications') return respond({ data: [] });
