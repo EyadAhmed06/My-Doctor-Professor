@@ -158,7 +158,8 @@ export class OpenRouterQuestionEnrichmentService {
     const embedded = objectStart >= 0 && objectEnd > objectStart
       ? trimmed.slice(objectStart, objectEnd + 1)
       : '';
-    const candidates = [...new Set([trimmed, fenced, embedded].filter(Boolean))];
+    const candidates = [...new Set([trimmed, fenced, embedded]
+      .filter((candidate): candidate is string => typeof candidate === 'string' && candidate.length > 0))];
 
     for (const candidate of candidates) {
       try { return JSON.parse(candidate); }
