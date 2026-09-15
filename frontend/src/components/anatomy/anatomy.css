@@ -1,0 +1,285 @@
+/* 3D anatomy viewer. Dark stage on purpose: the models are pale bone and warm muscle, and
+   they read far better against a dark ground than against the app's light panels. */
+
+.anatomy-page {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.anatomy-page__header h1 { margin: 0 0 4px; font-size: 1.5rem; color: var(--text, #12181f); }
+.anatomy-page__header p { margin: 0 0 14px; color: var(--muted, #5b6672); font-size: 0.9rem; }
+
+.anatomy-page__nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 18px; }
+
+.anatomy-page__nav a {
+  padding: 5px 11px;
+  border: 1px solid var(--line, #d8dee6);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  text-decoration: none;
+  color: var(--text, #12181f);
+  background: var(--panel, #fff);
+}
+
+.anatomy-page__nav a:hover { border-color: var(--blue, #2f81f7); }
+.anatomy-page__nav a[aria-current="page"] { background: var(--blue, #2f81f7); border-color: var(--blue, #2f81f7); color: #fff; }
+
+.anatomy-index {
+  list-style: none;
+  margin: 0 0 24px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+.anatomy-index a {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 14px;
+  border: 1px solid var(--line, #d8dee6);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text, #12181f);
+  background: var(--panel, #fff);
+}
+
+.anatomy-index a:hover { border-color: var(--blue, #2f81f7); }
+.anatomy-index span { font-size: 0.78rem; color: var(--muted, #5b6672); }
+
+/* Layout ------------------------------------------------------------------- */
+
+.anatomy-viewer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  align-items: start;
+}
+
+.anatomy-viewer__stage {
+  position: relative;
+  /* Fixed aspect rather than a percentage height: the canvas must not collapse to zero on a
+     phone in portrait, which is what a percentage height does without a sized parent. */
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  min-height: 340px;
+  border: 1px solid #232a33;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0f1216;
+  /* Without this, dragging on a touch screen scrolls the page instead of orbiting. */
+  touch-action: none;
+}
+
+.anatomy-viewer__stage canvas { display: block; width: 100%; height: 100%; }
+
+.anatomy-viewer--fallback .anatomy-viewer__stage {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; padding: 16px; background: var(--panel, #fff); border-color: var(--line, #d8dee6);
+}
+
+.anatomy-viewer--fallback img { max-width: 100%; height: auto; border-radius: 8px; }
+.anatomy-viewer__notice { margin: 0; font-size: 0.85rem; color: var(--muted, #5b6672); text-align: center; max-width: 46ch; }
+.anatomy-viewer__load { min-height: 46px; padding: 0 18px; border: 1px solid #18b59b; border-radius: 9px; background: #18b59b; color: #06231e; font: 700 0.95rem/1 Arial, sans-serif; cursor: pointer; }
+.anatomy-viewer__load:focus-visible { outline: 3px solid color-mix(in srgb, #18b59b 45%, transparent); outline-offset: 3px; }
+
+/* Loading ------------------------------------------------------------------ */
+
+.anatomy-viewer__loading,
+.anatomy-viewer__boot {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  background: #0f1216; color: #9aa4b0; font-size: 0.85rem;
+}
+
+.anatomy-viewer__boot { position: relative; min-height: 340px; border-radius: 12px; }
+.anatomy-viewer__loading p, .anatomy-viewer__boot p { margin: 0; }
+
+.anatomy-viewer__bar { width: min(240px, 60%); height: 4px; border-radius: 999px; background: #262e38; overflow: hidden; }
+.anatomy-viewer__bar i { display: block; height: 100%; background: #18b59b; transition: width 120ms linear; }
+.anatomy-viewer__bar--indeterminate i { width: 40%; animation: anatomy-slide 1.1s ease-in-out infinite; }
+
+@keyframes anatomy-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anatomy-viewer__bar--indeterminate i { animation: none; width: 100%; }
+}
+
+/* Overlays ----------------------------------------------------------------- */
+
+.anatomy-viewer__toolbar { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; }
+
+.anatomy-viewer__toolbar button {
+  padding: 5px 10px;
+  border: 1px solid #333c48;
+  border-radius: 7px;
+  background: rgba(20, 25, 32, 0.86);
+  color: #e6ebf1;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.anatomy-viewer__toolbar button:hover:not(:disabled) { border-color: #18b59b; }
+.anatomy-viewer__toolbar button:disabled { opacity: 0.4; cursor: default; }
+.anatomy-viewer__toolbar button.is-active { background: #18b59b; border-color: #18b59b; color: #06231e; }
+
+.anatomy-viewer__readout {
+  position: absolute; left: 12px; right: 12px; bottom: 12px;
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: rgba(20, 25, 32, 0.9);
+  border: 1px solid #2a323d;
+  color: #e6ebf1;
+  font-size: 0.92rem;
+  pointer-events: none;
+}
+
+.anatomy-viewer__readout i { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto; }
+.anatomy-viewer__hint { font-size: 0.8rem; color: #9aa4b0; }
+.anatomy-viewer__hint--coarse { display: none; }
+
+@media (hover: none) and (pointer: coarse) {
+  .anatomy-viewer__hint--fine { display: none; }
+  .anatomy-viewer__hint--coarse { display: inline; }
+}
+
+.anatomy-tooltip {
+  position: absolute;
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: rgba(12, 16, 21, 0.95);
+  border: 1px solid #333c48;
+  color: #e6ebf1;
+  font-size: 0.8rem;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 3;
+}
+
+.anatomy-tooltip i { width: 9px; height: 9px; border-radius: 2px; }
+
+.anatomy-viewer__stats {
+  position: absolute; top: 12px; right: 12px; margin: 0;
+  padding: 8px 10px; border-radius: 8px;
+  background: rgba(12, 16, 21, 0.85);
+  color: #fff; font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  display: grid; gap: 2px; pointer-events: none;
+}
+
+.anatomy-viewer__stats > div { display: flex; justify-content: space-between; gap: 14px; }
+.anatomy-viewer__stats dt { color: #9aa4b0; }
+.anatomy-viewer__stats dd { margin: 0; }
+
+/* Side panel --------------------------------------------------------------- */
+
+.anatomy-viewer__title { margin: 0 0 8px; font-size: 1rem; color: var(--text, #12181f); }
+
+.anatomy-search input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--line, #d8dee6);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.84rem;
+  margin: 0 0 12px;
+  background: var(--panel, #fff);
+  color: var(--text, #12181f);
+}
+
+.anatomy-search input:focus-visible { outline: 2px solid var(--blue, #2f81f7); outline-offset: -1px; }
+
+.anatomy-layers {
+  border: 1px solid var(--line, #d8dee6);
+  border-radius: 8px;
+  padding: 8px 10px 10px;
+  margin: 0 0 12px;
+}
+
+.anatomy-layers legend { font-size: 0.78rem; color: var(--muted, #5b6672); padding: 0 4px; }
+.anatomy-layers__row { padding: 3px 0; }
+.anatomy-layers__row + .anatomy-layers__row { border-top: 1px solid #eef1f5; }
+.anatomy-layers__row.is-off { opacity: 0.55; }
+
+.anatomy-layers__toggle { display: flex; align-items: center; gap: 7px; font-size: 0.82rem; cursor: pointer; }
+.anatomy-layers__toggle input { margin: 0; }
+.anatomy-layers__toggle i { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto; border: 1px solid rgba(0, 0, 0, 0.18); }
+.anatomy-layers__toggle b { margin-left: auto; font-weight: 400; font-size: 0.72rem; color: var(--muted, #5b6672); }
+
+.anatomy-layers__opacity { display: flex; align-items: center; gap: 8px; padding: 3px 0 2px 24px; }
+
+.anatomy-layers__opacity button {
+  padding: 2px 7px;
+  border: 1px solid var(--line, #d8dee6);
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: 0.7rem;
+  color: var(--muted, #5b6672);
+  cursor: pointer;
+}
+
+.anatomy-layers__opacity button.is-active { background: #18b59b; border-color: #18b59b; color: #06231e; }
+.anatomy-layers__opacity button:disabled { opacity: 0.4; cursor: default; }
+.anatomy-layers__opacity input[type="range"] { flex: 1; min-width: 0; accent-color: #18b59b; }
+
+.anatomy-viewer__list {
+  list-style: none; margin: 0 0 16px; padding: 0;
+  max-height: 360px; overflow-y: auto;
+  border: 1px solid var(--line, #d8dee6);
+  border-radius: 8px;
+}
+
+.anatomy-viewer__list li + li { border-top: 1px solid var(--line, #d8dee6); }
+
+.anatomy-viewer__list button {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; text-align: left;
+  padding: 7px 10px;
+  border: 0; background: none; font: inherit; font-size: 0.82rem;
+  color: var(--text, #12181f);
+  cursor: pointer;
+}
+
+.anatomy-viewer__list button i { width: 10px; height: 10px; border-radius: 2px; flex: 0 0 auto; border: 1px solid rgba(0, 0, 0, 0.18); }
+.anatomy-viewer__list button:hover { background: #f2f5f9; }
+.anatomy-viewer__list button:focus-visible { outline: 2px solid var(--blue, #2f81f7); outline-offset: -2px; }
+.anatomy-viewer__list button.is-selected { background: #18b59b; color: #06231e; }
+.anatomy-viewer__list--static li { padding: 7px 10px; font-size: 0.82rem; }
+.anatomy-viewer__empty { padding: 10px; font-size: 0.8rem; color: var(--muted, #5b6672); }
+
+/* Attribution — a licence obligation, so it stays legible rather than shrinking away. */
+
+.anatomy-credit {
+  border-top: 1px solid var(--line, #d8dee6);
+  padding-top: 10px;
+  font-size: 0.74rem;
+  color: var(--muted, #5b6672);
+  line-height: 1.5;
+}
+
+.anatomy-credit__heading { margin: 0 0 6px; font-size: 0.78rem; color: var(--text, #12181f); }
+.anatomy-credit__list { list-style: none; margin: 0 0 6px; padding: 0; }
+.anatomy-credit__list li + li { margin-top: 4px; }
+.anatomy-credit__share, .anatomy-credit__note { margin: 0; }
+.anatomy-credit__note { margin-top: 6px; font-style: italic; }
+.anatomy-credit a { color: inherit; text-decoration: underline; }
+.anatomy-credit a:hover { color: var(--blue, #2f81f7); }
+
+/* Mobile ------------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .anatomy-viewer { grid-template-columns: minmax(0, 1fr); }
+  /* Portrait phones get a taller stage; 4:3 leaves structures too small to tap. */
+  .anatomy-viewer__stage { aspect-ratio: 3 / 4; min-height: 400px; }
+  .anatomy-viewer__list { max-height: 240px; }
+  .anatomy-page { padding-inline: 12px; }
+  .anatomy-viewer__toolbar button, .anatomy-viewer__list button, .anatomy-layers__opacity button { min-height: 44px; font-size: 0.875rem; }
+  .anatomy-search input { min-height: 46px; font-size: 1rem; }
+}

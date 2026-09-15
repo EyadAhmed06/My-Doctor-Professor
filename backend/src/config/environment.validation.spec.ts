@@ -10,6 +10,7 @@ describe('validateEnvironment', () => {
     DB_NAME: 'app',
     JWT_SECRET: 'a'.repeat(32),
     JWT_REFRESH_SECRET: 'b'.repeat(32),
+    GOOGLE_CLIENT_ID: '123456789-example.apps.googleusercontent.com',
     FRONTEND_URL: 'https://example.com',
     SMTP_HOST: 'smtp',
     SMTP_PORT: '587',
@@ -25,6 +26,13 @@ describe('validateEnvironment', () => {
     const result = validateEnvironment(production);
     expect(result.DB_PORT).toBe(5432);
     expect(result.SMTP_PORT).toBe(587);
+  });
+
+  it('accepts production configuration without Google OAuth', () => {
+    expect(() => validateEnvironment({
+      ...production,
+      GOOGLE_CLIENT_ID: undefined,
+    })).not.toThrow();
   });
 
   it('rejects missing production configuration', () => {
@@ -45,6 +53,13 @@ describe('validateEnvironment', () => {
       ...production,
       FRONTEND_URL: 'http://example.com',
     })).toThrow('must use HTTPS');
+  });
+
+  it('rejects malformed Google web client IDs', () => {
+    expect(() => validateEnvironment({
+      ...production,
+      GOOGLE_CLIENT_ID: 'not-a-google-client-id',
+    })).toThrow('GOOGLE_CLIENT_ID must be a Google OAuth web client ID');
   });
 
   it('requires a strong token when account bootstrap is enabled', () => {

@@ -1,0 +1,29 @@
+{
+  "region": "vertebrae",
+  "label": "Typical vertebrae",
+  "generated": "by scripts/anatomy/prepare-model.mjs - do not edit by hand",
+  "nonCommercialTexturesRemoved": [],
+  "systems": [
+    {
+      "key": "bone",
+      "label": "Bones"
+    }
+  ],
+  "structures": [
+    {
+      "id": "Cervical vertebra (C4)",
+      "name": "Cervical vertebra (C4)",
+      "system": "bone"
+    },
+    {
+      "id": "Lumbar vertebra (L3)",
+      "name": "Lumbar vertebra (L3)",
+      "system": "bone"
+    },
+    {
+      "id": "Thoracic vertebra (T7)",
+      "name": "Thoracic vertebra (T7)",
+      "system": "bone"
+    }
+  ]
+}

@@ -2,22 +2,41 @@ import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,ArrayMinSize,IsArray,IsBoolean,IsEmail,IsEnum,IsInt,
   IsNotEmpty,IsOptional,IsPhoneNumber,IsString,Matches,Max,MaxLength,
-  Min,MinLength,ValidateNested,
+  Min,MinLength,ValidateIf,ValidateNested,
 } from 'class-validator';
 import { UserRole, UserStatus } from '../../users/entities/user.entity';
+
+const roleScoped = (role:UserRole) => ({value,obj}:{value:unknown;obj:{role?:UserRole}}) =>
+  obj.role===role?value:undefined;
 
 export class CreateManagedUserDto {
  @IsString() @IsNotEmpty() @MaxLength(150) full_name:string;
  @IsEmail() @MaxLength(320) email:string;
  @IsString() @MinLength(12) @MaxLength(128)
- @Matches(/[a-z]/) @Matches(/[A-Z]/) @Matches(/[0-9]/) password:string;
+ @Matches(/[a-z]/,{message:'password must contain at least one lowercase letter'})
+ @Matches(/[A-Z]/,{message:'password must contain at least one uppercase letter'})
+ @Matches(/[0-9]/,{message:'password must contain at least one number'}) password:string;
  @IsPhoneNumber() phone_number:string;
  @IsEnum(UserRole) role:UserRole;
- @IsOptional() @IsString() @IsNotEmpty() @MaxLength(30) student_number?:string;
- @IsOptional() @IsInt() @Min(1) current_semester?:number;
+
+ @Transform(roleScoped(UserRole.STUDENT))
+ @ValidateIf((dto:CreateManagedUserDto)=>dto.role===UserRole.STUDENT)
+ @IsString() @IsNotEmpty() @MaxLength(30) student_number?:string;
+
+ @Transform(roleScoped(UserRole.STUDENT))
+ @ValidateIf((dto:CreateManagedUserDto)=>dto.role===UserRole.STUDENT)
+ @IsInt() @Min(1) current_semester?:number;
+
+ @Transform(roleScoped(UserRole.INSTRUCTOR))
  @IsOptional() @IsString() @MaxLength(150) specialization?:string;
+
+ @Transform(roleScoped(UserRole.INSTRUCTOR))
  @IsOptional() @IsString() @MaxLength(100) office_location?:string;
+
+ @Transform(roleScoped(UserRole.SYSTEM_ADMIN))
  @IsOptional() @IsString() @IsNotEmpty() @MaxLength(30) employee_number?:string;
+
+ @Transform(roleScoped(UserRole.SYSTEM_ADMIN))
  @IsOptional() @IsBoolean() is_super_admin?:boolean;
 }
 export class UpdateManagedUserDto {
@@ -50,7 +69,9 @@ export class BootstrapAdminDto {
  @IsString() @IsNotEmpty() @MaxLength(150) full_name:string;
  @IsEmail() @MaxLength(320) email:string;
  @IsString() @MinLength(12) @MaxLength(128)
- @Matches(/[a-z]/) @Matches(/[A-Z]/) @Matches(/[0-9]/) password:string;
+ @Matches(/[a-z]/,{message:'password must contain at least one lowercase letter'})
+ @Matches(/[A-Z]/,{message:'password must contain at least one uppercase letter'})
+ @Matches(/[0-9]/,{message:'password must contain at least one number'}) password:string;
  @IsPhoneNumber() phone_number:string;
  @IsString() @IsNotEmpty() @MaxLength(30) employee_number:string;
 }
@@ -59,7 +80,9 @@ export class BootstrapInstructorDto {
  @IsString() @IsNotEmpty() @MaxLength(150) full_name:string;
  @IsEmail() @MaxLength(320) email:string;
  @IsString() @MinLength(12) @MaxLength(128)
- @Matches(/[a-z]/) @Matches(/[A-Z]/) @Matches(/[0-9]/) password:string;
+ @Matches(/[a-z]/,{message:'password must contain at least one lowercase letter'})
+ @Matches(/[A-Z]/,{message:'password must contain at least one uppercase letter'})
+ @Matches(/[0-9]/,{message:'password must contain at least one number'}) password:string;
  @IsPhoneNumber() phone_number:string;
  @IsOptional() @IsString() @MaxLength(150) specialization?:string;
  @IsOptional() @IsString() @MaxLength(100) office_location?:string;
@@ -69,7 +92,9 @@ export class BootstrapStudentDto {
  @IsString() @IsNotEmpty() @MaxLength(150) full_name:string;
  @IsEmail() @MaxLength(320) email:string;
  @IsString() @MinLength(12) @MaxLength(128)
- @Matches(/[a-z]/) @Matches(/[A-Z]/) @Matches(/[0-9]/) password:string;
+ @Matches(/[a-z]/,{message:'password must contain at least one lowercase letter'})
+ @Matches(/[A-Z]/,{message:'password must contain at least one uppercase letter'})
+ @Matches(/[0-9]/,{message:'password must contain at least one number'}) password:string;
  @IsPhoneNumber() phone_number:string;
  @IsString() @IsNotEmpty() @MaxLength(30) student_number:string;
  @IsInt() @Min(1) current_semester:number;

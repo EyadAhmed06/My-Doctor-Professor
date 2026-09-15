@@ -16,6 +16,7 @@ export class StudentAnswer {
   @Column({ type: 'text', name: 'essay_answer', nullable: true }) essayAnswer: string | null;
   @Column({ type: 'numeric', precision: 5, scale: 2, name: 'awarded_marks', nullable: true }) awardedMarks: string | null;
   @Column({ type: 'boolean', name: 'is_correct', nullable: true }) isCorrect: boolean | null;
+  @Column({ type: 'varchar', length: 12, name: 'confidence_level', nullable: true }) confidenceLevel: 'LOW' | 'MEDIUM' | 'HIGH' | null;
   @Column({ type: 'text', nullable: true }) feedback: string | null;
   @Column('uuid', { name: 'graded_by', nullable: true }) gradedBy: string | null;
   @Column({ type: 'timestamp', name: 'graded_at', nullable: true }) gradedAt: Date | null;

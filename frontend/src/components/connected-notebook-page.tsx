@@ -1,13 +1,163 @@
 "use client";
-import Link from "next/link";import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";import { FiBookOpen, FiEdit3, FiFileText, FiFolder, FiPlus, FiSearch, FiStar, FiTag, FiTrash2 } from "react-icons/fi";import { useAuth } from "./auth-provider";import { Panel, ProductShell } from "./product-shell";import "./product-pages.css";
-type Collection={id:string;name:string;color:string;isPinned:boolean;notes:unknown[]};type Tag={id:string;name:string;color:string};type Note={id:string;title:string;noteType:string;content:string;collectionId:string|null;collection:Collection|null;isFavorite:boolean;tags:Tag[];attachments:unknown[];createdAt:string;updatedAt:string};type Page<T>={data:T[];total:number};const types=["ALL","EXPLANATION","PERSONAL","PEARL","IMAGE","LINKED_CASE"] as const;
-export function ConnectedNotebookPage(){
- const {request}=useAuth();const [notes,setNotes]=useState<Note[]>([]);const [collections,setCollections]=useState<Collection[]>([]);const [tags,setTags]=useState<Tag[]>([]);const [selected,setSelected]=useState<Note|null>(null);const [filter,setFilter]=useState<(typeof types)[number]>("ALL");const [collection,setCollection]=useState<string>("ALL");const [query,setQuery]=useState("");const [loading,setLoading]=useState(true);const [error,setError]=useState<string|null>(null);
- const load=useCallback(async()=>{setLoading(true);try{const [noteRows,collectionRows,tagRows]=await Promise.all([request<Page<Note>>("/notebook/notes?limit=100"),request<Collection[]>("/notebook/collections"),request<Tag[]>("/notebook/tags")]);setNotes(noteRows.data);setCollections(collectionRows);setTags(tagRows);setSelected(current=>noteRows.data.find(note=>note.id===current?.id)||noteRows.data[0]||null)}catch(cause){setError(cause instanceof Error?cause.message:"Unable to load notebook.")}finally{setLoading(false)}},[request]);
- useEffect(()=>{const timer=window.setTimeout(()=>{void load()},0);return()=>window.clearTimeout(timer)},[load]);
- const visible=useMemo(()=>notes.filter(note=>(filter==="ALL"||note.noteType===filter)&&(collection==="ALL"||note.collectionId===collection)&&(!query||`${note.title} ${note.content}`.toLowerCase().includes(query.toLowerCase()))),[notes,filter,collection,query]);const count=(type:string)=>type==="ALL"?notes.length:notes.filter(note=>note.noteType===type).length;
- async function remove(id:string){try{await request(`/notebook/notes/${id}`,{method:"DELETE"});await load()}catch(cause){setError(cause instanceof Error?cause.message:"Unable to delete note.")}}
- async function createCollection(event:FormEvent<HTMLFormElement>){event.preventDefault();const form=event.currentTarget;const data=new FormData(form);try{await request("/notebook/collections",{method:"POST",body:{name:String(data.get("name"))}});form.reset();await load()}catch(cause){setError(cause instanceof Error?cause.message:"Unable to create collection.")}}
- async function createTag(event:FormEvent<HTMLFormElement>){event.preventDefault();const form=event.currentTarget;const data=new FormData(form);try{await request("/notebook/tags",{method:"POST",body:{name:String(data.get("name"))}});form.reset();await load()}catch(cause){setError(cause instanceof Error?cause.message:"Unable to create tag.")}}
- return <ProductShell search="Search notes, pearls, or cases"><main className="pp-page notebook-page notebook-restored restored-page"><header className="workspace-heading"><div><span className="page-eyebrow">PERSONAL KNOWLEDGE WORKSPACE</span><h1>Notebook</h1><p>Organize saved explanations, personal notes, clinical pearls, images, and linked cases.</p></div><div className="notebook-stats"><Metric icon={<FiBookOpen/>} value={notes.length} label="Total notes"/><Metric icon={<FiFileText/>} value={count("EXPLANATION")} label="Explanations"/><Metric icon={<FiFolder/>} value={collections.length} label="Collections"/></div></header>{error&&<p className="form-error">{error}</p>}{loading?<div className="product-auth-loading">Loading notebook…</div>:<div className="notebook-workspace notebook-layout"><aside className="notebook-library notebook-sidebar"><div className="library-title"><b>LIBRARY</b><Link href="/notebook/new"><FiPlus/></Link></div><button className={collection==="ALL"?"active":""} onClick={()=>setCollection("ALL")}><span>All collections</span><small>{notes.length}</small></button>{collections.map(item=><button key={item.id} className={collection===item.id?"active":""} onClick={()=>setCollection(item.id)}><span><FiFolder/> {item.name}</span><small>{item.notes.length}</small></button>)}<form className="inline-create" onSubmit={createCollection}><input name="name" placeholder="New collection" required/><button><FiPlus/></button></form><b className="library-subtitle">TAGS</b><div className="library-tags">{tags.map(tag=><span key={tag.id}><FiTag/>{tag.name}</span>)}</div><form className="inline-create" onSubmit={createTag}><input name="name" placeholder="New tag" required/><button><FiPlus/></button></form><div className="notebook-search"><FiSearch/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search notes"/></div></aside><section className="notebook-center"><div className="notebook-toolbar"><div>{types.map(type=><button key={type} className={filter===type?"active":""} onClick={()=>setFilter(type)}>{type==="ALL"?`All (${count(type)})`:type.replaceAll("_"," ")}</button>)}</div><Link className="pp-button" href="/notebook/new"><FiPlus/> New note</Link></div>{visible.length?<div className="note-card-grid">{visible.map(note=><button key={note.id} className={`note-library-card ${selected?.id===note.id?"active":""}`} onClick={()=>setSelected(note)}><span className={`note-kind ${note.noteType.toLowerCase()}`}>{note.noteType.replaceAll("_"," ")}</span><h3>{note.title}</h3><p>{note.content}</p><footer><small>{note.collection?.name||"Unfiled"}</small>{note.isFavorite&&<FiStar/>}</footer></button>)}</div>:<Panel title="No matching notes"><p>Create a note or change the active filter.</p></Panel>}</section><aside className="note-inspector">{selected?<><div className="inspector-title"><span className="note-kind">{selected.noteType.replaceAll("_"," ")}</span><h2>{selected.title}</h2><small>Updated {new Date(selected.updatedAt).toLocaleString()}</small></div><div className="inspector-copy">{selected.content}</div><div className="library-tags">{selected.tags.map(tag=><span key={tag.id}><FiTag/>{tag.name}</span>)}</div><div className="inspector-actions"><Link className="pp-button" href={`/notebook/new?note=${selected.id}`}><FiEdit3/> Open full note</Link><button className="pp-button secondary danger" onClick={()=>void remove(selected.id)}><FiTrash2/> Delete</button></div></>:<p>Select a note to inspect it.</p>}</aside></div>}</main></ProductShell>}
-function Metric({icon,value,label}:{icon:React.ReactNode;value:number;label:string}){return <div>{icon}<span><b>{value}</b><small>{label}</small></span></div>}
+
+import Link from "next/link";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FiBookOpen, FiFolder, FiPlus, FiStar } from "react-icons/fi";
+import { useAuth } from "./auth-provider";
+import { PageSkeleton } from "./async-state";
+import { useLocale } from "./locale-provider";
+import { ProductShell } from "./product-shell";
+import { useUx } from "./ux-provider";
+import "./product-pages.css";
+import "./notebook-simple.css";
+
+type Collection = {
+  id: string;
+  name: string;
+  notes?: unknown[];
+};
+
+type Note = {
+  id: string;
+  title: string;
+  content: string;
+  noteType: "PERSONAL" | "EXPLANATION" | "PEARL" | "IMAGE" | "LINKED_CASE";
+  collectionId: string | null;
+  collection: Collection | null;
+  updatedAt: string;
+};
+
+type Page<T> = { data: T[]; total: number };
+
+export function ConnectedNotebookPage() {
+  const { request } = useAuth();
+  const { translate, locale } = useLocale();
+  const { notify } = useUx();
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [activeCollection, setActiveCollection] = useState("ALL");
+  const [loading, setLoading] = useState(true);
+  const [creatingCollection, setCreatingCollection] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [noteRows, collectionRows] = await Promise.all([
+        request<Page<Note>>("/notebook/notes?limit=100"),
+        request<Collection[]>("/notebook/collections"),
+      ]);
+      setNotes(noteRows.data);
+      setCollections(collectionRows);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : translate("Unable to load notebook."));
+    } finally {
+      setLoading(false);
+    }
+  }, [request, translate]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const visibleNotes = useMemo(() => {
+    const filtered = activeCollection === "ALL"
+      ? notes
+      : notes.filter((note) => note.collectionId === activeCollection);
+    return [...filtered].sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
+  }, [activeCollection, notes]);
+
+  const activeCollectionName = activeCollection === "ALL"
+    ? translate("All notebooks")
+    : collections.find((item) => item.id === activeCollection)?.name || translate("Collection");
+
+  function collectionCount(id: string) {
+    return notes.filter((note) => note.collectionId === id).length;
+  }
+
+  function noteHref(note: Note) {
+    return note.noteType === "PEARL"
+      ? `/notebook/pearl?note=${encodeURIComponent(note.id)}`
+      : `/notebook/new?note=${encodeURIComponent(note.id)}`;
+  }
+
+  async function createCollection(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const name = String(data.get("name") || "").trim();
+    if (!name) return;
+    setCreatingCollection(true);
+    setError(null);
+    try {
+      const created = await request<Collection>("/notebook/collections", {
+        method: "POST",
+        body: { name },
+      });
+      setCollections((current) => [...current, created]);
+      setActiveCollection(created.id);
+      form.reset();
+      notify({ title: translate("Collection created"), description: created.name, tone: "success" });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : translate("Unable to create collection."));
+    } finally {
+      setCreatingCollection(false);
+    }
+  }
+
+  return <ProductShell><main className="pp-page simple-notebook-page">
+    <header className="simple-notebook-heading">
+      <div>
+        <span className="page-eyebrow">{translate("YOUR NOTES")}</span>
+        <h1>{translate("Notebook")}</h1>
+        <p>{translate("Write your notes and keep them together in collections you create.")}</p>
+      </div>
+      <div style={{ display: "flex", gap: ".65rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
+        <Link className="pp-button secondary" href="/notebook/pearl"><FiStar /> {translate("New pearl")}</Link>
+        <Link className="pp-button" href="/notebook/new"><FiPlus /> {translate("New notebook")}</Link>
+      </div>
+    </header>
+
+    {error && <p className="form-error" role="alert">{error}</p>}
+
+    {loading ? <PageSkeleton variant="workspace" label={translate("Loading notebook")} /> : <div className="simple-notebook-layout">
+      <aside className="simple-collections">
+        <header><h2>{translate("Collections")}</h2></header>
+        <div className="simple-collection-list">
+          <button type="button" className={`simple-collection-button ${activeCollection === "ALL" ? "active" : ""}`} onClick={() => setActiveCollection("ALL")}>
+            <span><FiBookOpen /> {translate("All notebooks")}</span><small>{notes.length}</small>
+          </button>
+          {collections.map((item) => <button type="button" key={item.id} className={`simple-collection-button ${activeCollection === item.id ? "active" : ""}`} onClick={() => setActiveCollection(item.id)}>
+            <span data-academic-content><FiFolder /> {item.name}</span><small>{collectionCount(item.id)}</small>
+          </button>)}
+        </div>
+        <form className="simple-collection-create" onSubmit={createCollection}>
+          <input name="name" placeholder={translate("New collection")} maxLength={120} required />
+          <button type="submit" disabled={creatingCollection} aria-label={translate("Create collection")}><FiPlus /></button>
+        </form>
+      </aside>
+
+      <section className="simple-notebook-main">
+        <div className="simple-notebook-main-head">
+          <h2 data-academic-content>{activeCollectionName}</h2>
+          <small>{visibleNotes.length} {translate(visibleNotes.length === 1 ? "notebook" : "notebooks")}</small>
+        </div>
+
+        {visibleNotes.length ? <div className="simple-note-list">
+          {visibleNotes.map((note) => <Link className="simple-note-row" href={noteHref(note)} key={note.id}>
+            <div>
+              <h3 data-academic-content>{note.title}</h3>
+              <p data-academic-content>{note.content}</p>
+            </div>
+            <div className="simple-note-row-meta">
+              {note.noteType === "PEARL" && <span><FiStar /> {translate("Pearl")}</span>}
+              <span><FiFolder /> <span data-academic-content>{note.collection?.name || translate("No collection")}</span></span>
+              <small>{translate("Updated")} {new Date(note.updatedAt).toLocaleDateString(locale === "ar" ? "ar-EG" : undefined)}</small>
+            </div>
+          </Link>)}
+        </div> : <div className="simple-notebook-empty">
+          <div><FiBookOpen /><h3>{translate("No notebooks here yet")}</h3><p>{translate("Create a notebook, give it a title, and start writing.")}</p><Link className="pp-button" href="/notebook/new"><FiPlus /> {translate("Create notebook")}</Link></div>
+        </div>}
+      </section>
+    </div>}
+  </main></ProductShell>;
+}

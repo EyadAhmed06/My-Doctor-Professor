@@ -1,0 +1,161 @@
+/* Final public-home viewport contract.
+   Keep one document scroll owner and leave the browser gutter unobstructed. */
+html:has(.public-home) {
+  overflow-x: clip;
+  overflow-y: auto;
+}
+
+body:has(.public-home) {
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+body:has(.public-home) .public-theme-access {
+  top: 18px;
+  right: max(24px, env(safe-area-inset-right));
+}
+
+/* Once the intro has settled, release the hero from its compositor layer.
+   This prevents Chromium/WebKit from retaining a softened scaled texture. */
+html[data-theme='dark'] .public-home.home-motion-ready.home-motion-entered .public-hero .hero-duo,
+html.dark .public-home.home-motion-ready.home-motion-entered .public-hero .hero-duo {
+  transform: none !important;
+  will-change: auto !important;
+}
+
+html[data-theme='dark'] .public-home .public-hero .hero-duo-dark,
+html.dark .public-home .public-hero .hero-duo-dark {
+  image-rendering: -webkit-optimize-contrast;
+  backface-visibility: visible;
+  will-change: auto;
+}
+
+@media (max-width: 700px) {
+  /* The global appearance control used to occupy the same top-right pixels as
+     the public auth action. Keep the fixed utility available, but move it to a
+     conventional floating mobile position where it cannot cover Log in. */
+  body:has(.public-home) .public-theme-access {
+    top: auto !important;
+    right: max(14px, env(safe-area-inset-right)) !important;
+    bottom: max(14px, env(safe-area-inset-bottom)) !important;
+    width: 38px;
+    height: 38px;
+  }
+
+  /* Mobile header contract: the desktop 48px flex gap was squeezing the auth
+     action into the theme control. Use compact, non-shrinking controls and let
+     the brand own the remaining width. */
+  .public-home .public-nav {
+    width: 100%;
+    max-width: 100%;
+    padding-inline: max(14px, env(safe-area-inset-left), env(safe-area-inset-right)) !important;
+    gap: 10px !important;
+  }
+
+  .public-home .public-brand {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-right: auto;
+  }
+
+  .public-home .public-menu {
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
+    margin-left: 0 !important;
+    border-radius: 10px;
+  }
+
+  .public-home .public-actions {
+    flex: 0 0 auto;
+    min-width: 0;
+    gap: 0 !important;
+  }
+
+  /* On a phone the hero already owns the primary registration CTA. Keep the
+     header action focused on returning users, and give Log in a real button
+     hit-area rather than allowing the flex row to crop the label. */
+  .public-home .public-actions:has(> a[href='/login']) > a[href='/login'] {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    min-width: 70px;
+    min-height: 42px;
+    padding: 0 14px;
+    border: 1px solid color-mix(in srgb, var(--pub-teal) 62%, var(--pub-line));
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--pub-panel) 88%, transparent);
+    color: var(--pub-text) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+    white-space: nowrap;
+    overflow: visible;
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .public-home .public-actions:has(> a[href='/login']) > a[href='/register'] {
+    display: none !important;
+  }
+
+  /* The desktop 70px hero heading is reduced in globals.css, but 46px still
+     overflows on ~360px phone viewports once Georgia's glyph widths and the
+     hero's inline padding are accounted for. Keep each deliberate line inside
+     the visual viewport without shrinking the rest of the landing page. */
+  .public-home .public-hero {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-inline: max(18px, env(safe-area-inset-left), env(safe-area-inset-right)) !important;
+  }
+
+  .public-home .hero-copy {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .public-home .hero-copy h1 {
+    width: 100% !important;
+    max-width: 100% !important;
+    font-size: clamp(36px, 10.8vw, 44px) !important;
+    line-height: 1.03 !important;
+    letter-spacing: -0.04em !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .public-home .public-nav {
+    gap: 7px !important;
+    padding-inline: max(10px, env(safe-area-inset-left), env(safe-area-inset-right)) !important;
+  }
+
+  .public-home .public-nav .brand-emblem {
+    width: 44px;
+    height: 44px;
+  }
+
+  .public-home .public-nav .brand-words strong {
+    font-size: 12px;
+  }
+
+  .public-home .public-menu {
+    flex-basis: 38px;
+    width: 38px;
+    height: 38px;
+  }
+
+  .public-home .public-actions:has(> a[href='/login']) > a[href='/login'] {
+    min-width: 62px;
+    min-height: 38px;
+    padding-inline: 10px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 380px) {
+  .public-home .hero-copy h1 {
+    font-size: clamp(34px, 10.3vw, 39px) !important;
+  }
+}

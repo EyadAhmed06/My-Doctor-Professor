@@ -6,6 +6,7 @@ const POSITIVE_INTEGER_KEYS = [
   'JWT_REFRESH_TTL_SECONDS',
   'EMAIL_VERIFICATION_TTL_SECONDS',
   'PASSWORD_RESET_TTL_SECONDS',
+  'GOOGLE_ONBOARDING_TTL_SECONDS',
   'SMTP_PORT',
   'MAX_FILE_SIZE',
 ] as const;
@@ -89,6 +90,28 @@ export function validateEnvironment(input: Record<string, unknown>): Record<stri
   }
   if (accessSecret && refreshSecret && accessSecret === refreshSecret) {
     throw new Error('JWT_SECRET and JWT_REFRESH_SECRET must be different');
+  }
+
+  if (environment.GOOGLE_CLIENT_ID) {
+    const clientId = String(environment.GOOGLE_CLIENT_ID).trim();
+    if (!/^[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$/.test(clientId)) {
+      throw new Error('GOOGLE_CLIENT_ID must be a Google OAuth web client ID');
+    }
+    environment.GOOGLE_CLIENT_ID = clientId;
+  }
+
+  if (environment.CORS_ORIGINS) {
+    const origins = String(environment.CORS_ORIGINS).split(',').map((value) => value.trim()).filter(Boolean);
+    for (const origin of origins) {
+      const url = new URL(origin);
+      if (!['http:', 'https:'].includes(url.protocol) || url.origin !== origin.replace(/\/$/, '')) {
+        throw new Error('CORS_ORIGINS must contain comma-separated HTTP(S) origins without paths');
+      }
+      if (nodeEnvironment === 'production' && url.protocol !== 'https:') {
+        throw new Error('CORS_ORIGINS must use HTTPS in production');
+      }
+    }
+    environment.CORS_ORIGINS = origins.join(',');
   }
 
   if (environment.FRONTEND_URL) {
