@@ -40,7 +40,8 @@ type ImportInspection = {
   [key: string]: unknown;
 };
 
-const MAX_PARALLEL_REQUESTS = 3;
+// Serialize requests so OpenRouter does not reserve multiple output budgets at once.
+const MAX_PARALLEL_REQUESTS = 1;
 
 @Injectable()
 export class QuestionImportAiEnrichmentService {

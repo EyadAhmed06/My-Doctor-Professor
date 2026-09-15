@@ -66,7 +66,7 @@ export class OpenRouterQuestionEnrichmentService {
       } catch (error) {
         lastError = error;
         if (!this.shouldRetry(error) || attempt === MAX_ATTEMPTS) throw error;
-        await this.delay(this.retryDelayMs(attempt));
+        await this.delay(this.retryDelayMs(attempt, error));
       }
     }
     throw lastError instanceof Error ? lastError : new Error('OpenRouter enrichment failed.');
@@ -169,12 +169,23 @@ export class OpenRouterQuestionEnrichmentService {
   }
 
   private shouldRetry(error: unknown): boolean {
-    if (error instanceof OpenRouterHttpError) return error.status === 429 || error.status >= 500;
+    if (error instanceof OpenRouterHttpError) {
+      if (error.status === 402) return this.isInFlightBudgetError(error);
+      return error.status === 429 || error.status >= 500;
+    }
     return error instanceof Error && (error.name === 'AbortError' || /fetch failed|network|socket/i.test(error.message));
   }
 
-  private retryDelayMs(attempt: number): number {
-    return Math.min(4_000, 500 * (2 ** (attempt - 1)));
+  private isInFlightBudgetError(error: OpenRouterHttpError): boolean {
+    return /in[-_ ]?flight|retry after in-flight/i.test(error.message);
+  }
+
+  private retryDelayMs(attempt: number, error: unknown): number {
+    const inFlightBudget = error instanceof OpenRouterHttpError
+      && error.status === 402
+      && this.isInFlightBudgetError(error);
+    const baseDelay = inFlightBudget ? 2_000 : 500;
+    return Math.min(inFlightBudget ? 8_000 : 4_000, baseDelay * (2 ** (attempt - 1)));
   }
 
   private delay(ms: number): Promise<void> { return new Promise((resolve) => setTimeout(resolve, ms)); }

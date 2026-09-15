@@ -154,4 +154,41 @@ describe('OpenRouterQuestionEnrichmentService', () => {
     await expect(new OpenRouterQuestionEnrichmentService().generate(input)).rejects.toThrow('(401)');
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
+
+  it('retries a transient 402 in-flight budget reservation and succeeds', async () => {
+    jest.useFakeTimers();
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 402,
+        text: async () => JSON.stringify({
+          error: {
+            message: 'This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle.',
+            metadata: { reason: 'in_flight_budget_exhausted' },
+          },
+        }),
+      } as Response)
+      .mockResolvedValueOnce(response(validPayload()));
+
+    const promise = new OpenRouterQuestionEnrichmentService().generate(input);
+    await jest.advanceTimersByTimeAsync(2_000);
+
+    await expect(promise).resolves.toMatchObject({ sourceCorrectLabel: 'C' });
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry a permanent 402 insufficient-credit failure', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 402,
+      text: async () => JSON.stringify({
+        error: { message: 'This request requires more credits. Add credits to continue.' },
+      }),
+    } as Response);
+
+    await expect(new OpenRouterQuestionEnrichmentService().generate(input)).rejects.toThrow('(402)');
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
 });
