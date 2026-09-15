@@ -11,6 +11,7 @@ const optionIds = [
   '44444444-4444-4444-8444-444444444444',
   '44444444-4444-4444-8444-444444444445',
 ];
+const student = { id: 'student-1', email: 'student@example.test', full_name: 'Timed Rounds Student', role: 'STUDENT', status: 'ACTIVE', emailVerified: true };
 
 function apiEndpoint(requestUrl: string) {
   const pathname = new URL(requestUrl).pathname;
@@ -21,7 +22,8 @@ function apiEndpoint(requestUrl: string) {
 
 async function mockStudentApi(page: Page) {
   await page.addInitScript(() => {
-    localStorage.setItem('mdp_access_token', 'timed-rounds-browser-token');
+    localStorage.removeItem('mdp_access_token');
+    sessionStorage.removeItem('mdp_access_token');
     localStorage.removeItem('mdp_logged_out_at');
     localStorage.setItem('mdp-theme', 'light');
     localStorage.setItem('mdp-locale', 'en');
@@ -50,16 +52,8 @@ async function mockStudentApi(page: Page) {
       body: JSON.stringify(body),
     });
 
-    if (endpoint === '/auth/me') {
-      return respond({
-        id: 'student-1',
-        email: 'student@example.test',
-        full_name: 'Timed Rounds Student',
-        role: 'STUDENT',
-        status: 'ACTIVE',
-        emailVerified: true,
-      });
-    }
+    if (endpoint === '/auth/refresh') return respond({ access_token: 'timed-rounds-browser-token', user: student });
+    if (endpoint === '/auth/me') return respond(student);
     if (endpoint === '/notifications/unread/count') return respond({ count: 0 });
     if (endpoint === `/tests/attempts/${attemptId}/workspace-state`) {
       return respond({
