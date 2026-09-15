@@ -43,7 +43,8 @@ function assignment(index: number) {
 
 async function primeAuth(page: Page) {
   await page.addInitScript(() => {
-    localStorage.setItem('mdp_access_token', 'timed-final-token');
+    localStorage.removeItem('mdp_access_token');
+    sessionStorage.removeItem('mdp_access_token');
     localStorage.removeItem('mdp_logged_out_at');
     localStorage.setItem('mdp-theme', 'light');
     localStorage.setItem('mdp-locale', 'en');
@@ -58,6 +59,9 @@ function corsHeaders() {
     'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
   };
 }
+
+const finalStudent = { id: 'student-final', email: 'student@example.test', full_name: 'Final Student', role: 'STUDENT', status: 'ACTIVE', emailVerified: true };
+const reviewStudent = { id: 'student-review', email: 'student@example.test', full_name: 'Review Student', role: 'STUDENT', status: 'ACTIVE', emailVerified: true };
 
 test('200-question timed final uses five 40-question blocks and restores server state after refresh', async ({ page }) => {
   await primeAuth(page);
@@ -75,7 +79,8 @@ test('200-question timed final uses five 40-question blocks and restores server 
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
     const respond = (body: unknown, status = 200) => route.fulfill({ status, headers, contentType: 'application/json', body: JSON.stringify(body) });
 
-    if (target === '/auth/me') return respond({ id: 'student-final', email: 'student@example.test', full_name: 'Final Student', role: 'STUDENT', status: 'ACTIVE', emailVerified: true });
+    if (target === '/auth/refresh') return respond({ access_token: 'timed-final-token', user: finalStudent });
+    if (target === '/auth/me') return respond(finalStudent);
     if (target === '/notifications/unread/count') return respond({ count: 0 });
     if (target.startsWith('/notifications?')) return respond({ data: [] });
     if (target === `/tests/attempts/${attemptId}/workspace-state`) return respond({
@@ -173,7 +178,8 @@ test('timed assessment reveals A-E rationales only after submission', async ({ p
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
     const respond = (body: unknown, status = 200) => route.fulfill({ status, headers, contentType: 'application/json', body: JSON.stringify(body) });
 
-    if (target === '/auth/me') return respond({ id: 'student-review', email: 'student@example.test', full_name: 'Review Student', role: 'STUDENT', status: 'ACTIVE', emailVerified: true });
+    if (target === '/auth/refresh') return respond({ access_token: 'timed-review-token', user: reviewStudent });
+    if (target === '/auth/me') return respond(reviewStudent);
     if (target === '/notifications/unread/count') return respond({ count: 0 });
     if (target.startsWith('/notifications?')) return respond({ data: [] });
     if (target === `/tests/attempts/${attemptId}/workspace-state`) return respond({
