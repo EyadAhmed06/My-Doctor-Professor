@@ -19,7 +19,8 @@ function apiEndpoint(requestUrl: string) {
 
 async function baseMock(page: Page, user: Record<string, unknown>, handler: (endpoint: string, request: import('@playwright/test').Request, respond: (body: unknown, status?: number) => Promise<void>) => Promise<boolean> | boolean) {
   await page.addInitScript(() => {
-    localStorage.setItem('mdp_access_token', 'bundle-entitlement-browser-token');
+    localStorage.removeItem('mdp_access_token');
+    sessionStorage.removeItem('mdp_access_token');
     localStorage.removeItem('mdp_logged_out_at');
     localStorage.setItem('mdp-theme', 'light');
     localStorage.setItem('mdp-locale', 'en');
@@ -38,6 +39,7 @@ async function baseMock(page: Page, user: Record<string, unknown>, handler: (end
     };
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
     const respond = async (body: unknown, status = 200) => route.fulfill({ status, headers, contentType: 'application/json', body: JSON.stringify(body) });
+    if (endpoint === '/auth/refresh') return respond({ access_token: 'bundle-entitlement-browser-token', user });
     if (endpoint === '/auth/me') return respond(user);
     if (endpoint === '/notifications/unread/count') return respond({ count: 0 });
     if (await handler(endpoint, request, respond)) return;
