@@ -4,6 +4,7 @@ const frontendOrigin = 'http://127.0.0.1:3001';
 const attemptId = 'c0111111-1111-4111-8111-111111111111';
 const testId = 'c0222222-2222-4222-8222-222222222222';
 const questionId = 'c0333333-3333-4333-8333-333333333333';
+const student = { id: 'student-closed', email: 'student@example.test', full_name: 'Closed Student', role: 'STUDENT', status: 'ACTIVE', emailVerified: true };
 
 function endpoint(url: string) {
   const pathname = new URL(url).pathname;
@@ -14,7 +15,8 @@ function endpoint(url: string) {
 
 async function primeAuth(page: Page) {
   await page.addInitScript(() => {
-    localStorage.setItem('mdp_access_token', 'closed-attempt-token');
+    localStorage.removeItem('mdp_access_token');
+    sessionStorage.removeItem('mdp_access_token');
     localStorage.removeItem('mdp_logged_out_at');
     localStorage.setItem('mdp-theme', 'light');
     localStorage.setItem('mdp-locale', 'en');
@@ -52,7 +54,8 @@ for (const status of ['SUBMITTED', 'EXPIRED'] as const) {
       if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
       const respond = (body: unknown, responseStatus = 200) => route.fulfill({ status: responseStatus, headers, contentType: 'application/json', body: JSON.stringify(body) });
 
-      if (target === '/auth/me') return respond({ id: 'student-closed', email: 'student@example.test', full_name: 'Closed Student', role: 'STUDENT', status: 'ACTIVE', emailVerified: true });
+      if (target === '/auth/refresh') return respond({ access_token: 'closed-attempt-token', user: student });
+      if (target === '/auth/me') return respond(student);
       if (target === '/notifications/unread/count') return respond({ count: 0 });
       if (target.startsWith('/notifications?')) return respond({ data: [] });
       if (target === `/tests/attempts/${attemptId}/workspace-state`) return respond({
