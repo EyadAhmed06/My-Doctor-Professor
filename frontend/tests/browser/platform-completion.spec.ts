@@ -19,9 +19,11 @@ async function authenticated(page: Page, role: 'STUDENT' | 'INSTRUCTOR' | 'SYSTE
     emailVerified: true,
   };
   await page.addInitScript(() => {
-    localStorage.setItem('mdp_access_token', 'platform-test-access');
+    localStorage.removeItem('mdp_access_token');
+    sessionStorage.removeItem('mdp_access_token');
     localStorage.removeItem('mdp_refresh_token');
     sessionStorage.removeItem('mdp_refresh_token');
+    localStorage.removeItem('mdp_logged_out_at');
     localStorage.setItem('mdp-theme', 'light');
     localStorage.setItem('mdp-locale', 'en');
   });
@@ -42,7 +44,14 @@ async function routeApi(page: Page, handler: (requestEndpoint: string, method: s
       'cache-control': 'no-store',
     };
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
-    const result = await handler(endpoint(request.url()), request.method());
+    const requestEndpoint = endpoint(request.url());
+    if (requestEndpoint === '/auth/refresh') {
+      const profile = await handler('/auth/me', 'GET');
+      if (profile?.body) {
+        return route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify({ access_token: 'platform-test-access', user: profile.body }) });
+      }
+    }
+    const result = await handler(requestEndpoint, request.method());
     if (!result) return route.fulfill({ status: 200, headers, contentType: 'application/json', body: '{}' });
     if (result.raw) return route.fulfill({ status: result.status ?? 200, headers, contentType: result.contentType, body: result.raw });
     return route.fulfill({ status: result.status ?? 200, headers, contentType: result.contentType ?? 'application/json', body: result.body === undefined ? '' : JSON.stringify(result.body) });
@@ -150,7 +159,6 @@ test('dark settings keeps both password fields visibly bounded', async ({ page }
   const user = await authenticated(page, 'STUDENT');
   await page.addInitScript(() => localStorage.setItem('mdp-theme', 'dark'));
   await routeApi(page, async path => {
-    if (path === '/auth/refresh') return { body: { access_token: 'platform-test-access', user } };
     if (path === '/auth/me') return { body: user };
     if (path === '/users/student-1') return { body: { ...user, fullName: 'Test Student', phoneNumber: '+201000000000', profilePictureUrl: null, gender: null, dateOfBirth: null } };
     if (path === '/auth/security') return { body: { sessions: [], providers: [] } };
