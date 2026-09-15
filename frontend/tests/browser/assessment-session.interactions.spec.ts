@@ -8,6 +8,8 @@ const q2 = '33333333-3333-4333-8333-333333333332';
 const optionA = '44444444-4444-4444-8444-444444444441';
 const optionB = '44444444-4444-4444-8444-444444444442';
 const optionC = '44444444-4444-4444-8444-444444444443';
+const optionD = '44444444-4444-4444-8444-444444444444';
+const optionE = '44444444-4444-4444-8444-444444444445';
 
 const student = {
   id: 'student-1',
@@ -31,6 +33,8 @@ const questions = [
         { id: optionA, optionText: 'Stable angina', displayOrder: 1 },
         { id: optionB, optionText: 'Acute pericarditis', displayOrder: 2 },
         { id: optionC, optionText: 'Aortic dissection', displayOrder: 3 },
+        { id: optionD, optionText: 'Pulmonary embolism', displayOrder: 4 },
+        { id: optionE, optionText: 'Costochondritis', displayOrder: 5 },
       ],
     },
   },
@@ -45,6 +49,9 @@ const questions = [
       options: [
         { id: '55555555-5555-4555-8555-555555555551', optionText: 'Risk-factor modification', displayOrder: 1 },
         { id: '55555555-5555-4555-8555-555555555552', optionText: 'Bed rest', displayOrder: 2 },
+        { id: '55555555-5555-4555-8555-555555555553', optionText: 'Routine oxygen', displayOrder: 3 },
+        { id: '55555555-5555-4555-8555-555555555554', optionText: 'Empiric antibiotics', displayOrder: 4 },
+        { id: '55555555-5555-4555-8555-555555555555', optionText: 'Daily imaging', displayOrder: 5 },
       ],
     },
   },
@@ -64,7 +71,8 @@ async function installAssessmentMock(page: Page, mode: 'TUTOR' | 'TIMED', deadli
   const flags = new Set<string>();
 
   await page.addInitScript(() => {
-    localStorage.setItem('mdp_access_token', 'assessment-browser-token');
+    localStorage.removeItem('mdp_access_token');
+    sessionStorage.removeItem('mdp_access_token');
     localStorage.removeItem('mdp_logged_out_at');
     localStorage.setItem('mdp-theme', 'light');
     localStorage.setItem('mdp-locale', 'en');
@@ -89,6 +97,7 @@ async function installAssessmentMock(page: Page, mode: 'TUTOR' | 'TIMED', deadli
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
     const respond = (body: unknown, status = 200) => route.fulfill({ status, headers, contentType: 'application/json', body: JSON.stringify(body) });
 
+    if (endpoint === '/auth/refresh') return respond({ access_token: 'assessment-browser-token', user: student });
     if (endpoint === '/auth/me') return respond(student);
     if (endpoint === '/notifications/unread/count') return respond({ count: 0 });
     if (endpoint.startsWith('/notifications?')) return respond({ data: [] });
