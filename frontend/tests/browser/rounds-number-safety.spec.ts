@@ -5,6 +5,7 @@ const bundleId = '30000000-0000-4000-8000-000000000001';
 const courseId = '20000000-0000-4000-8000-000000000001';
 const weekId = '40000000-0000-4000-8000-000000000001';
 const lectureId = '50000000-0000-4000-8000-000000000006';
+const student = { id: 'student-rounds-number-safety', email: 'rounds@example.test', full_name: 'Rounds Safety Student', role: 'STUDENT', status: 'ACTIVE', emailVerified: true };
 
 function endpoint(url: string) {
   const path = new URL(url).pathname;
@@ -15,7 +16,9 @@ function endpoint(url: string) {
 
 async function mockRounds(page: Page) {
   await page.addInitScript(() => {
-    localStorage.setItem('mdp_access_token', 'rounds-number-safety-token');
+    localStorage.removeItem('mdp_access_token');
+    sessionStorage.removeItem('mdp_access_token');
+    localStorage.removeItem('mdp_logged_out_at');
     localStorage.setItem('mdp-theme', 'dark');
     localStorage.setItem('mdp-locale', 'en');
   });
@@ -37,14 +40,8 @@ async function mockRounds(page: Page) {
     const respond = (body: unknown) => route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify(body) });
     const path = endpoint(request.url());
 
-    if (path === '/auth/me') return respond({
-      id: 'student-rounds-number-safety',
-      email: 'rounds@example.test',
-      full_name: 'Rounds Safety Student',
-      role: 'STUDENT',
-      status: 'ACTIVE',
-      emailVerified: true,
-    });
+    if (path === '/auth/refresh') return respond({ access_token: 'rounds-number-safety-token', user: student });
+    if (path === '/auth/me') return respond(student);
     if (path === '/notifications/unread/count') return respond({ count: 0 });
     if (path.startsWith('/notifications?')) return respond({ data: [] });
     if (path === '/bundles/mine') return respond([{ id: bundleId, title: 'Demo Bundle', read_only: false }]);
