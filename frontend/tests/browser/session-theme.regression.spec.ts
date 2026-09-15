@@ -35,7 +35,8 @@ test('existing dark palette remains unchanged on public auth pages', async ({ pa
 test('returning authenticated user sees continue actions on Home without logging in again', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('mdp-theme', 'light');
-    localStorage.setItem('mdp_access_token', 'returning-user-token');
+    localStorage.removeItem('mdp_access_token');
+    sessionStorage.removeItem('mdp_access_token');
     localStorage.setItem('mdp_refresh_token', 'legacy-refresh-that-must-be-removed');
   });
 
@@ -44,6 +45,9 @@ test('returning authenticated user sees continue actions on Home without logging
     if (!['fetch', 'xhr'].includes(request.resourceType())) return route.fallback();
     const endpoint = endpointOf(request.url());
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: corsHeaders });
+    if (endpoint === '/auth/refresh') {
+      return route.fulfill({ status: 200, headers: corsHeaders, contentType: 'application/json', body: JSON.stringify({ access_token: 'returning-user-token', user: returningUser }) });
+    }
     if (endpoint === '/auth/me') {
       return route.fulfill({ status: 200, headers: corsHeaders, contentType: 'application/json', body: JSON.stringify(returningUser) });
     }
@@ -55,6 +59,8 @@ test('returning authenticated user sees continue actions on Home without logging
   await expect.poll(() => page.getByRole('link', { name: /Open dashboard/i }).count()).toBeGreaterThan(0);
   await expect.poll(() => page.getByText(/Signed in as Eyad/i).count()).toBeGreaterThan(0);
   await expect(page.getByRole('link', { name: /^Log in$/i })).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('mdp_access_token'))).toBeNull();
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('mdp_access_token'))).toBeNull();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('mdp_refresh_token'))).toBeNull();
   await expect.poll(() => page.evaluate(() => sessionStorage.getItem('mdp_refresh_token'))).toBeNull();
 });
@@ -93,7 +99,8 @@ test('returning browser restores access through refresh endpoint without a JS re
   await page.goto('/');
   await expect(page.getByRole('link', { name: /Continue learning/i })).toBeVisible();
   expect(refreshCalls).toBeGreaterThan(0);
-  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('mdp_access_token'))).toBe('rotated-access-token');
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('mdp_access_token'))).toBeNull();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('mdp_access_token'))).toBeNull();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('mdp_refresh_token'))).toBeNull();
   await expect.poll(() => page.evaluate(() => sessionStorage.getItem('mdp_refresh_token'))).toBeNull();
 });
