@@ -19,7 +19,9 @@ async function mockStudent(page: Page) {
     emailVerified: true,
   };
   await page.addInitScript(() => {
-    localStorage.setItem('mdp_access_token', 'flashcard-sync-token');
+    localStorage.removeItem('mdp_access_token');
+    sessionStorage.removeItem('mdp_access_token');
+    localStorage.removeItem('mdp_logged_out_at');
     localStorage.setItem('mdp-theme', 'light');
     localStorage.setItem('mdp-locale', 'en');
     localStorage.removeItem('mdp-flashcard-session:student-flashcard-sync');
@@ -40,6 +42,7 @@ async function mockStudent(page: Page) {
     const path = endpoint(request.url());
     const respond = (body: unknown, status = 200) => route.fulfill({ status, headers, contentType: 'application/json', body: JSON.stringify(body) });
 
+    if (path === '/auth/refresh') return respond({ access_token: 'flashcard-sync-token', user });
     if (path === '/auth/me') return respond(user);
     if (path === '/notifications/unread/count') return respond({ count: 0 });
     if (path === '/notifications') return respond({ data: [] });
