@@ -4,6 +4,7 @@ const frontendOrigin = 'http://127.0.0.1:3001';
 const bundleId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const testId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const attemptId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+const student = { id: 'student-1', email: 'student@example.test', full_name: 'Resume Student', role: 'STUDENT', status: 'ACTIVE', emailVerified: true };
 
 function apiEndpoint(requestUrl: string) {
   const pathname = new URL(requestUrl).pathname;
@@ -14,7 +15,8 @@ function apiEndpoint(requestUrl: string) {
 
 async function mockApi(page: Page) {
   await page.addInitScript(() => {
-    localStorage.setItem('mdp_access_token', 'resume-test-token');
+    localStorage.removeItem('mdp_access_token');
+    sessionStorage.removeItem('mdp_access_token');
     localStorage.removeItem('mdp_logged_out_at');
     localStorage.setItem('mdp-theme', 'light');
     localStorage.setItem('mdp-locale', 'en');
@@ -34,7 +36,8 @@ async function mockApi(page: Page) {
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
     const respond = (body: unknown, status = 200) => route.fulfill({ status, headers, contentType: 'application/json', body: JSON.stringify(body) });
 
-    if (endpoint === '/auth/me') return respond({ id: 'student-1', email: 'student@example.test', full_name: 'Resume Student', role: 'STUDENT', status: 'ACTIVE', emailVerified: true });
+    if (endpoint === '/auth/refresh') return respond({ access_token: 'resume-test-token', user: student });
+    if (endpoint === '/auth/me') return respond(student);
     if (endpoint === '/notifications/unread/count') return respond({ count: 0 });
     if (endpoint === '/bundles/mine') return respond([{ id: bundleId, title: 'Clinical Foundations', slug: 'clinical-foundations', status: 'PUBLISHED', isFree: true }]);
     if (endpoint === `/bundles/${bundleId}/content`) return respond({
