@@ -4,9 +4,6 @@ const frontendOrigin = 'http://127.0.0.1:3001';
 const attemptId = '71111111-1111-4111-8111-111111111111';
 const testId = '72222222-2222-4222-8222-222222222222';
 const questionId = '73333333-3333-4333-8333-333333333333';
-// These mirror persisted PostgreSQL UUID text from the demo question bank. The
-// variant nibble is not RFC-v4-conformant, but PostgreSQL's uuid type accepts the
-// canonical text and the backend answer DTO intentionally accepts it as well.
 const correctOptionId = '71000000-0000-4000-0001-000000000004';
 const wrongOptionId = '71000000-0000-4000-0001-000000000005';
 
@@ -31,6 +28,9 @@ const questions = [
       options: [
         { id: correctOptionId, optionText: 'Left atrium', displayOrder: 1 },
         { id: wrongOptionId, optionText: 'Right atrium', displayOrder: 2 },
+        { id: '71000000-0000-4000-0001-000000000006', optionText: 'Right ventricle', displayOrder: 3 },
+        { id: '71000000-0000-4000-0001-000000000007', optionText: 'Left ventricle', displayOrder: 4 },
+        { id: '71000000-0000-4000-0001-000000000008', optionText: 'Aorta', displayOrder: 5 },
       ],
     },
   },
@@ -48,7 +48,8 @@ async function installAssessmentMock(page: Page, mode: 'TUTOR' | 'TIMED') {
   let answerWrites = 0;
 
   await page.addInitScript(() => {
-    localStorage.setItem('mdp_access_token', 'assessment-contract-token');
+    localStorage.removeItem('mdp_access_token');
+    sessionStorage.removeItem('mdp_access_token');
     localStorage.removeItem('mdp_logged_out_at');
     localStorage.setItem('mdp-theme', 'light');
     localStorage.setItem('mdp-locale', 'en');
@@ -79,6 +80,7 @@ async function installAssessmentMock(page: Page, mode: 'TUTOR' | 'TIMED') {
       body: JSON.stringify(body),
     });
 
+    if (endpoint === '/auth/refresh') return respond({ access_token: 'assessment-contract-token', user: student });
     if (endpoint === '/auth/me') return respond(student);
     if (endpoint === '/notifications/unread/count') return respond({ count: 0 });
     if (endpoint.startsWith('/notifications?')) return respond({ data: [] });
