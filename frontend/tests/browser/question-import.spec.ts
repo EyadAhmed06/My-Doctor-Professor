@@ -197,3 +197,41 @@ test('manual explanation UI enforces 220 characters and blocks more than two sen
   await expect(page.getByText('INVALID', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Approve for publication')).toBeDisabled();
 });
+
+
+test('AI candidate failures are reported as failures instead of a false success', async ({ page }) => {
+  await openInspection(page);
+
+  await page.route('**/api/v1/questions/imports/enrich', async route => {
+    const failed = inspectionBody().candidates[0];
+    await route.fulfill({
+      status: 200,
+      headers: {
+        'access-control-allow-origin': frontendOrigin,
+        'access-control-allow-credentials': 'true',
+      },
+      contentType: 'application/json',
+      body: JSON.stringify({
+        enrichment_contract: 'QUESTION_AND_OPTION_EXPLANATIONS_V1',
+        issues: [{ code: 'AI_ENRICHMENT_PARTIAL', severity: 'WARNING', message: '0 generated · 1 failed.' }],
+        candidates: [{
+          ...failed,
+          explanation: null,
+          options: failed.options.map(option => ({ ...option, explanation: null })),
+          ai_enrichment: { ...failed.ai_enrichment, status: 'FAILED' },
+          issues: [{
+            code: 'AI_ENRICHMENT_FAILED',
+            severity: 'WARNING',
+            message: 'OpenRouter request failed (401).',
+          }],
+        }],
+      }),
+    });
+  });
+
+  await page.getByRole('button', { name: 'Regenerate explanation' }).click();
+
+  await expect(page.getByText('Explanation generation failed')).toBeVisible();
+  await expect(page.getByText(/0 generated · 1 question\(s\) failed/)).toBeVisible();
+  await expect(page.getByText('Explanations ready for review')).toHaveCount(0);
+});

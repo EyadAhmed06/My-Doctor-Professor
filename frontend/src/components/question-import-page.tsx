@@ -400,7 +400,9 @@ export function QuestionImportPage() {
 
     setEnrichingIds((current) => new Set([...current, ...eligible.map((candidate) => candidate.candidate_id)]));
     let generated = 0;
+    let failedQuestions = 0;
     let failedBatches = 0;
+    let firstFailure = "";
     try {
       for (let offset = 0; offset < eligible.length; offset += ENRICHMENT_BATCH_SIZE) {
         const batch = eligible.slice(offset, offset + ENRICHMENT_BATCH_SIZE);
@@ -415,10 +417,20 @@ export function QuestionImportPage() {
             signal: AbortSignal.timeout(75_000),
           });
           mergeEnriched(result.candidates);
+          const failedCandidates = result.candidates.filter((candidate) => candidate.ai_enrichment?.status === "FAILED");
           generated += result.candidates.filter((candidate) => candidate.ai_enrichment?.status === "GENERATED").length;
+          failedQuestions += failedCandidates.length;
+          if (!firstFailure) {
+            firstFailure = failedCandidates
+              .flatMap((candidate) => candidate.issues || [])
+              .find((issue) => issue.code === "AI_ENRICHMENT_FAILED")?.message || "";
+          }
         } catch (cause) {
           failedBatches += 1;
-          setError(inspectionErrorMessage(cause));
+          failedQuestions += batch.length;
+          const message = inspectionErrorMessage(cause);
+          if (!firstFailure) firstFailure = message;
+          setError(message);
         } finally {
           setEnrichingIds((current) => {
             const next = new Set(current);
@@ -427,10 +439,19 @@ export function QuestionImportPage() {
           });
         }
       }
+      const hadFailures = failedQuestions > 0 || failedBatches > 0;
+      const completeFailure = generated === 0 && hadFailures;
+      if (completeFailure && firstFailure) setError(firstFailure);
       notify({
-        title: failedBatches ? "Explanation generation partially completed" : "Explanations ready for review",
-        description: `${generated} question(s) now have concise question + A–E explanations${failedBatches ? ` · ${failedBatches} batch(es) failed` : ""}.`,
-        tone: failedBatches ? "info" : "success",
+        title: completeFailure
+          ? "Explanation generation failed"
+          : hadFailures
+            ? "Explanation generation partially completed"
+            : "Explanations ready for review",
+        description: completeFailure
+          ? `0 generated · ${failedQuestions || eligible.length} question(s) failed. ${firstFailure || "Check the configured AI provider and try again."}`
+          : `${generated} question(s) now have concise question + A–E explanations${hadFailures ? ` · ${failedQuestions} question(s) failed` : ""}.`,
+        tone: completeFailure ? "error" : hadFailures ? "info" : "success",
       });
     } finally {
       setEnrichingIds((current) => {
