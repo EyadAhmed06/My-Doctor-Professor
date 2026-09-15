@@ -672,7 +672,7 @@ export function QuestionImportPage() {
                               <strong>{option.label}</strong>
                               <input type="text" value={option.option_text} onChange={(event) => editSource(candidateIndex, (current) => ({ ...current, reuse_question_id: undefined, options: current.options.map((value, index) => index === optionIndex ? { ...value, option_text: event.target.value } : value) }))} />
                             </label>
-                            <label style={{ display: "grid", gap: "0.25rem", marginLeft: "2.5rem" }}>
+                            <label className="question-import-option-explanation">
                               <span style={{ fontSize: "0.82rem", opacity: 0.78 }}>{option.is_correct ? "Why this is correct" : "Why this is incorrect"} · max 2 short sentences</span>
                               <textarea rows={2} maxLength={EXPLANATION_MAX_LENGTH} value={option.explanation || ""} placeholder="Concise reason…" onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, approved: false, options: current.options.map((value, index) => index === optionIndex ? { ...value, explanation: event.target.value } : value) }))} />
                               <small style={{ justifySelf: "end" }}>{(option.explanation || "").length}/{EXPLANATION_MAX_LENGTH}</small>

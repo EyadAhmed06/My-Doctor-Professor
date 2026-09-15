@@ -162,6 +162,14 @@ test('instructor inspects a five-option PDF candidate and publishes an approved 
   await expect(page.getByText('96%').first()).toBeVisible();
   await expect(page.locator('input[value="Left atrium"]')).toBeVisible();
   await expect(page.locator('input[value="Aorta"]')).toBeVisible();
+  const explanationEditors = page.locator('.question-import-option-explanation');
+  await expect(explanationEditors).toHaveCount(5);
+  const explanationWidthRatios = await explanationEditors.evaluateAll((editors) => editors.map((editor) => {
+    const textarea = editor.querySelector('textarea');
+    return textarea ? textarea.clientWidth / editor.clientWidth : 0;
+  }));
+  expect(explanationWidthRatios.every((ratio) => ratio >= 0.9)).toBe(true);
+
   await expect(page.locator('.question-import-review-heading')).toContainText('0');
 
   await page.getByRole('button', { name: /Approve all ready/i }).first().click();
