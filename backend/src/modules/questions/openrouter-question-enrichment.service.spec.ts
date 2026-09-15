@@ -51,6 +51,19 @@ describe('OpenRouterQuestionEnrichmentService', () => {
     expect(result.promptVersion).toBe('mcq-explanation-v2-concise');
   });
 
+  it('caps provider output to the concise explanation budget', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    global.fetch = jest.fn().mockResolvedValue(response(validPayload()));
+
+    await new OpenRouterQuestionEnrichmentService().generate(input);
+
+    const request = (global.fetch as jest.Mock).mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(String(request.body))).toMatchObject({
+      model: 'meta/muse-spark-1.3',
+      max_tokens: 1200,
+    });
+  });
+
   it('rejects an AI attempt to change the source answer', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     global.fetch = jest.fn().mockResolvedValue(response({ ...validPayload(), source_correct_label: 'D' }));

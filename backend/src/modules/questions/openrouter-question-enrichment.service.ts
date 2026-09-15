@@ -34,6 +34,7 @@ const REQUEST_TIMEOUT_MS = 45_000;
 const MAX_ATTEMPTS = 3;
 const MAX_EXPLANATION_CHARS = 220;
 const MAX_EXPLANATION_SENTENCES = 2;
+const MAX_OUTPUT_TOKENS = 1_200;
 const MAX_REVIEW_REASON_CHARS = 180;
 
 class OpenRouterHttpError extends Error {
@@ -87,6 +88,7 @@ export class OpenRouterQuestionEnrichmentService {
         body: JSON.stringify({
           model: this.model,
           temperature: 0.1,
+          max_tokens: MAX_OUTPUT_TOKENS,
           response_format: {
             type: 'json_schema',
             json_schema: { name: 'mcq_explanation', strict: true, schema: this.responseSchema() },
