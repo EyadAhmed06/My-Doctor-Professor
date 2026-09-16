@@ -21,7 +21,7 @@ export class EssayQuestionImportController {
   @RateLimit({ key: 'essay-import-inspect', maximum: 10, windowSeconds: 3600 })
   @Post('inspect')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 25 * 1024 * 1024, files: 1 } }))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 50 * 1024 * 1024, files: 1 } }))
   inspect(
     @Body() dto: InspectEssayQuestionImportDto,
     @UploadedFile() file: UploadedResourceFile | undefined,

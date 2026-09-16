@@ -94,7 +94,7 @@ export class QuestionsController {
   @RateLimit({ key: 'question-import-inspect', maximum: 10, windowSeconds: 3600 })
   @Post('imports/inspect')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 25 * 1024 * 1024, files: 1 } }))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 50 * 1024 * 1024, files: 1 } }))
   async inspectImport(
     @Body() dto: InspectQuestionImportDto,
     @UploadedFile() file: UploadedResourceFile | undefined,

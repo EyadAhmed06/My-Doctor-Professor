@@ -319,8 +319,8 @@ export function QuestionImportPage() {
       notify({ title: "Complete the import details", description: "Choose course, topic and PDF, then confirm permission to use the material.", tone: "info" });
       return;
     }
-    if (file.size > 25 * 1024 * 1024 || !/\.pdf$/i.test(file.name)) {
-      notify({ title: "Invalid PDF", description: "Use a .pdf file no larger than 25 MB.", tone: "error" });
+    if (file.size > 50 * 1024 * 1024 || !/\.pdf$/i.test(file.name)) {
+      notify({ title: "Invalid PDF", description: "Use a .pdf file no larger than 50 MB.", tone: "error" });
       return;
     }
 
@@ -658,7 +658,7 @@ export function QuestionImportPage() {
             <div className="question-import-fields">
               <label><span>Course</span><select value={courseId} onChange={(event) => void chooseCourse(event.target.value)}><option value="">Select course…</option>{courses.map((item) => <option value={item.id} key={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label>
               <label><span>Destination topic</span><select value={topicId} disabled={!course} onChange={(event) => { setTopicId(event.target.value); setInspection(null); setCandidates([]); }}><option value="">Select exact topic…</option>{topics.map((topic) => <option value={topic.id} key={`${topic.id}-${topic.path}`}>{topic.path} · {topic.topicName}</option>)}</select></label>
-              <label className="question-import-file"><span>Question PDF</span><input type="file" accept="application/pdf,.pdf" onChange={(event) => { setFile(event.target.files?.[0] || null); setInspection(null); setCandidates([]); }} /><small>PDF · max 25 MB · canonical MCQs must contain exactly A–E.</small></label>
+              <label className="question-import-file"><span>Question PDF</span><input type="file" accept="application/pdf,.pdf" onChange={(event) => { setFile(event.target.files?.[0] || null); setInspection(null); setCandidates([]); }} /><small>PDF · max 50 MB · canonical MCQs must contain exactly A–E.</small></label>
             </div>
             <label className="question-import-rights"><input type="checkbox" checked={copyrightConfirmed} onChange={(event) => setCopyrightConfirmed(event.target.checked)} /><span>I confirm I have permission to use and publish this material.</span></label>
             <div className="question-import-upload-actions">

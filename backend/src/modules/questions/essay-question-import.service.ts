@@ -12,7 +12,7 @@ import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { PublishEssayQuestionImportDto } from './dtos/essay-question-import.dto';
 import { detectQuestionDocumentType, QuestionDocumentType } from './question-document-type';
 
-const MAX_PDF_BYTES = 25 * 1024 * 1024;
+const MAX_PDF_BYTES = 50 * 1024 * 1024;
 const MAX_PDF_PAGES = 200;
 const MAX_CANDIDATES = 500;
 const MIN_TEXT_LENGTH = 80;
@@ -517,7 +517,7 @@ export class EssayQuestionImportService {
 
   private validatePdfFile(file: UploadedResourceFile | undefined): asserts file is UploadedResourceFile {
     if (!file?.buffer?.length) throw new BadRequestException('Select a non-empty PDF file');
-    if (file.size > MAX_PDF_BYTES) throw new BadRequestException('PDF imports are limited to 25 MB');
+    if (file.size > MAX_PDF_BYTES) throw new BadRequestException('PDF imports are limited to 50 MB');
     if (!/\.pdf$/i.test(file.originalname || '')) throw new BadRequestException('Essay imports must use a .pdf filename');
     if (file.mimetype !== 'application/pdf') throw new BadRequestException('Declared file type must be application/pdf');
     if (file.buffer.subarray(0, 5).toString('ascii') !== '%PDF-') throw new BadRequestException('Uploaded content is not a real PDF file');

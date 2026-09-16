@@ -97,7 +97,7 @@ type ParsedQuestionDocument = {
   questions: ParsedQuestion[];
 };
 
-const MAX_PDF_BYTES = 25 * 1024 * 1024;
+const MAX_PDF_BYTES = 50 * 1024 * 1024;
 const MAX_PDF_PAGES = 200;
 const MAX_IMPORT_CANDIDATES = 500;
 const MIN_TEXT_LENGTH = 80;
@@ -414,7 +414,7 @@ export class QuestionImportService {
   private validatePdfFile(file: UploadedResourceFile | undefined): asserts file is UploadedResourceFile {
     if (!file?.buffer?.length) throw new BadRequestException('Select a non-empty PDF file');
     if (file.size > MAX_PDF_BYTES) {
-      throw new BadRequestException('PDF imports are limited to 25 MB');
+      throw new BadRequestException('PDF imports are limited to 50 MB');
     }
     if (!/\.pdf$/i.test(file.originalname || '')) {
       throw new BadRequestException('Question imports must use a .pdf filename');
