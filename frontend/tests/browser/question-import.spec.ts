@@ -1,7 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
 
-const frontendOrigin = 'http://127.0.0.1:3001';
-
 function endpoint(url: string) {
   const path = new URL(url).pathname;
   const marker = '/api/v1';
@@ -41,7 +39,7 @@ async function routeApi(
     const isApi = url.pathname.includes('/api/v1') || url.port === '3000';
     if (!isApi) return route.fallback();
     const headers = {
-      'access-control-allow-origin': frontendOrigin,
+      'access-control-allow-origin': request.headers().origin || 'http://127.0.0.1:3001',
       'access-control-allow-credentials': 'true',
       'access-control-allow-headers': 'authorization,content-type',
       'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
@@ -115,7 +113,7 @@ function inspectionBody() {
   };
 }
 
-async function openInspection(page: Page) {
+async function openInspection(page: Page, inspection = inspectionBody()) {
   const user = await authenticatedInstructor(page);
   await routeApi(page, async (path, method) => {
     if (path === '/auth/refresh') return { body: { access_token: 'question-import-test-access', user } };
@@ -124,7 +122,7 @@ async function openInspection(page: Page) {
     if (path === '/notifications') return { body: { data: [] } };
     if (path === '/academic/courses') return { body: { data: [{ id: course.id, courseCode: course.courseCode, courseName: course.courseName }] } };
     if (path === `/academic/courses/${course.id}`) return { body: course };
-    if (path === '/questions/imports/inspect' && method === 'POST') return { body: inspectionBody() };
+    if (path === '/questions/imports/inspect' && method === 'POST') return { body: inspection };
     return null;
   });
 
@@ -151,7 +149,7 @@ test('instructor inspects a five-option PDF candidate and publishes an approved 
     await route.fulfill({
       status: 201,
       headers: {
-        'access-control-allow-origin': frontendOrigin,
+        'access-control-allow-origin': route.request().headers().origin || 'http://127.0.0.1:3001',
         'access-control-allow-credentials': 'true',
       },
       contentType: 'application/json',
@@ -207,7 +205,7 @@ test('AI candidate failures are reported as failures instead of a false success'
     await route.fulfill({
       status: 200,
       headers: {
-        'access-control-allow-origin': frontendOrigin,
+        'access-control-allow-origin': route.request().headers().origin || 'http://127.0.0.1:3001',
         'access-control-allow-credentials': 'true',
       },
       contentType: 'application/json',
@@ -234,4 +232,59 @@ test('AI candidate failures are reported as failures instead of a false success'
   await expect(page.getByText('Explanation generation failed')).toBeVisible();
   await expect(page.getByText(/0 generated · 1 question\(s\) failed/)).toBeVisible();
   await expect(page.getByText('Explanations ready for review')).toHaveCount(0);
+});
+
+test('billing exhaustion stops later enrichment batches and reports deferred questions', async ({ page }) => {
+  const source = inspectionBody();
+  const template = source.candidates[0];
+  source.candidates = Array.from({ length: 12 }, (_, index) => ({
+    ...template,
+    candidate_id: `candidate-${index + 1}`,
+    question_number: index + 1,
+    question_text: `Which chamber receives oxygenated blood in scenario ${index + 1}?`,
+    explanation: null,
+    options: template.options.map((option) => ({ ...option, explanation: null })),
+    ai_enrichment: null,
+  }));
+  source.summary = { extracted: 12, valid: 12, needs_review: 0, invalid: 0, duplicates: 0 };
+  await openInspection(page, source);
+
+  let enrichCalls = 0;
+  await page.route('**/api/v1/questions/imports/enrich', async route => {
+    enrichCalls += 1;
+    const request = route.request().postDataJSON() as { candidates: typeof source.candidates };
+    const candidates = request.candidates.map((candidate, index) => index === 0 ? {
+      ...candidate,
+      explanation: 'Pulmonary veins return oxygenated blood to the left atrium.',
+      options: candidate.options.map((option) => ({ ...option, explanation: `${option.label} rationale.` })),
+      status: 'VALID',
+      issues: [],
+      ai_enrichment: { status: 'GENERATED', model: 'meta/muse-spark-1.3' },
+    } : {
+      ...candidate,
+      status: 'NEEDS_REVIEW',
+      issues: [{
+        code: 'AI_ENRICHMENT_DEFERRED_BILLING',
+        severity: 'WARNING',
+        message: 'OpenRouter has insufficient usable credit; add credits before retrying.',
+      }],
+      ai_enrichment: { status: 'DEFERRED_BILLING' },
+    });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        enrichment_contract: 'QUESTION_AND_OPTION_EXPLANATIONS_V1',
+        candidates,
+        issues: [{ code: 'AI_ENRICHMENT_BILLING_DEFERRED', severity: 'WARNING', message: '1 generated · 9 deferred.' }],
+        enrichment_summary: { generated: 1, cached: 0, failed: 0, billing_deferred: 9 },
+      }),
+    });
+  });
+
+  await page.getByRole('button', { name: /Generate missing explanations/i }).click();
+
+  await expect.poll(() => enrichCalls).toBe(1);
+  await expect(page.getByText(/1 generated · 0 reused · 11 deferred/)).toBeVisible();
+  await expect(page.getByText('AI DEFERRED BILLING')).toHaveCount(11);
 });

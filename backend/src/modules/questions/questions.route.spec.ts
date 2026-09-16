@@ -83,6 +83,7 @@ describe('QuestionsController route registration', () => {
         ...candidate,
         explanation: 'Concise explanation.',
       })),
+      enrichment_summary: { generated: 1, cached: 0, failed: 0, billing_deferred: 0 },
     }));
 
     const response = await request(app.getHttpServer())
@@ -104,6 +105,7 @@ describe('QuestionsController route registration', () => {
     expect(enrichInspection).toHaveBeenCalledTimes(1);
     expect(response.body.enrichment_contract).toBe('source-answer+question-explanation+five-option-explanations+difficulty');
     expect(response.body.candidates).toHaveLength(1);
+    expect(response.body.enrichment_summary).toEqual({ generated: 1, cached: 0, failed: 0, billing_deferred: 0 });
   });
 
   it('passes existing AI state and force-regeneration intent into enrichment', async () => {

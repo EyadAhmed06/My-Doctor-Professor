@@ -1,4 +1,7 @@
-import { OpenRouterQuestionEnrichmentService } from './openrouter-question-enrichment.service';
+import {
+  OpenRouterEnrichmentError,
+  OpenRouterQuestionEnrichmentService,
+} from './openrouter-question-enrichment.service';
 
 describe('OpenRouterQuestionEnrichmentService', () => {
   const input = {
@@ -138,6 +141,7 @@ describe('OpenRouterQuestionEnrichmentService', () => {
 
   it('retries transient 429 responses and succeeds', async () => {
     jest.useFakeTimers();
+    jest.spyOn(Math, 'random').mockReturnValue(0);
     process.env.OPENROUTER_API_KEY = 'test-key';
     global.fetch = jest.fn()
       .mockResolvedValueOnce({ ok: false, status: 429, text: async () => 'rate limited' } as Response)
@@ -157,6 +161,7 @@ describe('OpenRouterQuestionEnrichmentService', () => {
 
   it('retries a transient 402 in-flight budget reservation and succeeds', async () => {
     jest.useFakeTimers();
+    jest.spyOn(Math, 'random').mockReturnValue(0);
     process.env.OPENROUTER_API_KEY = 'test-key';
     global.fetch = jest.fn()
       .mockResolvedValueOnce({
@@ -184,11 +189,169 @@ describe('OpenRouterQuestionEnrichmentService', () => {
       ok: false,
       status: 402,
       text: async () => JSON.stringify({
-        error: { message: 'This request requires more credits. Add credits to continue.' },
+        error: { message: 'This request requires more credits. Add credits to continue.', code: 402 },
       }),
     } as Response);
 
-    await expect(new OpenRouterQuestionEnrichmentService().generate(input)).rejects.toThrow('(402)');
+    await expect(new OpenRouterQuestionEnrichmentService().generate(input)).rejects.toMatchObject({
+      kind: 'INSUFFICIENT_CREDITS',
+      status: 402,
+      retryable: false,
+      code: '402',
+      reason: undefined,
+      message: expect.stringContaining('insufficient usable credit'),
+    });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses structured billing metadata before misleading message text', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 402,
+      headers: new Headers({ 'x-request-id': 'req-billing-1' }),
+      text: async () => JSON.stringify({
+        error: {
+          message: 'Retry after in-flight requests settle.',
+          code: 'payment_required',
+          type: 'billing_error',
+          metadata: { reason: 'insufficient_credits' },
+        },
+      }),
+    } as Response);
+
+    await expect(new OpenRouterQuestionEnrichmentService().generate(input)).rejects.toMatchObject({
+      kind: 'INSUFFICIENT_CREDITS',
+      reason: 'insufficient_credits',
+      code: 'payment_required',
+      type: 'billing_error',
+      requestId: 'req-billing-1',
+      retryable: false,
+    });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats a structured credit-limit failure as permanent billing exhaustion', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 402,
+      text: async () => JSON.stringify({
+        error: {
+          message: 'Payment is required.',
+          code: 'credit_limit_exceeded',
+          metadata: { reason: 'billing_limit_exceeded' },
+        },
+      }),
+    } as Response);
+
+    await expect(new OpenRouterQuestionEnrichmentService().generate(input)).rejects.toMatchObject({
+      kind: 'INSUFFICIENT_CREDITS',
+      code: 'credit_limit_exceeded',
+      reason: 'billing_limit_exceeded',
+      retryable: false,
+    });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([500, 502, 503])('retries HTTP %s and retains the successful retry', async (status) => {
+    jest.useFakeTimers();
+    jest.spyOn(Math, 'random').mockReturnValue(0);
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: false, status, text: async () => 'provider unavailable' } as Response)
+      .mockResolvedValueOnce(response(validPayload()));
+
+    const promise = new OpenRouterQuestionEnrichmentService().generate(input);
+    await jest.advanceTimersByTimeAsync(500);
+
+    await expect(promise).resolves.toMatchObject({ sourceCorrectLabel: 'C' });
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ['timeout', Object.assign(new Error('aborted'), { name: 'AbortError' }), 'TIMEOUT'],
+    ['network reset', new Error('socket connection reset'), 'NETWORK_ERROR'],
+  ])('retries a %s failure with bounded attempts', async (_label, failure, expectedKind) => {
+    jest.useFakeTimers();
+    jest.spyOn(Math, 'random').mockReturnValue(0);
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    global.fetch = jest.fn().mockRejectedValue(failure);
+
+    const promise = new OpenRouterQuestionEnrichmentService().generate(input);
+    const rejection = expect(promise).rejects.toMatchObject({ kind: expectedKind, retryable: true });
+    await jest.advanceTimersByTimeAsync(500);
+
+    await rejection;
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('honors a structured retry-after value with a bounded delay', async () => {
+    jest.useFakeTimers();
+    jest.spyOn(Math, 'random').mockReturnValue(0);
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const onRetry = jest.fn();
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 402,
+        text: async () => JSON.stringify({
+          error: {
+            message: 'Temporary reservation pressure.',
+            metadata: {
+              reason: 'in_flight_budget_exhausted',
+              headers: { 'Retry-After': '120' },
+            },
+          },
+        }),
+      } as Response)
+      .mockResolvedValueOnce(response(validPayload()));
+
+    const promise = new OpenRouterQuestionEnrichmentService().generate(input, { onRetry });
+    await jest.advanceTimersByTimeAsync(15_000);
+
+    await expect(promise).resolves.toMatchObject({ sourceCorrectLabel: 'C' });
+    expect(onRetry).toHaveBeenCalledWith(expect.objectContaining({
+      attempt: 1,
+      delayMs: 15_000,
+      failure: expect.objectContaining({ kind: 'IN_FLIGHT_BUDGET_EXHAUSTED', retryAfterMs: 120_000 }),
+    }));
+  });
+
+  it.each([
+    ['wrong candidate id', (payload: ReturnType<typeof validPayload>) => { payload.candidate_id = 'wrong'; }, 'wrong candidate id'],
+    ['six options', (payload: ReturnType<typeof validPayload>) => { payload.options.push({ ...payload.options[0], label: 'F' }); }, 'exactly five'],
+    ['wrong correct assessment', (payload: ReturnType<typeof validPayload>) => { payload.options[2].assessment = 'INCORRECT'; payload.options[1].assessment = 'CORRECT'; }, 'contradict'],
+    ['invalid difficulty', (payload: ReturnType<typeof validPayload>) => { payload.difficulty = 'IMPOSSIBLE'; }, 'invalid difficulty'],
+    ['invalid confidence', (payload: ReturnType<typeof validPayload>) => { payload.confidence = 1.5; }, 'invalid confidence'],
+    ['missing review reason', (payload: ReturnType<typeof validPayload>) => { payload.answer_consistency = 'QUESTIONABLE'; }, 'requires a review reason'],
+  ])('rejects structured output with %s', async (_label, mutate, expectedMessage) => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const payload = validPayload();
+    mutate(payload);
+    global.fetch = jest.fn().mockResolvedValue(response(payload));
+
+    await expect(new OpenRouterQuestionEnrichmentService().generate(input)).rejects.toMatchObject({
+      kind: 'INVALID_RESPONSE',
+      message: expect.stringContaining(expectedMessage),
+    });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects malformed JSON without retrying or hiding the validation error', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: '{not-json' } }] }),
+    } as Response);
+
+    await expect(new OpenRouterQuestionEnrichmentService().generate(input)).rejects.toEqual(
+      expect.objectContaining<Partial<OpenRouterEnrichmentError>>({
+        kind: 'INVALID_RESPONSE',
+        retryable: false,
+        message: expect.stringContaining('non-JSON content'),
+      }),
+    );
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 });

@@ -143,7 +143,7 @@ export class QuestionsController {
           content_hash: candidate.ai_enrichment.content_hash,
           confidence: candidate.ai_enrichment.confidence,
           answer_consistency: candidate.ai_enrichment.answer_consistency,
-          status: candidate.ai_enrichment.status as 'GENERATED' | 'STALE' | 'FAILED' | undefined,
+          status: candidate.ai_enrichment.status as 'GENERATED' | 'CACHED' | 'STALE' | 'FAILED' | 'FAILED_RETRYABLE' | 'FAILED_VALIDATION' | 'DEFERRED_BILLING' | undefined,
         } : null,
       })),
     };
@@ -152,6 +152,9 @@ export class QuestionsController {
       enrichment_contract: 'source-answer+question-explanation+five-option-explanations+difficulty',
       candidates: enriched.candidates,
       issues: enriched.issues,
+      enrichment_summary: (enriched as typeof enriched & {
+        enrichment_summary?: { generated: number; cached: number; failed: number; billing_deferred: number };
+      }).enrichment_summary,
     };
   }
 

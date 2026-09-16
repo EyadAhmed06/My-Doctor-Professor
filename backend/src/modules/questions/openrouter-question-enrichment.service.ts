@@ -27,19 +27,56 @@ export type McqExplanationResult = {
   promptVersion: string;
 };
 
+export type OpenRouterFailureKind =
+  | 'IN_FLIGHT_BUDGET_EXHAUSTED'
+  | 'INSUFFICIENT_CREDITS'
+  | 'RATE_LIMITED'
+  | 'SERVER_ERROR'
+  | 'TIMEOUT'
+  | 'NETWORK_ERROR'
+  | 'INVALID_RESPONSE'
+  | 'AUTH_ERROR'
+  | 'INVALID_REQUEST'
+  | 'UNKNOWN';
+
+export type OpenRouterRetryContext = {
+  attempt: number;
+  failure: OpenRouterEnrichmentError;
+  delayMs: number;
+};
+
+export type OpenRouterGenerateOptions = {
+  onRetry?: (context: OpenRouterRetryContext) => void;
+};
+
 const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
 const DEFAULT_MODEL = 'meta/muse-spark-1.3';
 const PROMPT_VERSION = 'mcq-explanation-v2-concise';
-const REQUEST_TIMEOUT_MS = 45_000;
+const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_ATTEMPTS = 3;
 const MAX_EXPLANATION_CHARS = 220;
 const MAX_EXPLANATION_SENTENCES = 2;
 const MAX_OUTPUT_TOKENS = 1_200;
 const MAX_REVIEW_REASON_CHARS = 180;
+const MAX_ERROR_BODY_CHARS = 16_384;
+const MAX_PROVIDER_MESSAGE_CHARS = 500;
+const MAX_RETRY_DELAY_MS = 15_000;
 
-class OpenRouterHttpError extends Error {
-  constructor(readonly status: number, message: string) {
+export class OpenRouterEnrichmentError extends Error {
+  constructor(
+    readonly kind: OpenRouterFailureKind,
+    message: string,
+    readonly retryable: boolean,
+    readonly status?: number,
+    readonly code?: string,
+    readonly type?: string,
+    readonly reason?: string,
+    readonly providerMessage?: string,
+    readonly requestId?: string,
+    readonly retryAfterMs?: number,
+  ) {
     super(message);
+    this.name = 'OpenRouterEnrichmentError';
   }
 }
 
@@ -55,21 +92,24 @@ export class OpenRouterQuestionEnrichmentService {
     return { provider: 'OPENROUTER', model: this.model, promptVersion: PROMPT_VERSION };
   }
 
-  async generate(input: McqExplanationInput): Promise<McqExplanationResult> {
+  async generate(input: McqExplanationInput, options: OpenRouterGenerateOptions = {}): Promise<McqExplanationResult> {
     if (!this.apiKey) throw new Error('OPENROUTER_API_KEY is not configured on the backend.');
     this.assertInput(input);
 
-    let lastError: unknown;
+    let lastError: OpenRouterEnrichmentError | undefined;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       try {
         return await this.generateOnce(input);
       } catch (error) {
-        lastError = error;
-        if (!this.shouldRetry(error) || attempt === MAX_ATTEMPTS) throw error;
-        await this.delay(this.retryDelayMs(attempt, error));
+        const failure = this.normalizeFailure(error);
+        lastError = failure;
+        if (!failure.retryable || attempt === this.maxAttemptsFor(failure)) throw failure;
+        const delayMs = this.retryDelayMs(attempt, failure);
+        options.onRetry?.({ attempt, failure, delayMs });
+        await this.delay(delayMs);
       }
     }
-    throw lastError instanceof Error ? lastError : new Error('OpenRouter enrichment failed.');
+    throw lastError ?? new OpenRouterEnrichmentError('UNKNOWN', 'OpenRouter enrichment failed.', false);
   }
 
   private async generateOnce(input: McqExplanationInput): Promise<McqExplanationResult> {
@@ -133,18 +173,30 @@ export class OpenRouterQuestionEnrichmentService {
       });
 
       if (!response.ok) {
-        const text = await response.text().catch(() => '');
-        throw new OpenRouterHttpError(
-          response.status,
-          `OpenRouter request failed (${response.status})${text ? `: ${text.slice(0, 300)}` : ''}`,
-        );
+        const text = (await response.text().catch(() => '')).slice(0, MAX_ERROR_BODY_CHARS);
+        throw this.httpFailure(response, text);
       }
 
       const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
       const content = payload.choices?.[0]?.message?.content;
-      if (!content) throw new Error('OpenRouter returned no message content.');
+      if (!content) {
+        throw new OpenRouterEnrichmentError(
+          'INVALID_RESPONSE',
+          'OpenRouter returned no message content.',
+          false,
+        );
+      }
 
-      return this.validateOutput(input, this.parseStructuredContent(content));
+      try {
+        return this.validateOutput(input, this.parseStructuredContent(content));
+      } catch (error) {
+        if (error instanceof OpenRouterEnrichmentError) throw error;
+        throw new OpenRouterEnrichmentError(
+          'INVALID_RESPONSE',
+          error instanceof Error ? error.message : 'OpenRouter returned an invalid structured response.',
+          false,
+        );
+      }
     } finally {
       clearTimeout(timeout);
     }
@@ -168,27 +220,178 @@ export class OpenRouterQuestionEnrichmentService {
     throw new Error('OpenRouter returned non-JSON content for a structured explanation request.');
   }
 
-  private shouldRetry(error: unknown): boolean {
-    if (error instanceof OpenRouterHttpError) {
-      if (error.status === 402) return this.isInFlightBudgetError(error);
-      return error.status === 429 || error.status >= 500;
+  private httpFailure(response: Response, body: string): OpenRouterEnrichmentError {
+    const parsed = this.parseErrorBody(body);
+    const error = this.errorRecord(parsed);
+    const metadata = this.record(error?.metadata) ?? this.record(this.record(parsed)?.metadata);
+    const providerMessage = this.safeProviderMessage(
+      this.stringValue(error?.message) || this.stringValue(this.record(parsed)?.message) || body,
+    );
+    const code = this.stringValue(error?.code) || this.stringValue(this.record(parsed)?.code);
+    const type = this.stringValue(error?.type) || this.stringValue(this.record(parsed)?.type);
+    const reason = this.stringValue(metadata?.reason);
+    const retryAfterMs = this.retryAfterMs(response, metadata);
+    const requestId = this.firstString(
+      response.headers?.get?.('x-request-id'),
+      response.headers?.get?.('x-openrouter-request-id'),
+      this.stringValue(metadata?.request_id),
+    );
+    const kind = this.classifyHttpFailure(response.status, { code, type, reason, providerMessage, metadata });
+    const retryable = ['IN_FLIGHT_BUDGET_EXHAUSTED', 'RATE_LIMITED', 'SERVER_ERROR', 'TIMEOUT'].includes(kind);
+    const message = this.publicFailureMessage(kind, response.status, providerMessage, requestId);
+    return new OpenRouterEnrichmentError(
+      kind,
+      message,
+      retryable,
+      response.status,
+      code,
+      type,
+      reason,
+      providerMessage || undefined,
+      requestId,
+      retryAfterMs,
+    );
+  }
+
+  private normalizeFailure(error: unknown): OpenRouterEnrichmentError {
+    if (error instanceof OpenRouterEnrichmentError) return error;
+    if (error instanceof Error && error.name === 'AbortError') {
+      return new OpenRouterEnrichmentError(
+        'TIMEOUT',
+        `OpenRouter request timed out after ${REQUEST_TIMEOUT_MS / 1_000} seconds.`,
+        true,
+      );
     }
-    return error instanceof Error && (error.name === 'AbortError' || /fetch failed|network|socket/i.test(error.message));
+    if (error instanceof Error && /fetch failed|network|socket|connection reset|econnreset/i.test(error.message)) {
+      return new OpenRouterEnrichmentError(
+        'NETWORK_ERROR',
+        `OpenRouter network request failed: ${this.safeProviderMessage(error.message)}`,
+        true,
+      );
+    }
+    return new OpenRouterEnrichmentError(
+      'INVALID_RESPONSE',
+      error instanceof Error ? this.safeProviderMessage(error.message) : 'OpenRouter returned an invalid response.',
+      false,
+    );
   }
 
-  private isInFlightBudgetError(error: OpenRouterHttpError): boolean {
-    return /in[-_ ]?flight|retry after in-flight/i.test(error.message);
+  private classifyHttpFailure(
+    status: number,
+    values: {
+      code?: string;
+      type?: string;
+      reason?: string;
+      providerMessage: string;
+      metadata?: Record<string, unknown>;
+    },
+  ): OpenRouterFailureKind {
+    const structured = [values.reason, values.code, values.type, this.stringValue(values.metadata?.limit_source)]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    if (/in[_ -]?flight[_ -]?budget[_ -]?exhausted|openrouter[_ -]?in[_ -]?flight[_ -]?budget/.test(structured)) {
+      return 'IN_FLIGHT_BUDGET_EXHAUSTED';
+    }
+    if (/insufficient[_ -]?(credits?|balance|funds)|credit[_ -]?(balance[_ -]?)?(exhausted|limit[_ -]?exceeded)|billing[_ -]?(exhausted|limit[_ -]?exceeded)|openrouter[_ -]?key[_ -]?limit/.test(structured)) {
+      return 'INSUFFICIENT_CREDITS';
+    }
+    const hasStructuredBudgetReason = Boolean(values.reason || this.stringValue(values.metadata?.limit_source));
+    if (status === 402 && !hasStructuredBudgetReason) {
+      const fallback = values.providerMessage.toLowerCase();
+      if (/current in[- ]flight requests|retry after in[- ]flight/.test(fallback)) return 'IN_FLIGHT_BUDGET_EXHAUSTED';
+      if (/insufficient (credits?|balance|funds)|add credits?|balance (?:is )?exhausted|requires? more credits?|key limit exceeded/.test(fallback)) {
+        return 'INSUFFICIENT_CREDITS';
+      }
+    }
+    if (status === 429) return 'RATE_LIMITED';
+    if (status === 408 || status === 524) return 'TIMEOUT';
+    if (status >= 500) return 'SERVER_ERROR';
+    if (status === 401 || status === 403) return 'AUTH_ERROR';
+    if ([400, 404, 405, 413, 422].includes(status)) return 'INVALID_REQUEST';
+    return 'UNKNOWN';
   }
 
-  private retryDelayMs(attempt: number, error: unknown): number {
-    const inFlightBudget = error instanceof OpenRouterHttpError
-      && error.status === 402
-      && this.isInFlightBudgetError(error);
-    const baseDelay = inFlightBudget ? 2_000 : 500;
-    return Math.min(inFlightBudget ? 8_000 : 4_000, baseDelay * (2 ** (attempt - 1)));
+  private publicFailureMessage(
+    kind: OpenRouterFailureKind,
+    status: number,
+    providerMessage: string,
+    requestId?: string,
+  ): string {
+    const prefix = kind === 'INSUFFICIENT_CREDITS'
+      ? 'OpenRouter has insufficient usable credit; add credits or raise the key limit before retrying.'
+      : kind === 'IN_FLIGHT_BUDGET_EXHAUSTED'
+        ? 'OpenRouter temporarily exhausted its in-flight budget.'
+        : `OpenRouter request failed (${status}).`;
+    const detail = providerMessage && !prefix.toLowerCase().includes(providerMessage.toLowerCase())
+      ? ` Provider message: ${providerMessage}`
+      : '';
+    return `${prefix}${detail}${requestId ? ` Request id: ${requestId}.` : ''}`.slice(0, 900);
+  }
+
+  private retryDelayMs(attempt: number, error: OpenRouterEnrichmentError): number {
+    const baseDelay = error.kind === 'IN_FLIGHT_BUDGET_EXHAUSTED' ? 2_000 : 500;
+    const exponential = baseDelay * (2 ** (attempt - 1));
+    const requested = error.retryAfterMs == null ? 0 : Math.min(error.retryAfterMs, MAX_RETRY_DELAY_MS);
+    const jitter = Math.floor(Math.random() * 250);
+    return Math.min(MAX_RETRY_DELAY_MS, Math.max(exponential, requested) + jitter);
+  }
+
+  private maxAttemptsFor(error: OpenRouterEnrichmentError): number {
+    return ['TIMEOUT', 'NETWORK_ERROR'].includes(error.kind) ? 2 : MAX_ATTEMPTS;
   }
 
   private delay(ms: number): Promise<void> { return new Promise((resolve) => setTimeout(resolve, ms)); }
+
+  private parseErrorBody(body: string): unknown {
+    if (!body.trim()) return null;
+    try { return JSON.parse(body); }
+    catch { return null; }
+  }
+
+  private errorRecord(value: unknown): Record<string, unknown> | undefined {
+    const record = this.record(value);
+    return this.record(record?.error) ?? record;
+  }
+
+  private record(value: unknown): Record<string, unknown> | undefined {
+    return value != null && typeof value === 'object' && !Array.isArray(value)
+      ? value as Record<string, unknown>
+      : undefined;
+  }
+
+  private stringValue(value: unknown): string | undefined {
+    if (typeof value === 'string') return value.trim() || undefined;
+    if (typeof value === 'number') return String(value);
+    return undefined;
+  }
+
+  private firstString(...values: Array<string | null | undefined>): string | undefined {
+    return values.find((value): value is string => Boolean(value?.trim()))?.trim();
+  }
+
+  private safeProviderMessage(value: string): string {
+    return value
+      .replace(/Bearer\s+\S+/gi, 'Bearer [redacted]')
+      .replace(/sk-or-v1-[A-Za-z0-9_-]+/g, '[redacted OpenRouter key]')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, MAX_PROVIDER_MESSAGE_CHARS);
+  }
+
+  private retryAfterMs(response: Response, metadata?: Record<string, unknown>): number | undefined {
+    const metadataHeaders = this.record(metadata?.headers);
+    const raw = this.firstString(
+      response.headers?.get?.('retry-after'),
+      this.stringValue(metadataHeaders?.['Retry-After']),
+      this.stringValue(metadataHeaders?.['retry-after']),
+    );
+    if (!raw) return undefined;
+    const seconds = Number(raw);
+    if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1_000;
+    const date = Date.parse(raw);
+    return Number.isFinite(date) ? Math.max(0, date - Date.now()) : undefined;
+  }
 
   private assertInput(input: McqExplanationInput): void {
     const labels = input.options.map((option) => option.label.trim().toUpperCase());
