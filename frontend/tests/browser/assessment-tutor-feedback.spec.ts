@@ -1,6 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
 
-const frontendOrigin = 'http://127.0.0.1:3001';
 const attemptId = '90111111-1111-4111-8111-111111111111';
 const testId = '90222222-2222-4222-8222-222222222222';
 const q1 = '90333333-3333-4333-8333-333333333331';
@@ -8,7 +7,6 @@ const q2 = '90333333-3333-4333-8333-333333333332';
 const q1Options = Array.from({ length: 5 }, (_, index) => `90444444-4444-4444-8444-44444444444${index + 1}`);
 const q2Options = Array.from({ length: 5 }, (_, index) => `90555555-5555-4555-8555-55555555555${index + 1}`);
 const q1Correct = q1Options[0];
-const q1Wrong = q1Options[1];
 const q2Correct = q2Options[0];
 const student = { id: 'student-feedback', email: 'student@example.test', full_name: 'Tutor Student', role: 'STUDENT', status: 'ACTIVE', emailVerified: true };
 
@@ -49,7 +47,7 @@ async function mockTutor(page: Page) {
     const isData = request.resourceType() === 'fetch' || request.resourceType() === 'xhr';
     if (!isData || (!request.url().includes('/api/v1') && new URL(request.url()).port !== '3000')) return route.fallback();
     const headers = {
-      'access-control-allow-origin': frontendOrigin,
+      'access-control-allow-origin': request.headers().origin || 'http://127.0.0.1:3001',
       'access-control-allow-credentials': 'true',
       'access-control-allow-headers': 'authorization,content-type',
       'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
@@ -108,7 +106,7 @@ test('Tutor mode reveals concise feedback and all five option explanations only 
   await expect(page.getByRole('radio')).toHaveCount(5);
 
   await page.getByRole('radio').nth(1).click();
-  await page.getByRole('button', { name: 'High' }).click();
+  await page.getByRole('button', { name: 'High', exact: true }).click();
   await expect(page.locator('.tutor-explanation')).toContainText('Incorrect');
   await expect(page.locator('.tutor-explanation')).toContainText('Your choice: Wrong-answer explanation.');
   await expect(page.locator('.tutor-explanation')).toContainText('Correct answer: Correct-answer explanation.');
@@ -123,7 +121,7 @@ test('Tutor mode reveals concise feedback and all five option explanations only 
   await page.getByRole('button', { name: /Next question/i }).click();
   await expect(page.getByRole('radio')).toHaveCount(5);
   await page.getByRole('radio').first().click();
-  await page.getByRole('button', { name: 'High' }).click();
+  await page.getByRole('button', { name: 'High', exact: true }).click();
   await expect(page.locator('.tutor-explanation')).toContainText('Correct');
   await expect(page.locator('.tutor-explanation')).toContainText('Correct-answer explanation is visible immediately.');
   await page.getByText('Review all 5 options').click();

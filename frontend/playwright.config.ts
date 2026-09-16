@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const playwrightPort = Number(process.env.PLAYWRIGHT_PORT || 3001);
+
 export default defineConfig({
   testDir: './tests/browser',
   timeout: 45_000,
@@ -9,7 +11,7 @@ export default defineConfig({
   retries: 1,
   reporter: [['list']],
   use: {
-    baseURL: 'http://127.0.0.1:3001',
+    baseURL: `http://127.0.0.1:${playwrightPort}`,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -34,8 +36,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'PORT=3001 HOSTNAME=127.0.0.1 node .next/standalone/server.js',
-    port: 3001,
+    command: 'node scripts/start-playwright-server.mjs',
+    port: playwrightPort,
     reuseExistingServer: false,
     timeout: 120_000,
   },

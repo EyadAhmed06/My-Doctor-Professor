@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { EssayConfiguration } from '../../common/entities/essay-configuration.entity';
 import { McqOption } from '../../common/entities/mcq-option.entity';
 import { Question } from '../../common/entities/question.entity';
+import { QuestionAiEnrichmentCache } from '../../common/entities/question-ai-enrichment-cache.entity';
 import { QuestionTag } from '../../common/entities/question-tag.entity';
 import { Tag } from '../../common/entities/tag.entity';
 import { Topic } from '../../common/entities/topic.entity';
@@ -28,6 +29,7 @@ import { UnicodeQuestionImportService } from './unicode-question-import.service'
     BundleAccessModule,
     TypeOrmModule.forFeature([
       Question,
+      QuestionAiEnrichmentCache,
       McqOption,
       EssayConfiguration,
       Tag,

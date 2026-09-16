@@ -49,7 +49,7 @@ type AiMetadata = {
   content_hash?: string;
   confidence?: number;
   answer_consistency?: string;
-  status?: "GENERATED" | "STALE" | "FAILED";
+  status?: "GENERATED" | "CACHED" | "STALE" | "FAILED" | "FAILED_RETRYABLE" | "FAILED_VALIDATION" | "DEFERRED_BILLING";
 };
 
 type CandidateOption = {
@@ -110,6 +110,12 @@ type EnrichmentResponse = {
   enrichment_contract: string;
   candidates: Candidate[];
   issues: ImportIssue[];
+  enrichment_summary?: {
+    generated: number;
+    cached: number;
+    failed: number;
+    billing_deferred: number;
+  };
 };
 
 type PublishResult = { created: number; reused: number; skipped: number };
@@ -400,7 +406,9 @@ export function QuestionImportPage() {
 
     setEnrichingIds((current) => new Set([...current, ...eligible.map((candidate) => candidate.candidate_id)]));
     let generated = 0;
+    let reused = 0;
     let failedQuestions = 0;
+    let billingDeferred = 0;
     let failedBatches = 0;
     let firstFailure = "";
     try {
@@ -414,16 +422,38 @@ export function QuestionImportPage() {
               force,
               candidates: batch.map(enrichmentPayload),
             },
-            signal: AbortSignal.timeout(75_000),
+            signal: AbortSignal.timeout(240_000),
           });
           mergeEnriched(result.candidates);
-          const failedCandidates = result.candidates.filter((candidate) => candidate.ai_enrichment?.status === "FAILED");
-          generated += result.candidates.filter((candidate) => candidate.ai_enrichment?.status === "GENERATED").length;
-          failedQuestions += failedCandidates.length;
+          const failedCandidates = result.candidates.filter((candidate) => ["FAILED", "FAILED_RETRYABLE", "FAILED_VALIDATION"].includes(candidate.ai_enrichment?.status || ""));
+          const deferredCandidates = result.candidates.filter((candidate) => candidate.ai_enrichment?.status === "DEFERRED_BILLING");
+          generated += result.enrichment_summary?.generated ?? result.candidates.filter((candidate) => candidate.ai_enrichment?.status === "GENERATED").length;
+          reused += result.enrichment_summary?.cached ?? result.candidates.filter((candidate) => candidate.ai_enrichment?.status === "CACHED").length;
+          failedQuestions += result.enrichment_summary?.failed ?? failedCandidates.length;
+          billingDeferred += result.enrichment_summary?.billing_deferred ?? deferredCandidates.length;
           if (!firstFailure) {
-            firstFailure = failedCandidates
+            firstFailure = [...deferredCandidates, ...failedCandidates]
               .flatMap((candidate) => candidate.issues || [])
-              .find((issue) => issue.code === "AI_ENRICHMENT_FAILED")?.message || "";
+              .find((issue) => issue.code.startsWith("AI_ENRICHMENT_FAILED") || issue.code === "AI_ENRICHMENT_DEFERRED_BILLING")?.message || "";
+          }
+          if (deferredCandidates.length > 0) {
+            const remaining = eligible.slice(offset + batch.length);
+            billingDeferred += remaining.length;
+            const message = firstFailure || "OpenRouter has insufficient usable credit. Add credits or raise the key limit, then retry these questions.";
+            const remainingIds = new Set(remaining.map((candidate) => candidate.candidate_id));
+            setCandidates((current) => current.map((candidate) => remainingIds.has(candidate.candidate_id)
+              ? recalculateCandidate({
+                ...candidate,
+                approved: false,
+                status: "NEEDS_REVIEW",
+                ai_enrichment: { ...candidate.ai_enrichment, status: "DEFERRED_BILLING" },
+                issues: [
+                  ...candidate.issues.filter((issue) => issue.code !== "AI_ENRICHMENT_DEFERRED_BILLING"),
+                  { code: "AI_ENRICHMENT_DEFERRED_BILLING", severity: "WARNING", message },
+                ],
+              })
+              : candidate));
+            break;
           }
         } catch (cause) {
           failedBatches += 1;
@@ -440,18 +470,23 @@ export function QuestionImportPage() {
         }
       }
       const hadFailures = failedQuestions > 0 || failedBatches > 0;
-      const completeFailure = generated === 0 && hadFailures;
+      const billingBlocked = billingDeferred > 0;
+      const completeFailure = generated === 0 && reused === 0 && (hadFailures || billingBlocked);
       if (completeFailure && firstFailure) setError(firstFailure);
       notify({
         title: completeFailure
-          ? "Explanation generation failed"
-          : hadFailures
+          ? billingBlocked ? "Explanation generation paused for billing" : "Explanation generation failed"
+          : billingBlocked
+            ? "Explanation generation paused for billing"
+            : hadFailures
             ? "Explanation generation partially completed"
             : "Explanations ready for review",
         description: completeFailure
-          ? `0 generated · ${failedQuestions || eligible.length} question(s) failed. ${firstFailure || "Check the configured AI provider and try again."}`
-          : `${generated} question(s) now have concise question + A–E explanations${hadFailures ? ` · ${failedQuestions} question(s) failed` : ""}.`,
-        tone: completeFailure ? "error" : hadFailures ? "info" : "success",
+          ? billingBlocked
+            ? `0 generated · ${reused} reused · ${billingDeferred} deferred. ${firstFailure || "Add OpenRouter credit and retry."}`
+            : `0 generated · ${failedQuestions || eligible.length} question(s) failed. ${firstFailure || "Check the configured AI provider and try again."}`
+          : `${generated} generated · ${reused} reused${billingBlocked ? ` · ${billingDeferred} deferred because OpenRouter credit is unavailable` : hadFailures ? ` · ${failedQuestions} failed` : ""}.`,
+        tone: completeFailure && !billingBlocked ? "error" : billingBlocked || hadFailures ? "info" : "success",
       });
     } finally {
       setEnrichingIds((current) => {
@@ -652,7 +687,7 @@ export function QuestionImportPage() {
                   <div><span className="page-eyebrow">REVIEW · EXPLAIN · PUBLISH</span><h2>Review inspected MCQs</h2><p>Explanations are intentionally short: maximum two sentences / 220 characters. Edit anything before approval.</p></div>
                   <div className="question-import-bulk-actions">
                     <strong>{approvedCount} / {candidates.length}</strong><span>approved</span>
-                    <button type="button" className="pp-button" disabled={enrichingIds.size > 0} onClick={() => void generateExplanations(candidates.filter((candidate) => aiStatus(candidate) !== "GENERATED"), false)}>{enrichingIds.size ? <><FiRefreshCw className="spin" /> Generating…</> : <><FiRefreshCw /> Generate missing explanations</>}</button>
+                    <button type="button" className="pp-button" disabled={enrichingIds.size > 0} onClick={() => void generateExplanations(candidates.filter((candidate) => !["GENERATED", "CACHED"].includes(aiStatus(candidate))), false)}>{enrichingIds.size ? <><FiRefreshCw className="spin" /> Generating…</> : <><FiRefreshCw /> Generate missing explanations</>}</button>
                     <button type="button" className="pp-button secondary" onClick={approveAllReady}><FiCheckCircle /> Approve all ready</button>
                   </div>
                 </div>
@@ -705,7 +740,7 @@ export function QuestionImportPage() {
                       <div style={{ display: "grid", gap: "0.75rem", padding: "0.9rem", border: "1px solid var(--border, #d9e0e8)", borderRadius: "12px" }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap" }}>
                           <div><strong>AI explanation</strong><div style={{ fontSize: "0.82rem", opacity: 0.76 }}>{candidate.ai_enrichment?.model || "Muse Spark 1.3"} · {currentAiStatus.replaceAll("_", " ")}{candidate.ai_enrichment?.confidence != null ? ` · ${Math.round(candidate.ai_enrichment.confidence * 100)}% confidence` : ""}</div></div>
-                          <button type="button" className="pp-button secondary" disabled={enriching || !isAiEligible(candidate)} onClick={() => void generateExplanations([candidate], currentAiStatus === "GENERATED" || currentAiStatus === "STALE" || currentAiStatus === "FAILED")}>{enriching ? <><FiRefreshCw className="spin" /> Generating…</> : currentAiStatus === "NOT_GENERATED" ? "Generate explanation" : "Regenerate explanation"}</button>
+                          <button type="button" className="pp-button secondary" disabled={enriching || !isAiEligible(candidate)} onClick={() => void generateExplanations([candidate], currentAiStatus !== "NOT_GENERATED" && currentAiStatus !== "DEFERRED_BILLING")}>{enriching ? <><FiRefreshCw className="spin" /> Generating…</> : currentAiStatus === "NOT_GENERATED" ? "Generate explanation" : "Regenerate explanation"}</button>
                         </div>
                         {currentAiStatus === "STALE" && <p className="form-error">Question content changed after generation. Regenerate before publication.</p>}
                         <label><span>Question-level takeaway · max 2 short sentences</span><textarea rows={2} maxLength={EXPLANATION_MAX_LENGTH} value={candidate.explanation || ""} placeholder="Summarized learning point…" onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, approved: false, explanation: event.target.value }))} /><small style={{ float: "right" }}>{(candidate.explanation || "").length}/{EXPLANATION_MAX_LENGTH}</small></label>
