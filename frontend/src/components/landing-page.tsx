@@ -87,6 +87,7 @@ export function LandingPage() {
         <a href="#about">{t("About us", "من نحن")}</a><a href="#goal">{t("Our goal", "هدفنا")}</a><a href="#why-us">{t("Why choose us", "لماذا تختارنا")}</a><a href="#curriculum">{t("Curriculum", "المسار الدراسي")}</a><a href="#features">{t("Features", "المزايا")}</a>
       </nav>
       <div className="public-actions">
+        <ThemeToggle iconOnly />
         {authLoading ? <span className="public-session-copy">{t("Restoring session…", "جارٍ استعادة الجلسة…")}</span> : user ? <><span className="public-session-copy">{t(`Signed in as ${firstName}`, `تم تسجيل الدخول باسم ${firstName}`)}</span><Link className="public-button small" href={workspaceHref}>{t("Open dashboard", "فتح لوحة التحكم")} {arrow}</Link></> : <><Link href="/login">{t("Log in", "تسجيل الدخول")}</Link><Link className="public-button small" href="/register">{t("Create account", "إنشاء حساب")} {arrow}</Link></>}
       </div>
     </header>
