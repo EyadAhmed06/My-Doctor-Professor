@@ -10,9 +10,10 @@ body:has(.public-home) {
   overflow-y: visible;
 }
 
+/* The landing page owns its appearance control inside the navigation.
+   Never leave a second fixed control floating over page content. */
 body:has(.public-home) .public-theme-access {
-  top: 18px;
-  right: max(24px, env(safe-area-inset-right));
+  display: none !important;
 }
 
 /* Once the intro has settled, release the hero from its compositor layer.
@@ -31,15 +32,14 @@ html.dark .public-home .public-hero .hero-duo-dark {
 }
 
 @media (max-width: 700px) {
-  /* The global appearance control used to occupy the same top-right pixels as
-     the public auth action. Keep the fixed utility available, but move it to a
-     conventional floating mobile position where it cannot cover Log in. */
-  body:has(.public-home) .public-theme-access {
-    top: auto !important;
-    right: max(14px, env(safe-area-inset-right)) !important;
-    bottom: max(14px, env(safe-area-inset-bottom)) !important;
-    width: 38px;
-    height: 38px;
+  /* The appearance control is part of the header row on phones, so it remains
+     reachable without covering the hero copy while the document scrolls. */
+  .public-home .public-actions > .global-theme-toggle.icon-only {
+    flex-basis: 42px;
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    min-height: 42px;
   }
 
   /* Mobile header contract: the desktop 48px flex gap was squeezing the auth
@@ -69,7 +69,7 @@ html.dark .public-home .public-hero .hero-duo-dark {
   .public-home .public-actions {
     flex: 0 0 auto;
     min-width: 0;
-    gap: 0 !important;
+    gap: 8px !important;
   }
 
   /* On a phone the hero already owns the primary registration CTA. Keep the
@@ -144,6 +144,14 @@ html.dark .public-home .public-hero .hero-duo-dark {
     flex-basis: 38px;
     width: 38px;
     height: 38px;
+  }
+
+  .public-home .public-actions > .global-theme-toggle.icon-only {
+    flex-basis: 38px;
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    min-height: 38px;
   }
 
   .public-home .public-actions:has(> a[href='/login']) > a[href='/login'] {
