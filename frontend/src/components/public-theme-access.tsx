@@ -6,6 +6,6 @@ import "./public-theme-access.css";
 export function PublicThemeAccess() {
   return <aside className="public-theme-access" aria-label="Appearance controls">
     <span>Appearance</span>
-    <ThemeToggle compact />
+    <ThemeToggle compact iconOnly />
   </aside>;
 }
