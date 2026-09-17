@@ -9,6 +9,7 @@ import {
 import { useState } from "react";
 import { BRAND_NAME, BRAND_TAGLINE, BrandLockup } from "./brand";
 import { useAuth } from "./auth-provider";
+import { ThemeToggle } from "./app-theme";
 import { useLocale } from "./locale-provider";
 import "./landing-i18n.css";
 import "./landing-light-media.css";
