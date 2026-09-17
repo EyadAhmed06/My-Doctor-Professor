@@ -333,8 +333,7 @@ export class OpenRouterQuestionEnrichmentService {
     const baseDelay = error.kind === 'IN_FLIGHT_BUDGET_EXHAUSTED' ? 2_000 : 500;
     const exponential = baseDelay * (2 ** (attempt - 1));
     const requested = error.retryAfterMs == null ? 0 : Math.min(error.retryAfterMs, MAX_RETRY_DELAY_MS);
-    const jitter = Math.floor(Math.random() * 250);
-    return Math.min(MAX_RETRY_DELAY_MS, Math.max(exponential, requested) + jitter);
+    return Math.min(MAX_RETRY_DELAY_MS, Math.max(exponential, requested));
   }
 
   private maxAttemptsFor(error: OpenRouterEnrichmentError): number {
