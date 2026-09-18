@@ -38,6 +38,9 @@ export default async function Page({
   return (
     <main className="anatomy-page">
       <header className="anatomy-page__header">
+        <nav className="anatomy-page__nav" aria-label="Page navigation">
+          <Link href="/">← Back to home</Link>
+        </nav>
         <h1>{entry.label}</h1>
         <p>{entry.structures.length.toLocaleString()} selectable structures.</p>
         <nav className="anatomy-page__nav" aria-label="Anatomical regions">
