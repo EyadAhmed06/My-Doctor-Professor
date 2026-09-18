@@ -20,7 +20,7 @@ export function PublicLegalPage({ title, intro, sections }: { title: string; int
         <div className="public-legal-sections">
           {sections.map((section) => <section key={section.title}><h2>{section.title}</h2>{section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</section>)}
         </div>
-        <footer><p>Questions about these policies can be sent to <a href="mailto:support@mydoctorprofessor.com">support@mydoctorprofessor.com</a>.</p><nav><Link href="/privacy">Privacy Policy</Link><Link href="/terms">Terms of Service</Link></nav></footer>
+        <footer><p>Questions about these policies can be sent to <a href="mailto:support@mydoctorprofessor.com">support@mydoctorprofessor.com</a>.</p><nav><Link href="/privacy">Privacy Policy</Link><Link href="/terms">Terms of Service</Link><Link href="/licenses">Third-party Licenses</Link></nav></footer>
       </article>
     </main>
   );

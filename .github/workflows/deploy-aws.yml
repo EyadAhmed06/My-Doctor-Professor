@@ -74,7 +74,7 @@ jobs:
           [[ "$OPENROUTER_MODEL" == "meta/muse-spark-1.3" ]] || { echo "OPENROUTER_MODEL must be meta/muse-spark-1.3"; exit 1; }
           echo "OpenRouter MCQ enrichment configuration validated."
 
-      - name: Validate anatomy production assets
+      - name: Validate anatomy production assets and licenses
         env:
           ANATOMY_BASE: ${{ vars.NEXT_PUBLIC_ANATOMY_ASSET_BASE }}
         shell: bash
@@ -91,11 +91,40 @@ jobs:
           for region in "${regions[@]}"; do
             model="$ANATOMY_BASE/anatomy/$region.glb"
             poster="$ANATOMY_BASE/anatomy/$region-fallback.png"
-            magic="$(curl -fsSL --retry 3 --retry-delay 1 --range 0-3 "$model")"
-            [[ "$magic" == "glTF" ]] || { echo "Invalid or missing GLB: $model"; exit 1; }
+            tmp="$(mktemp)"
+            curl -fsSL --retry 3 --retry-delay 1 "$model" -o "$tmp"
+            python3 - "$tmp" "$region" <<'PY'
+          import json
+          import struct
+          import sys
+
+          path, region = sys.argv[1], sys.argv[2]
+          data = open(path, "rb").read()
+          if len(data) < 20 or data[:4] != b"glTF":
+              raise SystemExit(f"Invalid GLB header for {region}")
+          version, declared_length = struct.unpack_from("<II", data, 4)
+          json_length, json_type = struct.unpack_from("<II", data, 12)
+          if version != 2 or declared_length != len(data) or json_type != 0x4E4F534A or 20 + json_length > len(data):
+              raise SystemExit(f"Invalid GLB structure for {region}")
+          doc = json.loads(data[20:20 + json_length].decode("utf-8").rstrip("\x00 \t\r\n"))
+          notice = str(doc.get("asset", {}).get("copyright", ""))
+          for required in ("Open3Dmodel", "AnatomyTOOL", "CC BY-SA 4.0"):
+              if required not in notice:
+                  raise SystemExit(f"{region}: missing required license metadata: {required}")
+          forbidden = {"muscle tiles", "muscle tiles plain", "muscle long tendons", "tendon only"}
+          for section in ("images", "textures"):
+              for item in doc.get(section, []) or []:
+                  name = str(item.get("name", "")).strip().casefold()
+                  if name in forbidden:
+                      raise SystemExit(f"{region}: non-commercial texture present: {item.get('name')}")
+          PY
+            rm -f "$tmp"
             curl -fsSI --retry 3 --retry-delay 1 "$poster" >/dev/null || { echo "Missing poster: $poster"; exit 1; }
           done
-          echo "All eight anatomy models and posters are reachable and valid."
+          curl -fsSI --retry 3 --retry-delay 1 "$ANATOMY_BASE/THIRD_PARTY_LICENSES.md" >/dev/null || {
+            echo "Missing third-party license notice beside anatomy release"; exit 1;
+          }
+          echo "All eight anatomy models, posters, and license notices are reachable and compliant."
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:

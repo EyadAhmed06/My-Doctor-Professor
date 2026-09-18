@@ -43,6 +43,12 @@ Require-Command "aws"
 Require-Command "gh"
 Require-Command "curl.exe"
 
+$LicenseNoticePath = Join-Path $PSScriptRoot "..\THIRD_PARTY_LICENSES.md"
+if (-not (Test-Path $LicenseNoticePath -PathType Leaf)) {
+  throw "Missing THIRD_PARTY_LICENSES.md. Anatomy assets must ship with their license notice."
+}
+$LicenseNoticePath = (Resolve-Path $LicenseNoticePath).Path
+
 $ZipPath = (Resolve-Path $ZipPath).Path
 if (-not (Test-Path $ZipPath -PathType Leaf)) {
   throw "ZIP not found: $ZipPath"
@@ -95,9 +101,34 @@ try {
     }
     try {
       $jsonText = [Text.Encoding]::UTF8.GetString($bytes, 20, $jsonChunkLength).Trim([char]0, ' ', "`t", "`r", "`n")
-      $null = $jsonText | ConvertFrom-Json
+      $modelJson = $jsonText | ConvertFrom-Json
     } catch {
       throw "Invalid GLB JSON payload: $glb ($($_.Exception.Message))"
+    }
+
+    $copyright = ""
+    $assetProperty = $modelJson.PSObject.Properties["asset"]
+    if ($null -ne $assetProperty) {
+      $copyrightProperty = $assetProperty.Value.PSObject.Properties["copyright"]
+      if ($null -ne $copyrightProperty) { $copyright = [string]$copyrightProperty.Value }
+    }
+    if ($copyright -notmatch "Open3Dmodel" -or $copyright -notmatch "AnatomyTOOL" -or $copyright -notmatch "CC BY-SA 4\.0") {
+      throw "Missing required Open3Dmodel / AnatomyTOOL / CC BY-SA 4.0 metadata in $glb"
+    }
+
+    $forbiddenTextureNames = @("Muscle tiles", "Muscle tiles plain", "Muscle long tendons", "Tendon only")
+    foreach ($sectionName in @("images", "textures")) {
+      $sectionProperty = $modelJson.PSObject.Properties[$sectionName]
+      if ($null -eq $sectionProperty) { continue }
+      foreach ($item in @($sectionProperty.Value)) {
+        if ($null -eq $item) { continue }
+        $nameProperty = $item.PSObject.Properties["name"]
+        if ($null -eq $nameProperty) { continue }
+        $assetName = [string]$nameProperty.Value
+        if ($forbiddenTextureNames -contains $assetName) {
+          throw "Non-commercial texture '$assetName' is present in $glb. Commercial publication is blocked."
+        }
+      }
     }
 
     $posterBytes = [IO.File]::ReadAllBytes($poster)
@@ -196,7 +227,16 @@ try {
     } "Upload failed for $($file.Name)."
   }
 
-  Write-Host "[4/7] Verifying all public model and poster URLs..."
+  Invoke-Native {
+    aws s3api put-object `
+      --bucket $bucket `
+      --key "$releasePrefix/THIRD_PARTY_LICENSES.md" `
+      --body $LicenseNoticePath `
+      --content-type "text/markdown; charset=utf-8" `
+      --cache-control "no-cache" | Out-Null
+  } "Could not publish THIRD_PARTY_LICENSES.md with the anatomy release."
+
+  Write-Host "[4/7] Verifying all public model, poster, and license URLs..."
   foreach ($regionName in $Regions) {
     $modelUrl = "$assetBase/anatomy/$regionName.glb"
     $posterUrl = "$assetBase/anatomy/$regionName-fallback.png"
@@ -208,6 +248,9 @@ try {
     & curl.exe -fsSI $posterUrl | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Published poster is not reachable: $posterUrl" }
   }
+
+  & curl.exe -fsSI "$assetBase/THIRD_PARTY_LICENSES.md" | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Published third-party license notice is not reachable: $assetBase/THIRD_PARTY_LICENSES.md" }
 
   Write-Host "[5/7] Setting GitHub build-time asset origin..."
   Invoke-Native { gh variable set NEXT_PUBLIC_ANATOMY_ASSET_BASE --repo $Repository --body $assetBase } "Could not set GitHub variable NEXT_PUBLIC_ANATOMY_ASSET_BASE. Run 'gh auth login' and retry."

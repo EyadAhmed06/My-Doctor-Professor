@@ -2,6 +2,8 @@
 
 Turns Open3Dmodel `.glb` files into web-ready assets for the viewer at `/anatomy/<region>`.
 
+Licensing and attribution are recorded in [`../../THIRD_PARTY_LICENSES.md`](../../THIRD_PARTY_LICENSES.md). Production publication is intentionally fail-closed: the publishing script rejects models without the expected CC BY-SA metadata or with any of the known CC BY-NC-SA muscle textures still embedded, and it publishes the license notice beside every S3 anatomy release.
+
 ## Source
 
 [Open3Dmodel](https://anatomytool.org/open3dmodel-create) from AnatomyTOOL — retopologised,

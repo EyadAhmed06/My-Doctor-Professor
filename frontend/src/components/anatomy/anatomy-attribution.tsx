@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 /**
  * Attribution for the 3D models.
  *
@@ -56,7 +58,8 @@ export function AnatomyAttribution({
       </ul>
       <p className="anatomy-credit__share">
         Converted for the web by My Doctor Professor and redistributed under{" "}
-        <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer noopener">CC BY-SA 4.0</a>.
+        <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer noopener">CC BY-SA 4.0</a>.{" "}
+        <Link href="/licenses">Full source, attribution, and modification details</Link>.
       </p>
       {removedTextures.length ? (
         <p className="anatomy-credit__note">
