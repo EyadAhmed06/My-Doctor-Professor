@@ -164,7 +164,7 @@ export class QuestionImportService {
     this.validatePdfFile(file);
     const safeFile = file;
     const sha256 = createHash('sha256').update(safeFile.buffer).digest('hex');
-    const pdf = this.extractPdf(safeFile.buffer);
+    let pdf = this.extractPdf(safeFile.buffer);
     const previouslyPublished = await this.questions
       .createQueryBuilder('question')
       .where('question.reference LIKE :reference', {
@@ -233,7 +233,30 @@ export class QuestionImportService {
       ...existing.slice(0, 100).map((question) => question.questionText),
     ].join(' ');
 
-    const parsedDocument = this.parseQuestions(pdf, documentType);
+    let parsedDocument = this.parseQuestions(pdf, documentType);
+
+    if (
+      parsedDocument.isStructurallyComplete === false &&
+      (parsedDocument.missingQuestionCount ?? 0) > 0
+    ) {
+      const recoveredPdf = this.recoverIncompletePdf(safeFile.buffer, pdf);
+      if (recoveredPdf) {
+        const recoveredDocument = this.parseQuestions(
+          recoveredPdf,
+          documentType,
+        );
+        if (
+          this.shouldPreferRecoveredDocument(
+            parsedDocument,
+            recoveredDocument,
+          )
+        ) {
+          pdf = recoveredPdf;
+          parsedDocument = recoveredDocument;
+        }
+      }
+    }
+
     const parsed = parsedDocument.questions;
     const pageConfidence = new Map(
       pdf.pages.map((page) => [
@@ -722,6 +745,45 @@ export class QuestionImportService {
       index += 1;
     }
     return output;
+  }
+
+  protected recoverIncompletePdf(
+    _buffer: Buffer,
+    _currentPdf: ParsedPdf,
+  ): ParsedPdf | null {
+    return null;
+  }
+
+  private shouldPreferRecoveredDocument(
+    current: ParsedQuestionDocument,
+    recovered: ParsedQuestionDocument,
+  ): boolean {
+    if (
+      recovered.isStructurallyComplete === true &&
+      current.isStructurallyComplete !== true
+    ) {
+      return true;
+    }
+
+    const currentExpected = current.expectedQuestionCount ?? 0;
+    const recoveredExpected = recovered.expectedQuestionCount ?? 0;
+    const currentMissing =
+      current.missingQuestionCount ?? Number.POSITIVE_INFINITY;
+    const recoveredMissing =
+      recovered.missingQuestionCount ?? Number.POSITIVE_INFINITY;
+
+    if (
+      recoveredExpected >= currentExpected &&
+      recoveredMissing < currentMissing
+    ) {
+      return true;
+    }
+
+    return (
+      recoveredExpected >= currentExpected &&
+      recoveredMissing === currentMissing &&
+      recovered.questions.length > current.questions.length
+    );
   }
 
   protected parseQuestions(
