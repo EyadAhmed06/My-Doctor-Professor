@@ -410,4 +410,28 @@ describe('OpenRouterQuestionEnrichmentService', () => {
     );
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
+  it('surfaces account privacy/guardrail routing blocks without retrying or relaxing policy', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      headers: new Headers(),
+      text: async () => JSON.stringify({
+        error: {
+          message: 'No endpoints out of 1 requested are available matching your guardrail restrictions and data policy. Paid model training violation.',
+          code: 404,
+        },
+      }),
+    } as Response);
+
+    await expect(new OpenRouterQuestionEnrichmentService().generate(input))
+      .rejects.toMatchObject({
+        kind: 'NO_COMPATIBLE_ENDPOINT',
+        status: 404,
+        retryable: false,
+        message: expect.stringContaining('privacy or guardrail policy'),
+      });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
 });
