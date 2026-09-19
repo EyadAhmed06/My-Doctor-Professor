@@ -151,6 +151,21 @@ describe('canonical MCQ parser', () => {
     expect(parsed.isStructurallyComplete).toBe(true);
   });
 
+  it('does not impose the old 500-question or three-digit-number limits', () => {
+    const count = 503;
+    const pdf = pdfFromPages([
+      section('Large dynamic section', count, 'B'),
+    ]);
+
+    const parsed = parseCanonicalMcqDocument(pdf, 'MCQ');
+
+    expect(parsed.expectedQuestionCount).toBe(count);
+    expect(parsed.parsedQuestionCount).toBe(count);
+    expect(parsed.questions).toHaveLength(count);
+    expect(parsed.questions.at(-1)?.questionNumber).toBe(count);
+    expect(parsed.isStructurallyComplete).toBe(true);
+  });
+
   it('reports missing question numbers instead of accepting partial extraction', () => {
     const pdf = pdfFromPages([
       [
