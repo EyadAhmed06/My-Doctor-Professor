@@ -62,6 +62,47 @@ describe('canonical MCQ parser', () => {
     ]);
   });
 
+  it('splits sections on compact answer-key rows without an Answer Key heading', () => {
+    const pdf = pdfFromPages([
+      [
+        'Urology investigations & interpretation',
+        `1) First urology question?\n${fiveOptions('u1')}`,
+        `2) Second urology question?\n${fiveOptions('u2')}`,
+        '1) E   2) B',
+        'Kidney physiology',
+        `1) First physiology question?\n${fiveOptions('k1')}`,
+        `2) Second physiology question?\n${fiveOptions('k2')}`,
+        `3) Third physiology question?\n${fiveOptions('k3')}`,
+        '1) C   2) C   3) B',
+      ].join('\n'),
+    ]);
+
+    const parsed = parseCanonicalMcqDocument(pdf, 'MCQ');
+
+    expect(parsed.sections.map((section) => section.title)).toEqual([
+      'Urology investigations & interpretation',
+      'Kidney physiology',
+    ]);
+    expect(parsed.sections.map((section) => section.expectedQuestionCount)).toEqual([
+      2,
+      3,
+    ]);
+    expect(parsed.questions.map((question) => [
+      question.sourceSection,
+      question.questionNumber,
+      question.correctLabel,
+    ])).toEqual([
+      ['Urology investigations & interpretation', 1, 'E'],
+      ['Urology investigations & interpretation', 2, 'B'],
+      ['Kidney physiology', 1, 'C'],
+      ['Kidney physiology', 2, 'C'],
+      ['Kidney physiology', 3, 'B'],
+    ]);
+    expect(parsed.expectedQuestionCount).toBe(5);
+    expect(parsed.parsedQuestionCount).toBe(5);
+    expect(parsed.isStructurallyComplete).toBe(true);
+  });
+
   it('uses answer-key endings to split arbitrary section names and repeated numbering', () => {
     const pdf = pdfFromPages([
       [
