@@ -102,7 +102,7 @@ export function reflowMcqColumns(value: string): {
   const lines = normalized.split('\n');
 
   const explicitAnswerKeyIndex = lines.findIndex((line) =>
-    /^\s*(?:answer\s*key|answers?|correct\s+answers?|solutions?)\b/i.test(
+    /^\s*(?:answer\s*keys?|answers?|correct\s+answers?|solutions?|key)\b/i.test(
       line,
     ),
   );
@@ -229,7 +229,7 @@ export function reflowMcqColumns(value: string): {
 }
 
 function isCompactAnswerKeyFragment(value: string): boolean {
-  return /^\(?\d+\)?\s*(?:[.)\]:=-]|->|→)?\s*[A-F]$/i.test(
+  return /^\(?\d+\)?\s*(?:[.)\]:=\-–—]|->|→)?\s*\(?[A-F]\)?$/i.test(
     value.trim(),
   );
 }
