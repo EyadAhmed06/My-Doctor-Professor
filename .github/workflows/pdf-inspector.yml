@@ -48,11 +48,24 @@ jobs:
         run: npm ci
       - name: Build backend
         run: npm run build
+      - name: Verify production PDF/OCR runtime
+        working-directory: .
+        run: |
+          docker build -t mdp-pdf-inspector-test ./backend
+          docker run --rm --entrypoint sh mdp-pdf-inspector-test -lc '
+            command -v pdfinfo &&
+            command -v pdftotext &&
+            command -v pdftoppm &&
+            command -v tesseract &&
+            tesseract --version | head -n 1
+          '
       - name: Run PDF, AI, lifecycle, and student feedback contract tests
         run: >-
           npm test -- --runInBand
           pdf-text-extraction.service.spec.ts
           canonical-mcq-parser.spec.ts
+          question-import.service.spec.ts
+          unicode-question-import.service.spec.ts
           openrouter-question-enrichment.service.spec.ts
           question-import-ai-enrichment.service.spec.ts
           question-explanation-lifecycle.service.spec.ts
