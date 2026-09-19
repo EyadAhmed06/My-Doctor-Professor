@@ -14,7 +14,7 @@ The extraction layer MUST use a Unicode-aware PDF engine. Direct/manual decoding
 2. Empty/watermark-only pages are preserved in the physical page sequence so source-page provenance remains correct.
 3. Question content may begin on any physical page.
 4. Content pages may repeat visual header/footer text. Repeated furniture is not part of question stems or options.
-5. A section title establishes the section for subsequent questions until the next recognized section title or document end.
+5. An answer-key block closes the current section. Section titles are metadata and may use arbitrary wording; the parser does not require a fixed list of medical section names.
 6. Question numbering may restart when a new section begins. Question identity therefore MUST NOT be based on question number alone; at minimum use section + ordinal/source-page context.
 7. Each currently supported MCQ has exactly five ordered choices: `A)` through `E)`.
 8. An answer-key block belongs to its section and maps question number to exactly one label `A`–`E`.
@@ -42,29 +42,29 @@ A structurally complete document must have:
 - an answer key for every section;
 - no missing expected question numbers;
 - no unexpected question numbers;
+- no duplicate question numbers inside a section;
+- no conflicting answer-key entries for the same question;
 - a parsed total equal to the dynamically derived expected total.
 
 This allows section sizes and PDF totals to change without code changes.
 
 ## Question grammar
 
-A question begins with a numbered marker equivalent to:
+A question begins with a numbered marker. Common supported forms include:
 
 ```text
-<number>) <question stem>
+1) <question stem>
+1. <question stem>
+1: <question stem>
+1 - <question stem>
+(1) <question stem>
+Q1) <question stem>
+Question 1: <question stem>
 ```
 
 The stem may wrap across physical lines/pages. The parser MUST continue the stem until the first option marker or another unambiguous structural boundary.
 
-A valid MCQ option set is ordered and complete:
-
-```text
-A) ...
-B) ...
-C) ...
-D) ...
-E) ...
-```
+A valid MCQ option set is ordered and complete. Marker punctuation may vary, for example `A)`, `A.`, `A:`, or `(A)`. The current publishing contract still requires exactly A–E.
 
 Wrapped option text belongs to the active option until the next option marker. The parser MUST reject/fail review for a candidate with fewer or more than five choices rather than silently truncating or fabricating a choice.
 
@@ -121,20 +121,39 @@ If a symbol is absent from a normal React input/textarea value, the defect is up
 
 ## Extraction implementation
 
-The supported backend path uses Poppler:
+The backend uses a page-aware hybrid extraction path:
 
 ```text
 pdfinfo <pdf>
 pdftotext -layout -enc UTF-8 <pdf> <text-output>
+        │
+        ├─ usable page text ───────────────┐
+        │                                  │
+        └─ weak/empty page                 │
+             ↓                             │
+          pdftoppm                         │
+             ↓                             │
+          Tesseract OCR                    │
+             ↓                             │
+       choose better page text             │
+                                            ↓
+                         two-column MCQ layout reflow
+                                            ↓
+                                  structural parser
 ```
 
-`pdfinfo` supplies the physical page count dynamically. `pdftotext` form-feed boundaries preserve pages, including empty pages. The runtime image must contain both `pdfinfo` and `pdftotext`.
+The extractor scores every physical page independently. Weak or empty pages are OCR candidates even when the rest of the PDF has a healthy text layer, preventing mixed text/scanned PDFs from silently losing pages.
+
+`pdftotext -layout` spacing is consumed before whitespace normalization. When a stable MCQ column separator is detected, the page is reordered left-column first and right-column second instead of collapsing both columns onto one line.
+
+The runtime image contains Poppler (`pdfinfo`, `pdftotext`, `pdftoppm`) and Tesseract OCR. Page diagnostics record the selected source (`TEXT_LAYER`, `OCR`, or `EMPTY`), page confidence, OCR attempt status, and whether layout reflow occurred.
 
 ## Fail-closed rules
 
 A candidate or document is not silently considered complete when any of these invariants fail:
 
-- unreadable or encrypted text layer;
+- unreadable or encrypted PDF structure;
+- a page remains unreadable after text-layer extraction and OCR fallback;
 - ambiguous page structure;
 - a section has no detectable answer key;
 - an answer-key question number has no parsed question body;
@@ -145,10 +164,6 @@ A candidate or document is not silently considered complete when any of these in
 - answer-key number cannot be scoped to a section;
 - text extraction contains substantial replacement-character/corruption evidence;
 - duplicate candidate is detected without explicit instructor resolution.
-
-## Known flexibility boundary
-
-This change makes page counts, per-section question counts, and total question counts dynamic. Section-title recognition and PDF layout reconstruction still have their own parser rules and should be improved separately; dynamic counts do not by themselves make arbitrary section-heading styles or multi-column layouts safe.
 
 ## LaTeX authoring recommendation
 
