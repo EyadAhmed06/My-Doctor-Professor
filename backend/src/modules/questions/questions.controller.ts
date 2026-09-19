@@ -47,7 +47,7 @@ import { QuestionsService } from './questions.service';
 import { StudentQuestionAccessService } from './student-question-access.service';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
-const PDF_INSPECTOR_CONTRACT_VERSION = 5;
+const PDF_INSPECTOR_CONTRACT_VERSION = 6;
 
 @Controller('questions')
 @UseGuards(JwtAuthGuard, RolesGuard)
