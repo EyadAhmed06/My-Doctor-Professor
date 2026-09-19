@@ -308,12 +308,8 @@ export function stripRepeatedEdgeFurniture(
 
 function furnitureSignature(line: string): string | null {
   const compact = line.replace(/\s+/g, ' ').trim();
-  if (compact.length < 5 || compact.length > 120) return null;
+  if (compact.length < 2 || compact.length > 120) return null;
   if (STRUCTURAL_LINE_START.test(compact)) return null;
-  if (/^[A-Z][A-Za-z ]{0,40}$/.test(compact) && compact.split(' ').length <= 5) {
-    // A short title can be a real section name; do not strip it generically.
-    return null;
-  }
   return compact
     .toLocaleLowerCase()
     .replace(/\d+/g, '#')
@@ -443,7 +439,16 @@ export class PdfTextExtractionService {
         }
       }
 
-      const cleanedPages = stripRepeatedEdgeFurniture(pages);
+      const cleanedPages = stripRepeatedEdgeFurniture(pages).map((page) =>
+        page.text.trim()
+          ? page
+          : {
+              ...page,
+              source: 'EMPTY' as const,
+              confidence: 0,
+              textLength: 0,
+            },
+      );
       const text = cleanedPages.map((page) => page.text).join('\n');
       const ocrPageCount = cleanedPages.filter((page) => page.source === 'OCR').length;
       const textLayerPageCount = cleanedPages.filter(
@@ -564,7 +569,7 @@ export class PdfTextExtractionService {
         ],
         processOptions,
       );
-    } catch (error) {
+    } catch {
       // OCR is an enhancement. If the text layer contains anything usable,
       // preserve it and let structural completeness report the missing content.
       // A completely unreadable document is rejected later by inspectPdf.
