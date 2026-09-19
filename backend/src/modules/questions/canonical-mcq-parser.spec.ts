@@ -152,7 +152,7 @@ describe('canonical MCQ parser', () => {
   });
 
   it('does not impose the old 500-question or three-digit-number limits', () => {
-    const count = 503;
+    const count = 1001;
     const pdf = pdfFromPages([
       section('Large dynamic section', count, 'B'),
     ]);
