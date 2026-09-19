@@ -71,7 +71,7 @@ describe('QuestionsController route registration', () => {
       status: 'OK',
       candidates: [],
       issues: [],
-      inspector_contract_version: 5,
+      inspector_contract_version: 6,
       enrichment_contract: 'deferred-source-answer+question-explanation+five-option-explanations+difficulty',
     });
   });
