@@ -255,7 +255,7 @@ describe('canonical MCQ parser', () => {
         'C. third',
         'D. fourth',
         'E. fifth',
-        'Answers: 1-B, 2-C, 3-D',
+        'Answer Keys: 1 – (B), 2—(C); 3: (D)',
       ].join('\n'),
     ]);
 
