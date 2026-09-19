@@ -349,4 +349,34 @@ describe('QuestionImportAiEnrichmentService', () => {
     expect(resumed.enrichment_summary).toEqual({ generated: 4, cached: 2, failed: 0, billing_deferred: 0 });
     expect(resumed.candidates.every((row) => ['GENERATED', 'CACHED'].includes(row.ai_enrichment?.status ?? ''))).toBe(true);
   });
+  it('stops bulk fan-out after the first deterministic OpenRouter routing-policy failure', async () => {
+    const failure = new OpenRouterEnrichmentError(
+      'NO_COMPATIBLE_ENDPOINT',
+      'OpenRouter routing is blocked by the account/API-key privacy or guardrail policy.',
+      false,
+      404,
+      '404',
+      undefined,
+      undefined,
+      'No endpoints are available matching your guardrail restrictions and data policy.',
+    );
+    const generate = jest.fn().mockRejectedValue(failure);
+    const openRouter = {
+      isConfigured: () => true,
+      getSignature: () => signature,
+      generate,
+    } as unknown as OpenRouterQuestionEnrichmentService;
+    const rows = Array.from({ length: 80 }, (_, index) => candidate({ candidate_id: `candidate-${index + 1}` }));
+
+    const result = await new QuestionImportAiEnrichmentService(openRouter).enrichInspection({
+      candidates: rows,
+      summary: { extracted: 80, valid: 80, needs_review: 0, invalid: 0, duplicates: 0 },
+      issues: [],
+    });
+
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(result.enrichment_summary).toEqual({ generated: 0, cached: 0, failed: 80, billing_deferred: 0 });
+    expect(result.candidates.every((row) => row.ai_enrichment?.status === 'FAILED')).toBe(true);
+  });
+
 });
