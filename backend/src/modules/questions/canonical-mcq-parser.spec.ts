@@ -151,8 +151,8 @@ describe('canonical MCQ parser', () => {
     expect(parsed.isStructurallyComplete).toBe(true);
   });
 
-  it('does not impose the old 500-question or three-digit-number limits', () => {
-    const count = 1001;
+  it('does not impose the old 500-question document limit', () => {
+    const count = 501;
     const pdf = pdfFromPages([
       section('Large dynamic section', count, 'B'),
     ]);
@@ -163,6 +163,25 @@ describe('canonical MCQ parser', () => {
     expect(parsed.parsedQuestionCount).toBe(count);
     expect(parsed.questions).toHaveLength(count);
     expect(parsed.questions.at(-1)?.questionNumber).toBe(count);
+    expect(parsed.isStructurallyComplete).toBe(true);
+  });
+
+  it('accepts four-digit question numbers without changing configuration', () => {
+    const pdf = pdfFromPages([
+      [
+        'Large numbering section',
+        `1001) Four-digit question?\n${fiveOptions('q1001')}`,
+        'Answer Key',
+        '1001-B',
+      ].join('\n'),
+    ]);
+
+    const parsed = parseCanonicalMcqDocument(pdf, 'MCQ');
+
+    expect(parsed.questions).toHaveLength(1);
+    expect(parsed.questions[0].questionNumber).toBe(1001);
+    expect(parsed.questions[0].correctLabel).toBe('B');
+    expect(parsed.expectedQuestionCount).toBe(1);
     expect(parsed.isStructurallyComplete).toBe(true);
   });
 
