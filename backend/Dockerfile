@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 FROM node:24-bookworm-slim AS base
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends openssl poppler-utils \
+    && apt-get install -y --no-install-recommends openssl poppler-utils tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
 FROM base AS dependencies
