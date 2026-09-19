@@ -72,6 +72,56 @@ describe('EssayQuestionImportService PDF parsing', () => {
     expect(candidates[1].model_answer).toBe('Second examination answer.');
   });
 
+  it('parses CASE headings without colons, bare numbered prompts, and local Answer sections', () => {
+    const candidates = parse(`
+      CASE 1
+      A 68-year-old male presents with progressive shortness of breath and reduced ejection fraction.
+      1: What is the most likely diagnosis?
+      2: Define heart failure.
+      16. What is cardiac output and how is it calculated?
+      Answer:
+      1)
+      Heart failure with reduced ejection fraction (HFrEF).
+      2)
+      Heart failure is a clinical syndrome in which the heart cannot fill or pump adequately.
+      16)
+      Cardiac output is stroke volume multiplied by heart rate.
+    `);
+
+    expect(candidates).toHaveLength(3);
+    expect(candidates.map((candidate: any) => candidate.question_number)).toEqual([1, 2, 16]);
+    expect(candidates[0].case_stem).toContain('68-year-old male');
+    expect(candidates[0].question_text).toBe('What is the most likely diagnosis?');
+    expect(candidates[0].model_answer).toContain('HFrEF');
+    expect(candidates[2].model_answer).toContain('stroke volume');
+    expect(candidates.every((candidate: any) => candidate.answer_origin === 'SOURCE')).toBe(true);
+    expect(candidates.every((candidate: any) => candidate.status === 'VALID')).toBe(true);
+  });
+
+  it('keeps local Answer sections isolated between consecutive CASE blocks', () => {
+    const candidates = parse(`
+      CASE 1
+      First clinical stem.
+      1: First question?
+      Answer:
+      1) First answer.
+      CASE 2
+      Second clinical stem.
+      1. Second question?
+      2) Another second-case question?
+      Answers:
+      1) Second answer.
+      2) Another second answer.
+    `);
+
+    expect(candidates).toHaveLength(3);
+    expect(candidates[0].case_number).toBe(1);
+    expect(candidates[0].model_answer).toBe('First answer.');
+    expect(candidates[1].case_number).toBe(2);
+    expect(candidates[1].model_answer).toBe('Second answer.');
+    expect(candidates[2].model_answer).toBe('Another second answer.');
+  });
+
   it('generates review-required answers for every question missing a source answer', async () => {
     process.env.OPENAI_API_KEY = 'test-key';
     const candidates = parse(`
