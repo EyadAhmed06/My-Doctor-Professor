@@ -91,10 +91,25 @@ type ParsingSection = {
 };
 
 type AnswerKeyEntry = { label: string; page: number | null };
+type ParsedSectionDiagnostics = {
+  title: string | null;
+  expectedQuestionNumbers: number[];
+  parsedQuestionNumbers: number[];
+  missingQuestionNumbers: number[];
+  unexpectedQuestionNumbers: number[];
+  expectedQuestionCount: number | null;
+  parsedQuestionCount: number;
+  completeness: number | null;
+};
 type ParsedQuestionDocument = {
   documentType: QuestionDocumentType;
   answerKey: Map<number, AnswerKeyEntry>;
   questions: ParsedQuestion[];
+  sections?: ParsedSectionDiagnostics[];
+  expectedQuestionCount?: number | null;
+  parsedQuestionCount?: number;
+  missingQuestionCount?: number;
+  isStructurallyComplete?: boolean;
 };
 
 const MAX_PDF_BYTES = 50 * 1024 * 1024;
@@ -207,6 +222,32 @@ export class QuestionImportService {
     const invalid = candidates.filter((candidate) => candidate.status === 'INVALID').length;
 
     const issues: ImportIssue[] = [];
+    const structuralSections = parsedDocument.sections || [];
+    for (const section of structuralSections) {
+      const sectionName = section.title || 'UNSCOPED';
+      if (section.expectedQuestionCount === null) {
+        issues.push({
+          code: 'SECTION_ANSWER_KEY_NOT_DETECTED',
+          severity: 'ERROR',
+          message: `${sectionName}: no reliable section answer key was detected, so extraction completeness cannot be verified.`,
+        });
+        continue;
+      }
+      if (section.missingQuestionNumbers.length > 0) {
+        issues.push({
+          code: 'SECTION_QUESTIONS_MISSING',
+          severity: 'ERROR',
+          message: `${sectionName}: answer key expects ${section.expectedQuestionCount} question(s), but ${section.parsedQuestionCount} were parsed. Missing question number(s): ${section.missingQuestionNumbers.join(', ')}.`,
+        });
+      }
+      if (section.unexpectedQuestionNumbers.length > 0) {
+        issues.push({
+          code: 'SECTION_QUESTIONS_UNEXPECTED',
+          severity: 'ERROR',
+          message: `${sectionName}: parsed question number(s) not present in the section answer key: ${section.unexpectedQuestionNumbers.join(', ')}.`,
+        });
+      }
+    }
     if (parsed.length > MAX_IMPORT_CANDIDATES) {
       issues.push({
         code: 'IMPORT_LIMIT_REACHED',
@@ -250,7 +291,14 @@ export class QuestionImportService {
       previously_published_from_same_file: previouslyPublished,
       topic: { id: topic.id, name: topic.topicName },
       summary: {
+        expected:
+          parsedDocument.expectedQuestionCount === undefined
+            ? null
+            : parsedDocument.expectedQuestionCount,
         extracted: candidates.length,
+        missing: parsedDocument.missingQuestionCount ?? 0,
+        structurally_complete:
+          parsedDocument.isStructurallyComplete ?? null,
         valid,
         needs_review: needsReview,
         invalid,
@@ -269,8 +317,30 @@ export class QuestionImportService {
           question_page: candidate.source_page,
           answer_page: candidate.answer_key_page,
         })),
+        expected_question_count:
+          parsedDocument.expectedQuestionCount === undefined
+            ? null
+            : parsedDocument.expectedQuestionCount,
+        parsed_question_count:
+          parsedDocument.parsedQuestionCount ?? parsed.length,
+        missing_question_count:
+          parsedDocument.missingQuestionCount ?? 0,
+        structurally_complete:
+          parsedDocument.isStructurallyComplete ?? null,
       },
-      sections: Array.from(sectionCounts.entries()).map(([title, questions]) => ({ title, questions })),
+      sections: structuralSections.length
+        ? structuralSections.map((section) => ({
+            title: section.title || 'UNSCOPED',
+            questions: section.parsedQuestionCount,
+            expected_questions: section.expectedQuestionCount,
+            missing_question_numbers: section.missingQuestionNumbers,
+            unexpected_question_numbers: section.unexpectedQuestionNumbers,
+            completeness: section.completeness,
+          }))
+        : Array.from(sectionCounts.entries()).map(([title, questions]) => ({
+            title,
+            questions,
+          })),
       issues,
       candidates,
     };
