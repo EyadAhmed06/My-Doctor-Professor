@@ -97,6 +97,76 @@ describe('UnicodeQuestionImportService recovery', () => {
     role: UserRole.INSTRUCTOR,
   };
 
+  it('retries when the answer key itself was missing from the text layer', async () => {
+    const firstPass = pdf([
+      'Arbitrary Section',
+      `1) First question?\n${fiveOptions('q1')}`,
+      `2) Second question?\n${fiveOptions('q2')}`,
+    ].join('\n'));
+
+    const recovered = pdf([
+      'Arbitrary Section',
+      `1) First question?\n${fiveOptions('q1')}`,
+      `2) Second question?\n${fiveOptions('q2')}`,
+      'Answer Key',
+      '1-A, 2-B',
+    ].join('\n'), 'OCR');
+
+    const extract = jest
+      .fn()
+      .mockReturnValueOnce(firstPass)
+      .mockReturnValueOnce(recovered);
+    const extractor = { extract } as unknown as PdfTextExtractionService;
+    const builder = {
+      where: jest.fn().mockReturnThis(),
+      getCount: jest.fn().mockResolvedValue(0),
+    };
+    const questions = {
+      createQueryBuilder: jest.fn(() => builder),
+      find: jest.fn().mockResolvedValue([]),
+    } as unknown as Repository<Question>;
+    const topic = {
+      id: '33333333-3333-4333-8333-333333333333',
+      topicName: 'Arbitrary Section',
+      description: 'Test topic',
+      lecture: { title: 'Test lecture', description: '' },
+    } as Topic;
+    const topics = {
+      findOne: jest.fn().mockResolvedValue(topic),
+    } as unknown as Repository<Topic>;
+    const access = {
+      assertTopicReadable: jest.fn().mockResolvedValue(undefined),
+    } as unknown as AcademicAccessService;
+
+    const service = new UnicodeQuestionImportService(
+      questions,
+      topics,
+      {} as DataSource,
+      access,
+      extractor,
+    );
+    const buffer = Buffer.from('%PDF-1.4\n%%EOF');
+
+    const result = await service.inspectPdf(
+      { topic_id: topic.id, copyright_confirmed: true },
+      {
+        originalname: 'questions.pdf',
+        mimetype: 'application/pdf',
+        size: buffer.length,
+        buffer,
+      },
+      actor,
+    );
+
+    expect(extract).toHaveBeenCalledTimes(2);
+    expect(extract.mock.calls[1][1]).toEqual({ forceOcr: true });
+    expect(result.summary.expected).toBe(2);
+    expect(result.summary.extracted).toBe(2);
+    expect(result.summary.structurally_complete).toBe(true);
+    expect(result.parser.mapped_answers).toBe(2);
+    expect(result.extraction_method).toBe('OCR');
+  });
+
   it('retries with forced OCR when answer-key completeness proves a question is missing', async () => {
     const firstPass = pdf([
       'Arbitrary Section',
