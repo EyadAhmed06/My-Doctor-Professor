@@ -77,7 +77,7 @@ const LECTURE_HEADING =
   'Lecture\\s+(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|\\d+)(?:\\s*[:-])?[^\\n]*';
 
 const ANSWER_KEY_HEADING =
-  /^\s*(?:answer\s*keys?|answers?|correct\s+answers?|solutions?|key)\s*:?(.*)$/i;
+  /^\s*(?:answer\s*keys?|answers|correct\s+answers?|solutions?|key)\s*:?(.*)$/i;
 
 const QUESTION_START =
   /^\s*(?:Q(?:uestion)?\s*)?(?:\((\d+)\)|(\d+)\s*[.)\]:\-–—])\s+(.+)$/i;
