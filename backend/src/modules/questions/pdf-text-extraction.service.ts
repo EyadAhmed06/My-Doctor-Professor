@@ -440,17 +440,35 @@ export class PdfTextExtractionService {
         );
       }
 
-      // security-audit-reviewed: execFileSync avoids shell parsing; every argument is a separate fixed/value argument.
-      execFileSync(
-        pdftotextBinary,
-        ['-layout', '-enc', 'UTF-8', pdfPath, textPath],
-        processOptions,
-      );
+      let rawPages: UnicodePdfPage[];
+      try {
+        // security-audit-reviewed: execFileSync avoids shell parsing; every argument is a separate fixed/value argument.
+        execFileSync(
+          pdftotextBinary,
+          ['-layout', '-enc', 'UTF-8', pdfPath, textPath],
+          processOptions,
+        );
+        rawPages = splitPdftotextPages(
+          readFileSync(textPath, 'utf8'),
+          pageCount,
+        );
+      } catch (textLayerError) {
+        const details = this.processErrorText(textLayerError);
+        if (/password|encrypted|incorrect password/i.test(details)) {
+          throw new BadRequestException(
+            'Password-protected or encrypted PDFs are not supported for question import',
+          );
+        }
 
-      const rawPages = splitPdftotextPages(
-        readFileSync(textPath, 'utf8'),
-        pageCount,
-      );
+        // A broken/missing text layer is not terminal if the physical pages are
+        // renderable. Start with empty pages so the normal per-page OCR path can
+        // recover the document instead of aborting before OCR is attempted.
+        rawPages = Array.from({ length: pageCount }, (_, index) => ({
+          page: index + 1,
+          text: '',
+        }));
+      }
+
       const pages = rawPages.map((page) =>
         this.prepareTextLayerPage(page),
       );
