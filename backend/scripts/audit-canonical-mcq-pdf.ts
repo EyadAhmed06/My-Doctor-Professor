@@ -17,8 +17,61 @@ if (!input) {
 
 const filePath = resolve(input);
 const extractor = new PdfTextExtractionService();
-const pdf = extractor.extract(readFileSync(filePath));
-const parsed = parseCanonicalMcqDocument(pdf, 'MCQ');
+const buffer = readFileSync(filePath);
+let pdf = extractor.extract(buffer);
+let parsed = parseCanonicalMcqDocument(pdf, 'MCQ');
+
+const needsRecovery =
+  parsed.isStructurallyComplete === false ||
+  parsed.questions.some(
+    (question) =>
+      question.options.length !== 5 ||
+      !question.correctLabel ||
+      !question.options.some(
+        (option) => option.label === question.correctLabel,
+      ),
+  );
+
+if (needsRecovery) {
+  const recoveredPdf = extractor.extract(buffer, { forceOcr: true });
+  const recoveredParsed = parseCanonicalMcqDocument(recoveredPdf, 'MCQ');
+  const validStructures = (document: typeof parsed) =>
+    document.questions.filter(
+      (question) =>
+        question.options.length === 5 &&
+        Boolean(question.correctLabel) &&
+        question.options.some(
+          (option) => option.label === question.correctLabel,
+        ),
+    ).length;
+  const currentExpected = parsed.expectedQuestionCount ?? 0;
+  const recoveredExpected = recoveredParsed.expectedQuestionCount ?? 0;
+  const currentMissing =
+    parsed.missingQuestionCount ?? Number.POSITIVE_INFINITY;
+  const recoveredMissing =
+    recoveredParsed.missingQuestionCount ?? Number.POSITIVE_INFINITY;
+  const currentValid = validStructures(parsed);
+  const recoveredValid = validStructures(recoveredParsed);
+
+  const recoveryImproves =
+    recoveredExpected >= currentExpected &&
+    recoveredMissing <= currentMissing &&
+    recoveredValid >= currentValid &&
+    (
+      recoveredMissing < currentMissing ||
+      recoveredValid > currentValid ||
+      (
+        recoveredParsed.isStructurallyComplete === true &&
+        parsed.isStructurallyComplete !== true
+      ) ||
+      recoveredParsed.questions.length > parsed.questions.length
+    );
+
+  if (recoveryImproves) {
+    pdf = recoveredPdf;
+    parsed = recoveredParsed;
+  }
+}
 
 if (!parsed.sections.length) {
   fail('no MCQ sections were detected');
@@ -128,7 +181,27 @@ if (replacementCharacters > 0) {
 const report = {
   file: filePath,
   pages: pdf.pageCount,
+  extractionMethod: pdf.extractionMethod ?? 'TEXT_LAYER',
   extractionConfidence: pdf.extractionConfidence,
+  extractionBreakdown: {
+    textLayerPages:
+      pdf.textLayerPageCount ??
+      pdf.pages.filter((page) => page.source === 'TEXT_LAYER').length,
+    ocrPages:
+      pdf.ocrPageCount ??
+      pdf.pages.filter((page) => page.source === 'OCR').length,
+    emptyPages:
+      pdf.emptyPageCount ??
+      pdf.pages.filter((page) => !page.text.trim()).length,
+  },
+  pageDiagnostics: pdf.pages.map((page) => ({
+    page: page.page,
+    source: page.source ?? 'TEXT_LAYER',
+    confidence: page.confidence ?? pdf.extractionConfidence,
+    textLength: page.textLength ?? page.text.trim().length,
+    ocrAttempted: page.ocrAttempted ?? false,
+    layoutReflowed: page.layoutReflowed ?? false,
+  })),
   expectedQuestions: parsed.expectedQuestionCount,
   parsedQuestions: parsed.parsedQuestionCount,
   missingQuestions: parsed.missingQuestionCount,
