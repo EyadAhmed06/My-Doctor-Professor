@@ -37,35 +37,20 @@ export class UnicodeQuestionImportService extends QuestionImportService {
     topics: Repository<Topic>,
     private readonly importDataSource: DataSource,
     academicAccess: AcademicAccessService,
-    pdfTextExtraction: PdfTextExtractionService,
+    private readonly pdfTextExtraction: PdfTextExtractionService,
   ) {
     super(questions, topics, importDataSource, academicAccess);
+  }
 
-    const serviceWithCanonicalSeams = this as unknown as {
-      extractPdf: (buffer: Buffer) => UnicodeParsedPdf;
-      parseQuestions: (
-        pdf: UnicodeParsedPdf,
-        documentType?: QuestionDocumentType,
-      ) => CanonicalParsedQuestionDocument;
-    };
+  protected override extractPdf(buffer: Buffer): UnicodeParsedPdf {
+    return this.pdfTextExtraction.extract(buffer);
+  }
 
-    Object.defineProperties(serviceWithCanonicalSeams, {
-      extractPdf: {
-        configurable: false,
-        enumerable: false,
-        writable: false,
-        value: (buffer: Buffer) => pdfTextExtraction.extract(buffer),
-      },
-      parseQuestions: {
-        configurable: false,
-        enumerable: false,
-        writable: false,
-        value: (
-          pdf: UnicodeParsedPdf,
-          documentType?: QuestionDocumentType,
-        ) => parseCanonicalMcqDocument(pdf, documentType),
-      },
-    });
+  protected override parseQuestions(
+    pdf: UnicodeParsedPdf,
+    documentType?: QuestionDocumentType,
+  ): CanonicalParsedQuestionDocument {
+    return parseCanonicalMcqDocument(pdf, documentType);
   }
 
   override async publish(dto: PublishQuestionImportDto, actor: AuthenticatedUser) {
