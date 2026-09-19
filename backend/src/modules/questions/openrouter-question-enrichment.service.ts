@@ -342,12 +342,16 @@ export class OpenRouterQuestionEnrichmentService {
     providerMessage: string,
     requestId?: string,
   ): string {
+    const policyBlocked = kind === 'NO_COMPATIBLE_ENDPOINT'
+      && /privacy|guardrail|data (?:policy|collection)|training|retention|zdr/i.test(providerMessage);
     const prefix = kind === 'INSUFFICIENT_CREDITS'
       ? 'OpenRouter has insufficient usable credit; add credits or raise the key limit before retrying.'
       : kind === 'IN_FLIGHT_BUDGET_EXHAUSTED'
         ? 'OpenRouter temporarily exhausted its in-flight budget.'
         : kind === 'NO_COMPATIBLE_ENDPOINT'
-          ? 'OpenRouter could not find a compatible provider endpoint for this generation request.'
+          ? policyBlocked
+            ? 'OpenRouter routing is blocked by the account/API-key privacy or guardrail policy. Use a compatible model/provider or update OpenRouter Privacy/Guardrails.'
+            : 'OpenRouter could not find a compatible provider endpoint for this generation request.'
           : `OpenRouter request failed (${status}).`;
     const detail = providerMessage && !prefix.toLowerCase().includes(providerMessage.toLowerCase())
       ? ` Provider message: ${providerMessage}`
