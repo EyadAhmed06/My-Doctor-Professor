@@ -215,6 +215,11 @@ function hasCompleteExplanations(candidate: Candidate) {
     && candidate.options.every((option) => Boolean(option.explanation?.trim()) && isExplanationValid(option.explanation));
 }
 
+function hasAnyExplanation(candidate: Candidate) {
+  return Boolean(candidate.explanation?.trim())
+    || candidate.options.some((option) => Boolean(option.explanation?.trim()));
+}
+
 function recalculateCandidate(candidate: Candidate): Candidate {
   const structuralCodes = new Set([
     "EMPTY_STEM",
@@ -570,22 +575,36 @@ export function QuestionImportPage() {
       });
       return;
     }
-    setCandidates((current) => current.map((candidate) => ({
-      ...candidate,
-      approved: isPublishable(candidate),
-      allow_topic_override: candidate.topic_confidence < 0.08 ? true : candidate.allow_topic_override,
-    })));
+    let approved = 0;
+    setCandidates((current) => current.map((candidate) => {
+      const reviewedCandidate = {
+        ...candidate,
+        allow_topic_override: candidate.topic_confidence < 0.08 ? true : candidate.allow_topic_override,
+      };
+      const ready = isPublishable(reviewedCandidate);
+      if (ready) approved += 1;
+      return { ...reviewedCandidate, approved: ready };
+    }));
+    notify({
+      title: approved ? "Ready questions approved" : "No questions are ready yet",
+      description: approved
+        ? `${approved} question(s) approved. AI explanations are optional; incomplete or stale explanation sets still need review.`
+        : "Fix structural errors, duplicates, or partial/stale explanations before approval.",
+      tone: approved ? "success" : "info",
+    });
   }
 
   function isPublishable(candidate: Candidate) {
     if (candidate.reuse_question_id) return candidate.status !== "INVALID";
+    const anyExplanation = hasAnyExplanation(candidate);
+    const explanationStateReady = !anyExplanation
+      || (hasCompleteExplanations(candidate) && candidate.ai_enrichment?.status !== "STALE");
     return candidate.status !== "INVALID"
       && candidate.question_text.trim().length >= 8
       && candidate.options.length === 5
       && candidate.options.every((option) => option.option_text.trim())
       && candidate.options.filter((option) => option.is_correct).length === 1
-      && hasCompleteExplanations(candidate)
-      && candidate.ai_enrichment?.status !== "STALE"
+      && explanationStateReady
       && (candidate.topic_confidence >= 0.08 || Boolean(candidate.allow_topic_override))
       && (!candidate.duplicate || Boolean(candidate.allow_duplicate));
   }
@@ -864,7 +883,7 @@ export function QuestionImportPage() {
 
                       <footer>
                         <label className="question-import-approve"><input type="checkbox" checked={Boolean(candidate.approved)} disabled={!isPublishable(candidate)} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, approved: event.target.checked }))} /><span>{candidate.reuse_question_id ? "Approve reuse" : "Approve for publication"}</span></label>
-                        {!isPublishable(candidate) && !candidate.reuse_question_id && <span style={{ fontSize: "0.82rem", opacity: 0.76 }}>Complete/re-generate all concise explanations before approval.</span>}
+                        {!isPublishable(candidate) && !candidate.reuse_question_id && <span style={{ fontSize: "0.82rem", opacity: 0.76 }}>AI is not required for approval. If any explanation is present, complete all question + A–E explanations (or regenerate them) before approval.</span>}
                       </footer>
                     </article>
                   );
