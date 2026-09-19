@@ -82,7 +82,7 @@ function inspectionBody() {
     extraction_method: 'TEXT_LAYER',
     extraction_confidence: 0.96,
     status: 'REVIEW_REQUIRED',
-    inspector_contract_version: 5,
+    inspector_contract_version: 6,
     enrichment_contract: 'QUESTION_AND_OPTION_EXPLANATIONS_V1',
     previously_published_from_same_file: 0,
     topic: { id: '60000000-0000-4000-8000-000000000001', name: 'Cardiac anatomy and circulation' },
@@ -182,6 +182,52 @@ test('instructor inspects a five-option PDF candidate and publishes an approved 
   expect(body.candidates?.[0]?.options?.filter(option => option.is_correct)).toHaveLength(1);
 });
 
+test('incomplete structural extraction is visible and blocks bulk approval', async ({ page }) => {
+  const source = inspectionBody();
+  source.extraction_method = 'HYBRID_OCR';
+  Object.assign(source.summary, {
+    expected: 3,
+    missing: 2,
+    structurally_complete: false,
+  });
+  Object.assign(source, {
+    extraction_breakdown: { text_layer_pages: 1, ocr_pages: 1, empty_pages: 0 },
+    pages: [{
+      page: 1,
+      source: 'OCR',
+      confidence: 0.88,
+      text_length: 420,
+      ocr_attempted: true,
+      layout_reflowed: true,
+    }],
+    sections: [{
+      title: 'Cardiac anatomy',
+      questions: 1,
+      expected_questions: 3,
+      missing_question_numbers: [2, 3],
+      unexpected_question_numbers: [],
+      duplicate_question_numbers: [],
+      answer_key_conflicts: [],
+      completeness: 1 / 3,
+    }],
+    issues: [{
+      code: 'SECTION_QUESTIONS_MISSING',
+      severity: 'ERROR',
+      message: 'Cardiac anatomy: answer key expects 3 question(s), but 1 was parsed.',
+    }],
+  });
+
+  await openInspection(page, source);
+
+  await expect(page.getByText('HYBRID OCR')).toBeVisible();
+  await expect(page.getByText('1 / 3').first()).toBeVisible();
+  await expect(page.getByText(/Missing: 2, 3/)).toBeVisible();
+  await expect(page.getByText(/Page 1 · OCR · 88%/)).toBeVisible();
+  await expect(page.getByRole('button', { name: /Approve all ready/i }).first()).toBeDisabled();
+  await expect(page.getByRole('button', { name: /Generate missing explanations/i })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /Regenerate explanation/i })).toBeDisabled();
+});
+
 test('manual explanation UI enforces 220 characters and blocks more than two sentences', async ({ page }) => {
   await openInspection(page);
 
@@ -196,6 +242,27 @@ test('manual explanation UI enforces 220 characters and blocks more than two sen
   await expect(page.getByLabel('Approve for publication')).toBeDisabled();
 });
 
+
+test('AI generation explains a stale backend 404 instead of showing a generic 404', async ({ page }) => {
+  await openInspection(page);
+
+  await page.route('**/api/v1/questions/imports/enrich', async route => {
+    await route.fulfill({
+      status: 404,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        statusCode: 404,
+        message: 'Cannot POST /api/v1/questions/imports/enrich',
+        error: 'Not Found',
+      }),
+    });
+  });
+
+  await page.getByRole('button', { name: 'Regenerate explanation' }).click();
+
+  await expect(page.getByText(/frontend and backend are on different builds/i)).toBeVisible();
+  await expect(page.getByText(/deploy\/restart the backend from the same branch/i)).toBeVisible();
+});
 
 test('AI candidate failures are reported as failures instead of a false success', async ({ page }) => {
   await openInspection(page);

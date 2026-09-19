@@ -37,6 +37,7 @@ export type OpenRouterFailureKind =
   | 'INVALID_RESPONSE'
   | 'AUTH_ERROR'
   | 'INVALID_REQUEST'
+  | 'NO_COMPATIBLE_ENDPOINT'
   | 'UNKNOWN';
 
 export type OpenRouterRetryContext = {
@@ -99,9 +100,19 @@ export class OpenRouterQuestionEnrichmentService {
     let lastError: OpenRouterEnrichmentError | undefined;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       try {
-        return await this.generateOnce(input);
+        return await this.generateOnce(input, true);
       } catch (error) {
-        const failure = this.normalizeFailure(error);
+        let failure = this.normalizeFailure(error);
+        if (
+          failure.kind === 'NO_COMPATIBLE_ENDPOINT' &&
+          this.canRelaxProviderRequirements(failure)
+        ) {
+          try {
+            return await this.generateOnce(input, false);
+          } catch (compatibilityError) {
+            failure = this.normalizeFailure(compatibilityError);
+          }
+        }
         lastError = failure;
         if (!failure.retryable || attempt === this.maxAttemptsFor(failure)) throw failure;
         const delayMs = this.retryDelayMs(attempt, failure);
@@ -112,7 +123,10 @@ export class OpenRouterQuestionEnrichmentService {
     throw lastError ?? new OpenRouterEnrichmentError('UNKNOWN', 'OpenRouter enrichment failed.', false);
   }
 
-  private async generateOnce(input: McqExplanationInput): Promise<McqExplanationResult> {
+  private async generateOnce(
+    input: McqExplanationInput,
+    requireParameters: boolean,
+  ): Promise<McqExplanationResult> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
@@ -129,7 +143,9 @@ export class OpenRouterQuestionEnrichmentService {
           model: this.model,
           temperature: 0.1,
           max_tokens: MAX_OUTPUT_TOKENS,
-          provider: { require_parameters: true },
+          ...(requireParameters
+            ? { provider: { require_parameters: true } }
+            : {}),
           plugins: [{ id: 'response-healing' }],
           response_format: {
             type: 'json_schema',
@@ -304,6 +320,14 @@ export class OpenRouterQuestionEnrichmentService {
         return 'INSUFFICIENT_CREDITS';
       }
     }
+    if (
+      status === 404 &&
+      /no (?:compatible )?endpoints? found|no endpoints? (?:are )?available|provider routing|no provider/i.test(
+        values.providerMessage,
+      )
+    ) {
+      return 'NO_COMPATIBLE_ENDPOINT';
+    }
     if (status === 429) return 'RATE_LIMITED';
     if (status === 408 || status === 524) return 'TIMEOUT';
     if (status >= 500) return 'SERVER_ERROR';
@@ -322,11 +346,39 @@ export class OpenRouterQuestionEnrichmentService {
       ? 'OpenRouter has insufficient usable credit; add credits or raise the key limit before retrying.'
       : kind === 'IN_FLIGHT_BUDGET_EXHAUSTED'
         ? 'OpenRouter temporarily exhausted its in-flight budget.'
-        : `OpenRouter request failed (${status}).`;
+        : kind === 'NO_COMPATIBLE_ENDPOINT'
+          ? 'OpenRouter could not find a compatible provider endpoint for this generation request.'
+          : `OpenRouter request failed (${status}).`;
     const detail = providerMessage && !prefix.toLowerCase().includes(providerMessage.toLowerCase())
       ? ` Provider message: ${providerMessage}`
       : '';
     return `${prefix}${detail}${requestId ? ` Request id: ${requestId}.` : ''}`.slice(0, 900);
+  }
+
+  private canRelaxProviderRequirements(
+    error: OpenRouterEnrichmentError,
+  ): boolean {
+    const message = [
+      error.providerMessage,
+      error.reason,
+      error.code,
+      error.type,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    if (
+      /data (?:policy|region)|region|privacy|guardrail|model (?:not found|does not exist)|unknown model/.test(
+        message,
+      )
+    ) {
+      return false;
+    }
+
+    return /parameter|response[_ -]?format|structured|no (?:compatible )?endpoints? found|no endpoints? (?:are )?available|provider routing|no provider/.test(
+      message,
+    );
   }
 
   private retryDelayMs(attempt: number, error: OpenRouterEnrichmentError): number {

@@ -152,6 +152,62 @@ describe('OpenRouterQuestionEnrichmentService', () => {
     expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 
+  it('retries a provider-routing 404 without require_parameters and succeeds', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        headers: new Headers(),
+        text: async () => JSON.stringify({
+          error: {
+            message: 'No endpoints found that support the requested parameters.',
+            code: 404,
+          },
+        }),
+      } as Response)
+      .mockResolvedValueOnce(response(validPayload()));
+
+    await expect(new OpenRouterQuestionEnrichmentService().generate(input))
+      .resolves.toMatchObject({ sourceCorrectLabel: 'C' });
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    const strictBody = JSON.parse(
+      String((global.fetch as jest.Mock).mock.calls[0][1].body),
+    );
+    const relaxedBody = JSON.parse(
+      String((global.fetch as jest.Mock).mock.calls[1][1].body),
+    );
+    expect(strictBody.provider).toEqual({ require_parameters: true });
+    expect(relaxedBody.provider).toBeUndefined();
+    expect(relaxedBody.response_format).toMatchObject({
+      type: 'json_schema',
+    });
+  });
+
+  it('does not relax a 404 caused by data-region policy', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      headers: new Headers(),
+      text: async () => JSON.stringify({
+        error: {
+          message: 'No endpoints found supporting your data region.',
+          code: 404,
+        },
+      }),
+    } as Response);
+
+    await expect(new OpenRouterQuestionEnrichmentService().generate(input))
+      .rejects.toMatchObject({
+        kind: 'NO_COMPATIBLE_ENDPOINT',
+        status: 404,
+      });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('does not retry authentication failures', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 401, text: async () => 'bad key' } as Response);

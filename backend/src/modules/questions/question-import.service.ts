@@ -64,13 +64,25 @@ type ImportCandidate = {
   duplicate: DuplicateMatch | null;
 };
 
-type PdfPage = { page: number; text: string };
+type PdfPage = {
+  page: number;
+  text: string;
+  source?: 'TEXT_LAYER' | 'OCR' | 'EMPTY';
+  confidence?: number;
+  textLength?: number;
+  ocrAttempted?: boolean;
+  layoutReflowed?: boolean;
+};
 
 type ParsedPdf = {
   pages: PdfPage[];
   pageCount: number;
   text: string;
   extractionConfidence: number;
+  extractionMethod?: 'TEXT_LAYER' | 'OCR' | 'HYBRID_OCR';
+  ocrPageCount?: number;
+  textLayerPageCount?: number;
+  emptyPageCount?: number;
 };
 
 type ParsedQuestion = {
@@ -91,16 +103,31 @@ type ParsingSection = {
 };
 
 type AnswerKeyEntry = { label: string; page: number | null };
+type ParsedSectionDiagnostics = {
+  title: string | null;
+  expectedQuestionNumbers: number[];
+  parsedQuestionNumbers: number[];
+  missingQuestionNumbers: number[];
+  unexpectedQuestionNumbers: number[];
+  duplicateQuestionNumbers?: number[];
+  answerKeyConflicts?: Array<{ questionNumber: number; labels: string[] }>;
+  expectedQuestionCount: number | null;
+  parsedQuestionCount: number;
+  completeness: number | null;
+};
 type ParsedQuestionDocument = {
   documentType: QuestionDocumentType;
   answerKey: Map<number, AnswerKeyEntry>;
   questions: ParsedQuestion[];
+  sections?: ParsedSectionDiagnostics[];
+  expectedQuestionCount?: number | null;
+  parsedQuestionCount?: number;
+  missingQuestionCount?: number;
+  isStructurallyComplete?: boolean;
 };
 
 const MAX_PDF_BYTES = 50 * 1024 * 1024;
 const MAX_PDF_PAGES = 200;
-const MAX_IMPORT_CANDIDATES = 500;
-const MIN_TEXT_LENGTH = 80;
 const REQUIRED_MCQ_OPTIONS = 5;
 const MAX_PARSED_MCQ_OPTIONS = 6;
 const IMPORT_REFERENCE_PREFIX = 'MDP_PDF_IMPORT';
@@ -136,7 +163,7 @@ export class QuestionImportService {
     this.validatePdfFile(file);
     const safeFile = file;
     const sha256 = createHash('sha256').update(safeFile.buffer).digest('hex');
-    const pdf = this.extractPdf(safeFile.buffer);
+    let pdf = this.extractPdf(safeFile.buffer);
     const previouslyPublished = await this.questions
       .createQueryBuilder('question')
       .where('question.reference LIKE :reference', {
@@ -150,13 +177,13 @@ export class QuestionImportService {
     });
     if (!topic) throw new BadRequestException('Selected topic no longer exists');
 
-    if (pdf.text.trim().length < MIN_TEXT_LENGTH) {
+    if (!pdf.text.trim()) {
       return {
         original_filename: this.safeFilename(safeFile.originalname),
         file_sha256: sha256,
         file_size: safeFile.size,
         page_count: pdf.pageCount,
-        extraction_method: 'TEXT_LAYER',
+        extraction_method: pdf.extractionMethod || 'TEXT_LAYER',
         extraction_confidence: pdf.extractionConfidence,
         status: 'NEEDS_OCR',
         previously_published_from_same_file: previouslyPublished,
@@ -166,15 +193,23 @@ export class QuestionImportService {
             code: 'NO_USABLE_TEXT_LAYER',
             severity: 'ERROR',
             message:
-              'The PDF appears scanned or its text encoding is not safely extractable. OCR is required before questions can be reviewed.',
+              'No usable text could be recovered from the PDF text layer or OCR fallback. Re-export the PDF with embedded text or verify that Tesseract OCR is available.',
           },
         ],
         parser: {
-          schema_version: '2.0', requested_document_type: 'MCQ',
+          schema_version: '3.0', requested_document_type: 'MCQ',
           detected_document_type: 'UNKNOWN' as QuestionDocumentType,
           answer_key: {} as Record<string, { answer: string; page: number | null }>, mapped_answers: 0,
         },
         sections: [] as Array<{ title: string; questions: number }>,
+        pages: pdf.pages.map((page) => ({
+          page: page.page,
+          source: page.source || 'EMPTY',
+          confidence: page.confidence ?? 0,
+          text_length: page.textLength ?? page.text.trim().length,
+          ocr_attempted: page.ocrAttempted ?? false,
+          layout_reflowed: page.layoutReflowed ?? false,
+        })),
         candidates: [] as ImportCandidate[],
       };
     }
@@ -197,21 +232,109 @@ export class QuestionImportService {
       ...existing.slice(0, 100).map((question) => question.questionText),
     ].join(' ');
 
-    const parsedDocument = this.parseQuestions(pdf, documentType);
+    let parsedDocument = this.parseQuestions(pdf, documentType);
+
+    const needsStructuralRecovery =
+      parsedDocument.isStructurallyComplete === false ||
+      parsedDocument.questions.some(
+        (question) =>
+          question.options.length !== REQUIRED_MCQ_OPTIONS ||
+          !question.correctLabel ||
+          !question.options.some(
+            (option) => option.label === question.correctLabel,
+          ),
+      );
+
+    if (needsStructuralRecovery) {
+      const recoveredPdf = this.recoverIncompletePdf(safeFile.buffer, pdf);
+      if (recoveredPdf) {
+        const recoveredDocument = this.parseQuestions(
+          recoveredPdf,
+          documentType,
+        );
+        if (
+          this.shouldPreferRecoveredDocument(
+            parsedDocument,
+            recoveredDocument,
+          )
+        ) {
+          pdf = recoveredPdf;
+          parsedDocument = recoveredDocument;
+        }
+      }
+    }
+
     const parsed = parsedDocument.questions;
-    const candidates = parsed.slice(0, MAX_IMPORT_CANDIDATES).map((candidate, index) =>
-      this.evaluateCandidate(candidate, index, topicCorpus, existing),
+    const pageConfidence = new Map(
+      pdf.pages.map((page) => [
+        page.page,
+        page.confidence ?? pdf.extractionConfidence,
+      ]),
     );
+    const candidates = parsed.map((candidate, index) =>
+        this.evaluateCandidate(
+          candidate,
+          index,
+          topicCorpus,
+          existing,
+          pageConfidence,
+          pdf.extractionConfidence,
+        ),
+      );
     const valid = candidates.filter((candidate) => candidate.status === 'VALID').length;
     const needsReview = candidates.filter((candidate) => candidate.status === 'NEEDS_REVIEW').length;
     const invalid = candidates.filter((candidate) => candidate.status === 'INVALID').length;
 
     const issues: ImportIssue[] = [];
-    if (parsed.length > MAX_IMPORT_CANDIDATES) {
+    const structuralSections = parsedDocument.sections || [];
+    for (const section of structuralSections) {
+      const sectionName = section.title || 'UNSCOPED';
+      if (section.expectedQuestionCount === null) {
+        issues.push({
+          code: 'SECTION_ANSWER_KEY_NOT_DETECTED',
+          severity: 'ERROR',
+          message: `${sectionName}: no reliable section answer key was detected, so extraction completeness cannot be verified.`,
+        });
+        continue;
+      }
+      if (section.missingQuestionNumbers.length > 0) {
+        issues.push({
+          code: 'SECTION_QUESTIONS_MISSING',
+          severity: 'ERROR',
+          message: `${sectionName}: answer key expects ${section.expectedQuestionCount} question(s), but ${section.parsedQuestionCount} were parsed. Missing question number(s): ${section.missingQuestionNumbers.join(', ')}.`,
+        });
+      }
+      if (section.unexpectedQuestionNumbers.length > 0) {
+        issues.push({
+          code: 'SECTION_QUESTIONS_UNEXPECTED',
+          severity: 'ERROR',
+          message: `${sectionName}: parsed question number(s) not present in the section answer key: ${section.unexpectedQuestionNumbers.join(', ')}.`,
+        });
+      }
+      if ((section.duplicateQuestionNumbers || []).length > 0) {
+        issues.push({
+          code: 'SECTION_DUPLICATE_QUESTION_NUMBERS',
+          severity: 'ERROR',
+          message: `${sectionName}: duplicate question number(s) were parsed: ${(section.duplicateQuestionNumbers || []).join(', ')}.`,
+        });
+      }
+      if ((section.answerKeyConflicts || []).length > 0) {
+        issues.push({
+          code: 'SECTION_ANSWER_KEY_CONFLICT',
+          severity: 'ERROR',
+          message: `${sectionName}: conflicting answer-key entries were detected for question number(s): ${(section.answerKeyConflicts || []).map((conflict) => conflict.questionNumber).join(', ')}.`,
+        });
+      }
+    }
+
+    const unreadablePages = pdf.pages.filter(
+      (page) => (page.ocrAttempted ?? false) && !page.text.trim(),
+    );
+    if (unreadablePages.length > 0) {
       issues.push({
-        code: 'IMPORT_LIMIT_REACHED',
-        severity: 'WARNING',
-        message: `Only the first ${MAX_IMPORT_CANDIDATES} extracted questions are shown in one import batch.`,
+        code: 'OCR_PAGES_UNREADABLE',
+        severity: 'ERROR',
+        message: `OCR could not recover usable text from page(s): ${unreadablePages.map((page) => page.page).join(', ')}.`,
       });
     }
     if (candidates.length === 0) {
@@ -244,13 +367,24 @@ export class QuestionImportService {
       file_sha256: sha256,
       file_size: safeFile.size,
       page_count: pdf.pageCount,
-      extraction_method: 'TEXT_LAYER',
+      extraction_method: pdf.extractionMethod || 'TEXT_LAYER',
       extraction_confidence: pdf.extractionConfidence,
-      status: candidates.length ? 'REVIEW_REQUIRED' : 'NO_QUESTIONS',
+      status: candidates.length
+        ? parsedDocument.isStructurallyComplete === false
+          ? 'INCOMPLETE_EXTRACTION'
+          : 'REVIEW_REQUIRED'
+        : 'NO_QUESTIONS',
       previously_published_from_same_file: previouslyPublished,
       topic: { id: topic.id, name: topic.topicName },
       summary: {
+        expected:
+          parsedDocument.expectedQuestionCount === undefined
+            ? null
+            : parsedDocument.expectedQuestionCount,
         extracted: candidates.length,
+        missing: parsedDocument.missingQuestionCount ?? 0,
+        structurally_complete:
+          parsedDocument.isStructurallyComplete ?? null,
         valid,
         needs_review: needsReview,
         invalid,
@@ -269,8 +403,45 @@ export class QuestionImportService {
           question_page: candidate.source_page,
           answer_page: candidate.answer_key_page,
         })),
+        expected_question_count:
+          parsedDocument.expectedQuestionCount === undefined
+            ? null
+            : parsedDocument.expectedQuestionCount,
+        parsed_question_count:
+          parsedDocument.parsedQuestionCount ?? parsed.length,
+        missing_question_count:
+          parsedDocument.missingQuestionCount ?? 0,
+        structurally_complete:
+          parsedDocument.isStructurallyComplete ?? null,
       },
-      sections: Array.from(sectionCounts.entries()).map(([title, questions]) => ({ title, questions })),
+      sections: structuralSections.length
+        ? structuralSections.map((section) => ({
+            title: section.title || 'UNSCOPED',
+            questions: section.parsedQuestionCount,
+            expected_questions: section.expectedQuestionCount,
+            missing_question_numbers: section.missingQuestionNumbers,
+            unexpected_question_numbers: section.unexpectedQuestionNumbers,
+            duplicate_question_numbers: section.duplicateQuestionNumbers || [],
+            answer_key_conflicts: section.answerKeyConflicts || [],
+            completeness: section.completeness,
+          }))
+        : Array.from(sectionCounts.entries()).map(([title, questions]) => ({
+            title,
+            questions,
+          })),
+      pages: pdf.pages.map((page) => ({
+        page: page.page,
+        source: page.source || 'TEXT_LAYER',
+        confidence: page.confidence ?? pdf.extractionConfidence,
+        text_length: page.textLength ?? page.text.trim().length,
+        ocr_attempted: page.ocrAttempted ?? false,
+        layout_reflowed: page.layoutReflowed ?? false,
+      })),
+      extraction_breakdown: {
+        text_layer_pages: pdf.textLayerPageCount ?? pdf.pages.filter((page) => page.text.trim()).length,
+        ocr_pages: pdf.ocrPageCount ?? 0,
+        empty_pages: pdf.emptyPageCount ?? pdf.pages.filter((page) => !page.text.trim()).length,
+      },
       issues,
       candidates,
     };
@@ -427,7 +598,7 @@ export class QuestionImportService {
     }
   }
 
-  private extractPdf(buffer: Buffer): ParsedPdf {
+  protected extractPdf(buffer: Buffer): ParsedPdf {
     const binary = buffer.toString('latin1');
     if (/\/Encrypt\b/.test(binary)) {
       throw new BadRequestException('Password-protected or encrypted PDFs are not supported for question import');
@@ -583,7 +754,62 @@ export class QuestionImportService {
     return output;
   }
 
-  private parseQuestions(
+  protected recoverIncompletePdf(
+    _buffer: Buffer,
+    _currentPdf: ParsedPdf,
+  ): ParsedPdf | null {
+    return null;
+  }
+
+  private shouldPreferRecoveredDocument(
+    current: ParsedQuestionDocument,
+    recovered: ParsedQuestionDocument,
+  ): boolean {
+    const currentExpected = current.expectedQuestionCount ?? 0;
+    const recoveredExpected = recovered.expectedQuestionCount ?? 0;
+    const currentMissing =
+      current.missingQuestionCount ?? Number.POSITIVE_INFINITY;
+    const recoveredMissing =
+      recovered.missingQuestionCount ?? Number.POSITIVE_INFINITY;
+    const currentValidStructures =
+      this.countStructurallyValidParsedQuestions(current);
+    const recoveredValidStructures =
+      this.countStructurallyValidParsedQuestions(recovered);
+
+    // OCR must not lose an answer-key contract that the text layer already
+    // established, nor may it trade valid A-E questions for merely more
+    // detected question numbers.
+    if (recoveredExpected < currentExpected) return false;
+    if (recoveredMissing > currentMissing) return false;
+    if (recoveredValidStructures < currentValidStructures) return false;
+
+    if (recoveredMissing < currentMissing) return true;
+    if (recoveredValidStructures > currentValidStructures) return true;
+
+    if (
+      recovered.isStructurallyComplete === true &&
+      current.isStructurallyComplete !== true
+    ) {
+      return true;
+    }
+
+    return recovered.questions.length > current.questions.length;
+  }
+
+  private countStructurallyValidParsedQuestions(
+    document: ParsedQuestionDocument,
+  ): number {
+    return document.questions.filter(
+      (question) =>
+        question.options.length === REQUIRED_MCQ_OPTIONS &&
+        Boolean(question.correctLabel) &&
+        question.options.some(
+          (option) => option.label === question.correctLabel,
+        ),
+    ).length;
+  }
+
+  protected parseQuestions(
     pdf: ParsedPdf,
     documentType: QuestionDocumentType = detectQuestionDocumentType(pdf.text),
   ): ParsedQuestionDocument {
@@ -781,6 +1007,8 @@ export class QuestionImportService {
     index: number,
     topicCorpus: string,
     existing: Pick<Question, 'id' | 'questionText' | 'isActive' | 'topicId'>[],
+    pageConfidence: Map<number, number> = new Map(),
+    documentExtractionConfidence = 1,
   ): ImportCandidate {
     const issues: ImportIssue[] = [];
     const optionTexts = candidate.options.map((option) => this.normalize(option.text));
@@ -832,10 +1060,12 @@ export class QuestionImportService {
     }
     const hardError = issues.some((issue) => issue.severity === 'ERROR');
     const review = issues.some((issue) => issue.severity === 'WARNING');
-    const structuralPenalty = issues.filter((issue) => issue.severity === 'ERROR').length * 0.22;
-    const reviewPenalty = issues.filter((issue) => issue.severity === 'WARNING').length * 0.1;
     const extractionConfidence = Number(
-      Math.max(0.2, 1 - structuralPenalty - reviewPenalty).toFixed(2),
+      (
+        candidate.sourcePage === null
+          ? documentExtractionConfidence
+          : pageConfidence.get(candidate.sourcePage) ?? documentExtractionConfidence
+      ).toFixed(2),
     );
     return {
       candidate_id: `candidate-${index + 1}`,

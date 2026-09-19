@@ -40,6 +40,7 @@
     "seed:roles": "ts-node scripts/seed-role-accounts.ts",
     "audit:mcq-integrity": "ts-node scripts/audit-mcq-integrity.ts",
     "audit:canonical-mcq-pdf": "ts-node scripts/audit-canonical-mcq-pdf.ts",
+    "audit:mcq-pdf": "ts-node scripts/audit-canonical-mcq-pdf.ts",
     "verify:mcq-deployment": "ts-node scripts/verify-mcq-deployment.ts",
     "diagnose:mcq-generation": "ts-node scripts/diagnose-mcq-generation.ts",
     "prepare:seeded-mcq-repair": "ts-node scripts/prepare-seeded-mcq-repair.ts",
