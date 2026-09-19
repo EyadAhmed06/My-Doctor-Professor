@@ -38,7 +38,9 @@ if (sectionsWithoutAnswerKeys.length) {
 const incompleteSections = parsed.sections.filter(
   (section) =>
     section.missingQuestionNumbers.length > 0 ||
-    section.unexpectedQuestionNumbers.length > 0,
+    section.unexpectedQuestionNumbers.length > 0 ||
+    section.duplicateQuestionNumbers.length > 0 ||
+    section.answerKeyConflicts.length > 0,
 );
 if (incompleteSections.length) {
   fail(
@@ -51,7 +53,15 @@ if (incompleteSections.length) {
         const unexpected = section.unexpectedQuestionNumbers.length
           ? ` unexpected=[${section.unexpectedQuestionNumbers.join(',')}]`
           : '';
-        return `${name} expected=${section.expectedQuestionCount} parsed=${section.parsedQuestionCount}${missing}${unexpected}`;
+        const duplicates = section.duplicateQuestionNumbers.length
+          ? ` duplicates=[${section.duplicateQuestionNumbers.join(',')}]`
+          : '';
+        const conflicts = section.answerKeyConflicts.length
+          ? ` answer_conflicts=[${section.answerKeyConflicts
+              .map((conflict) => conflict.questionNumber)
+              .join(',')}]`
+          : '';
+        return `${name} expected=${section.expectedQuestionCount} parsed=${section.parsedQuestionCount}${missing}${unexpected}${duplicates}${conflicts}`;
       })
       .join('; ')}`,
   );
@@ -130,6 +140,8 @@ const report = {
     completeness: section.completeness,
     missingQuestionNumbers: section.missingQuestionNumbers,
     unexpectedQuestionNumbers: section.unexpectedQuestionNumbers,
+    duplicateQuestionNumbers: section.duplicateQuestionNumbers,
+    answerKeyConflicts: section.answerKeyConflicts,
   })),
   fiveOptionQuestions: parsed.questions.length - malformed.length,
   mappedAnswers: parsed.questions.length - unmapped.length,
