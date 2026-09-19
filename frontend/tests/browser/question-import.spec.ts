@@ -185,16 +185,11 @@ test('instructor inspects a five-option PDF candidate and publishes an approved 
 test('incomplete structural extraction is visible and blocks bulk approval', async ({ page }) => {
   const source = inspectionBody();
   source.extraction_method = 'HYBRID_OCR';
-  source.summary = {
+  Object.assign(source.summary, {
     expected: 3,
-    extracted: 1,
     missing: 2,
     structurally_complete: false,
-    valid: 1,
-    needs_review: 0,
-    invalid: 0,
-    duplicates: 0,
-  };
+  });
   Object.assign(source, {
     extraction_breakdown: { text_layer_pages: 1, ocr_pages: 1, empty_pages: 0 },
     sections: [{
