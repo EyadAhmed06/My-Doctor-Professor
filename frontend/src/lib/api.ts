@@ -65,15 +65,22 @@ function normalizeProblem(path: string, status: number, payload: unknown, status
     ? problem.message.join(". ")
     : problem.message || problem.error || "";
 
+  const normalizedPath = path.replace(/^\//, "");
   if (
     status === 404
-    && path.replace(/^\//, "") === "questions/imports/inspect"
+    && ["questions/imports/inspect", "questions/imports/enrich"].includes(
+      normalizedPath,
+    )
     && /cannot\s+post/i.test(rawMessage)
   ) {
+    const endpoint =
+      normalizedPath === "questions/imports/enrich"
+        ? "/api/v1/questions/imports/enrich"
+        : "/api/v1/questions/imports/inspect";
     return {
       statusCode: 404,
       error: "Question import route unavailable",
-      message: "The running backend does not have POST /api/v1/questions/imports/inspect registered. Pull agent/phase1-interactions and fully restart NestJS; the source route is present but the current backend process is stale or running another build.",
+      message: `The running backend does not have POST ${endpoint} registered. The frontend and backend are on different builds; deploy/restart the backend from the same branch as the frontend.`,
     };
   }
 
