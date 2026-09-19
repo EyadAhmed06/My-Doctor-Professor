@@ -135,6 +135,22 @@ describe('canonical MCQ parser', () => {
     ).toEqual(requestedCounts);
   });
 
+  it('has no hard-coded section or document question ceiling', () => {
+    const count = 517;
+    const parsed = parseCanonicalMcqDocument(
+      pdfFromPages([section('Large Dynamic Section', count, 'A')]),
+      'MCQ',
+    );
+
+    expect(parsed.sections).toHaveLength(1);
+    expect(parsed.sections[0].expectedQuestionCount).toBe(count);
+    expect(parsed.sections[0].parsedQuestionCount).toBe(count);
+    expect(parsed.expectedQuestionCount).toBe(count);
+    expect(parsed.parsedQuestionCount).toBe(count);
+    expect(parsed.questions).toHaveLength(count);
+    expect(parsed.isStructurallyComplete).toBe(true);
+  });
+
   it('reports missing question numbers instead of accepting partial extraction', () => {
     const pdf = pdfFromPages([
       [
