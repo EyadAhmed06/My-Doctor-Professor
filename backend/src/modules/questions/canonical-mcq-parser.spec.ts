@@ -26,10 +26,13 @@ function fiveOptions(seed: string): string {
 function section(name: string, count: number, answer = 'B'): string {
   const questions = Array.from({ length: count }, (_, index) => {
     const number = index + 1;
-    return `${number}) ${name} canonical question ${number}?\n${fiveOptions(`${name} ${number}`)}`;
+    return `${number}) ${name} question ${number}?\n${fiveOptions(`${name} ${number}`)}`;
   }).join('\n');
-  const key = Array.from({ length: count }, (_, index) => `${index + 1}) ${answer}`).join(' ');
-  return `${name}\n${questions}\n${key}`;
+  const key = Array.from(
+    { length: count },
+    (_, index) => `${index + 1}) ${answer}`,
+  ).join(' ');
+  return `${name}\n${questions}\nAnswer Key\n${key}`;
 }
 
 describe('canonical MCQ parser', () => {
@@ -65,8 +68,8 @@ describe('canonical MCQ parser', () => {
     const pdf = pdfFromPages([
       '',
       '',
-      `Peptic ulcer\n1) Peptic question?\n${fiveOptions('peptic')}\n1) B`,
-      `GERD\n1) GERD question?\n${fiveOptions('gerd')}\n1) D`,
+      `Peptic ulcer\n1) Peptic question?\n${fiveOptions('peptic')}\nAnswer Key\n1) B`,
+      `GERD\n1) GERD question?\n${fiveOptions('gerd')}\nAnswer Key\n1) D`,
     ]);
 
     const parsed = parseCanonicalMcqDocument(pdf, 'MCQ');
@@ -81,35 +84,85 @@ describe('canonical MCQ parser', () => {
       { section: 'GERD', number: 1, answer: 'D' },
     ]);
     expect(parsed.answerKey.size).toBe(0);
+    expect(parsed.expectedQuestionCount).toBe(2);
+    expect(parsed.parsedQuestionCount).toBe(2);
+    expect(parsed.isStructurallyComplete).toBe(true);
   });
 
-  it('matches the canonical 130-question section-count contract', () => {
+  it('derives variable section counts and the document total from answer keys', () => {
+    const requestedCounts: Record<string, number> = {
+      'Peptic ulcer': 3,
+      GERD: 7,
+      Dysphagia: 2,
+      'Gastric cancer': 5,
+      'Esophageal cancer': 4,
+    };
     const pages = [
-      'Canonical cover',
+      'Any cover length is allowed',
       '',
-      section('Peptic ulcer', 22, 'A'),
-      section('GERD', 28, 'B'),
-      section('Dysphagia', 24, 'C'),
-      section('Gastric cancer', 39, 'D'),
-      section('Esophageal cancer', 17, 'E'),
+      ...Object.entries(requestedCounts).map(([name, count]) =>
+        section(name, count, 'C'),
+      ),
+      'Trailing non-question page',
     ];
-    const parsed = parseCanonicalMcqDocument(pdfFromPages(pages), 'MCQ');
 
-    expect(parsed.questions).toHaveLength(130);
-    const counts = parsed.questions.reduce<Record<string, number>>((result, question) => {
-      const name = question.sourceSection || 'unknown';
-      result[name] = (result[name] || 0) + 1;
-      return result;
-    }, {});
-    expect(counts).toEqual({
-      'Peptic ulcer': 22,
-      GERD: 28,
-      Dysphagia: 24,
-      'Gastric cancer': 39,
-      'Esophageal cancer': 17,
-    });
-    expect(parsed.questions.every((question) => question.options.length === 5)).toBe(true);
-    expect(parsed.questions.every((question) => Boolean(question.correctLabel))).toBe(true);
+    const parsed = parseCanonicalMcqDocument(pdfFromPages(pages), 'MCQ');
+    const expectedTotal = Object.values(requestedCounts).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
+
+    expect(parsed.expectedQuestionCount).toBe(expectedTotal);
+    expect(parsed.parsedQuestionCount).toBe(expectedTotal);
+    expect(parsed.questions).toHaveLength(expectedTotal);
+    expect(parsed.isStructurallyComplete).toBe(true);
+
+    expect(
+      Object.fromEntries(
+        parsed.sections.map((item) => [
+          item.title,
+          {
+            expected: item.expectedQuestionCount,
+            parsed: item.parsedQuestionCount,
+            missing: item.missingQuestionNumbers,
+          },
+        ]),
+      ),
+    ).toEqual(
+      Object.fromEntries(
+        Object.entries(requestedCounts).map(([name, count]) => [
+          name,
+          { expected: count, parsed: count, missing: [] },
+        ]),
+      ),
+    );
+  });
+
+  it('reports missing questions from a section answer key instead of accepting a partial parse', () => {
+    const pdf = pdfFromPages([
+      [
+        'GERD',
+        `1) Question one?\n${fiveOptions('q1')}`,
+        `2) Question two?\n${fiveOptions('q2')}`,
+        `4) Question four?\n${fiveOptions('q4')}`,
+        `5) Question five?\n${fiveOptions('q5')}`,
+        'Answer Key',
+        '1-B, 2-C, 3-A, 4-D, 5-E',
+      ].join('\n'),
+    ]);
+
+    const parsed = parseCanonicalMcqDocument(pdf, 'MCQ');
+    const [gerd] = parsed.sections;
+
+    expect(gerd.expectedQuestionCount).toBe(5);
+    expect(gerd.parsedQuestionCount).toBe(4);
+    expect(gerd.missingQuestionNumbers).toEqual([3]);
+    expect(gerd.unexpectedQuestionNumbers).toEqual([]);
+    expect(gerd.completeness).toBe(0.8);
+    expect(parsed.expectedQuestionCount).toBe(5);
+    expect(parsed.parsedQuestionCount).toBe(4);
+    expect(parsed.missingQuestionCount).toBe(1);
+    expect(parsed.isStructurallyComplete).toBe(false);
   });
 
   it('preserves raw medical symbols in stems and option values', () => {
@@ -124,6 +177,7 @@ describe('canonical MCQ parser', () => {
         'C) cm² and 10⁶',
         'D) α β γ δ and × °',
         'E) → ← ↔',
+        'Answer Key',
         '15) B',
       ].join('\n'),
     ]);
@@ -148,11 +202,13 @@ describe('canonical MCQ parser', () => {
       '',
       `Peptic ulcer\n1) First question?\n${fiveOptions('q1')}`,
       `2) Second question?\n${fiveOptions('q2')}`,
-      '1) A 2) E',
+      'Answer Key\n1) A 2) E',
     ]);
 
     const parsed = parseCanonicalMcqDocument(pdf, 'MCQ');
     expect(parsed.questions.map((question) => question.sourcePage)).toEqual([3, 4]);
     expect(parsed.questions.map((question) => question.answerKeyPage)).toEqual([5, 5]);
+    expect(parsed.expectedQuestionCount).toBe(2);
+    expect(parsed.isStructurallyComplete).toBe(true);
   });
 });
