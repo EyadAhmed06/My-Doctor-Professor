@@ -124,8 +124,10 @@ export class QuestionImportAiEnrichmentService {
     let initialProbeComplete = false;
     let offset = 0;
     let billingBlocked = false;
+    let routingBlocked = false;
+    let routingFailure: OpenRouterEnrichmentError | null = null;
 
-    while (offset < pending.length && !billingBlocked) {
+    while (offset < pending.length && !billingBlocked && !routingBlocked) {
       const wave = pending.slice(offset, offset + currentConcurrency);
       let reduceConcurrency = false;
       const settled = await Promise.allSettled(wave.map((candidate) => {
@@ -179,9 +181,23 @@ export class QuestionImportAiEnrichmentService {
             cached_count: cachedIds.size,
           }));
         } else {
-          failures.set(candidate.candidate_id, result.reason instanceof OpenRouterEnrichmentError
+          const failure = result.reason instanceof OpenRouterEnrichmentError
             ? result.reason
-            : this.safeError(result.reason));
+            : null;
+          failures.set(candidate.candidate_id, failure ?? this.safeError(result.reason));
+          if (failure?.kind === 'NO_COMPATIBLE_ENDPOINT') {
+            routingBlocked = true;
+            routingFailure = failure;
+            this.logger.warn(JSON.stringify({
+              event: 'openrouter_enrichment_routing_circuit_open',
+              candidate_id: candidate.candidate_id,
+              failure_kind: failure.kind,
+              http_status: failure.status,
+              provider_reason: failure.reason,
+              request_id: failure.requestId,
+              remaining_count: pending.length - offset - wave.length,
+            }));
+          }
         }
       }
 
@@ -195,6 +211,9 @@ export class QuestionImportAiEnrichmentService {
       const message = Array.from(billingDeferred.values())[0]
         ?? 'OpenRouter has insufficient usable credit; add credits or raise the key limit before retrying.';
       pending.slice(offset).forEach((candidate) => billingDeferred.set(candidate.candidate_id, message));
+    }
+    if (routingBlocked && routingFailure) {
+      pending.slice(offset).forEach((candidate) => failures.set(candidate.candidate_id, routingFailure!));
     }
 
     const candidates = cachedCandidates.map((candidate) => {
