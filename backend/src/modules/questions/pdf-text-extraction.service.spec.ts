@@ -4,6 +4,7 @@ import {
   normalizePdfSymbolsForDisplay,
   reflowMcqColumns,
   shouldOcrPage,
+  stripRepeatedEdgeFurniture,
   splitPdftotextPages,
   stripCanonicalPageFurniture,
 } from './pdf-text-extraction.service';
@@ -91,6 +92,21 @@ describe('PDF text extraction contract', () => {
       text: source,
       reflowed: false,
     });
+  });
+
+  it('strips generic repeated edge furniture while preserving section titles and body text', () => {
+    const pages = [
+      { page: 1, text: 'Medical Course 2026\nGERD\n1) Question\nA) one\nB) two\nC) three\nD) four\nE) five\nPage 1 of 3' },
+      { page: 2, text: 'Medical Course 2026\n2) Question\nA) one\nB) two\nC) three\nD) four\nE) five\nPage 2 of 3' },
+      { page: 3, text: 'Medical Course 2026\nAnswer Key\n1-A 2-B\nPage 3 of 3' },
+    ];
+
+    const cleaned = stripRepeatedEdgeFurniture(pages);
+
+    expect(cleaned.every((page) => !page.text.includes('Medical Course 2026'))).toBe(true);
+    expect(cleaned.every((page) => !/Page \d of 3/.test(page.text))).toBe(true);
+    expect(cleaned[0].text).toContain('GERD');
+    expect(cleaned[0].text).toContain('1) Question');
   });
 
   it('keeps medical and mathematical symbols unchanged in raw text', () => {
