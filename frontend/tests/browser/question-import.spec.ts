@@ -243,6 +243,27 @@ test('manual explanation UI enforces 220 characters and blocks more than two sen
 });
 
 
+test('AI generation explains a stale backend 404 instead of showing a generic 404', async ({ page }) => {
+  await openInspection(page);
+
+  await page.route('**/api/v1/questions/imports/enrich', async route => {
+    await route.fulfill({
+      status: 404,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        statusCode: 404,
+        message: 'Cannot POST /api/v1/questions/imports/enrich',
+        error: 'Not Found',
+      }),
+    });
+  });
+
+  await page.getByRole('button', { name: 'Regenerate explanation' }).click();
+
+  await expect(page.getByText(/frontend and backend are on different builds/i)).toBeVisible();
+  await expect(page.getByText(/deploy\/restart the backend from the same branch/i)).toBeVisible();
+});
+
 test('AI candidate failures are reported as failures instead of a false success', async ({ page }) => {
   await openInspection(page);
 
