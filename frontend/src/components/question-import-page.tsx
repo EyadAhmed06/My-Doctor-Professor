@@ -424,6 +424,14 @@ export function QuestionImportPage() {
 
   async function generateExplanations(targets: Candidate[], force: boolean) {
     if (!inspection || targets.length === 0) return;
+    if (inspection.summary?.structurally_complete === false) {
+      notify({
+        title: "Extraction is incomplete",
+        description: "Resolve missing, duplicate, or conflicting questions before generating explanations.",
+        tone: "error",
+      });
+      return;
+    }
     const eligible = targets.filter(isAiEligible);
     if (!eligible.length) {
       notify({ title: "No eligible questions", description: "Each question needs a valid stem, exactly A–E, and one source-correct answer before AI generation.", tone: "info" });
@@ -788,7 +796,7 @@ export function QuestionImportPage() {
                   <div><span className="page-eyebrow">REVIEW · EXPLAIN · PUBLISH</span><h2>Review inspected MCQs</h2><p>Explanations are intentionally short: maximum two sentences / 220 characters. Edit anything before approval.</p></div>
                   <div className="question-import-bulk-actions">
                     <strong>{approvedCount} / {candidates.length}</strong><span>approved</span>
-                    <button type="button" className="pp-button" disabled={enrichingIds.size > 0} onClick={() => void generateExplanations(candidates.filter((candidate) => !["GENERATED", "CACHED"].includes(aiStatus(candidate))), false)}>{enrichingIds.size ? <><FiRefreshCw className="spin" /> Generating…</> : <><FiRefreshCw /> Generate missing explanations</>}</button>
+                    <button type="button" className="pp-button" disabled={enrichingIds.size > 0 || structurallyBlocked} onClick={() => void generateExplanations(candidates.filter((candidate) => !["GENERATED", "CACHED"].includes(aiStatus(candidate))), false)}>{enrichingIds.size ? <><FiRefreshCw className="spin" /> Generating…</> : <><FiRefreshCw /> Generate missing explanations</>}</button>
                     <button type="button" className="pp-button secondary" disabled={structurallyBlocked} onClick={approveAllReady}><FiCheckCircle /> Approve all ready</button>
                   </div>
                 </div>
@@ -841,7 +849,7 @@ export function QuestionImportPage() {
                       <div style={{ display: "grid", gap: "0.75rem", padding: "0.9rem", border: "1px solid var(--border, #d9e0e8)", borderRadius: "12px" }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap" }}>
                           <div><strong>AI explanation</strong><div style={{ fontSize: "0.82rem", opacity: 0.76 }}>{candidate.ai_enrichment?.model || "Muse Spark 1.3"} · {currentAiStatus.replaceAll("_", " ")}{candidate.ai_enrichment?.confidence != null ? ` · ${Math.round(candidate.ai_enrichment.confidence * 100)}% confidence` : ""}</div></div>
-                          <button type="button" className="pp-button secondary" disabled={enriching || !isAiEligible(candidate)} onClick={() => void generateExplanations([candidate], currentAiStatus !== "NOT_GENERATED" && currentAiStatus !== "DEFERRED_BILLING")}>{enriching ? <><FiRefreshCw className="spin" /> Generating…</> : currentAiStatus === "NOT_GENERATED" ? "Generate explanation" : "Regenerate explanation"}</button>
+                          <button type="button" className="pp-button secondary" disabled={enriching || structurallyBlocked || !isAiEligible(candidate)} onClick={() => void generateExplanations([candidate], currentAiStatus !== "NOT_GENERATED" && currentAiStatus !== "DEFERRED_BILLING")}>{enriching ? <><FiRefreshCw className="spin" /> Generating…</> : currentAiStatus === "NOT_GENERATED" ? "Generate explanation" : "Regenerate explanation"}</button>
                         </div>
                         {currentAiStatus === "STALE" && <p className="form-error">Question content changed after generation. Regenerate before publication.</p>}
                         <label><span>Question-level takeaway · max 2 short sentences</span><textarea rows={2} maxLength={EXPLANATION_MAX_LENGTH} value={candidate.explanation || ""} placeholder="Summarized learning point…" onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, approved: false, explanation: event.target.value }))} /><small style={{ float: "right" }}>{(candidate.explanation || "").length}/{EXPLANATION_MAX_LENGTH}</small></label>
