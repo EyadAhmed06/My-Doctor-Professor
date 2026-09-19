@@ -17,6 +17,10 @@ import { join } from 'path';
 export type PdfPageSource = 'TEXT_LAYER' | 'OCR' | 'EMPTY';
 export type PdfExtractionMethod = 'TEXT_LAYER' | 'OCR' | 'HYBRID_OCR';
 
+export type PdfExtractionOptions = {
+  forceOcr?: boolean;
+};
+
 export type UnicodePdfPage = {
   page: number;
   text: string;
@@ -337,7 +341,10 @@ export function calculatePdfExtractionConfidence(
 
 @Injectable()
 export class PdfTextExtractionService {
-  extract(buffer: Buffer): UnicodeParsedPdf {
+  extract(
+    buffer: Buffer,
+    options: PdfExtractionOptions = {},
+  ): UnicodeParsedPdf {
     const workDir = mkdtempSync(join(tmpdir(), 'mdp-pdf-'));
     const pdfPath = join(workDir, 'input.pdf');
     const textPath = join(workDir, 'output.txt');
@@ -392,7 +399,7 @@ export class PdfTextExtractionService {
       );
 
       for (const page of pages) {
-        if (!shouldOcrPage(page.text)) continue;
+        if (!options.forceOcr && !shouldOcrPage(page.text)) continue;
         page.ocrAttempted = true;
 
         const ocrText = this.ocrPage(
@@ -414,7 +421,11 @@ export class PdfTextExtractionService {
 
         if (
           preparedOcr.text.trim().length > 0 &&
-          (page.text.trim().length === 0 || ocrConfidence > currentConfidence)
+          (
+            options.forceOcr ||
+            page.text.trim().length === 0 ||
+            ocrConfidence > currentConfidence
+          )
         ) {
           page.text = preparedOcr.text;
           page.source = 'OCR';
