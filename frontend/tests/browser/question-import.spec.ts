@@ -182,6 +182,46 @@ test('instructor inspects a five-option PDF candidate and publishes an approved 
   expect(body.candidates?.[0]?.options?.filter(option => option.is_correct)).toHaveLength(1);
 });
 
+test('incomplete structural extraction is visible and blocks bulk approval', async ({ page }) => {
+  const source = inspectionBody();
+  source.extraction_method = 'HYBRID_OCR';
+  source.summary = {
+    expected: 3,
+    extracted: 1,
+    missing: 2,
+    structurally_complete: false,
+    valid: 1,
+    needs_review: 0,
+    invalid: 0,
+    duplicates: 0,
+  };
+  Object.assign(source, {
+    extraction_breakdown: { text_layer_pages: 1, ocr_pages: 1, empty_pages: 0 },
+    sections: [{
+      title: 'Cardiac anatomy',
+      questions: 1,
+      expected_questions: 3,
+      missing_question_numbers: [2, 3],
+      unexpected_question_numbers: [],
+      duplicate_question_numbers: [],
+      answer_key_conflicts: [],
+      completeness: 1 / 3,
+    }],
+    issues: [{
+      code: 'SECTION_QUESTIONS_MISSING',
+      severity: 'ERROR',
+      message: 'Cardiac anatomy: answer key expects 3 question(s), but 1 was parsed.',
+    }],
+  });
+
+  await openInspection(page, source);
+
+  await expect(page.getByText('HYBRID OCR')).toBeVisible();
+  await expect(page.getByText('1 / 3')).toBeVisible();
+  await expect(page.getByText(/Missing: 2, 3/)).toBeVisible();
+  await expect(page.getByRole('button', { name: /Approve all ready/i }).first()).toBeDisabled();
+});
+
 test('manual explanation UI enforces 220 characters and blocks more than two sentences', async ({ page }) => {
   await openInspection(page);
 
