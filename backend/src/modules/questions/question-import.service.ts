@@ -128,7 +128,6 @@ type ParsedQuestionDocument = {
 
 const MAX_PDF_BYTES = 50 * 1024 * 1024;
 const MAX_PDF_PAGES = 200;
-const MAX_IMPORT_CANDIDATES = 500;
 const MIN_TEXT_LENGTH = 80;
 const REQUIRED_MCQ_OPTIONS = 5;
 const MAX_PARSED_MCQ_OPTIONS = 6;
@@ -242,9 +241,7 @@ export class QuestionImportService {
         page.confidence ?? pdf.extractionConfidence,
       ]),
     );
-    const candidates = parsed
-      .slice(0, MAX_IMPORT_CANDIDATES)
-      .map((candidate, index) =>
+    const candidates = parsed.map((candidate, index) =>
         this.evaluateCandidate(
           candidate,
           index,
@@ -308,13 +305,6 @@ export class QuestionImportService {
         code: 'OCR_PAGES_UNREADABLE',
         severity: 'ERROR',
         message: `OCR could not recover usable text from page(s): ${unreadablePages.map((page) => page.page).join(', ')}.`,
-      });
-    }
-    if (parsed.length > MAX_IMPORT_CANDIDATES) {
-      issues.push({
-        code: 'IMPORT_LIMIT_REACHED',
-        severity: 'WARNING',
-        message: `Only the first ${MAX_IMPORT_CANDIDATES} extracted questions are shown in one import batch.`,
       });
     }
     if (candidates.length === 0) {
@@ -578,7 +568,7 @@ export class QuestionImportService {
     }
   }
 
-  private extractPdf(buffer: Buffer): ParsedPdf {
+  protected extractPdf(buffer: Buffer): ParsedPdf {
     const binary = buffer.toString('latin1');
     if (/\/Encrypt\b/.test(binary)) {
       throw new BadRequestException('Password-protected or encrypted PDFs are not supported for question import');
@@ -734,7 +724,7 @@ export class QuestionImportService {
     return output;
   }
 
-  private parseQuestions(
+  protected parseQuestions(
     pdf: ParsedPdf,
     documentType: QuestionDocumentType = detectQuestionDocumentType(pdf.text),
   ): ParsedQuestionDocument {
