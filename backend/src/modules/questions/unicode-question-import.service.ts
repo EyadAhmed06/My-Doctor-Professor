@@ -46,6 +46,13 @@ export class UnicodeQuestionImportService extends QuestionImportService {
     return this.pdfTextExtraction.extract(buffer);
   }
 
+  protected override recoverIncompletePdf(
+    buffer: Buffer,
+    _currentPdf: UnicodeParsedPdf,
+  ): UnicodeParsedPdf {
+    return this.pdfTextExtraction.extract(buffer, { forceOcr: true });
+  }
+
   protected override parseQuestions(
     pdf: UnicodeParsedPdf,
     documentType?: QuestionDocumentType,
