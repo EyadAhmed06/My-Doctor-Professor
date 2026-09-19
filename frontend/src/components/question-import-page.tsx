@@ -96,11 +96,37 @@ type Inspection = {
   inspector_contract_version?: number;
   enrichment_contract?: string;
   summary?: {
+    expected?: number | null;
     extracted: number;
+    missing?: number;
+    structurally_complete?: boolean | null;
     valid: number;
     needs_review: number;
     invalid: number;
     duplicates: number;
+  };
+  sections?: Array<{
+    title: string;
+    questions: number;
+    expected_questions?: number | null;
+    missing_question_numbers?: number[];
+    unexpected_question_numbers?: number[];
+    duplicate_question_numbers?: number[];
+    answer_key_conflicts?: Array<{ questionNumber: number; labels: string[] }>;
+    completeness?: number | null;
+  }>;
+  pages?: Array<{
+    page: number;
+    source: "TEXT_LAYER" | "OCR" | "EMPTY";
+    confidence: number;
+    text_length: number;
+    ocr_attempted: boolean;
+    layout_reflowed: boolean;
+  }>;
+  extraction_breakdown?: {
+    text_layer_pages: number;
+    ocr_pages: number;
+    empty_pages: number;
   };
   issues: ImportIssue[];
   candidates: Candidate[];
@@ -528,6 +554,14 @@ export function QuestionImportPage() {
   }
 
   function approveAllReady() {
+    if (inspection?.summary?.structurally_complete === false) {
+      notify({
+        title: "Extraction is incomplete",
+        description: "Resolve the missing/duplicate question or answer-key errors before bulk approval.",
+        tone: "error",
+      });
+      return;
+    }
     setCandidates((current) => current.map((candidate) => ({
       ...candidate,
       approved: isPublishable(candidate),
@@ -550,6 +584,14 @@ export function QuestionImportPage() {
 
   async function publishApproved() {
     if (!inspection) return;
+    if (inspection.summary?.structurally_complete === false) {
+      notify({
+        title: "Cannot publish an incomplete extraction",
+        description: "The section answer keys prove that questions are missing, duplicated, or conflicting. Fix the extraction and inspect again.",
+        tone: "error",
+      });
+      return;
+    }
     const approved = candidates.filter((candidate) => candidate.approved);
     if (!approved.length) {
       notify({ title: "Nothing approved", description: "Approve at least one reviewed question first.", tone: "info" });
@@ -607,6 +649,8 @@ export function QuestionImportPage() {
 
   const topics = useMemo(() => flattenTopics(course), [course]);
   const approvedCount = candidates.filter((candidate) => candidate.approved).length;
+  const structurallyBlocked = inspection?.summary?.structurally_complete === false;
+  const expectedQuestions = inspection?.summary?.expected ?? null;
   const statusCounts = useMemo(() => ({
     ALL: candidates.length,
     VALID: candidates.filter((candidate) => candidate.status === "VALID").length,
@@ -674,12 +718,45 @@ export function QuestionImportPage() {
           <>
             <section className="question-import-summary" aria-label="Import summary">
               <Panel><small>FILE</small><strong>{inspection.original_filename}</strong><span>{inspection.page_count} page(s)</span></Panel>
-              <Panel><small>EXTRACTION</small><strong>{percent(inspection.extraction_confidence)}</strong><span>{inspection.extraction_method.replaceAll("_", " ")}</span></Panel>
-              <Panel><small>QUESTIONS</small><strong>{candidates.length}</strong><span>{statusCounts.VALID} ready · {statusCounts.NEEDS_REVIEW} review · {statusCounts.INVALID} invalid</span></Panel>
+              <Panel><small>EXTRACTION</small><strong>{percent(inspection.extraction_confidence)}</strong><span>{inspection.extraction_method.replaceAll("_", " ")}{inspection.extraction_breakdown?.ocr_pages ? ` · ${inspection.extraction_breakdown.ocr_pages} OCR page(s)` : ""}</span></Panel>
+              <Panel><small>QUESTIONS</small><strong>{expectedQuestions == null ? candidates.length : `${candidates.length} / ${expectedQuestions}`}</strong><span>{inspection.summary?.missing ? `${inspection.summary.missing} missing · ` : ""}{statusCounts.VALID} ready · {statusCounts.NEEDS_REVIEW} review · {statusCounts.INVALID} invalid</span></Panel>
               <Panel><small>AI EXPLANATIONS</small><strong>{aiCounts.generated}</strong><span>{aiCounts.stale} stale · {aiCounts.failed} failed</span></Panel>
             </section>
 
             {inspection.issues.length > 0 && <Panel title="Batch checks" className="question-import-batch-issues">{inspection.issues.map((issue, index) => <div className={`question-import-issue ${issue.severity.toLowerCase()}`} key={`${issue.code}-${index}`}><span>{issue.severity === "ERROR" ? <FiXCircle /> : <FiAlertTriangle />}</span><div><strong>{issue.code.replaceAll("_", " ")}</strong><p>{issue.message}</p></div></div>)}</Panel>}
+
+            {inspection.sections && inspection.sections.length > 0 && (
+              <Panel title="Section completeness">
+                <div style={{ display: "grid", gap: "0.65rem" }}>
+                  {inspection.sections.map((section, index) => {
+                    const missing = section.missing_question_numbers || [];
+                    const unexpected = section.unexpected_question_numbers || [];
+                    const duplicates = section.duplicate_question_numbers || [];
+                    const conflicts = section.answer_key_conflicts || [];
+                    const complete = section.expected_questions != null
+                      && missing.length === 0
+                      && unexpected.length === 0
+                      && duplicates.length === 0
+                      && conflicts.length === 0
+                      && section.questions === section.expected_questions;
+                    return (
+                      <div key={`${section.title}-${index}`} style={{ display: "grid", gridTemplateColumns: "minmax(160px,1fr) auto", gap: "0.4rem 1rem", padding: "0.7rem 0", borderBottom: "1px solid var(--border, #d9e0e8)" }}>
+                        <strong>{section.title || `Section ${index + 1}`}</strong>
+                        <span>{section.questions}{section.expected_questions != null ? ` / ${section.expected_questions}` : ""} {complete ? "✓" : "⚠"}</span>
+                        {!complete && (
+                          <small style={{ gridColumn: "1 / -1", opacity: 0.8 }}>
+                            {missing.length ? `Missing: ${missing.join(", ")}. ` : ""}
+                            {unexpected.length ? `Unexpected: ${unexpected.join(", ")}. ` : ""}
+                            {duplicates.length ? `Duplicates: ${duplicates.join(", ")}. ` : ""}
+                            {conflicts.length ? `Answer conflicts: ${conflicts.map((item) => item.questionNumber).join(", ")}.` : ""}
+                          </small>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </Panel>
+            )}
 
             {candidates.length > 0 && (
               <section className="question-import-review">
@@ -688,7 +765,7 @@ export function QuestionImportPage() {
                   <div className="question-import-bulk-actions">
                     <strong>{approvedCount} / {candidates.length}</strong><span>approved</span>
                     <button type="button" className="pp-button" disabled={enrichingIds.size > 0} onClick={() => void generateExplanations(candidates.filter((candidate) => !["GENERATED", "CACHED"].includes(aiStatus(candidate))), false)}>{enrichingIds.size ? <><FiRefreshCw className="spin" /> Generating…</> : <><FiRefreshCw /> Generate missing explanations</>}</button>
-                    <button type="button" className="pp-button secondary" onClick={approveAllReady}><FiCheckCircle /> Approve all ready</button>
+                    <button type="button" className="pp-button secondary" disabled={structurallyBlocked} onClick={approveAllReady}><FiCheckCircle /> Approve all ready</button>
                   </div>
                 </div>
 
@@ -763,7 +840,7 @@ export function QuestionImportPage() {
 
                 <div className="question-import-publish-bar">
                   <div><strong>{approvedCount} of {candidates.length} approved</strong><span>Server-side publication revalidates A–E, one correct answer, permissions, duplicates, and explanation length.</span></div>
-                  <div className="question-import-publish-actions"><button type="button" className="pp-button secondary" onClick={approveAllReady}><FiCheckCircle /> Approve all ready</button><button type="button" className="pp-button" disabled={publishing || approvedCount === 0 || enrichingIds.size > 0} onClick={() => void publishApproved()}>{publishing ? <><FiRefreshCw className="spin" /> Publishing…</> : <><FiCheck /> Publish approved ({approvedCount})</>}</button></div>
+                  <div className="question-import-publish-actions"><button type="button" className="pp-button secondary" onClick={approveAllReady}><FiCheckCircle /> Approve all ready</button><button type="button" className="pp-button" disabled={publishing || approvedCount === 0 || enrichingIds.size > 0 || structurallyBlocked} onClick={() => void publishApproved()}>{publishing ? <><FiRefreshCw className="spin" /> Publishing…</> : <><FiCheck /> Publish approved ({approvedCount})</>}</button></div>
                 </div>
               </section>
             )}
