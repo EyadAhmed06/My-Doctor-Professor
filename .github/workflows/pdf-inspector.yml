@@ -66,6 +66,8 @@ jobs:
           canonical-mcq-parser.spec.ts
           question-import.service.spec.ts
           unicode-question-import.service.spec.ts
+          essay-question-import.service.spec.ts
+          question-document-type.spec.ts
           openrouter-question-enrichment.service.spec.ts
           question-import-ai-enrichment.service.spec.ts
           question-explanation-lifecycle.service.spec.ts
