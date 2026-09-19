@@ -77,13 +77,13 @@ const LECTURE_HEADING =
   'Lecture\\s+(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|\\d+)(?:\\s*[:-])?[^\\n]*';
 
 const ANSWER_KEY_HEADING =
-  /^\s*(?:answer\s*key|answers?|correct\s+answers?|solutions?)\s*:?(.*)$/i;
+  /^\s*(?:answer\s*keys?|answers?|correct\s+answers?|solutions?|key)\s*:?(.*)$/i;
 
 const QUESTION_START =
-  /^\s*(?:Q(?:uestion)?\s*)?(?:\((\d+)\)|(\d+)\s*[.)\]:-])\s+(.+)$/i;
+  /^\s*(?:Q(?:uestion)?\s*)?(?:\((\d+)\)|(\d+)\s*[.)\]:\-–—])\s+(.+)$/i;
 
 const OPTION_START =
-  /^\s*(?:\(([A-F])\)|([A-F])\s*[.)\]:-])\s+/i;
+  /^\s*(?:\(([A-F])\)|([A-F])\s*[.)\]:\-–—])\s+/i;
 
 /**
  * Parser for sectioned MCQ PDFs.
@@ -393,7 +393,7 @@ function parseSectionQuestions(
     const stem = block
       .slice(0, firstOption)
       .replace(
-        /^\s*(?:Q(?:uestion)?\s*)?(?:\(\d+\)|\d+\s*[.)\]:-])\s*/i,
+        /^\s*(?:Q(?:uestion)?\s*)?(?:\(\d+\)|\d+\s*[.)\]:\-–—])\s*/i,
         '',
       )
       .replace(/\s+/g, ' ')
@@ -592,7 +592,7 @@ function parseAnswerPairs(
 ): Array<{ number: number; label: string; index: number }> {
   const pairs: Array<{ number: number; label: string; index: number }> = [];
   const pattern =
-    /(?:^|[\s|,;])\(?(\d+)\)?\s*(?:[.)\]:=-]|->|→)?\s*([A-F])(?=$|[\s|,;])/gi;
+    /(?:^|[\s|,;])\(?(\d+)\)?\s*(?:[.)\]:=\-–—]|->|→)?\s*\(?([A-F])\)?(?=$|[\s|,;])/gi;
 
   for (const match of value.matchAll(pattern)) {
     pairs.push({
@@ -618,7 +618,7 @@ function isCompactAnswerKeyLine(value: string): boolean {
 
   const remainder = line
     .replace(
-      /(?:^|[\s|,;])\(?\d+\)?\s*(?:[.)\]:=-]|->|→)?\s*[A-F](?=$|[\s|,;])/gi,
+      /(?:^|[\s|,;])\(?\d+\)?\s*(?:[.)\]:=\-–—]|->|→)?\s*\(?[A-F]\)?(?=$|[\s|,;])/gi,
       ' ',
     )
     .replace(/[|,;]+/g, ' ')
