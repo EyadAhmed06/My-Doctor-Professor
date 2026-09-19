@@ -212,7 +212,7 @@ test('incomplete structural extraction is visible and blocks bulk approval', asy
   await openInspection(page, source);
 
   await expect(page.getByText('HYBRID OCR')).toBeVisible();
-  await expect(page.getByText('1 / 3')).toBeVisible();
+  await expect(page.getByText('1 / 3').first()).toBeVisible();
   await expect(page.getByText(/Missing: 2, 3/)).toBeVisible();
   await expect(page.getByRole('button', { name: /Approve all ready/i }).first()).toBeDisabled();
 });
