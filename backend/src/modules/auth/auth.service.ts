@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -8,10 +9,12 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { createHash, randomBytes, randomUUID } from 'crypto';
-import { DataSource, IsNull } from 'typeorm';
+import { createHash, createHmac, randomBytes, randomInt, randomUUID } from 'crypto';
+import { DataSource, IsNull, QueryFailedError } from 'typeorm';
 import { AuthSession } from '../users/entities/auth-session.entity';
-import { User, UserStatus } from '../users/entities/user.entity';
+import { Student } from '../users/entities/student.entity';
+import { User, UserRole, UserStatus } from '../users/entities/user.entity';
+import { generateStudentNumber } from '../users/student-number';
 import { UsersService } from '../users/users.service';
 import { AuthRateLimitService } from './auth-rate-limit.service';
 import { AuthResponseDto } from './dtos/auth-response.dto';
@@ -55,7 +58,10 @@ export class AuthService {
     }
     this.accessLifetimeSeconds = this.readPositiveInteger('JWT_ACCESS_TTL_SECONDS', 900);
     this.refreshLifetimeSeconds = this.readPositiveInteger('JWT_REFRESH_TTL_SECONDS', 604800);
-    this.verificationLifetimeSeconds = this.readPositiveInteger('EMAIL_VERIFICATION_TTL_SECONDS', 86400);
+    this.verificationLifetimeSeconds = Math.min(
+      this.readPositiveInteger('EMAIL_VERIFICATION_TTL_SECONDS', 600),
+      10 * 60,
+    );
     this.resetLifetimeSeconds = this.readPositiveInteger('PASSWORD_RESET_TTL_SECONDS', 1800);
   }
 
@@ -65,7 +71,7 @@ export class AuthService {
       email: dto.email,
       password: dto.password,
       phoneNumber: dto.phone_number,
-      studentNumber: dto.student_number,
+      studentNumber: generateStudentNumber(),
       currentSemester: dto.current_semester,
       dateOfBirth: dto.date_of_birth ? new Date(dto.date_of_birth) : undefined,
       gender: dto.gender,
@@ -75,7 +81,7 @@ export class AuthService {
       AccountActionTokenPurpose.EMAIL_VERIFICATION,
       this.verificationLifetimeSeconds,
     );
-    return { message: 'Account created. Check your email to verify your account.' };
+    return { message: 'Account created. Check your email for the 6-digit verification code.' };
   }
 
   async requestEmailVerification(email: string, ip: string): Promise<MessageResponse> {
@@ -90,7 +96,7 @@ export class AuthService {
       );
     }
     await this.ensureMinimumResponseTime(startedAt);
-    return { message: 'If the account is eligible, a verification email has been sent.' };
+    return { message: 'If the account is eligible, a new verification code has been sent.' };
   }
 
   async confirmEmailVerification(rawToken: string, ip: string): Promise<MessageResponse> {
@@ -119,6 +125,56 @@ export class AuthService {
       user.status = UserStatus.ACTIVE;
       token.consumedAt = new Date();
       await manager.save(User, user);
+      await manager.save(AccountActionToken, token);
+    });
+    return { message: 'Email verified successfully. You can now sign in.' };
+  }
+
+  async confirmEmailVerificationCode(
+    email: string,
+    code: string,
+    ip: string,
+  ): Promise<MessageResponse> {
+    const normalizedEmail = email.trim().toLowerCase();
+    await this.rateLimits.enforceEmailVerificationCode(ip, normalizedEmail);
+
+    const user = await this.usersService.findByEmail(normalizedEmail);
+    if (
+      !user ||
+      user.emailVerified ||
+      user.status !== UserStatus.PENDING_VERIFICATION
+    ) {
+      throw new BadRequestException('Invalid or expired verification code');
+    }
+
+    const digest = this.digestEmailVerificationCode(user.id, code);
+    await this.dataSource.transaction(async (manager) => {
+      const token = await manager.findOne(AccountActionToken, {
+        where: {
+          userId: user.id,
+          tokenDigest: digest,
+          purpose: AccountActionTokenPurpose.EMAIL_VERIFICATION,
+        },
+        lock: { mode: 'pessimistic_write' },
+      });
+      this.assertUsableActionToken(token, 'Invalid or expired verification code');
+
+      const lockedUser = await manager.findOne(User, {
+        where: { id: token.userId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (
+        !lockedUser ||
+        lockedUser.emailVerified ||
+        lockedUser.status !== UserStatus.PENDING_VERIFICATION
+      ) {
+        throw new BadRequestException('Invalid or expired verification code');
+      }
+
+      lockedUser.emailVerified = true;
+      lockedUser.status = UserStatus.ACTIVE;
+      token.consumedAt = new Date();
+      await manager.save(User, lockedUser);
       await manager.save(AccountActionToken, token);
     });
     return { message: 'Email verified successfully. You can now sign in.' };
@@ -203,17 +259,22 @@ export class AuthService {
     return { message: 'Password reset successfully. Sign in with your new password.' };
   }
 
-  async login(dto: LoginDto, ip: string): Promise<AuthResponseDto> {
+  async login(dto: LoginDto, ip: string, userAgent?: string | null): Promise<AuthResponseDto> {
     const startedAt = Date.now();
     await this.rateLimits.enforceLogin(ip, dto.email);
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) {
-      // Perform equivalent password work so unknown accounts are not a cheap timing oracle.
       await bcrypt.hash(dto.password, 10);
       await this.ensureMinimumResponseTime(startedAt);
       throw new UnauthorizedException('Invalid email or password');
     }
-    this.assertAccountEnabled(user);
+
+    const passwordValid = await this.usersService.validatePassword(dto.password, user.passwordHash);
+    if (!passwordValid) {
+      await this.usersService.recordFailedLogin(user.id);
+      await this.ensureMinimumResponseTime(startedAt);
+      throw new UnauthorizedException('Invalid email or password');
+    }
 
     if (await this.usersService.isAccountLocked(user.id)) {
       throw new HttpException(
@@ -221,18 +282,14 @@ export class AuthService {
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
-    if (!(await this.usersService.validatePassword(dto.password, user.passwordHash))) {
-      await this.usersService.recordFailedLogin(user.id);
-      await this.ensureMinimumResponseTime(startedAt);
-      throw new UnauthorizedException('Invalid email or password');
-    }
+    this.assertAccountEnabled(user);
 
     if (this.usersService.passwordHashNeedsUpgrade(user.passwordHash)) {
       await this.usersService.upgradePasswordHash(user.id, dto.password);
     }
     await this.usersService.resetFailedLoginAttempts(user.id);
     await this.usersService.updateLastLogin(user.id);
-    return this.createSession(user);
+    return this.createSession(user, ip, userAgent);
   }
 
   async refreshAccessToken(refreshToken: string): Promise<AuthResponseDto> {
@@ -266,7 +323,10 @@ export class AuthService {
     purpose: AccountActionTokenPurpose,
     lifetimeSeconds: number,
   ): Promise<void> {
-    const rawToken = randomBytes(32).toString('base64url');
+    const rawToken = purpose === AccountActionTokenPurpose.EMAIL_VERIFICATION
+      ? randomInt(0, 1_000_000).toString().padStart(6, '0')
+      : randomBytes(32).toString('base64url');
+
     await this.dataSource.transaction(async (manager) => {
       const lockedUser = await manager.findOne(User, {
         where: { id: user.id },
@@ -279,12 +339,17 @@ export class AuthService {
         { userId: lockedUser.id, purpose, consumedAt: IsNull() },
         { consumedAt: new Date() },
       );
+
+      const tokenDigest = purpose === AccountActionTokenPurpose.EMAIL_VERIFICATION
+        ? this.digestEmailVerificationCode(lockedUser.id, rawToken)
+        : this.digestToken(rawToken);
+
       await manager.save(
         AccountActionToken,
         manager.create(AccountActionToken, {
           userId: lockedUser.id,
           purpose,
-          tokenDigest: this.digestToken(rawToken),
+          tokenDigest,
           expiresAt: new Date(Date.now() + lifetimeSeconds * 1000),
           consumedAt: null,
         }),
@@ -296,6 +361,7 @@ export class AuthService {
           lockedUser.email,
           lockedUser.fullName,
           rawToken,
+          lifetimeSeconds,
         );
       } else {
         await this.emailService.queuePasswordReset(
@@ -310,25 +376,86 @@ export class AuthService {
 
   private assertUsableActionToken(
     token: AccountActionToken | null,
+    message = 'Invalid or expired token',
   ): asserts token is AccountActionToken {
     if (!token || token.consumedAt || token.expiresAt <= new Date()) {
-      throw new BadRequestException('Invalid or expired token');
+      throw new BadRequestException(message);
     }
+  }
+
+  private digestEmailVerificationCode(userId: string, code: string): string {
+    return createHmac('sha256', this.accessSecret)
+      .update(`email-verification:${userId}:${code}`)
+      .digest('hex');
   }
 
   private digestToken(token: string): string {
     return createHash('sha256').update(token, 'utf8').digest('hex');
   }
 
-  private async createSession(user: User): Promise<AuthResponseDto> {
+  private isSingleSessionEnforced(role: UserRole, email?: string): boolean {
+    if (email?.toLowerCase() === 'student@mydoctorprofessor.com') {
+      return false;
+    }
+    const enforcedRoles = (this.config.get<string>('AUTH_SINGLE_SESSION_ROLES') ?? 'STUDENT')
+      .split(',')
+      .map((r) => r.trim().toUpperCase())
+      .filter(Boolean);
+    const exemptRoles = (this.config.get<string>('AUTH_SINGLE_SESSION_EXEMPT_ROLES') ?? 'INSTRUCTOR,SYSTEM_ADMIN')
+      .split(',')
+      .map((r) => r.trim().toUpperCase())
+      .filter(Boolean);
+
+    if (exemptRoles.includes(role)) return false;
+    return enforcedRoles.includes(role);
+  }
+
+  private async createSession(
+    user: User,
+    ip?: string | null,
+    userAgent?: string | null,
+  ): Promise<AuthResponseDto> {
+    await this.usersService.revokeExpiredSessions(user.id);
+
+    if (this.isSingleSessionEnforced(user.role, user.email)) {
+      if (await this.usersService.hasActiveSession(user.id)) {
+        throw new ConflictException({
+          statusCode: HttpStatus.CONFLICT,
+          error: 'ACTIVE_SESSION_EXISTS',
+          message:
+            'An active session already exists for this account. Sign out from your other device or ask an administrator to release your session.',
+        });
+      }
+    } else {
+      await this.usersService.revokeAllSessions(user.id);
+    }
+
     const sessionId = randomUUID();
     const response = await this.signTokenPair(user, sessionId);
-    await this.usersService.saveSession(
-      sessionId,
-      user.id,
-      this.digestToken(response.refresh_token),
-      new Date(Date.now() + this.refreshLifetimeSeconds * 1000),
-    );
+    try {
+      await this.usersService.saveSession(
+        sessionId,
+        user.id,
+        this.digestToken(response.refresh_token),
+        new Date(Date.now() + this.refreshLifetimeSeconds * 1000),
+        ip,
+        userAgent,
+      );
+    } catch (error) {
+      if (error instanceof ConflictException) throw error;
+      if (
+        error instanceof QueryFailedError &&
+        (error as QueryFailedError & { driverError?: { code?: string } }).driverError?.code === '23505'
+      ) {
+        throw new ConflictException({
+          statusCode: HttpStatus.CONFLICT,
+          error: 'ACTIVE_SESSION_EXISTS',
+          message:
+            'An active session already exists for this account. Sign out from your other device or ask an administrator to release your session.',
+        });
+      }
+      throw error;
+    }
     return response;
   }
 
@@ -360,6 +487,18 @@ export class AuthService {
         { secret: this.refreshSecret, expiresIn: this.refreshLifetimeSeconds },
       ),
     ]);
+    let studentInfo: { studentNumber?: string; currentSemester?: number; current_semester?: number } = {};
+    if (user.role === UserRole.STUDENT) {
+      const studentRepo = this.dataSource?.getRepository ? this.dataSource.getRepository(Student) : null;
+      const student = studentRepo ? await studentRepo.findOne({ where: { userId: user.id } }).catch(() => null) : null;
+      if (student) {
+        studentInfo = {
+          studentNumber: student.studentNumber,
+          currentSemester: student.currentSemester,
+          current_semester: student.currentSemester,
+        };
+      }
+    }
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
@@ -369,6 +508,8 @@ export class AuthService {
         full_name: user.fullName,
         role: user.role,
         status: user.status,
+        forensic_code: user.forensicCode,
+        ...studentInfo,
       },
     };
   }

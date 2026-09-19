@@ -1,11 +1,17 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { ArrayUnique, IsArray, IsBoolean, IsEmpty, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { FlashcardDeckBundleAccessMode } from '../../../common/entities/flashcard-deck.entity';
 import { QuestionDifficulty } from '../../../common/entities/question.entity';
 
+export enum FlashcardDeckAcademicScope { COURSE='COURSE', WEEK='WEEK', LECTURE='LECTURE' }
+
 export class CreateDeckDto {
- @IsOptional() @IsUUID() course_id?:string;
- @IsOptional() @IsUUID() topic_id?:string;
+ @IsEnum(FlashcardDeckAcademicScope) scope_type:FlashcardDeckAcademicScope;
+ @IsUUID() course_id:string;
+ @IsOptional() @IsUUID() week_id?:string;
  @IsOptional() @IsUUID() lecture_id?:string;
+ /** Legacy field kept only so older service code compiles. New requests may not use topic scope. */
+ @IsOptional() @IsEmpty({message:'Topic is not a deck scope; use the parent lecture'}) topic_id?:string;
  @IsString() @IsNotEmpty() @MaxLength(200) title:string;
  @IsOptional() @IsString() @MaxLength(10000) description?:string;
  @IsOptional() @IsInt() @Min(1) display_order?:number;
@@ -15,17 +21,30 @@ export class UpdateDeckDto {
  @IsOptional() @IsString() @MaxLength(10000) description?:string;
  @IsOptional() @IsBoolean() is_published?:boolean;
  @IsOptional() @IsInt() @Min(1) display_order?:number;
+ @IsOptional() @IsEnum(FlashcardDeckAcademicScope) scope_type?:FlashcardDeckAcademicScope;
+ @IsOptional() @IsUUID() course_id?:string|null;
+ @IsOptional() @IsUUID() week_id?:string|null;
+ @IsOptional() @IsUUID() lecture_id?:string|null;
+ /** Legacy field kept only so older service code compiles; clients use null only to clear migrated data. */
+ @IsOptional() @IsEmpty({message:'Topic is not a deck scope; use the parent lecture'}) topic_id?:string|null;
+}
+export class UpdateDeckDistributionDto {
+ @IsEnum(FlashcardDeckBundleAccessMode) bundle_access_mode:FlashcardDeckBundleAccessMode;
+ @IsOptional() @IsArray() @ArrayUnique() @IsUUID('4',{each:true}) bundle_ids?:string[];
 }
 export class DeckQueryDto {
  @IsOptional() @Transform(({value})=>Number(value)) @IsInt() @Min(1) page?:number;
  @IsOptional() @Transform(({value})=>Number(value)) @IsInt() @Min(1) @Max(100) limit?:number;
  @IsOptional() @IsUUID() course_id?:string;
+ @IsOptional() @IsUUID() week_id?:string;
  @IsOptional() @IsUUID() lecture_id?:string;
+ /** Legacy read filter retained for source compatibility; no new deck can use topic scope. */
  @IsOptional() @IsUUID() topic_id?:string;
  @IsOptional() @Transform(({value})=>value==='true'?true:value==='false'?false:value) @IsBoolean() is_published?:boolean;
  @IsOptional() @IsString() @MaxLength(200) search?:string;
 }
 export class CardQueryDto {
+ @IsOptional() @IsUUID() course_id?:string;
  @IsOptional() @Transform(({value})=>Number(value)) @IsInt() @Min(1) page?:number;
  @IsOptional() @Transform(({value})=>Number(value)) @IsInt() @Min(1) @Max(100) limit?:number;
  @IsOptional() @IsEnum(QuestionDifficulty) difficulty?:QuestionDifficulty;

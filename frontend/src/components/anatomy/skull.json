@@ -1,0 +1,264 @@
+{
+  "region": "skull",
+  "label": "Skull",
+  "generated": "by scripts/anatomy/prepare-model.mjs - do not edit by hand",
+  "nonCommercialTexturesRemoved": [],
+  "systems": [
+    {
+      "key": "bone",
+      "label": "Bones"
+    }
+  ],
+  "structures": [
+    {
+      "id": "Ethmoid Bone",
+      "name": "Ethmoid Bone",
+      "system": "bone"
+    },
+    {
+      "id": "Frontal bone",
+      "name": "Frontal bone",
+      "system": "bone"
+    },
+    {
+      "id": "Mandible bone",
+      "name": "Mandible bone",
+      "system": "bone"
+    },
+    {
+      "id": "Occipital bone",
+      "name": "Occipital bone",
+      "system": "bone"
+    },
+    {
+      "id": "Parietal bone.l",
+      "name": "Parietal bone (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Parietal bone.r",
+      "name": "Parietal bone (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Sphenoid bone",
+      "name": "Sphenoid bone",
+      "system": "bone"
+    },
+    {
+      "id": "Vomer",
+      "name": "Vomer",
+      "system": "bone"
+    },
+    {
+      "id": "Inferior nasal concha bone.r",
+      "name": "Inferior nasal concha bone (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Lacrimal bone.r",
+      "name": "Lacrimal bone (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Lower canine.r",
+      "name": "Lower canine (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Lower first molar tooth.r",
+      "name": "Lower first molar tooth (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Lower first premolar.r",
+      "name": "Lower first premolar (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Lower lateral incisor.r",
+      "name": "Lower lateral incisor (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Lower medial incisor.r",
+      "name": "Lower medial incisor (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Lower second molar tooth.r",
+      "name": "Lower second molar tooth (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Lower second premolar.r",
+      "name": "Lower second premolar (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Maxilla bone.r",
+      "name": "Maxilla bone (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Nasal bone.r",
+      "name": "Nasal bone (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Palatine bone.r",
+      "name": "Palatine bone (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Temporal bone.r",
+      "name": "Temporal bone (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Upper canine.r",
+      "name": "Upper canine (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Upper first molar tooth.r",
+      "name": "Upper first molar tooth (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Upper first premolar.r",
+      "name": "Upper first premolar (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Upper lateral incisor.r",
+      "name": "Upper lateral incisor (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Upper medial incisor.r",
+      "name": "Upper medial incisor (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Upper second molar tooth.r",
+      "name": "Upper second molar tooth (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Upper second premolar.r",
+      "name": "Upper second premolar (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Zygomatic bone.r",
+      "name": "Zygomatic bone (right)",
+      "system": "bone"
+    },
+    {
+      "id": "Inferior nasal concha bone.l",
+      "name": "Inferior nasal concha bone (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Lacrimal bone.l",
+      "name": "Lacrimal bone (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Lower canine.l",
+      "name": "Lower canine (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Lower first molar tooth.l",
+      "name": "Lower first molar tooth (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Lower first premolar.l",
+      "name": "Lower first premolar (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Lower lateral incisor.l",
+      "name": "Lower lateral incisor (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Lower medial incisor.l",
+      "name": "Lower medial incisor (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Lower second molar tooth.l",
+      "name": "Lower second molar tooth (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Lower second premolar.l",
+      "name": "Lower second premolar (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Maxilla bone.l",
+      "name": "Maxilla bone (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Nasal bone.l",
+      "name": "Nasal bone (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Palatine bone.l",
+      "name": "Palatine bone (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Temporal bone.l",
+      "name": "Temporal bone (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Upper canine.l",
+      "name": "Upper canine (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Upper first molar tooth.l",
+      "name": "Upper first molar tooth (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Upper first premolar.l",
+      "name": "Upper first premolar (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Upper lateral incisor.l",
+      "name": "Upper lateral incisor (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Upper medial incisor.l",
+      "name": "Upper medial incisor (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Upper second molar tooth.l",
+      "name": "Upper second molar tooth (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Upper second premolar.l",
+      "name": "Upper second premolar (left)",
+      "system": "bone"
+    },
+    {
+      "id": "Zygomatic bone.l",
+      "name": "Zygomatic bone (left)",
+      "system": "bone"
+    }
+  ]
+}

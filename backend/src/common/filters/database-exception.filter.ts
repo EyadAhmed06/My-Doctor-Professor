@@ -10,6 +10,11 @@ import { QueryFailedError } from 'typeorm';
 
 interface PostgreSqlDriverError {
   code?: string;
+  message?: string;
+  detail?: string;
+  table?: string;
+  column?: string;
+  constraint?: string;
 }
 
 @Catch(QueryFailedError)
@@ -18,16 +23,28 @@ export class DatabaseExceptionFilter implements ExceptionFilter {
 
   catch(exception: QueryFailedError, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>();
-    const code = (exception as QueryFailedError & {
-      driverError?: PostgreSqlDriverError;
-    }).driverError?.code;
+    const typed = exception as QueryFailedError & { driverError?: PostgreSqlDriverError; query?: string; parameters?: unknown[] };
+    const driver = typed.driverError;
+    const code = driver?.code;
 
     const mapped = this.map(code);
     if (!mapped) {
-      this.logger.error('Unexpected database operation failure');
+      this.logger.error(
+        `Unexpected database operation failure: ${JSON.stringify({
+          code,
+          message: driver?.message,
+          detail: driver?.detail,
+          table: driver?.table,
+          column: driver?.column,
+          constraint: driver?.constraint,
+          query: typed.query,
+        })}`,
+      );
       response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'An unexpected database error occurred',
+        message: process.env.NODE_ENV === 'production'
+          ? 'An unexpected database error occurred'
+          : driver?.message || 'An unexpected database error occurred',
       });
       return;
     }

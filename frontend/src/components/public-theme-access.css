@@ -1,0 +1,81 @@
+.public-theme-access{
+  position:fixed;
+  z-index:120;
+  top:8px;
+  right:10px;
+  width:44px;
+  height:44px;
+  display:grid;
+  place-items:center;
+  padding:3px;
+  border:1px solid var(--app-border,var(--line));
+  border-radius:12px;
+  background:color-mix(in srgb,var(--app-surface,var(--panel)) 94%,transparent);
+  box-shadow:0 7px 18px rgba(35,55,92,.10);
+  backdrop-filter:blur(14px);
+  color:var(--app-text,var(--text,#f7f7fb));
+}
+body:has(.product-app) .public-theme-access,
+body:has(.public-home) .public-theme-access{display:none}
+.public-theme-access>span{display:none}
+.public-theme-access .global-theme-toggle,
+.public-theme-access .global-theme-toggle.compact,
+.public-theme-access .global-theme-toggle.icon-only{
+  width:36px;
+  min-width:36px;
+  height:36px;
+  min-height:36px;
+  margin:0;
+  padding:0;
+  gap:0;
+  display:grid;
+  place-items:center;
+  border:0;
+  border-radius:9px;
+  background:transparent;
+  color:currentColor;
+  transform:none;
+}
+.public-theme-access .global-theme-toggle svg{
+  display:block;
+  flex:none;
+  width:19px;
+  height:19px;
+  color:currentColor;
+  stroke:currentColor;
+  opacity:1;
+}
+.public-theme-access .global-theme-toggle>span{display:none}
+
+.public-home .public-actions>.global-theme-toggle.icon-only{
+  flex:0 0 42px;
+  width:42px;
+  min-width:42px;
+  height:42px;
+  min-height:42px;
+  padding:0;
+  display:grid;
+  place-items:center;
+  border:1px solid color-mix(in srgb,var(--pub-teal) 55%,var(--pub-line));
+  border-radius:11px;
+  background:color-mix(in srgb,var(--pub-panel) 88%,transparent);
+  color:var(--pub-text);
+  box-shadow:0 8px 24px rgba(0,0,0,.10);
+}
+.public-home .public-actions>.global-theme-toggle.icon-only svg{
+  display:block;
+  width:20px;
+  height:20px;
+  color:currentColor;
+  stroke:currentColor;
+  opacity:1;
+}
+
+.public-session-copy{font-size:11px;color:var(--muted);white-space:nowrap}
+.public-actions .public-session-copy{max-width:170px;overflow:hidden;text-overflow:ellipsis}
+.public-actions:has(.public-session-copy) .public-button{white-space:nowrap}
+
+@media(max-width:700px){
+  .public-theme-access{top:8px;right:8px}
+  .public-session-copy{display:none}
+}

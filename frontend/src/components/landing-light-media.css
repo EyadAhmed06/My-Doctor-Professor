@@ -1,0 +1,243 @@
+@import "./thyroid-real-generated.css";
+
+/* Homepage medical-image integration.
+   Brain/circulatory/hero processing remains light-mode-only.
+   The realistic watermark-free thyroid artwork is shared across both themes. */
+
+/* Keep homepage media frameless in light mode. */
+html[data-theme="light"] .hero-duo,
+html[data-theme="light"] .thyroid-visual,
+html[data-theme="light"] .organ-image-grid figure,
+html[data-theme="light"] .circulation-feature figure {
+  position: relative;
+  isolation: auto !important;
+  overflow: visible !important;
+  background: transparent !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="light"] .thyroid-visual img,
+html[data-theme="light"] .organ-image-grid img,
+html[data-theme="light"] .circulation-feature figure img {
+  display: block !important;
+  position: relative;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  transition: filter .25s ease, opacity .25s ease, transform .25s ease;
+}
+
+/* Doctor + Professor hero.
+ * Light mode uses the dedicated high-detail light artwork; dark mode keeps the original.
+ */
+.hero-duo-light {
+  display: none;
+}
+
+.hero-duo-dark {
+  display: block;
+}
+
+html[data-theme="light"] .hero-duo-dark {
+  display: none !important;
+}
+
+html[data-theme="light"] .hero-duo-light {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  aspect-ratio: auto !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  transform: none !important;
+  filter: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+html[data-theme="dark"] .hero-duo-light {
+  display: none !important;
+}
+
+html[data-theme="dark"] .hero-duo-dark {
+  display: block !important;
+}
+
+/* Disable the inherited decorative hero overlays in light mode only. */
+html[data-theme="light"] .hero-duo::before,
+html[data-theme="light"] .hero-duo::after {
+  content: none !important;
+  display: none !important;
+}
+
+/*
+ * IMPORTANT: use the complete original medical source images in light mode.
+ * The earlier processed replacements plus object-fit:cover were responsible
+ * for the visibly clipped/eaten anatomy. The light treatment below changes
+ * color presentation only; it never replaces, masks or crops source pixels.
+ */
+
+/*
+ * The thyroid rules below are retained as a fallback only. The imported
+ * thyroid-real-generated.css has higher selector specificity and renders the
+ * already-generated realistic watermark-free image in both themes.
+ */
+html[data-theme="light"] .thyroid-visual img {
+  content: url('/media/thyroid-home-light.svg') !important;
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  aspect-ratio: auto !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  mix-blend-mode: normal !important;
+  filter: drop-shadow(0 12px 28px rgba(86, 101, 190, .12)) !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+html[data-theme="dark"] .thyroid-visual img {
+  content: url('/media/thyroid-home-dark.svg') !important;
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  aspect-ratio: auto !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  mix-blend-mode: normal !important;
+  filter: drop-shadow(0 0 30px rgba(72, 210, 199, .18)) !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+html[data-theme="light"] .thyroid-visual::before,
+html[data-theme="light"] .thyroid-visual::after,
+html[data-theme="dark"] .thyroid-visual::before,
+html[data-theme="dark"] .thyroid-visual::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* Brain — keep the complete cerebrum, cerebellum and brainstem visible. */
+html[data-theme="light"] .organ-image-grid figure:nth-child(1) img {
+  content: normal !important;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  aspect-ratio: auto !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  mix-blend-mode: multiply !important;
+  filter:
+    invert(1)
+    hue-rotate(180deg)
+    saturate(1.32)
+    contrast(1.10)
+    brightness(1.07) !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+html[data-theme="light"] .organ-image-grid figure:nth-child(1)::before,
+html[data-theme="light"] .organ-image-grid figure:nth-child(1)::after {
+  content: none !important;
+  display: none !important;
+}
+
+html[data-theme="light"] .organ-image-grid figure:nth-child(1) figcaption {
+  position: relative;
+  z-index: 2;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Heart remains the existing light-mode palette anchor. */
+html[data-theme="light"] .organ-image-grid figure:nth-child(2) {
+  background: transparent !important;
+}
+
+html[data-theme="light"] .organ-image-grid figure:nth-child(2) img {
+  opacity: .98;
+  visibility: visible;
+  mix-blend-mode: multiply !important;
+  filter:
+    saturate(1.02)
+    brightness(1.025)
+    contrast(1.035);
+  -webkit-mask-image: radial-gradient(ellipse 94% 90% at 50% 49%, #000 0 72%, rgba(0,0,0,.98) 84%, rgba(0,0,0,.76) 93%, transparent 100%);
+  mask-image: radial-gradient(ellipse 94% 90% at 50% 49%, #000 0 72%, rgba(0,0,0,.98) 84%, rgba(0,0,0,.76) 93%, transparent 100%);
+}
+
+/* Circulatory system — render the complete original anatomy with no replacement. */
+html[data-theme="light"] .circulation-feature figure img {
+  content: normal !important;
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  max-height: none !important;
+  aspect-ratio: auto !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  mix-blend-mode: multiply !important;
+  filter:
+    invert(1)
+    hue-rotate(180deg)
+    saturate(1.35)
+    contrast(1.16)
+    brightness(1.10) !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+html[data-theme="light"] .circulation-feature figure::before,
+html[data-theme="light"] .circulation-feature figure::after {
+  content: none !important;
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="light"] .hero-duo-dark,
+  html[data-theme="light"] .thyroid-visual img,
+  html[data-theme="light"] .organ-image-grid img,
+  html[data-theme="light"] .circulation-feature figure img {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+/* Deterministic theme source for the original watermark-free brain artwork. */
+html[data-theme="dark"] .organ-image-grid figure:nth-child(1) img.home-brain-art{
+  content:url('/media/home-brain-original-dark.webp?v=20260822-dark') !important;
+  display:block !important;
+  filter:none !important;
+}
+html[data-theme="light"] .organ-image-grid figure:nth-child(1) img.home-brain-art{
+  content:url('/media/home-brain-original-light.webp?v=20260822-light-3') !important;
+  display:block !important;
+  width:100% !important;
+  height:auto !important;
+  aspect-ratio:1 !important;
+  object-fit:cover !important;
+  object-position:center !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  mix-blend-mode:normal !important;
+  filter:none !important;
+  -webkit-mask-image:none !important;
+  mask-image:none !important;
+}

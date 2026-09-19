@@ -24,7 +24,8 @@ INSERT INTO users
     phone_number,
     role,
     status,
-    email_verified
+    email_verified,
+    forensic_code
 )
 VALUES
 (
@@ -34,7 +35,8 @@ VALUES
     '+201000000001',
     'SYSTEM_ADMIN',
     'ACTIVE',
-    TRUE
+    TRUE,
+    '7KM2XP'
 );
 
 INSERT INTO system_admins
@@ -63,7 +65,8 @@ INSERT INTO users
     gender,
     role,
     status,
-    email_verified
+    email_verified,
+    forensic_code
 )
 VALUES
 (
@@ -74,7 +77,8 @@ VALUES
     'MALE',
     'INSTRUCTOR',
     'ACTIVE',
-    TRUE
+    TRUE,
+    '9E4WNZ'
 ),
 (
     'Dr. Sarah Mohamed',
@@ -84,7 +88,8 @@ VALUES
     'FEMALE',
     'INSTRUCTOR',
     'ACTIVE',
-    TRUE
+    TRUE,
+    'F4X72R'
 ),
 (
     'Dr. Omar Ali',
@@ -94,7 +99,8 @@ VALUES
     'MALE',
     'INSTRUCTOR',
     'ACTIVE',
-    TRUE
+    TRUE,
+    '8TY3KM'
 );
 
 INSERT INTO instructors
@@ -125,19 +131,20 @@ INSERT INTO users
     gender,
     role,
     status,
-    email_verified
+    email_verified,
+    forensic_code
 )
 VALUES
-('Student One','student1@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000101','MALE','STUDENT','ACTIVE',TRUE),
-('Student Two','student2@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000102','FEMALE','STUDENT','ACTIVE',TRUE),
-('Student Three','student3@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000103','MALE','STUDENT','ACTIVE',TRUE),
-('Student Four','student4@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000104','FEMALE','STUDENT','ACTIVE',TRUE),
-('Student Five','student5@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000105','MALE','STUDENT','ACTIVE',TRUE),
-('Student Six','student6@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000106','FEMALE','STUDENT','ACTIVE',TRUE),
-('Student Seven','student7@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000107','MALE','STUDENT','ACTIVE',TRUE),
-('Student Eight','student8@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000108','FEMALE','STUDENT','ACTIVE',TRUE),
-('Student Nine','student9@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000109','MALE','STUDENT','ACTIVE',TRUE),
-('Student Ten','student10@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000110','FEMALE','STUDENT','ACTIVE',TRUE);
+('Student One','student1@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000101','MALE','STUDENT','ACTIVE',TRUE,'C76R9P'),
+('Student Two','student2@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000102','FEMALE','STUDENT','ACTIVE',TRUE,'K8J3TQ'),
+('Student Three','student3@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000103','MALE','STUDENT','ACTIVE',TRUE,'3R8MNV'),
+('Student Four','student4@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000104','FEMALE','STUDENT','ACTIVE',TRUE,'5W6ZYK'),
+('Student Five','student5@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000105','MALE','STUDENT','ACTIVE',TRUE,'9X2THB'),
+('Student Six','student6@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000106','FEMALE','STUDENT','ACTIVE',TRUE,'6D4PQS'),
+('Student Seven','student7@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000107','MALE','STUDENT','ACTIVE',TRUE,'2B7ZVF'),
+('Student Eight','student8@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000108','FEMALE','STUDENT','ACTIVE',TRUE,'4H9NKW'),
+('Student Nine','student9@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000109','MALE','STUDENT','ACTIVE',TRUE,'8M3YCP'),
+('Student Ten','student10@example.com','$2b$12$REPLACE_WITH_BCRYPT_HASH','+201000000110','FEMALE','STUDENT','ACTIVE',TRUE,'7V5JSE');
 
 INSERT INTO students
 (

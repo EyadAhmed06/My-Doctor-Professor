@@ -1,0 +1,137 @@
+/* Targeted alignment fixes for the landing, registration, and student workspace. */
+html[data-theme='dark'] .reference-register .registration-story .brand-words strong,
+html.dark .reference-register .registration-story .brand-words strong {
+  color: #fff !important;
+}
+
+.pp-profile > .global-theme-toggle.icon-only {
+  flex: 0 0 38px;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+}
+
+.pp-profile > .global-theme-toggle.icon-only svg {
+  width: 18px;
+  height: 18px;
+}
+
+.pp-profile .phase5-header-action {
+  position: relative;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.pp-profile > .header-popover-anchor {
+  flex: 0 0 38px;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pp-profile > .header-popover-anchor > .phase5-header-action {
+  flex: 0 0 38px !important;
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  margin: 0 !important;
+  font-size: 18px !important;
+}
+
+.pp-profile .phase5-header-action i {
+  top: -4px !important;
+  right: -4px !important;
+  min-width: 17px !important;
+  height: 17px !important;
+  padding: 0 4px !important;
+  border-radius: 999px !important;
+  background: #3b82f6 !important;
+  color: #fff !important;
+  font: 800 9px/17px Arial, sans-serif !important;
+  text-align: center !important;
+  box-shadow: 0 0 0 2px var(--p-bg) !important;
+}
+
+@media (min-width: 1181px) {
+  .product-app .pp-topbar {
+    display: flex !important;
+    align-items: center !important;
+    padding: 0 24px !important;
+  }
+
+  .product-app .pp-topbar > .pp-brand {
+    flex: 0 0 auto !important;
+  }
+
+  .product-app .pp-topbar > .pp-menu {
+    display: none !important;
+  }
+
+  .product-app .pp-topbar > nav {
+    display: flex !important;
+    align-items: stretch !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    gap: 4px !important;
+    height: 100% !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+
+  .product-app .pp-topbar > nav::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .product-app .pp-topbar > nav > a {
+    flex: 0 0 auto !important;
+    padding-inline: clamp(7px, 0.75vw, 14px) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+  }
+
+  .product-app .pp-search-command {
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    margin-left: auto !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+    border-radius: 10px !important;
+    flex: 0 0 42px !important;
+  }
+
+  .product-app .pp-search-command > span,
+  .product-app .pp-search-command > kbd {
+    display: none !important;
+  }
+
+  .product-app .pp-search-command > svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .product-app .pp-profile {
+    display: flex !important;
+    align-items: center !important;
+    flex: 0 0 auto !important;
+    gap: 8px !important;
+    white-space: nowrap !important;
+  }
+}
+

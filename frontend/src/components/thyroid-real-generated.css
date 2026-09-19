@@ -1,0 +1,25 @@
+/* Use the real thyroid image file directly in both themes. No content replacement. */
+html[data-theme="light"] body .thyroid-visual img,
+html[data-theme="dark"] body .thyroid-visual img {
+  content: normal !important;
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  aspect-ratio: auto !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  mix-blend-mode: normal !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+html[data-theme="light"] body .thyroid-visual img {
+  filter: saturate(.98) contrast(1.05) brightness(.98) drop-shadow(0 12px 28px rgba(86,101,190,.12)) !important;
+}
+
+html[data-theme="dark"] body .thyroid-visual img {
+  filter: saturate(1.10) contrast(1.06) brightness(1.06) drop-shadow(0 0 30px rgba(72,210,199,.18)) !important;
+}

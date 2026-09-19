@@ -1,0 +1,35 @@
+.essay-course-select{display:grid;gap:6px;max-width:420px;margin:0 0 22px;font-weight:800;font-size:.82rem}
+.essay-course-select select{border:1px solid var(--line);border-radius:12px;padding:11px 13px;background:var(--surface);color:inherit}
+.instructor-case-weeks{display:grid;gap:16px}
+.instructor-case-weeks.is-moving{pointer-events:none;opacity:.72}
+.instructor-case-list{display:grid;margin-bottom:16px}
+.case-position{display:grid}
+.instructor-case-list article{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface-soft);transition:border-color .16s ease,opacity .16s ease,transform .16s ease}
+.instructor-case-list article:hover{border-color:color-mix(in srgb,var(--accent) 48%,var(--line))}
+.instructor-case-list article.is-dragging{opacity:.42;transform:scale(.992)}
+.case-drag-handle{flex:0 0 auto;color:var(--text-muted);cursor:grab;font-size:1.05rem}
+.instructor-case-list article:active .case-drag-handle{cursor:grabbing}
+.case-summary{display:grid;gap:4px;min-width:0;flex:1}
+.case-summary b{overflow-wrap:anywhere}
+.instructor-case-list small{color:var(--text-muted)}
+.case-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.case-order-buttons{display:flex;gap:3px;padding-right:7px;margin-right:2px;border-right:1px solid var(--line)}
+.instructor-case-list article button{display:flex;align-items:center;justify-content:center;gap:5px;min-height:32px;border:0;border-radius:8px;padding:5px 8px;background:none;color:var(--accent);font-weight:800}
+.instructor-case-list article button:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 11%,transparent)}
+.instructor-case-list article button:disabled{opacity:.28;cursor:not-allowed}
+.instructor-case-list article button.danger{color:#c64d55}
+.case-drop-zone{display:block;width:100%;height:10px;padding:0;border:0;border-radius:999px;background:transparent;color:var(--text-muted);font-size:.72rem;transition:height .14s ease,background .14s ease}
+.case-drop-zone:hover,.case-drop-zone:focus-visible{height:22px;background:color-mix(in srgb,var(--accent) 28%,transparent);outline:2px solid color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:-2px}
+.case-drop-zone.end{min-height:12px;height:auto}
+.case-drop-zone.end:not(:empty){min-height:34px;margin-top:6px;border:1px dashed var(--accent)}
+.case-question-editor{display:grid;gap:14px;margin-top:18px}
+.case-question-editor label{display:grid;gap:7px;font-size:.82rem;font-weight:800}
+.case-question-editor textarea{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface-soft);color:inherit;resize:vertical}
+.case-publish{display:flex!important;align-items:center;gap:9px!important}
+.case-publish input{width:auto!important}
+@media(max-width:780px){
+  .instructor-case-list article{align-items:flex-start;flex-wrap:wrap}
+  .case-summary{min-width:calc(100% - 34px)}
+  .case-actions{width:100%;justify-content:flex-start;padding-left:28px}
+  .case-order-buttons{flex:1;border-right:0}
+}

@@ -1,0 +1,10 @@
+@media(max-width:900px){
+  .exam-session-footer>div .end{display:inline-flex!important}
+  .exam-session-footer>div{max-width:100%;flex-wrap:wrap;justify-content:flex-end}
+  .exam-session-footer>div .end,.exam-session-footer>div .next{min-width:0;white-space:nowrap}
+}
+@media(max-width:560px){
+  .exam-session-footer{grid-template-columns:auto minmax(0,1fr)}
+  .exam-session-footer>div{gap:6px}
+  .exam-session-footer>div .end,.exam-session-footer>div .next{padding:0 9px;font-size:9px}
+}

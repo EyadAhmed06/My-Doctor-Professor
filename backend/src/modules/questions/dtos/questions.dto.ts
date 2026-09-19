@@ -1,5 +1,8 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsEnum,
   IsInt,
@@ -11,11 +14,13 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import {
   QuestionDifficulty,
   QuestionType,
 } from '../../../common/entities/question.entity';
+import { IsConciseExplanation } from '../explanation-policy';
 
 const BooleanQuery = () =>
   Transform(({ value }) => {
@@ -68,12 +73,14 @@ export class SearchQuestionsDto {
 
 export class CreateMcqOptionDto {
   @IsString() @IsNotEmpty() option_text: string;
+  @IsOptional() @IsString() explanation?: string;
   @IsBoolean() is_correct: boolean;
   @IsInt() @Min(1) display_order: number;
 }
 
 export class UpdateMcqOptionDto {
   @IsOptional() @IsString() @IsNotEmpty() option_text?: string;
+  @IsOptional() @IsString() explanation?: string;
   @IsOptional() @IsBoolean() is_correct?: boolean;
   @IsOptional() @IsInt() @Min(1) display_order?: number;
 }
@@ -87,4 +94,98 @@ export class EssayConfigurationDto {
 
 export class CreateTagDto {
   @IsString() @IsNotEmpty() @MaxLength(100) tag_name: string;
+}
+
+export class InspectQuestionImportDto {
+  @IsUUID() topic_id: string;
+  @BooleanQuery() @IsBoolean() copyright_confirmed: boolean;
+}
+
+export class EnrichQuestionImportOptionDto {
+  @IsString() @IsNotEmpty() @MaxLength(4) label: string;
+  @IsString() @IsNotEmpty() @MaxLength(2000) option_text: string;
+  @IsBoolean() is_correct: boolean;
+  @IsOptional()
+  @IsString()
+  @MaxLength(220)
+  @IsConciseExplanation()
+  explanation?: string;
+}
+
+export class EnrichQuestionImportMetadataDto {
+  @IsOptional() @IsString() @MaxLength(32) provider?: string;
+  @IsOptional() @IsString() @MaxLength(160) model?: string;
+  @IsOptional() @IsString() @MaxLength(160) prompt_version?: string;
+  @IsOptional() @IsString() @MaxLength(64) content_hash?: string;
+  @IsOptional() @IsNumber() @Min(0) @Max(1) confidence?: number;
+  @IsOptional() @IsString() @MaxLength(32) answer_consistency?: string;
+  @IsOptional() @IsString() @MaxLength(32) status?: string;
+}
+
+export class EnrichQuestionImportCandidateDto {
+  @IsString() @IsNotEmpty() @MaxLength(200) candidate_id: string;
+  @IsString() @IsNotEmpty() @MaxLength(12000) question_text: string;
+  @IsArray() @ArrayMinSize(5) @ArrayMaxSize(5)
+  @ValidateNested({ each: true })
+  @Type(() => EnrichQuestionImportOptionDto)
+  options: EnrichQuestionImportOptionDto[];
+  @IsOptional()
+  @IsString()
+  @MaxLength(220)
+  @IsConciseExplanation()
+  explanation?: string;
+  @IsOptional() @IsEnum(QuestionDifficulty) difficulty?: QuestionDifficulty;
+  @IsOptional() @IsString() @MaxLength(255) source_section?: string;
+  @IsOptional() @ValidateNested() @Type(() => EnrichQuestionImportMetadataDto)
+  ai_enrichment?: EnrichQuestionImportMetadataDto;
+}
+
+export class EnrichQuestionImportDto {
+  @IsOptional() @IsString() @MaxLength(255) topic_name?: string;
+  @IsOptional() @IsBoolean() force?: boolean;
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => EnrichQuestionImportCandidateDto)
+  candidates: EnrichQuestionImportCandidateDto[];
+}
+
+export class PublishImportedOptionDto {
+  @IsString() @IsNotEmpty() @MaxLength(2000) option_text: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(220)
+  @IsConciseExplanation()
+  explanation?: string;
+  @IsBoolean() is_correct: boolean;
+}
+
+export class PublishImportedQuestionDto {
+  @IsBoolean() approved: boolean;
+  @IsString() @IsNotEmpty() question_text: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(220)
+  @IsConciseExplanation()
+  explanation?: string;
+  @IsEnum(QuestionDifficulty) difficulty: QuestionDifficulty;
+  @IsInt() @Min(1) @Max(999) marks: number;
+  @IsArray() @ArrayMinSize(5) @ArrayMaxSize(5)
+  @ValidateNested({ each: true })
+  @Type(() => PublishImportedOptionDto)
+  options: PublishImportedOptionDto[];
+  @IsOptional() @IsInt() @Min(1) source_page?: number;
+  @IsOptional() @IsUUID() reuse_question_id?: string;
+  @IsOptional() @IsBoolean() allow_topic_override?: boolean;
+  @IsOptional() @IsBoolean() allow_duplicate?: boolean;
+}
+
+export class PublishQuestionImportDto {
+  @IsUUID() topic_id: string;
+  @IsString() @IsNotEmpty() @MaxLength(255) original_filename: string;
+  @IsString() @IsNotEmpty() @MaxLength(64) file_sha256: string;
+  @IsBoolean() copyright_confirmed: boolean;
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(500)
+  @ValidateNested({ each: true })
+  @Type(() => PublishImportedQuestionDto)
+  candidates: PublishImportedQuestionDto[];
 }
