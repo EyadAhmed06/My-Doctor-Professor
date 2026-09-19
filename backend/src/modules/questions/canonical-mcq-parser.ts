@@ -17,10 +17,27 @@ export type CanonicalParsedQuestion = {
   explanation: string | null;
 };
 
+export type CanonicalParsedSection = {
+  title: string | null;
+  answerKey: Map<number, CanonicalAnswerKeyEntry>;
+  expectedQuestionNumbers: number[];
+  parsedQuestionNumbers: number[];
+  missingQuestionNumbers: number[];
+  unexpectedQuestionNumbers: number[];
+  expectedQuestionCount: number | null;
+  parsedQuestionCount: number;
+  completeness: number | null;
+};
+
 export type CanonicalParsedQuestionDocument = {
   documentType: QuestionDocumentType;
   answerKey: Map<number, CanonicalAnswerKeyEntry>;
   questions: CanonicalParsedQuestion[];
+  sections: CanonicalParsedSection[];
+  expectedQuestionCount: number | null;
+  parsedQuestionCount: number;
+  missingQuestionCount: number;
+  isStructurallyComplete: boolean;
 };
 
 type ParsingSection = {
@@ -42,10 +59,14 @@ const LECTURE_HEADING =
   'Lecture\\s+(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|\\d+)(?:\\s*[:-])?[^\\n]*';
 
 /**
- * Parser for the canonical Week 1 Gastroenterology MCQ layout.
+ * Parser for sectioned MCQ PDFs.
+ *
+ * Question totals are deliberately NOT configured here. Each section's answer
+ * key is the source of truth for the question numbers expected in that section.
+ * This keeps both per-section and whole-document question counts dynamic.
  *
  * The important invariant is that answer keys are scoped to their section,
- * because numbering intentionally restarts from 1 in every section.
+ * because numbering may restart from 1 in every section.
  */
 export function parseCanonicalMcqDocument(
   pdf: UnicodeParsedPdf,
@@ -58,20 +79,49 @@ export function parseCanonicalMcqDocument(
   const combined = preparedPages
     .map((page) => `\n[[MDP_PAGE_${page.page}]]\n${page.text}`)
     .join('\n');
-  const sections = splitCanonicalSections(combined);
-  const isMultiSection = sections.filter((section) => section.title).length > 1;
+  const parsingSections = splitCanonicalSections(combined);
+  const isMultiSection = parsingSections.filter((section) => section.title).length > 1;
   const globalAnswerKey = isMultiSection
     ? new Map<number, CanonicalAnswerKeyEntry>()
     : extractAnswerKey(combined);
 
-  const questions = sections.flatMap((section) => {
+  const sections = parsingSections.map((section) => {
     const scopedAnswerKey = extractAnswerKey(section.text);
-    return parseSectionQuestions(
+    const answerKey =
+      scopedAnswerKey.size > 0 ? scopedAnswerKey : globalAnswerKey;
+    const questions = parseSectionQuestions(
       section,
       combined,
-      scopedAnswerKey.size > 0 ? scopedAnswerKey : globalAnswerKey,
+      answerKey,
     );
+
+    return {
+      questions,
+      summary: summarizeSection(section.title, answerKey, questions),
+    };
   });
+
+  const questions = sections.flatMap((section) => section.questions);
+  const sectionSummaries = sections.map((section) => section.summary);
+  const sectionsWithAnswerKeys = sectionSummaries.filter(
+    (section) => section.expectedQuestionCount !== null,
+  );
+  const allSectionsHaveAnswerKeys =
+    sectionSummaries.length > 0 &&
+    sectionsWithAnswerKeys.length === sectionSummaries.length;
+  const expectedQuestionCount = allSectionsHaveAnswerKeys
+    ? sectionsWithAnswerKeys.reduce(
+        (sum, section) => sum + (section.expectedQuestionCount ?? 0),
+        0,
+      )
+    : null;
+  const missingQuestionCount = sectionSummaries.reduce(
+    (sum, section) => sum + section.missingQuestionNumbers.length,
+    0,
+  );
+  const hasUnexpectedQuestions = sectionSummaries.some(
+    (section) => section.unexpectedQuestionNumbers.length > 0,
+  );
 
   return {
     documentType,
@@ -79,6 +129,15 @@ export function parseCanonicalMcqDocument(
     // Keep it empty rather than expose a misleading cross-section answer key.
     answerKey: globalAnswerKey,
     questions,
+    sections: sectionSummaries,
+    expectedQuestionCount,
+    parsedQuestionCount: questions.length,
+    missingQuestionCount,
+    isStructurallyComplete:
+      allSectionsHaveAnswerKeys &&
+      missingQuestionCount === 0 &&
+      !hasUnexpectedQuestions &&
+      questions.length === expectedQuestionCount,
   };
 }
 
@@ -97,11 +156,53 @@ export function splitCanonicalSections(combined: string): ParsingSection[] {
     const offset = heading.index || 0;
     const end = headings[index + 1]?.index ?? combined.length;
     return {
-      title: heading[1].replace(/\s+/g, ' ').trim(),
+      title: heading[1].replace(/\\s+/g, ' ').trim(),
       text: combined.slice(offset, end),
       offset,
     };
   });
+}
+
+function summarizeSection(
+  title: string | null,
+  answerKey: Map<number, CanonicalAnswerKeyEntry>,
+  questions: CanonicalParsedQuestion[],
+): CanonicalParsedSection {
+  const expectedQuestionNumbers = [...answerKey.keys()].sort((left, right) => left - right);
+  const parsedQuestionNumbers = [
+    ...new Set(questions.map((question) => question.questionNumber)),
+  ].sort((left, right) => left - right);
+  const parsedQuestionSet = new Set(parsedQuestionNumbers);
+  const expectedQuestionSet = new Set(expectedQuestionNumbers);
+  const missingQuestionNumbers = expectedQuestionNumbers.filter(
+    (number) => !parsedQuestionSet.has(number),
+  );
+  const unexpectedQuestionNumbers =
+    expectedQuestionNumbers.length === 0
+      ? []
+      : parsedQuestionNumbers.filter((number) => !expectedQuestionSet.has(number));
+  const expectedQuestionCount =
+    expectedQuestionNumbers.length > 0 ? expectedQuestionNumbers.length : null;
+  const matchedQuestionCount =
+    expectedQuestionCount === null
+      ? 0
+      : expectedQuestionNumbers.length - missingQuestionNumbers.length;
+  const completeness =
+    expectedQuestionCount === null
+      ? null
+      : Number((matchedQuestionCount / expectedQuestionCount).toFixed(4));
+
+  return {
+    title,
+    answerKey,
+    expectedQuestionNumbers,
+    parsedQuestionNumbers,
+    missingQuestionNumbers,
+    unexpectedQuestionNumbers,
+    expectedQuestionCount,
+    parsedQuestionCount: questions.length,
+    completeness,
+  };
 }
 
 function parseSectionQuestions(
@@ -110,7 +211,7 @@ function parseSectionQuestions(
   answerKey: Map<number, CanonicalAnswerKeyEntry>,
 ): CanonicalParsedQuestion[] {
   const starts = Array.from(
-    section.text.matchAll(/^\s*(?:Q(?:uestion)?\s*)?(\d{1,3})[.)]\s+(.+)$/gim),
+    section.text.matchAll(/^\s*(?:Q(?:uestion)?\s*)?(\d+)[.)]\s+(.+)$/gim),
   ).filter((match) => !isCompactAnswerKeyLine(match[0]));
   const candidates: CanonicalParsedQuestion[] = [];
 
@@ -129,7 +230,7 @@ function parseSectionQuestions(
 
     const stem = block
       .slice(0, firstOption)
-      .replace(/^\s*(?:Q(?:uestion)?\s*)?\d{1,3}[.)]\s*/i, '')
+      .replace(/^\s*(?:Q(?:uestion)?\s*)?\d+[.)]\s*/i, '')
       .replace(/\s+/g, ' ')
       .trim();
     const optionArea = block.slice(firstOption);
@@ -214,7 +315,7 @@ function prepareForParsing(value: string): string {
       /\s+(Correct\s+Answer|Answer|Explanation|Rationale)\s*:/gi,
       '\n$1:',
     )
-    .replace(/\s+(Q(?:uestion)?\s*\d{1,3}[.)])\s+/gi, '\n$1 ')
+    .replace(/\s+(Q(?:uestion)?\s*\d+[.)])\s+/gi, '\n$1 ')
     .replace(new RegExp(`\\s+(${LECTURE_HEADING})`, 'gi'), '\n$1')
     .trim();
 }
@@ -230,7 +331,7 @@ function extractAnswerKey(
     if (/answer\s*key/i.test(line)) inExplicitAnswerKey = true;
     const pairs = Array.from(
       line.matchAll(
-        /(?:^|\s|\||\()(\d{1,3})\s*[.)\-:]?\s*([A-F])(?=\s|$|\|)/gi,
+        /(?:^|\s|\||\()([0-9]+)\s*[.)\-:]?\s*([A-F])(?=\s|$|\||,|;)/gi,
       ),
     );
     if (inExplicitAnswerKey || isCompactAnswerKeyLine(line)) {
@@ -241,7 +342,9 @@ function extractAnswerKey(
           page: pageBefore(value, offset + (pair.index || 0)),
         };
         const existing = result.get(questionNumber);
-        if (!existing || existing.label === entry.label) result.set(questionNumber, entry);
+        if (!existing || existing.label === entry.label) {
+          result.set(questionNumber, entry);
+        }
       }
     }
     offset += line.length + 1;
@@ -255,14 +358,14 @@ function isCompactAnswerKeyLine(value: string): boolean {
   if (!line) return false;
   const pairs = Array.from(
     line.matchAll(
-      /(?:^|\s|\||\()(\d{1,3})\s*[.)\-:]?\s*([A-F])(?=\s|$|\|)/gi,
+      /(?:^|\s|\||\()([0-9]+)\s*[.)\-:]?\s*([A-F])(?=\s|$|\||,|;)/gi,
     ),
   );
   if (!pairs.length) return false;
 
   const remainder = line
     .replace(
-      /(?:^|\s|\||\()\d{1,3}\s*[.)\-:]?\s*[A-F](?=\s|$|\|)/gi,
+      /(?:^|\s|\||\()[0-9]+\s*[.)\-:]?\s*[A-F](?=\s|$|\||,|;)/gi,
       ' ',
     )
     .replace(/[|,;]+/g, ' ')
