@@ -235,10 +235,18 @@ export class QuestionImportService {
 
     let parsedDocument = this.parseQuestions(pdf, documentType);
 
-    if (
-      parsedDocument.isStructurallyComplete === false &&
-      (parsedDocument.missingQuestionCount ?? 0) > 0
-    ) {
+    const needsStructuralRecovery =
+      parsedDocument.isStructurallyComplete === false ||
+      parsedDocument.questions.some(
+        (question) =>
+          question.options.length !== REQUIRED_MCQ_OPTIONS ||
+          !question.correctLabel ||
+          !question.options.some(
+            (option) => option.label === question.correctLabel,
+          ),
+      );
+
+    if (needsStructuralRecovery) {
       const recoveredPdf = this.recoverIncompletePdf(safeFile.buffer, pdf);
       if (recoveredPdf) {
         const recoveredDocument = this.parseQuestions(
@@ -758,6 +766,27 @@ export class QuestionImportService {
     current: ParsedQuestionDocument,
     recovered: ParsedQuestionDocument,
   ): boolean {
+    const currentExpected = current.expectedQuestionCount ?? 0;
+    const recoveredExpected = recovered.expectedQuestionCount ?? 0;
+    const currentMissing =
+      current.missingQuestionCount ?? Number.POSITIVE_INFINITY;
+    const recoveredMissing =
+      recovered.missingQuestionCount ?? Number.POSITIVE_INFINITY;
+    const currentValidStructures =
+      this.countStructurallyValidParsedQuestions(current);
+    const recoveredValidStructures =
+      this.countStructurallyValidParsedQuestions(recovered);
+
+    // OCR must not lose an answer-key contract that the text layer already
+    // established, nor may it trade valid A-E questions for merely more
+    // detected question numbers.
+    if (recoveredExpected < currentExpected) return false;
+    if (recoveredMissing > currentMissing) return false;
+    if (recoveredValidStructures < currentValidStructures) return false;
+
+    if (recoveredMissing < currentMissing) return true;
+    if (recoveredValidStructures > currentValidStructures) return true;
+
     if (
       recovered.isStructurallyComplete === true &&
       current.isStructurallyComplete !== true
@@ -765,25 +794,20 @@ export class QuestionImportService {
       return true;
     }
 
-    const currentExpected = current.expectedQuestionCount ?? 0;
-    const recoveredExpected = recovered.expectedQuestionCount ?? 0;
-    const currentMissing =
-      current.missingQuestionCount ?? Number.POSITIVE_INFINITY;
-    const recoveredMissing =
-      recovered.missingQuestionCount ?? Number.POSITIVE_INFINITY;
+    return recovered.questions.length > current.questions.length;
+  }
 
-    if (
-      recoveredExpected >= currentExpected &&
-      recoveredMissing < currentMissing
-    ) {
-      return true;
-    }
-
-    return (
-      recoveredExpected >= currentExpected &&
-      recoveredMissing === currentMissing &&
-      recovered.questions.length > current.questions.length
-    );
+  private countStructurallyValidParsedQuestions(
+    document: ParsedQuestionDocument,
+  ): number {
+    return document.questions.filter(
+      (question) =>
+        question.options.length === REQUIRED_MCQ_OPTIONS &&
+        Boolean(question.correctLabel) &&
+        question.options.some(
+          (option) => option.label === question.correctLabel,
+        ),
+    ).length;
   }
 
   protected parseQuestions(
