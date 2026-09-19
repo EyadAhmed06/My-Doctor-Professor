@@ -2,7 +2,7 @@ import {
   parseCanonicalMcqDocument,
   splitCanonicalSections,
 } from './canonical-mcq-parser';
-import type { UnicodeParsedPdf } from './pdf-text-extraction.service';
+import { reflowMcqColumns, type UnicodeParsedPdf } from './pdf-text-extraction.service';
 
 function pdfFromPages(pages: string[]): UnicodeParsedPdf {
   return {
@@ -187,6 +187,50 @@ describe('canonical MCQ parser', () => {
     expect(gerd.missingQuestionNumbers).toEqual([3]);
     expect(gerd.completeness).toBe(0.8);
     expect(parsed.isStructurallyComplete).toBe(false);
+  });
+
+  it('preserves a bottom answer key after two-column layout reflow', () => {
+    const rows = [
+      'Two Column Section',
+      '1) Left question one?                         3) Right question three?',
+      'A) left one A                                 A) right three A',
+      'B) left one B                                 B) right three B',
+      'C) left one C                                 C) right three C',
+      'D) left one D                                 D) right three D',
+      'E) left one E                                 E) right three E',
+      '2) Left question two?                         4) Right question four?',
+      'A) left two A                                 A) right four A',
+      'B) left two B                                 B) right four B',
+      'C) left two C                                 C) right four C',
+      'D) left two D                                 D) right four D',
+      'E) left two E                                 E) right four E',
+      'Answer Key',
+      '1-A, 2-B, 3-C, 4-D',
+    ].join('\n');
+
+    const reflowed = reflowMcqColumns(rows);
+    const parsed = parseCanonicalMcqDocument(
+      pdfFromPages([reflowed.text]),
+      'MCQ',
+    );
+
+    expect(reflowed.reflowed).toBe(true);
+    expect(reflowed.text.indexOf('4) Right question four?')).toBeLessThan(
+      reflowed.text.indexOf('Answer Key'),
+    );
+    expect(parsed.questions.map((question) => question.questionNumber)).toEqual([
+      1,
+      2,
+      3,
+      4,
+    ]);
+    expect(parsed.questions.map((question) => question.correctLabel)).toEqual([
+      'A',
+      'B',
+      'C',
+      'D',
+    ]);
+    expect(parsed.isStructurallyComplete).toBe(true);
   });
 
   it('accepts common question and option marker variants', () => {
