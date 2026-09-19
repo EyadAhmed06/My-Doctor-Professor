@@ -82,7 +82,7 @@ function inspectionBody() {
     extraction_method: 'TEXT_LAYER',
     extraction_confidence: 0.96,
     status: 'REVIEW_REQUIRED',
-    inspector_contract_version: 5,
+    inspector_contract_version: 6,
     enrichment_contract: 'QUESTION_AND_OPTION_EXPLANATIONS_V1',
     previously_published_from_same_file: 0,
     topic: { id: '60000000-0000-4000-8000-000000000001', name: 'Cardiac anatomy and circulation' },
