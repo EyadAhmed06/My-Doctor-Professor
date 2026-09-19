@@ -45,7 +45,7 @@ const OCR_RENDER_DPI = 220;
 const MIN_GOOD_TEXT_CHARACTERS = 80;
 
 const STRUCTURAL_LINE_START =
-  /^(?:(?:Q(?:uestion)?\s*)?\(?\d+\)?\s*[.)\]:-]\s+|\(?[A-Fa-f]\)?\s*[.)\]:-]\s+|(?:answer\s*key|answers?|correct\s+answers?)\b)/i;
+  /^(?:\(?\d+\)?\s*(?:[.)\]:=-]|->|→)?\s*[A-Fa-f](?:\b|\s|$)|(?:Q(?:uestion)?\s*)?\(?\d+\)?\s*[.)\]:-]\s+|\(?[A-Fa-f]\)?\s*[.)\]:-]\s+|(?:answer\s*key|answers?|correct\s+answers?)\b)/i;
 
 /**
  * Presentation-only symbol normalization. Never use this value for persistence,
@@ -239,6 +239,85 @@ export function shouldOcrPage(text: string): boolean {
   );
 }
 
+export function stripRepeatedEdgeFurniture(
+  pages: UnicodePdfPage[],
+): UnicodePdfPage[] {
+  const signaturePages = new Map<string, Set<number>>();
+
+  for (const page of pages) {
+    const nonEmpty = page.text
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const edgeLines = [
+      ...nonEmpty.slice(0, 2),
+      ...nonEmpty.slice(Math.max(0, nonEmpty.length - 2)),
+    ];
+
+    for (const line of edgeLines) {
+      const signature = furnitureSignature(line);
+      if (!signature) continue;
+      const pageSet = signaturePages.get(signature) || new Set<number>();
+      pageSet.add(page.page);
+      signaturePages.set(signature, pageSet);
+    }
+  }
+
+  const requiredPages = Math.max(3, Math.ceil(pages.length * 0.6));
+  const repeated = new Set(
+    [...signaturePages.entries()]
+      .filter(([, pageSet]) => pageSet.size >= requiredPages)
+      .map(([signature]) => signature),
+  );
+  if (!repeated.size) return pages;
+
+  return pages.map((page) => {
+    const lines = page.text.split('\n');
+    const nonEmptyIndexes = lines
+      .map((line, index) => ({ line: line.trim(), index }))
+      .filter((item) => Boolean(item.line));
+    const edgeIndexes = new Set([
+      ...nonEmptyIndexes.slice(0, 2).map((item) => item.index),
+      ...nonEmptyIndexes
+        .slice(Math.max(0, nonEmptyIndexes.length - 2))
+        .map((item) => item.index),
+    ]);
+
+    const text = lines
+      .filter((line, index) => {
+        if (!edgeIndexes.has(index)) return true;
+        const signature = furnitureSignature(line.trim());
+        return !signature || !repeated.has(signature);
+      })
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trimEnd();
+
+    return {
+      ...page,
+      text,
+      textLength: text.trim().length,
+      confidence: calculatePageExtractionConfidence(text),
+    };
+  });
+}
+
+function furnitureSignature(line: string): string | null {
+  const compact = line.replace(/\s+/g, ' ').trim();
+  if (compact.length < 5 || compact.length > 120) return null;
+  if (STRUCTURAL_LINE_START.test(compact)) return null;
+  if (/^[A-Z][A-Za-z ]{0,40}$/.test(compact) && compact.split(' ').length <= 5) {
+    // A short title can be a real section name; do not strip it generically.
+    return null;
+  }
+  return compact
+    .toLocaleLowerCase()
+    .replace(/\d+/g, '#')
+    .replace(/[^\p{L}\p{N}#&|:/.-]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function calculatePdfExtractionConfidence(
   pages: UnicodePdfPage[],
 ): number {
@@ -351,12 +430,13 @@ export class PdfTextExtractionService {
         }
       }
 
-      const text = pages.map((page) => page.text).join('\n');
-      const ocrPageCount = pages.filter((page) => page.source === 'OCR').length;
-      const textLayerPageCount = pages.filter(
+      const cleanedPages = stripRepeatedEdgeFurniture(pages);
+      const text = cleanedPages.map((page) => page.text).join('\n');
+      const ocrPageCount = cleanedPages.filter((page) => page.source === 'OCR').length;
+      const textLayerPageCount = cleanedPages.filter(
         (page) => page.source === 'TEXT_LAYER',
       ).length;
-      const emptyPageCount = pages.filter((page) => page.source === 'EMPTY').length;
+      const emptyPageCount = cleanedPages.filter((page) => page.source === 'EMPTY').length;
       const extractionMethod: PdfExtractionMethod =
         ocrPageCount === 0
           ? 'TEXT_LAYER'
@@ -365,10 +445,10 @@ export class PdfTextExtractionService {
             : 'HYBRID_OCR';
 
       return {
-        pages,
+        pages: cleanedPages,
         pageCount,
         text,
-        extractionConfidence: calculatePdfExtractionConfidence(pages),
+        extractionConfidence: calculatePdfExtractionConfidence(cleanedPages),
         extractionMethod,
         ocrPageCount,
         textLayerPageCount,
