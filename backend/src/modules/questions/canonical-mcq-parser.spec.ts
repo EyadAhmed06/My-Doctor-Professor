@@ -294,6 +294,28 @@ describe('canonical MCQ parser', () => {
     ]);
   });
 
+  it('keeps singular inline Answer metadata inside the question instead of treating it as a section key', () => {
+    const pdf = pdfFromPages([
+      [
+        'Inline Metadata',
+        `1) Which option is correct?\n${fiveOptions('inline')}`,
+        'Answer: C',
+        'Explanation: Inline source explanation.',
+      ].join('\n'),
+    ]);
+
+    const parsed = parseCanonicalMcqDocument(pdf, 'MCQ');
+
+    expect(parsed.questions).toHaveLength(1);
+    expect(parsed.questions[0].questionNumber).toBe(1);
+    expect(parsed.questions[0].correctLabel).toBe('C');
+    expect(parsed.questions[0].explanation).toBe(
+      'Inline source explanation.',
+    );
+    expect(parsed.sections).toHaveLength(1);
+    expect(parsed.sections[0].expectedQuestionCount).toBeNull();
+  });
+
   it('flags conflicting answer entries instead of silently keeping one', () => {
     const pdf = pdfFromPages([
       [
