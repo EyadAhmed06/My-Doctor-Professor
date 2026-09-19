@@ -64,13 +64,25 @@ type ImportCandidate = {
   duplicate: DuplicateMatch | null;
 };
 
-type PdfPage = { page: number; text: string };
+type PdfPage = {
+  page: number;
+  text: string;
+  source?: 'TEXT_LAYER' | 'OCR' | 'EMPTY';
+  confidence?: number;
+  textLength?: number;
+  ocrAttempted?: boolean;
+  layoutReflowed?: boolean;
+};
 
 type ParsedPdf = {
   pages: PdfPage[];
   pageCount: number;
   text: string;
   extractionConfidence: number;
+  extractionMethod?: 'TEXT_LAYER' | 'OCR' | 'HYBRID_OCR';
+  ocrPageCount?: number;
+  textLayerPageCount?: number;
+  emptyPageCount?: number;
 };
 
 type ParsedQuestion = {
@@ -97,6 +109,8 @@ type ParsedSectionDiagnostics = {
   parsedQuestionNumbers: number[];
   missingQuestionNumbers: number[];
   unexpectedQuestionNumbers: number[];
+  duplicateQuestionNumbers?: number[];
+  answerKeyConflicts?: Array<{ questionNumber: number; labels: string[] }>;
   expectedQuestionCount: number | null;
   parsedQuestionCount: number;
   completeness: number | null;
@@ -171,7 +185,7 @@ export class QuestionImportService {
         file_sha256: sha256,
         file_size: safeFile.size,
         page_count: pdf.pageCount,
-        extraction_method: 'TEXT_LAYER',
+        extraction_method: pdf.extractionMethod || 'TEXT_LAYER',
         extraction_confidence: pdf.extractionConfidence,
         status: 'NEEDS_OCR',
         previously_published_from_same_file: previouslyPublished,
@@ -181,15 +195,23 @@ export class QuestionImportService {
             code: 'NO_USABLE_TEXT_LAYER',
             severity: 'ERROR',
             message:
-              'The PDF appears scanned or its text encoding is not safely extractable. OCR is required before questions can be reviewed.',
+              'No usable text could be recovered from the PDF text layer or OCR fallback. Re-export the PDF with embedded text or verify that Tesseract OCR is available.',
           },
         ],
         parser: {
-          schema_version: '2.0', requested_document_type: 'MCQ',
+          schema_version: '3.0', requested_document_type: 'MCQ',
           detected_document_type: 'UNKNOWN' as QuestionDocumentType,
           answer_key: {} as Record<string, { answer: string; page: number | null }>, mapped_answers: 0,
         },
         sections: [] as Array<{ title: string; questions: number }>,
+        pages: pdf.pages.map((page) => ({
+          page: page.page,
+          source: page.source || 'EMPTY',
+          confidence: page.confidence ?? 0,
+          text_length: page.textLength ?? page.text.trim().length,
+          ocr_attempted: page.ocrAttempted ?? false,
+          layout_reflowed: page.layoutReflowed ?? false,
+        })),
         candidates: [] as ImportCandidate[],
       };
     }
@@ -214,9 +236,24 @@ export class QuestionImportService {
 
     const parsedDocument = this.parseQuestions(pdf, documentType);
     const parsed = parsedDocument.questions;
-    const candidates = parsed.slice(0, MAX_IMPORT_CANDIDATES).map((candidate, index) =>
-      this.evaluateCandidate(candidate, index, topicCorpus, existing),
+    const pageConfidence = new Map(
+      pdf.pages.map((page) => [
+        page.page,
+        page.confidence ?? pdf.extractionConfidence,
+      ]),
     );
+    const candidates = parsed
+      .slice(0, MAX_IMPORT_CANDIDATES)
+      .map((candidate, index) =>
+        this.evaluateCandidate(
+          candidate,
+          index,
+          topicCorpus,
+          existing,
+          pageConfidence,
+          pdf.extractionConfidence,
+        ),
+      );
     const valid = candidates.filter((candidate) => candidate.status === 'VALID').length;
     const needsReview = candidates.filter((candidate) => candidate.status === 'NEEDS_REVIEW').length;
     const invalid = candidates.filter((candidate) => candidate.status === 'INVALID').length;
@@ -247,6 +284,31 @@ export class QuestionImportService {
           message: `${sectionName}: parsed question number(s) not present in the section answer key: ${section.unexpectedQuestionNumbers.join(', ')}.`,
         });
       }
+      if ((section.duplicateQuestionNumbers || []).length > 0) {
+        issues.push({
+          code: 'SECTION_DUPLICATE_QUESTION_NUMBERS',
+          severity: 'ERROR',
+          message: `${sectionName}: duplicate question number(s) were parsed: ${(section.duplicateQuestionNumbers || []).join(', ')}.`,
+        });
+      }
+      if ((section.answerKeyConflicts || []).length > 0) {
+        issues.push({
+          code: 'SECTION_ANSWER_KEY_CONFLICT',
+          severity: 'ERROR',
+          message: `${sectionName}: conflicting answer-key entries were detected for question number(s): ${(section.answerKeyConflicts || []).map((conflict) => conflict.questionNumber).join(', ')}.`,
+        });
+      }
+    }
+
+    const unreadablePages = pdf.pages.filter(
+      (page) => (page.ocrAttempted ?? false) && !page.text.trim(),
+    );
+    if (unreadablePages.length > 0) {
+      issues.push({
+        code: 'OCR_PAGES_UNREADABLE',
+        severity: 'ERROR',
+        message: `OCR could not recover usable text from page(s): ${unreadablePages.map((page) => page.page).join(', ')}.`,
+      });
     }
     if (parsed.length > MAX_IMPORT_CANDIDATES) {
       issues.push({
@@ -285,9 +347,13 @@ export class QuestionImportService {
       file_sha256: sha256,
       file_size: safeFile.size,
       page_count: pdf.pageCount,
-      extraction_method: 'TEXT_LAYER',
+      extraction_method: pdf.extractionMethod || 'TEXT_LAYER',
       extraction_confidence: pdf.extractionConfidence,
-      status: candidates.length ? 'REVIEW_REQUIRED' : 'NO_QUESTIONS',
+      status: candidates.length
+        ? parsedDocument.isStructurallyComplete === false
+          ? 'INCOMPLETE_EXTRACTION'
+          : 'REVIEW_REQUIRED'
+        : 'NO_QUESTIONS',
       previously_published_from_same_file: previouslyPublished,
       topic: { id: topic.id, name: topic.topicName },
       summary: {
@@ -335,12 +401,27 @@ export class QuestionImportService {
             expected_questions: section.expectedQuestionCount,
             missing_question_numbers: section.missingQuestionNumbers,
             unexpected_question_numbers: section.unexpectedQuestionNumbers,
+            duplicate_question_numbers: section.duplicateQuestionNumbers || [],
+            answer_key_conflicts: section.answerKeyConflicts || [],
             completeness: section.completeness,
           }))
         : Array.from(sectionCounts.entries()).map(([title, questions]) => ({
             title,
             questions,
           })),
+      pages: pdf.pages.map((page) => ({
+        page: page.page,
+        source: page.source || 'TEXT_LAYER',
+        confidence: page.confidence ?? pdf.extractionConfidence,
+        text_length: page.textLength ?? page.text.trim().length,
+        ocr_attempted: page.ocrAttempted ?? false,
+        layout_reflowed: page.layoutReflowed ?? false,
+      })),
+      extraction_breakdown: {
+        text_layer_pages: pdf.textLayerPageCount ?? pdf.pages.filter((page) => page.text.trim()).length,
+        ocr_pages: pdf.ocrPageCount ?? 0,
+        empty_pages: pdf.emptyPageCount ?? pdf.pages.filter((page) => !page.text.trim()).length,
+      },
       issues,
       candidates,
     };
@@ -851,6 +932,8 @@ export class QuestionImportService {
     index: number,
     topicCorpus: string,
     existing: Pick<Question, 'id' | 'questionText' | 'isActive' | 'topicId'>[],
+    pageConfidence: Map<number, number> = new Map(),
+    documentExtractionConfidence = 1,
   ): ImportCandidate {
     const issues: ImportIssue[] = [];
     const optionTexts = candidate.options.map((option) => this.normalize(option.text));
@@ -902,10 +985,12 @@ export class QuestionImportService {
     }
     const hardError = issues.some((issue) => issue.severity === 'ERROR');
     const review = issues.some((issue) => issue.severity === 'WARNING');
-    const structuralPenalty = issues.filter((issue) => issue.severity === 'ERROR').length * 0.22;
-    const reviewPenalty = issues.filter((issue) => issue.severity === 'WARNING').length * 0.1;
     const extractionConfidence = Number(
-      Math.max(0.2, 1 - structuralPenalty - reviewPenalty).toFixed(2),
+      (
+        candidate.sourcePage === null
+          ? documentExtractionConfidence
+          : pageConfidence.get(candidate.sourcePage) ?? documentExtractionConfidence
+      ).toFixed(2),
     );
     return {
       candidate_id: `candidate-${index + 1}`,
