@@ -100,9 +100,38 @@ export function reflowMcqColumns(value: string): {
 } {
   const normalized = value.replace(/\r\n?/g, '\n');
   const lines = normalized.split('\n');
+
+  const explicitAnswerKeyIndex = lines.findIndex((line) =>
+    /^\s*(?:answer\s*key|answers?|correct\s+answers?|solutions?)\b/i.test(
+      line,
+    ),
+  );
+  const implicitAnswerKeyIndex = lines.findIndex((line) => {
+    const gaps = Array.from(line.matchAll(/ {4,}/g));
+    return gaps.some((gap) => {
+      const start = gap.index ?? 0;
+      const end = start + gap[0].length;
+      const left = line.slice(0, start).trim();
+      const right = line.slice(end).trim();
+      return (
+        isCompactAnswerKeyFragment(left) &&
+        isCompactAnswerKeyFragment(right)
+      );
+    });
+  });
+
+  const tailStartCandidates = [
+    explicitAnswerKeyIndex,
+    implicitAnswerKeyIndex,
+  ].filter((index) => index >= 0);
+  const tailStart = tailStartCandidates.length
+    ? Math.min(...tailStartCandidates)
+    : lines.length;
+  const bodyLines = lines.slice(0, tailStart);
+  const tailLines = lines.slice(tailStart);
   const candidates: number[] = [];
 
-  for (const line of lines) {
+  for (const line of bodyLines) {
     const gaps = Array.from(line.matchAll(/ {4,}/g));
     for (const gap of gaps) {
       const start = gap.index ?? 0;
@@ -130,20 +159,43 @@ export function reflowMcqColumns(value: string): {
     return { text: normalized, reflowed: false };
   }
 
-  const leftColumn: string[] = [];
-  const rightColumn: string[] = [];
-  let splitRows = 0;
-
-  for (const line of lines) {
-    const gaps = Array.from(line.matchAll(/ {3,}/g));
-    const separator = gaps.find((gap) => {
+  const separatorFor = (line: string): RegExpMatchArray | undefined =>
+    Array.from(line.matchAll(/ {3,}/g)).find((gap) => {
       const start = gap.index ?? 0;
       const end = start + gap[0].length;
       return start <= split + 5 && end >= split - 5;
     });
 
+  const splitIndexes = bodyLines
+    .map((line, index) => ({ index, separator: separatorFor(line) }))
+    .filter(
+      (item): item is { index: number; separator: RegExpMatchArray } =>
+        Boolean(item.separator),
+    );
+
+  if (splitIndexes.length < 2) {
+    return { text: normalized, reflowed: false };
+  }
+
+  const firstSplitRow = splitIndexes[0].index;
+  const lastSplitRow = splitIndexes.at(-1)?.index ?? firstSplitRow;
+  const preamble = bodyLines.slice(0, firstSplitRow);
+  const postamble = bodyLines.slice(lastSplitRow + 1);
+  const leftColumn: string[] = [];
+  const rightColumn: string[] = [];
+  let splitRows = 0;
+
+  for (let index = firstSplitRow; index <= lastSplitRow; index += 1) {
+    const line = bodyLines[index];
+    const separator = separatorFor(line);
+
     if (!separator) {
-      leftColumn.push(line.trimEnd());
+      const leadingSpaces = line.match(/^ */)?.[0].length ?? 0;
+      if (line.trim() && leadingSpaces >= split - 5) {
+        rightColumn.push(line.trim());
+      } else {
+        leftColumn.push(line.trimEnd());
+      }
       continue;
     }
 
@@ -151,7 +203,7 @@ export function reflowMcqColumns(value: string): {
     const end = start + separator[0].length;
     const left = line.slice(0, start).trimEnd();
     const right = line.slice(end).trim();
-    leftColumn.push(left);
+    if (left) leftColumn.push(left);
     if (right) rightColumn.push(right);
     splitRows += 1;
   }
@@ -161,9 +213,12 @@ export function reflowMcqColumns(value: string): {
   }
 
   const text = [
+    ...preamble,
     ...leftColumn,
     '',
     ...rightColumn,
+    ...postamble,
+    ...tailLines,
   ]
     .join('\n')
     .replace(/[ \t]+$/gm, '')
@@ -171,6 +226,12 @@ export function reflowMcqColumns(value: string): {
     .trimEnd();
 
   return { text, reflowed: true };
+}
+
+function isCompactAnswerKeyFragment(value: string): boolean {
+  return /^\(?\d+\)?\s*(?:[.)\]:=-]|->|→)?\s*[A-F]$/i.test(
+    value.trim(),
+  );
 }
 
 /**
