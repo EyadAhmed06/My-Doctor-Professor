@@ -725,6 +725,30 @@ export function QuestionImportPage() {
 
             {inspection.issues.length > 0 && <Panel title="Batch checks" className="question-import-batch-issues">{inspection.issues.map((issue, index) => <div className={`question-import-issue ${issue.severity.toLowerCase()}`} key={`${issue.code}-${index}`}><span>{issue.severity === "ERROR" ? <FiXCircle /> : <FiAlertTriangle />}</span><div><strong>{issue.code.replaceAll("_", " ")}</strong><p>{issue.message}</p></div></div>)}</Panel>}
 
+            {inspection.pages && inspection.pages.some((page) => page.source !== "TEXT_LAYER" || page.confidence < 0.7 || page.layout_reflowed) && (
+              <Panel title="Page extraction diagnostics">
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  {inspection.pages
+                    .filter((page) => page.source !== "TEXT_LAYER" || page.confidence < 0.7 || page.layout_reflowed)
+                    .map((page) => (
+                      <span
+                        key={page.page}
+                        style={{
+                          border: "1px solid var(--border, #d9e0e8)",
+                          borderRadius: "999px",
+                          padding: "0.4rem 0.65rem",
+                          fontSize: "0.82rem",
+                        }}
+                        title={`${page.text_length} extracted characters${page.ocr_attempted ? " · OCR attempted" : ""}${page.layout_reflowed ? " · two-column layout reflowed" : ""}`}
+                      >
+                        Page {page.page} · {page.source.replaceAll("_", " ")} · {percent(page.confidence)}
+                        {page.layout_reflowed ? " · reflowed" : ""}
+                      </span>
+                    ))}
+                </div>
+              </Panel>
+            )}
+
             {inspection.sections && inspection.sections.length > 0 && (
               <Panel title="Section completeness">
                 <div style={{ display: "grid", gap: "0.65rem" }}>
