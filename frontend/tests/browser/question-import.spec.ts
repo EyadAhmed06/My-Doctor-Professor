@@ -192,6 +192,14 @@ test('incomplete structural extraction is visible and blocks bulk approval', asy
   });
   Object.assign(source, {
     extraction_breakdown: { text_layer_pages: 1, ocr_pages: 1, empty_pages: 0 },
+    pages: [{
+      page: 1,
+      source: 'OCR',
+      confidence: 0.88,
+      text_length: 420,
+      ocr_attempted: true,
+      layout_reflowed: true,
+    }],
     sections: [{
       title: 'Cardiac anatomy',
       questions: 1,
@@ -214,7 +222,10 @@ test('incomplete structural extraction is visible and blocks bulk approval', asy
   await expect(page.getByText('HYBRID OCR')).toBeVisible();
   await expect(page.getByText('1 / 3').first()).toBeVisible();
   await expect(page.getByText(/Missing: 2, 3/)).toBeVisible();
+  await expect(page.getByText(/Page 1 · OCR · 88%/)).toBeVisible();
   await expect(page.getByRole('button', { name: /Approve all ready/i }).first()).toBeDisabled();
+  await expect(page.getByRole('button', { name: /Generate missing explanations/i })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /Regenerate explanation/i })).toBeDisabled();
 });
 
 test('manual explanation UI enforces 220 characters and blocks more than two sentences', async ({ page }) => {
