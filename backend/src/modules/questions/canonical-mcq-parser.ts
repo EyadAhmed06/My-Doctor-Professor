@@ -256,8 +256,24 @@ function findAnswerKeyBlocks(value: string): AnswerKeyBlock[] {
     let endIndex = index;
     for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
       const next = lines[cursor].text;
+      const raw = next.trim();
+      const isPageMarker = /^\[\[MDP_PAGE_\d+\]\]$/.test(raw);
       const cleaned = next.replace(/\[\[MDP_PAGE_\d+\]\]/g, '').trim();
-      if (!cleaned || /^\[\[MDP_PAGE_\d+\]\]$/.test(cleaned)) {
+
+      if (isPageMarker) {
+        const nextMeaningful = lines
+          .slice(cursor + 1)
+          .find((line) => {
+            const candidate = line.text.trim();
+            return candidate && !/^\[\[MDP_PAGE_\d+\]\]$/.test(candidate);
+          });
+        if (nextMeaningful && isCompactAnswerKeyLine(nextMeaningful.text)) {
+          endIndex = cursor;
+          continue;
+        }
+        break;
+      }
+      if (!cleaned) {
         endIndex = cursor;
         continue;
       }
