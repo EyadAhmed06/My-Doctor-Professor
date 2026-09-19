@@ -197,6 +197,14 @@ jobs:
               f"sudo sed -i 's|^BACKEND_IMAGE=.*|BACKEND_IMAGE={backend}|' /opt/mdp/deploy.env",
               f"sudo sed -i 's|^FRONTEND_IMAGE=.*|FRONTEND_IMAGE={frontend}|' /opt/mdp/deploy.env",
               "sudo /usr/local/bin/mdp-deploy",
+              (
+                  "status=$(curl -sS -o /tmp/mdp-enrich-route-check.json -w '%{http_code}' "
+                  "-X POST http://127.0.0.1:3000/api/v1/questions/imports/enrich "
+                  "-H 'Content-Type: application/json' -d '{}'); "
+                  "test \"$status\" = 401 || test \"$status\" = 403 || "
+                  "{ echo \"AI enrichment route smoke check failed with HTTP $status\"; "
+                  "cat /tmp/mdp-enrich-route-check.json; exit 1; }"
+              ),
               smtp_check,
               "sudo docker exec -e ALLOW_CONTENT_SEED=true -e SEED_CONTENT_OWNER_EMAIL=instructor@mydoctorprofessor.com mdp-backend npm run repair:seeded-mcqs",
           ]
