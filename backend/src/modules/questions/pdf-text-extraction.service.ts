@@ -102,7 +102,7 @@ export function reflowMcqColumns(value: string): {
   const lines = normalized.split('\n');
 
   const explicitAnswerKeyIndex = lines.findIndex((line) =>
-    /^\s*(?:answer\s*keys?|answers?|correct\s+answers?|solutions?|key)\b/i.test(
+    /^\s*(?:answer\s*keys?|answers|correct\s+answers?|solutions?|key)\b/i.test(
       line,
     ),
   );
