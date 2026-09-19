@@ -262,6 +262,32 @@ describe('canonical MCQ parser', () => {
     expect(question.correctLabel).toBe('B');
   });
 
+  it('preserves page provenance when a new section starts on the page after an answer key', () => {
+    const pdf = pdfFromPages([
+      [
+        'Section Alpha',
+        `1) Alpha question?\n${fiveOptions('alpha')}`,
+        'Answer Key',
+        '1-A',
+      ].join('\n'),
+      [
+        'Section Beta',
+        `1) Beta question?\n${fiveOptions('beta')}`,
+        'Answer Key',
+        '1-C',
+      ].join('\n'),
+    ]);
+
+    const parsed = parseCanonicalMcqDocument(pdf, 'MCQ');
+
+    expect(parsed.questions.map((question) => question.sourcePage)).toEqual([1, 2]);
+    expect(parsed.questions.map((question) => question.answerKeyPage)).toEqual([1, 2]);
+    expect(parsed.sections.map((section) => section.title)).toEqual([
+      'Section Alpha',
+      'Section Beta',
+    ]);
+  });
+
   it('retains physical source pages for question and answer-key provenance', () => {
     const pdf = pdfFromPages([
       'cover',
