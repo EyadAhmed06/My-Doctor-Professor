@@ -128,7 +128,6 @@ type ParsedQuestionDocument = {
 
 const MAX_PDF_BYTES = 50 * 1024 * 1024;
 const MAX_PDF_PAGES = 200;
-const MIN_TEXT_LENGTH = 80;
 const REQUIRED_MCQ_OPTIONS = 5;
 const MAX_PARSED_MCQ_OPTIONS = 6;
 const IMPORT_REFERENCE_PREFIX = 'MDP_PDF_IMPORT';
@@ -178,7 +177,7 @@ export class QuestionImportService {
     });
     if (!topic) throw new BadRequestException('Selected topic no longer exists');
 
-    if (pdf.text.trim().length < MIN_TEXT_LENGTH) {
+    if (!pdf.text.trim()) {
       return {
         original_filename: this.safeFilename(safeFile.originalname),
         file_sha256: sha256,
