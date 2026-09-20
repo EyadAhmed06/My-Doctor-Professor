@@ -290,8 +290,8 @@ function enrichmentPayload(candidate: Candidate) {
 }
 
 function inspectionErrorMessage(cause: unknown) {
-  if (cause instanceof DOMException && (cause.name === "TimeoutError" || cause.name === "AbortError")) {
-    return "The request timed out. Verify the backend/OpenRouter connection and try again.";
+  if (cause instanceof Error && (cause.name === "TimeoutError" || cause.name === "AbortError")) {
+    return "PDF inspection took too long. The server may still be processing OCR; please try again.";
   }
   return cause instanceof Error ? cause.message : "The request failed.";
 }
@@ -368,7 +368,7 @@ export function QuestionImportPage() {
       const result = await request<Inspection>("/questions/imports/inspect", {
         method: "POST",
         body,
-        signal: AbortSignal.timeout(90_000),
+        signal: AbortSignal.timeout(300_000),
       });
       if ((result.inspector_contract_version ?? 0) < 5) {
         throw new Error("The running backend uses an outdated MCQ Inspector contract. Update/restart the backend before using this importer.");
