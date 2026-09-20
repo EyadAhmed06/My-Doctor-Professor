@@ -182,6 +182,30 @@ test('instructor inspects a five-option PDF candidate and publishes an approved 
   expect(body.candidates?.[0]?.options?.filter(option => option.is_correct)).toHaveLength(1);
 });
 
+test('inspector lets an instructor repair missing or extra answer choices before publication', async ({ page }) => {
+  const source = inspectionBody();
+  source.candidates[0].options = source.candidates[0].options.slice(0, 2);
+  source.candidates[0].status = 'INVALID';
+  source.summary = { extracted: 1, valid: 0, needs_review: 0, invalid: 1, duplicates: 0 };
+
+  await openInspection(page, source);
+
+  await expect(page.locator('.question-import-option-row')).toHaveCount(2);
+  await expect(page.getByText(/currently 2/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add choice' })).toBeEnabled();
+
+  await page.getByRole('button', { name: 'Add choice' }).click();
+  await page.getByRole('button', { name: 'Add choice' }).click();
+  await page.getByRole('button', { name: 'Add choice' }).click();
+
+  await expect(page.locator('.question-import-option-row')).toHaveCount(5);
+  await expect(page.getByRole('button', { name: 'Add choice' })).toBeDisabled();
+
+  await page.getByRole('button', { name: 'Remove choice E' }).click();
+  await expect(page.locator('.question-import-option-row')).toHaveCount(4);
+  await expect(page.getByRole('button', { name: 'Add choice' })).toBeEnabled();
+});
+
 test('incomplete structural extraction is visible and blocks bulk approval', async ({ page }) => {
   const source = inspectionBody();
   source.extraction_method = 'HYBRID_OCR';
