@@ -146,8 +146,11 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
         body: requestBody,
       });
     } catch (cause) {
+      if (cause instanceof Error && (cause.name === "TimeoutError" || cause.name === "AbortError")) {
+        throw cause;
+      }
       throw new Error(
-        `Cannot reach the backend at ${API_URL}. Start NestJS on port 3000 and the frontend on port 3001.`,
+        "Cannot reach the server. Check your network connection and try again.",
         { cause },
       );
     }
