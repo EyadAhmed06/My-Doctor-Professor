@@ -1,7 +1,6 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash } from 'crypto';
-import { inflateSync } from 'zlib';
 import { DataSource, Repository } from 'typeorm';
 import { EssayConfiguration } from '../../common/entities/essay-configuration.entity';
 import { Question, QuestionType } from '../../common/entities/question.entity';
@@ -10,6 +9,7 @@ import { AcademicAccessService } from '../academic/academic-access.service';
 import type { UploadedResourceFile } from '../academic/resource-storage.service';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { PublishEssayQuestionImportDto } from './dtos/essay-question-import.dto';
+import { PdfTextExtractionService, type UnicodeParsedPdf } from './pdf-text-extraction.service';
 import { detectQuestionDocumentType, QuestionDocumentType } from './question-document-type';
 
 const MAX_PDF_BYTES = 50 * 1024 * 1024;
@@ -17,12 +17,8 @@ const MAX_PDF_PAGES = 200;
 const MAX_CANDIDATES = 500;
 const MIN_TEXT_LENGTH = 80;
 const REFERENCE_PREFIX = 'MDP_ESSAY_PDF_IMPORT';
-const ESSAY_ANSWER_MODEL = process.env.OPENAI_QUESTION_ENRICHMENT_MODEL || process.env.OPENAI_MODEL || 'gpt-5-mini';
-const ESSAY_ANSWER_BATCH_SIZE = 24;
-const ESSAY_ANSWER_TIMEOUT_MS = 60_000;
 
-type PdfPage = { page: number; text: string };
-type ParsedPdf = { pages: PdfPage[]; pageCount: number; text: string; extractionConfidence: number };
+type ParsedPdf = UnicodeParsedPdf;
 type EssayIssue = { code: string; severity: 'INFO' | 'WARNING' | 'ERROR'; message: string };
 type EssayCandidate = {
   candidate_id: string;
@@ -40,9 +36,6 @@ type EssayCandidate = {
   status: 'VALID' | 'NEEDS_REVIEW' | 'INVALID';
   issues: EssayIssue[];
 };
-type OpenAiResponse = { output_text?: string; output?: Array<{ content?: Array<{ type?: string; text?: string }> }> };
-type GeneratedEssayAnswer = { candidate_id: string; model_answer: string };
-
 
 @Injectable()
 export class EssayQuestionImportService {
@@ -51,6 +44,7 @@ export class EssayQuestionImportService {
     @InjectRepository(Topic) private readonly topics: Repository<Topic>,
     private readonly dataSource: DataSource,
     private readonly academicAccess: AcademicAccessService,
+    private readonly pdfTextExtractor: PdfTextExtractionService,
   ) {}
 
   async inspectPdf(
@@ -63,7 +57,7 @@ export class EssayQuestionImportService {
     this.validatePdfFile(file);
     const safeFile = file;
     const sha256 = createHash('sha256').update(safeFile.buffer).digest('hex');
-    const pdf = this.extractPdf(safeFile.buffer);
+    const pdf = this.pdfTextExtractor.extract(safeFile.buffer);
     if (pdf.text.trim().length < MIN_TEXT_LENGTH) {
       return {
         original_filename: this.safeFilename(safeFile.originalname),
@@ -92,7 +86,9 @@ export class EssayQuestionImportService {
     }
 
     const extracted = this.parseEssayCases(pdf, sha256).slice(0, MAX_CANDIDATES);
-    const parsed = await this.enrichMissingModelAnswers(extracted);
+    // Essay imports are source-grounded only. A missing answer is a parsing/source
+    // issue to review, never a reason to synthesize medical content with an API.
+    const parsed = extracted;
     const valid = parsed.filter((item) => item.status === 'VALID').length;
     const needsReview = parsed.filter((item) => item.status === 'NEEDS_REVIEW').length;
     const invalid = parsed.filter((item) => item.status === 'INVALID').length;
@@ -116,7 +112,7 @@ export class EssayQuestionImportService {
       file_sha256: sha256,
       file_size: safeFile.size,
       page_count: pdf.pageCount,
-      extraction_method: 'TEXT_LAYER_CASE_ESSAY',
+      extraction_method: pdf.extractionMethod ?? 'TEXT_LAYER',
       extraction_confidence: pdf.extractionConfidence,
       status: parsed.length ? 'REVIEW_REQUIRED' : 'NO_QUESTIONS',
       summary: { cases, extracted: parsed.length, valid, needs_review: needsReview, invalid },
@@ -247,7 +243,7 @@ export class EssayQuestionImportService {
       // Newer essay packs commonly keep each answer key directly inside its case and
       // label it simply "Answer:" or "Answers:". Legacy packs may use
       // "Answers of case N" later in the document. Support both deterministically.
-      const localAnswerPattern = /(?:^|\n)\s*(?:Answers?(?:\s+of\s+case\s*\d{1,3})?|Model\s+Answers?)\s*:?\s*(?=\n|$)/im;
+      const localAnswerPattern = /(?:^|\n)\s*(?:Answers?(?:\s+of\s+(?:[^\n]*?\s+)?case\s*\d{1,3})?|Model\s+Answers?)\s*:?\s*(?=\n|$)/im;
       const localAnswerMatch = localAnswerPattern.exec(rawCaseBlock);
 
       let questionPart = rawCaseBlock;
@@ -267,7 +263,7 @@ export class EssayQuestionImportService {
         const answerScopeEnd = nextSameCase?.index ?? stream.length;
         const answerSearch = stream.slice(start, answerScopeEnd);
         const answerMarker = new RegExp(
-          `(?:^|\\n)\\s*Answers?\\s+of\\s+case\\s*${caseNumber}\\s*:?\\s*(?=\\n|$)`,
+          `(?:^|\\n)\\s*Answers?\\s+of\\s+(?:[^\\n]*?\\s+)?case\\s*${caseNumber}\\s*:?\\s*(?=\\n|$)`,
           'im',
         );
         const answerMatch = answerMarker.exec(answerSearch);
@@ -276,7 +272,7 @@ export class EssayQuestionImportService {
           : null;
 
         const answerTail = answerStart === null ? '' : stream.slice(answerStart, answerScopeEnd);
-        const nextAnswerOffset = answerTail.search(/(?:^|\n)\s*Answers?\s+of\s+case\s*\d{1,3}\s*:?\s*(?=\n|$)/im);
+        const nextAnswerOffset = answerTail.search(/(?:^|\n)\s*Answers?\s+of\s+(?:[^\n]*?\s+)?case\s*\d{1,3}\s*:?\s*(?=\n|$)/im);
         answerEnd = answerStart === null
           ? null
           : nextAnswerOffset >= 0 ? answerStart + nextAnswerOffset : answerScopeEnd;
@@ -294,7 +290,8 @@ export class EssayQuestionImportService {
 
       const caseStemRaw = questionPart.slice(0, questionMatches[0].index ?? 0);
       const caseStem = this.cleanInline(this.removePageMarkers(caseStemRaw));
-      const answerMap = this.parseAnswerMap(answerPart);
+      const questionNumbers = questionMatches.map((item) => Number(item[1]));
+      const answerMap = this.parseAnswerMap(answerPart, questionNumbers);
       const casePage = this.pageBefore(stream, start);
 
       for (let qIndex = 0; qIndex < questionMatches.length; qIndex += 1) {
@@ -307,11 +304,12 @@ export class EssayQuestionImportService {
         const questionText = this.cleanInline(this.removePageMarkers(questionPart.slice(qStart, qEnd)));
         if (!questionText) continue;
 
-        const model = answerMap.get(questionNumber) || null;
+        const answerEntry = answerMap.get(questionNumber);
+        const model = answerEntry?.text ?? null;
         const questionOffset = contentStart + (qMatch.index ?? 0);
         const sourcePage = this.pageBefore(stream, questionOffset);
-        const answerPage = model && answerStart !== null && answerEnd !== null
-          ? this.findNumberedAnswerPage(stream, answerStart, answerEnd, questionNumber)
+        const answerPage = answerEntry && answerStart !== null
+          ? this.pageBefore(stream, answerStart + answerEntry.markerOffset)
           : null;
 
         const issues: EssayIssue[] = [];
@@ -366,151 +364,62 @@ export class EssayQuestionImportService {
     return candidates;
   }
 
-  private parseAnswerMap(text: string) {
-    const map = new Map<number, string>();
-    const normalized = text.replace(/\r/g, '\n');
-    const marker = /(?:^|\n)\s*(?:Q(?:uestion)?\s*)?(\d{1,3})\s*[:.)-]\s*/gim;
-    const matches = [...normalized.matchAll(marker)];
-    for (let index = 0; index < matches.length; index += 1) {
-      const number = Number(matches[index][1]);
-      const start = (matches[index].index ?? 0) + matches[index][0].length;
-      const end = index + 1 < matches.length ? (matches[index + 1].index ?? normalized.length) : normalized.length;
-      const answer = this.cleanInline(this.removePageMarkers(normalized.slice(start, end)));
-      if (answer) map.set(number, answer);
-    }
-    return map;
-  }
-
-  private async enrichMissingModelAnswers(candidates: EssayCandidate[]): Promise<EssayCandidate[]> {
-    const missing = candidates.filter((candidate) => !candidate.model_answer?.trim());
-    if (!missing.length) return candidates;
-    const apiKey = process.env.OPENAI_API_KEY?.trim();
-    if (!apiKey) {
-      return candidates.map((candidate) => !candidate.model_answer?.trim()
-        ? this.withAnswerGenerationFailure(candidate, 'OPENAI_API_KEY is not configured on the backend.')
-        : candidate);
-    }
-
-    const generated = new Map<string, string>();
-    const failed = new Set<string>();
-    for (let offset = 0; offset < missing.length; offset += ESSAY_ANSWER_BATCH_SIZE) {
-      const batch = missing.slice(offset, offset + ESSAY_ANSWER_BATCH_SIZE);
-      try {
-        const rows = await this.generateEssayAnswers(batch, apiKey);
-        for (const row of rows) generated.set(row.candidate_id, row.model_answer.trim());
-        for (const candidate of batch) if (!generated.get(candidate.candidate_id)) failed.add(candidate.candidate_id);
-      } catch {
-        for (const candidate of batch) failed.add(candidate.candidate_id);
-      }
-    }
-
-    return candidates.map((candidate) => {
-      const answer = generated.get(candidate.candidate_id);
-      if (!answer) return failed.has(candidate.candidate_id)
-        ? this.withAnswerGenerationFailure(candidate, 'Automatic model-answer generation failed. Review and enter the answer manually.')
-        : candidate;
-      const issues: EssayIssue[] = [
-        ...candidate.issues.filter((issue) => !['MODEL_ANSWER_MISSING', 'AI_ANSWER_GENERATION_FAILED'].includes(issue.code)),
-        {
-          code: 'AI_MODEL_ANSWER_GENERATED',
-          severity: 'WARNING',
-          message: `${ESSAY_ANSWER_MODEL} generated this model answer because no matching answer was recovered from the PDF. Instructor review is required before publication.`,
-        },
-      ];
-      return { ...candidate, model_answer: answer, answer_origin: 'AI' as const, issues, status: 'NEEDS_REVIEW' as const };
-    });
-  }
-
-  private async generateEssayAnswers(candidates: EssayCandidate[], apiKey: string): Promise<GeneratedEssayAnswer[]> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), ESSAY_ANSWER_TIMEOUT_MS);
-    try {
-      const input = candidates.map((candidate) => ({
-        candidate_id: candidate.candidate_id,
-        case_stem: candidate.case_stem,
-        question: candidate.question_text,
-      }));
-      const response = await fetch('https://api.openai.com/v1/responses', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: ESSAY_ANSWER_MODEL,
-          store: false,
-          max_output_tokens: 12_000,
-          reasoning: { effort: 'low' },
-          instructions: [
-            'Generate instructor-review model answers for medical case-based essay questions.',
-            'Return one answer for every supplied candidate_id and do not omit any candidate.',
-            'Answer the exact question using medically accurate, exam-ready content and the case context.',
-            'Do not invent patient findings, investigations, diagnoses, citations, or facts not justified by the question.',
-            'When a question requests a number of items, provide exactly that number when medically defensible.',
-            'Use concise structured prose or bullet-style lines suitable for a model-answer field.',
-            'Do not mention AI, the prompt, uncertainty policy, or these instructions in the answer.',
-          ].join(' '),
-          input: JSON.stringify(input),
-          text: {
-            verbosity: 'low',
-            format: {
-              type: 'json_schema',
-              name: 'essay_model_answers',
-              strict: true,
-              schema: {
-                type: 'object',
-                additionalProperties: false,
-                required: ['answers'],
-                properties: {
-                  answers: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      additionalProperties: false,
-                      required: ['candidate_id', 'model_answer'],
-                      properties: {
-                        candidate_id: { type: 'string' },
-                        model_answer: { type: 'string' },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        }),
-      });
-      if (!response.ok) throw new Error(`OpenAI essay answer generation failed (${response.status})`);
-      const body = await response.json() as OpenAiResponse;
-      const parsed = JSON.parse(this.openAiResponseText(body)) as { answers?: GeneratedEssayAnswer[] };
-      if (!Array.isArray(parsed.answers)) throw new Error('OpenAI response did not contain essay answers');
-      const expected = new Set(candidates.map((candidate) => candidate.candidate_id));
-      const valid = parsed.answers.filter((row) => expected.has(row.candidate_id) && row.model_answer?.trim());
-      if (new Set(valid.map((row) => row.candidate_id)).size !== expected.size) {
-        throw new Error('OpenAI response did not match every essay candidate');
-      }
-      return valid;
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
-  private withAnswerGenerationFailure(candidate: EssayCandidate, message: string): EssayCandidate {
-    return {
-      ...candidate,
-      status: 'INVALID',
-      issues: [
-        ...candidate.issues.filter((issue) => issue.code !== 'AI_ANSWER_GENERATION_FAILED'),
-        { code: 'AI_ANSWER_GENERATION_FAILED', severity: 'WARNING', message },
-      ],
+  private parseAnswerMap(text: string, expectedQuestionNumbers: number[]) {
+    type AnswerMarker = {
+      number: number;
+      index: number;
+      contentStart: number;
+      indent: number;
     };
-  }
 
-  private openAiResponseText(body: OpenAiResponse) {
-    if (body.output_text?.trim()) return body.output_text.trim();
-    const joined = (body.output || []).flatMap((item) => item.content || [])
-      .filter((item) => item.type === 'output_text' && typeof item.text === 'string')
-      .map((item) => item.text as string).join('\n').trim();
-    if (!joined) throw new Error('OpenAI response contained no output text');
-    return joined;
+    const map = new Map<number, { text: string; markerOffset: number }>();
+    const normalized = text.replace(/\r\n?/g, '\n');
+    const expected = [...new Set(expectedQuestionNumbers.filter((number) => Number.isInteger(number) && number > 0))];
+    const expectedSet = new Set(expected);
+    if (!expected.length) return map;
+
+    // pdftotext -layout preserves indentation. Top-level answer numbers are aligned
+    // at the answer block margin, while numbered sub-points are indented. Preserve
+    // that distinction so "1) answer\n  1. detail\n  2. detail\n2) answer" does not
+    // split answer 1 into fake answers 1 and 2.
+    const marker = /(^|\n)([ \t]*)(?:Q(?:uestion)?\s*)?(\d{1,3})\s*[:.)-]\s*/gim;
+    const markers: AnswerMarker[] = [...normalized.matchAll(marker)]
+      .map((match) => ({
+        number: Number(match[3]),
+        index: match.index ?? 0,
+        contentStart: (match.index ?? 0) + match[0].length,
+        indent: match[2].replace(/\t/g, '    ').length,
+      }))
+      .filter((item) => expectedSet.has(item.number));
+
+    if (!markers.length) return map;
+    const minimumIndent = Math.min(...markers.map((item) => item.indent));
+    const topLevelMarkers = markers.filter((item) => item.indent <= minimumIndent + 2);
+
+    const selected: AnswerMarker[] = [];
+    let cursor = -1;
+    for (const number of expected) {
+      const preferred = topLevelMarkers.find((item) => item.number === number && item.index > cursor);
+      const fallback = markers.find((item) => item.number === number && item.index > cursor);
+      const chosen = preferred ?? fallback;
+      if (!chosen) continue;
+      selected.push(chosen);
+      cursor = chosen.index;
+    }
+
+    for (let index = 0; index < selected.length; index += 1) {
+      const current = selected[index];
+      const end = index + 1 < selected.length ? selected[index + 1].index : normalized.length;
+      const answer = this.cleanInline(this.removePageMarkers(normalized.slice(current.contentStart, end)));
+      if (answer) {
+        map.set(current.number, {
+          text: answer,
+          markerOffset: current.index,
+        });
+      }
+    }
+
+    return map;
   }
 
   private pageBefore(text: string, offset: number) {
@@ -538,7 +447,8 @@ export class EssayQuestionImportService {
       .replace(/[.…·]{6,}/g, '\n')
       .replace(/(?:[«»‹›]\s*){2,}/g, '\n')
       .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, ' ')
-      .replace(/[ \t]+/g, ' ')
+      .replace(/\t/g, '    ')
+      .replace(/[ \t]+$/gm, '')
       .replace(/\n{3,}/g, '\n\n');
   }
 
@@ -577,90 +487,6 @@ export class EssayQuestionImportService {
     if (!/\.pdf$/i.test(file.originalname || '')) throw new BadRequestException('Essay imports must use a .pdf filename');
     if (file.mimetype !== 'application/pdf') throw new BadRequestException('Declared file type must be application/pdf');
     if (file.buffer.subarray(0, 5).toString('ascii') !== '%PDF-') throw new BadRequestException('Uploaded content is not a real PDF file');
-  }
-
-  private extractPdf(buffer: Buffer): ParsedPdf {
-    const binary = buffer.toString('latin1');
-    if (/\/Encrypt\b/.test(binary)) throw new BadRequestException('Password-protected or encrypted PDFs are not supported');
-    const declaredPageCount = (binary.match(/\/Type\s*\/Page\b/g) || []).length;
-    if (declaredPageCount < 1) throw new BadRequestException('The PDF does not contain a readable page structure');
-    if (declaredPageCount > MAX_PDF_PAGES) throw new BadRequestException(`PDF imports are limited to ${MAX_PDF_PAGES} pages`);
-
-    const objects = new Map<number, string>();
-    const objectPattern = /(\d+)\s+\d+\s+obj\b([\s\S]*?)endobj/g;
-    let objectMatch: RegExpExecArray | null;
-    while ((objectMatch = objectPattern.exec(binary)) !== null) objects.set(Number(objectMatch[1]), objectMatch[2]);
-
-    const pages: PdfPage[] = [];
-    for (const body of objects.values()) {
-      if (!/\/Type\s*\/Page\b/.test(body)) continue;
-      const refs: number[] = [];
-      const single = body.match(/\/Contents\s+(\d+)\s+\d+\s+R/);
-      if (single) refs.push(Number(single[1]));
-      const list = body.match(/\/Contents\s*\[([^\]]+)\]/);
-      if (list) {
-        const refPattern = /(\d+)\s+\d+\s+R/g;
-        let ref: RegExpExecArray | null;
-        while ((ref = refPattern.exec(list[1])) !== null) refs.push(Number(ref[1]));
-      }
-      const text = refs.map((reference) => objects.get(reference)).filter((value): value is string => Boolean(value))
-        .map((value) => this.extractTextFromStreamObject(value)).filter(Boolean).join('\n');
-      pages.push({ page: pages.length + 1, text });
-    }
-    if (!pages.length || pages.every((page) => !page.text.trim())) {
-      const fallback = Array.from(objects.values()).map((value) => this.extractTextFromStreamObject(value)).filter(Boolean).join('\n');
-      pages.push({ page: 1, text: fallback });
-    }
-    const text = pages.map((page) => page.text).join('\n');
-    const printable = [...text].filter((character) => character === '\n' || character === '\t' || character.charCodeAt(0) >= 32).length;
-    const extractionConfidence = text.length ? Math.min(1, (printable / text.length) * Math.min(1, text.length / 1000)) : 0;
-    return { pages, pageCount: declaredPageCount, text, extractionConfidence };
-  }
-
-  private extractTextFromStreamObject(body: string) {
-    const stream = body.match(/stream\r?\n?([\s\S]*?)\r?\n?endstream/);
-    if (!stream) return '';
-    const raw = Buffer.from(stream[1], 'latin1');
-    let decoded = raw;
-    try {
-      if (/\/FlateDecode\b/.test(body)) decoded = inflateSync(raw);
-      else if (/\/Filter\b/.test(body)) return '';
-    } catch { return ''; }
-    return this.extractTextOperators(decoded.toString('latin1'));
-  }
-
-  private extractTextOperators(content: string) {
-    const output: string[] = [];
-    const pattern = /(\((?:\\.|[^\\)])*\)|<[A-Fa-f0-9\s]+>|\[(?:\\.|[^\]])*\])\s*(Tj|TJ|'|")/g;
-    let match: RegExpExecArray | null;
-    while ((match = pattern.exec(content)) !== null) {
-      const operand = match[1];
-      if (operand.startsWith('[')) {
-        const values: string[] = [];
-        const inner = /\((?:\\.|[^\\)])*\)|<[A-Fa-f0-9\s]+>/g;
-        let value: RegExpExecArray | null;
-        while ((value = inner.exec(operand)) !== null) values.push(this.decodePdfString(value[0]));
-        if (values.length) output.push(values.join(''));
-      } else output.push(this.decodePdfString(operand));
-    }
-    return output.map((line) => line.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').trim()).filter(Boolean).join('\n');
-  }
-
-  private decodePdfString(value: string) {
-    if (value.startsWith('<')) {
-      const hex = value.slice(1, -1).replace(/\s+/g, '');
-      if (!hex || hex.length % 2) return '';
-      const bytes = Buffer.from(hex, 'hex');
-      if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
-        const chars: number[] = [];
-        for (let index = 2; index + 1 < bytes.length; index += 2) chars.push(bytes.readUInt16BE(index));
-        return String.fromCharCode(...chars);
-      }
-      return bytes.toString('latin1');
-    }
-    return value.slice(1, -1)
-      .replace(/\\([nrtbf()\\])/g, (_, code: string) => ({ n: '\n', r: '\r', t: '\t', b: '\b', f: '\f', '(': '(', ')': ')', '\\': '\\' }[code] || code))
-      .replace(/\\([0-7]{1,3})/g, (_, octal: string) => String.fromCharCode(parseInt(octal, 8)));
   }
 
   private safeFilename(value: string) {
