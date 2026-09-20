@@ -13,7 +13,6 @@ import { PdfTextExtractionService, type UnicodeParsedPdf } from './pdf-text-extr
 import { detectQuestionDocumentType, QuestionDocumentType } from './question-document-type';
 
 const MAX_PDF_BYTES = 50 * 1024 * 1024;
-const MAX_PDF_PAGES = 200;
 const MAX_CANDIDATES = 500;
 const MIN_TEXT_LENGTH = 80;
 const REFERENCE_PREFIX = 'MDP_ESSAY_PDF_IMPORT';
@@ -29,7 +28,7 @@ type EssayCandidate = {
   question_number: number;
   question_text: string;
   model_answer: string | null;
-  answer_origin: 'SOURCE' | 'AI' | 'MISSING';
+  answer_origin: 'SOURCE' | 'MISSING';
   source_page: number | null;
   answer_page: number | null;
   extraction_confidence: number;
@@ -126,7 +125,7 @@ export class EssayQuestionImportService {
           return result;
         }, {}),
         mapped_answers: parsed.filter((candidate) => candidate.answer_origin === 'SOURCE').length,
-        generated_answers: parsed.filter((candidate) => candidate.answer_origin === 'AI').length,
+        generated_answers: 0,
         unmapped_keys: parsed.filter((candidate) => candidate.answer_origin === 'MISSING').map((candidate) => ({ section: candidate.section, case_number: candidate.case_number, question_number: candidate.question_number })),
       },
       issues,
@@ -426,13 +425,6 @@ export class EssayQuestionImportService {
     const prefix = text.slice(0, offset);
     const matches = [...prefix.matchAll(/\[\[PAGE:(\d+)\]\]/g)];
     return matches.length ? Number(matches[matches.length - 1][1]) : null;
-  }
-
-  private findNumberedAnswerPage(stream: string, answerStart: number, answerEnd: number, questionNumber: number) {
-    const answerBlock = stream.slice(answerStart, answerEnd);
-    const marker = new RegExp(`(?:^|\\n)\\s*(?:Q(?:uestion)?\\s*)?${questionNumber}\\s*[:.)-]`, 'im');
-    const match = marker.exec(answerBlock);
-    return match ? this.pageBefore(stream, answerStart + (match.index ?? 0)) : null;
   }
 
   private composeQuestion(caseStem: string, question: string) {
