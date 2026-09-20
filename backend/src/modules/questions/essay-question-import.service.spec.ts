@@ -2,12 +2,9 @@ import { EssayQuestionImportService } from './essay-question-import.service';
 
 describe('EssayQuestionImportService PDF parsing', () => {
   const service = Object.create(EssayQuestionImportService.prototype) as EssayQuestionImportService;
-  const originalApiKey = process.env.OPENAI_API_KEY;
 
   afterEach(() => {
     jest.restoreAllMocks();
-    if (originalApiKey === undefined) delete process.env.OPENAI_API_KEY;
-    else process.env.OPENAI_API_KEY = originalApiKey;
   });
 
   function parse(text: string) {
@@ -122,32 +119,59 @@ describe('EssayQuestionImportService PDF parsing', () => {
     expect(candidates[2].model_answer).toBe('Another second answer.');
   });
 
-  it('generates review-required answers for every question missing a source answer', async () => {
-    process.env.OPENAI_API_KEY = 'test-key';
+  it('maps exam-qualified answer headings and keeps nested numbered details inside the parent answer', () => {
+    const candidates = parse(`
+      Final 2028
+      Case 1: A patient presents with an endocrine complaint.
+      1. What is the diagnosis?
+      2. List the investigations.
+      Answers of Final 2028 case 1
+      1)
+      Primary endocrine diagnosis.
+      2)
+          1. First investigation.
+          2. Second investigation.
+          3. Third investigation.
+    `);
+
+    expect(candidates).toHaveLength(2);
+    expect(candidates[0].model_answer).toBe('Primary endocrine diagnosis.');
+    expect(candidates[1].model_answer).toContain('1. First investigation.');
+    expect(candidates[1].model_answer).toContain('2. Second investigation.');
+    expect(candidates[1].model_answer).toContain('3. Third investigation.');
+    expect(candidates.every((candidate: any) => candidate.answer_origin === 'SOURCE')).toBe(true);
+    expect(candidates.every((candidate: any) => candidate.status === 'VALID')).toBe(true);
+  });
+
+  it('preserves indentation needed to distinguish top-level answers from numbered sub-points', () => {
+    const cleaned = (service as any).cleanPageText(`
+Answers of case 1
+1)
+     1. First detail
+     2. Second detail
+2)
+Second answer
+    `);
+
+    expect(cleaned).toContain('\n     1. First detail');
+    expect(cleaned).toContain('\n     2. Second detail');
+  });
+
+  it('leaves questions with no source answer invalid instead of calling an AI answer generator', () => {
     const candidates = parse(`
       Final 2028
       CASE 1: A patient presents with progressive urinary symptoms.
       Q1. What investigations are required?
       Q2. Mention four causes of a hard prostate.
     `);
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        output_text: JSON.stringify({ answers: candidates.map((candidate: any) => ({
-          candidate_id: candidate.candidate_id,
-          model_answer: `Generated answer for Q${candidate.question_number}`,
-        })) }),
-      }),
-    } as Response);
 
-    const enriched = await (service as any).enrichMissingModelAnswers(candidates);
-
-    expect(enriched.map((candidate: any) => candidate.model_answer)).toEqual([
-      'Generated answer for Q1',
-      'Generated answer for Q2',
-    ]);
-    expect(enriched.every((candidate: any) => candidate.status === 'NEEDS_REVIEW')).toBe(true);
-    expect(enriched.every((candidate: any) => candidate.answer_origin === 'AI')).toBe(true);
-    expect(enriched.every((candidate: any) => candidate.issues.some((issue: any) => issue.code === 'AI_MODEL_ANSWER_GENERATED'))).toBe(true);
+    expect(candidates).toHaveLength(2);
+    expect(candidates.every((candidate: any) => candidate.model_answer === null)).toBe(true);
+    expect(candidates.every((candidate: any) => candidate.answer_origin === 'MISSING')).toBe(true);
+    expect(candidates.every((candidate: any) => candidate.status === 'INVALID')).toBe(true);
+    expect(candidates.every((candidate: any) =>
+      candidate.issues.some((issue: any) => issue.code === 'MODEL_ANSWER_MISSING'),
+    )).toBe(true);
+    expect((service as any).enrichMissingModelAnswers).toBeUndefined();
   });
 });
