@@ -147,15 +147,20 @@ type EnrichmentResponse = {
 type PublishResult = { created: number; reused: number; skipped: number };
 
 const OPTION_LABELS = ["A", "B", "C", "D", "E"] as const;
+const EDITABLE_OPTION_LABELS = ["A", "B", "C", "D", "E", "F"] as const;
 const EXPLANATION_MAX_LENGTH = 220;
 const EXPLANATION_MAX_SENTENCES = 2;
 const ENRICHMENT_BATCH_SIZE = 10;
 
-function normalizeOptions(options: CandidateOption[]) {
-  return options.slice(0, 5).map((option, index) => ({
+function relabelOptions(options: CandidateOption[]) {
+  return options.map((option, index) => ({
     ...option,
-    label: OPTION_LABELS[index],
+    label: EDITABLE_OPTION_LABELS[index] ?? option.label,
   }));
+}
+
+function normalizeOptions(options: CandidateOption[]) {
+  return relabelOptions(options.slice(0, EDITABLE_OPTION_LABELS.length));
 }
 
 function flattenTopics(course: Course | null) {
@@ -404,6 +409,38 @@ export function QuestionImportPage() {
 
   function editSource(index: number, updater: (candidate: Candidate) => Candidate) {
     updateCandidate(index, (candidate) => markSourceChanged(updater(candidate)));
+  }
+
+  function addChoice(candidateIndex: number) {
+    editSource(candidateIndex, (candidate) => {
+      if (candidate.options.length >= OPTION_LABELS.length) return candidate;
+      return {
+        ...candidate,
+        reuse_question_id: undefined,
+        options: relabelOptions([
+          ...candidate.options,
+          {
+            label: "",
+            option_text: "",
+            is_correct: false,
+            explanation: null,
+          },
+        ]),
+      };
+    });
+  }
+
+  function removeChoice(candidateIndex: number, optionIndex: number) {
+    editSource(candidateIndex, (candidate) => {
+      if (candidate.options.length <= 2) return candidate;
+      return {
+        ...candidate,
+        reuse_question_id: undefined,
+        options: relabelOptions(
+          candidate.options.filter((_, index) => index !== optionIndex),
+        ),
+      };
+    });
   }
 
   function mergeEnriched(batch: Candidate[]) {
@@ -848,14 +885,18 @@ export function QuestionImportPage() {
                       <label className="question-import-stem"><span>Question stem</span><textarea value={candidate.question_text} onChange={(event) => editSource(candidateIndex, (current) => ({ ...current, question_text: event.target.value, reuse_question_id: undefined }))} /></label>
 
                       <div className="question-import-options">
-                        <div className="question-import-options-header"><span>Five answer options · select one source-correct answer</span></div>
+                        <div className="question-import-options-header">
+                          <span>Exactly five answer options required · currently {candidate.options.length}</span>
+                          <button type="button" className="question-import-add-option-btn" disabled={candidate.options.length >= OPTION_LABELS.length} onClick={() => addChoice(candidateIndex)}><FiPlus /> Add choice</button>
+                        </div>
                         {candidate.options.map((option, optionIndex) => (
-                          <div key={`${candidate.candidate_id}-${option.label}`} style={{ display: "grid", gap: "0.45rem", marginBottom: "0.75rem" }}>
-                            <label className={`question-import-option-row ${option.is_correct ? "correct" : ""}`}>
-                              <input type="radio" name={`correct-${candidate.candidate_id}`} checked={option.is_correct} onChange={() => editSource(candidateIndex, (current) => ({ ...current, options: current.options.map((value, index) => ({ ...value, is_correct: index === optionIndex })) }))} />
+                          <div key={`${candidate.candidate_id}-${option.label}-${optionIndex}`} style={{ display: "grid", gap: "0.45rem", marginBottom: "0.75rem" }}>
+                            <div className={`question-import-option-row ${option.is_correct ? "correct" : ""}`}>
+                              <input aria-label={`Mark choice ${option.label} as correct`} type="radio" name={`correct-${candidate.candidate_id}`} checked={option.is_correct} onChange={() => editSource(candidateIndex, (current) => ({ ...current, options: current.options.map((value, index) => ({ ...value, is_correct: index === optionIndex })) }))} />
                               <strong>{option.label}</strong>
-                              <input type="text" value={option.option_text} onChange={(event) => editSource(candidateIndex, (current) => ({ ...current, reuse_question_id: undefined, options: current.options.map((value, index) => index === optionIndex ? { ...value, option_text: event.target.value } : value) }))} />
-                            </label>
+                              <input aria-label={`Choice ${option.label}`} type="text" value={option.option_text} onChange={(event) => editSource(candidateIndex, (current) => ({ ...current, reuse_question_id: undefined, options: current.options.map((value, index) => index === optionIndex ? { ...value, option_text: event.target.value } : value) }))} />
+                              <button type="button" className="question-import-option-delete-btn" aria-label={`Remove choice ${option.label}`} title={`Remove choice ${option.label}`} disabled={candidate.options.length <= 2} onClick={() => removeChoice(candidateIndex, optionIndex)}><FiTrash2 /></button>
+                            </div>
                             <label className="question-import-option-explanation">
                               <span style={{ fontSize: "0.82rem", opacity: 0.78 }}>{option.is_correct ? "Why this is correct" : "Why this is incorrect"} · max 2 short sentences</span>
                               <textarea rows={2} maxLength={EXPLANATION_MAX_LENGTH} value={option.explanation || ""} placeholder="Concise reason…" onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, approved: false, options: current.options.map((value, index) => index === optionIndex ? { ...value, explanation: event.target.value } : value) }))} />
