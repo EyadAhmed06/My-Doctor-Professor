@@ -17,7 +17,7 @@ export function detectQuestionDocumentType(value: string): QuestionDocumentType 
     text.matchAll(/^\s*Q(?:uestion)?\s*\d{1,3}\s*[:.)-]\s+\S.+$/gim),
   ).length;
   const essayAnswers = Array.from(
-    text.matchAll(/^\s*(?:Answers?(?:\s+of\s+case\s+\d+)?|Model\s+Answers?)\s*:?\s*$/gim),
+    text.matchAll(/^\s*(?:Answers?(?:\s+of\s+(?:[^\n]*?\s+)?case\s+\d+)?|Model\s+Answers?)\s*:?\s*$/gim),
   ).length;
 
   const mcq = optionMarkers >= 4 && mcqQuestions >= 1
