@@ -185,7 +185,7 @@ export function ResetPasswordPage(){
   const [loading,setLoading]=useState(false);
   const [cooldown,setCooldown]=useState(0);
   const code=digits.join("");
-  const checks={length:password.length>=8,upper:/[A-Z]/.test(password),lower:/[a-z]/.test(password),number:/\d/.test(password),match:Boolean(password)&&password===confirm};
+  const checks={length:password.length>=12,upper:/[A-Z]/.test(password),lower:/[a-z]/.test(password),number:/\d/.test(password),match:Boolean(password)&&password===confirm};
 
   useEffect(()=>{if(cooldown<=0)return;const id=window.setInterval(()=>setCooldown(value=>Math.max(0,value-1)),1000);return()=>window.clearInterval(id);},[cooldown]);
 
@@ -261,7 +261,7 @@ export function ResetPasswordPage(){
   return <ActionLayout variant="reset" eyebrow="ACCOUNT RECOVERY" title={title} description={description}>
     <div className={styles.heading}><span className={styles.step}>{message?<FiCheck/>:resetToken?"3":"2"}</span><div><h2>{message?"Password updated":resetToken?"Choose a new password":"Enter your recovery code"}</h2><p>{message?"Your other sessions were signed out to protect your account.":resetToken?"Your email is verified for this recovery session. Complete every requirement below.":email?<>We sent a 6-digit reset code to <b>{email}</b>.</>:"Request a new reset code so we know which account to recover."}</p></div></div>
     {message?<div className={styles.complete}><span><FiCheck/></span><Notice message={message} error={null}/><Link className={`primary-button ${styles.submit}`} href="/login">Log in with new password <icons.Arrow/></Link></div>:
-    resetToken?<form className={styles.form} onSubmit={submitPassword}><Notice message={notice} error={null}/><Field label="New password" icon={icons.Lock} placeholder="Create a secure password" type="password" value={password} onChange={e=>setPassword(e.target.value)} required autoComplete="new-password"/><Field label="Confirm password" icon={icons.Lock} placeholder="Repeat your password" type="password" value={confirm} onChange={e=>setConfirm(e.target.value)} required autoComplete="new-password"/><div className={styles.requirements}><Check ok={checks.length}>At least 8 characters</Check><Check ok={checks.upper&&checks.lower}>Uppercase and lowercase letters</Check><Check ok={checks.number}>At least one number</Check><Check ok={checks.match}>Passwords match</Check></div><SubmitButton loading={loading} label="Reset password"/><Notice message={null} error={error}/></form>:
+    resetToken?<form className={styles.form} onSubmit={submitPassword}><Notice message={notice} error={null}/><Field label="New password" icon={icons.Lock} placeholder="Create a secure password" type="password" value={password} onChange={e=>setPassword(e.target.value)} required autoComplete="new-password"/><Field label="Confirm password" icon={icons.Lock} placeholder="Repeat your password" type="password" value={confirm} onChange={e=>setConfirm(e.target.value)} required autoComplete="new-password"/><div className={styles.requirements}><Check ok={checks.length}>At least 12 characters</Check><Check ok={checks.upper&&checks.lower}>Uppercase and lowercase letters</Check><Check ok={checks.number}>At least one number</Check><Check ok={checks.match}>Passwords match</Check></div><SubmitButton loading={loading} label="Reset password"/><Notice message={null} error={error}/></form>:
     email?<form className={styles.otpForm} onSubmit={verifyCode} noValidate>
       <div className={styles.otpPanel}>
         <span className={styles.otpLabel}>PASSWORD RESET CODE</span>
