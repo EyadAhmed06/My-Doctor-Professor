@@ -13,8 +13,8 @@ function buildService() {
   );
 }
 
-function registrationMessage(deviceId: string, publicKeyJwk: Record<string, any>): Uint8Array {
-  return new TextEncoder().encode([
+function registrationMessage(deviceId: string, publicKeyJwk: Record<string, any>): ArrayBuffer {
+  const encoded = new TextEncoder().encode([
     'MDP_DEVICE_BINDING_V1',
     deviceId,
     publicKeyJwk.kty,
@@ -22,6 +22,9 @@ function registrationMessage(deviceId: string, publicKeyJwk: Record<string, any>
     publicKeyJwk.x,
     publicKeyJwk.y,
   ].join('\n'));
+  const buffer = new ArrayBuffer(encoded.byteLength);
+  new Uint8Array(buffer).set(encoded);
+  return buffer;
 }
 
 describe('Trusted student device cryptography', () => {
@@ -48,10 +51,11 @@ describe('Trusted student device cryptography', () => {
     );
     const publicKeyJwk = await webcrypto.subtle.exportKey('jwk', pair.publicKey);
     const challenge = randomBytes(32).toString('base64url');
+    const challengeBytes = new Uint8Array(Buffer.from(challenge, 'base64url'));
     const signature = Buffer.from(await webcrypto.subtle.sign(
       { name: 'ECDSA', hash: 'SHA-256' },
       pair.privateKey,
-      Buffer.from(challenge, 'base64url'),
+      challengeBytes,
     )).toString('base64url');
 
     expect((service as any).verifyDeviceSignature(
