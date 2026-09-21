@@ -330,6 +330,7 @@ export class AuthService {
       throw new UnauthorizedException('User no longer exists');
     }
     this.assertAccountEnabled(user);
+    await this.usersService.assertSessionTrustedDevice(user, payload.sid);
     return this.rotateSession(user, payload.sid, refreshToken);
   }
 
