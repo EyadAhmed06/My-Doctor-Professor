@@ -1,4 +1,5 @@
-import { generateKeyPairSync, randomBytes, sign } from 'crypto';
+import { generateKeyPairSync, randomBytes, sign, webcrypto } from 'crypto';
+import { randomUUID } from 'crypto';
 import { UsersService } from './users.service';
 
 function buildService() {
@@ -10,6 +11,17 @@ function buildService() {
     {} as never,
     {} as never,
   );
+}
+
+function registrationMessage(deviceId: string, publicKeyJwk: JsonWebKey): Uint8Array {
+  return new TextEncoder().encode([
+    'MDP_DEVICE_BINDING_V1',
+    deviceId,
+    publicKeyJwk.kty,
+    publicKeyJwk.crv,
+    publicKeyJwk.x,
+    publicKeyJwk.y,
+  ].join('\n'));
 }
 
 describe('Trusted student device cryptography', () => {
@@ -25,6 +37,56 @@ describe('Trusted student device cryptography', () => {
     ).toString('base64url');
 
     expect((service as any).verifyDeviceSignature(publicKeyJwk, challenge, signature)).toBe(true);
+  });
+
+  it('verifies signatures produced by the WebCrypto API used by browsers', async () => {
+    const service = buildService();
+    const pair = await webcrypto.subtle.generateKey(
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      false,
+      ['sign', 'verify'],
+    ) as CryptoKeyPair;
+    const publicKeyJwk = await webcrypto.subtle.exportKey('jwk', pair.publicKey);
+    const challenge = randomBytes(32).toString('base64url');
+    const signature = Buffer.from(await webcrypto.subtle.sign(
+      { name: 'ECDSA', hash: 'SHA-256' },
+      pair.privateKey,
+      Buffer.from(challenge, 'base64url'),
+    )).toString('base64url');
+
+    expect((service as any).verifyDeviceSignature(
+      publicKeyJwk as Record<string, unknown>,
+      challenge,
+      signature,
+    )).toBe(true);
+  });
+
+  it('verifies browser registration proof before a device can be requested or enrolled', async () => {
+    const service = buildService();
+    const pair = await webcrypto.subtle.generateKey(
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      false,
+      ['sign', 'verify'],
+    ) as CryptoKeyPair;
+    const publicKeyJwk = await webcrypto.subtle.exportKey('jwk', pair.publicKey);
+    const deviceId = randomUUID();
+    const signature = Buffer.from(await webcrypto.subtle.sign(
+      { name: 'ECDSA', hash: 'SHA-256' },
+      pair.privateKey,
+      registrationMessage(deviceId, publicKeyJwk),
+    )).toString('base64url');
+
+    expect((service as any).verifyDeviceRegistrationSignature(
+      publicKeyJwk as Record<string, unknown>,
+      deviceId,
+      signature,
+    )).toBe(true);
+
+    expect((service as any).verifyDeviceRegistrationSignature(
+      publicKeyJwk as Record<string, unknown>,
+      randomUUID(),
+      signature,
+    )).toBe(false);
   });
 
   it('rejects a signature when the challenge is changed', () => {
