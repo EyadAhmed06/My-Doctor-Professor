@@ -24,6 +24,7 @@ import { generateForensicCode } from './forensic-code';
 export interface TrustedDeviceRegistrationInput {
   clientDeviceId:string;
   publicKeyJwk:Record<string,unknown>;
+  registrationSignature:string;
   deviceLabel?:string;
   ipAddress?:string|null;
   userAgent?:string|null;
@@ -31,6 +32,7 @@ export interface TrustedDeviceRegistrationInput {
 export interface StudentDeviceProofInput {
   clientDeviceId?:string;
   publicKeyJwk?:Record<string,unknown>;
+  registrationSignature?:string;
   deviceLabel?:string;
   challengeId?:string;
   signature?:string;
@@ -363,6 +365,14 @@ export class UsersService {
       throw new HttpException({statusCode:HttpStatus.PRECONDITION_REQUIRED,error:'DEVICE_CONTEXT_REQUIRED',message:'This student account requires a trusted browser device.'},HttpStatus.PRECONDITION_REQUIRED);
     }
     const normalizedKey=this.normalizePublicKeyJwk(publicKeyJwk);
+    const registrationProofValid = Boolean(
+      proof?.registrationSignature &&
+      this.verifyDeviceRegistrationSignature(
+        normalizedKey,
+        clientDeviceId,
+        proof.registrationSignature,
+      ),
+    );
     const normalizedIp=this.normalizeIp(ipAddress);
     const deviceLabel=this.normalizeDeviceLabel(proof?.deviceLabel);
     const ua=userAgent?.slice(0,1000)||null;
@@ -371,6 +381,9 @@ export class UsersService {
       [user.id],
     ) as Array<{id:string;client_device_id:string;public_key_jwk:Record<string,unknown>}>;
     if(!activeRows.length) {
+      if(!registrationProofValid) {
+        throw new UnauthorizedException('Device key possession proof failed');
+      }
       return this.dataSource.transaction(async manager=>{
         await manager.query('SELECT id FROM users WHERE id=$1 FOR UPDATE',[user.id]);
         const existing=await manager.query(`SELECT id FROM trusted_devices WHERE user_id=$1 AND status='ACTIVE' LIMIT 1`,[user.id]) as Array<{id:string}>;
@@ -387,6 +400,9 @@ export class UsersService {
     const sameDevice=active.client_device_id===clientDeviceId;
     const sameKey=this.deviceKeyThumbprint(active.public_key_jwk)===this.deviceKeyThumbprint(normalizedKey);
     if(!sameDevice||!sameKey) {
+      if(!registrationProofValid) {
+        throw new UnauthorizedException('Device key possession proof failed');
+      }
       const requestId=await this.createOrReplacePendingDeviceRequest(user.id,clientDeviceId,normalizedKey,deviceLabel,ua,normalizedIp);
       throw new ForbiddenException({statusCode:HttpStatus.FORBIDDEN,error:'DEVICE_NOT_AUTHORIZED',message:'This device is not approved for this student account. A device-access request has been sent to the system administrator.',device_request_id:requestId});
     }
@@ -400,14 +416,29 @@ export class UsersService {
       ) as Array<{id:string}>;
       throw new HttpException({statusCode:HttpStatus.PRECONDITION_REQUIRED,error:'DEVICE_PROOF_REQUIRED',message:'Trusted device proof is required.',challenge_id:rows[0].id,challenge},HttpStatus.PRECONDITION_REQUIRED);
     }
-    const challengeRows=await this.dataSource.query(
-      `UPDATE device_auth_challenges SET consumed_at=CURRENT_TIMESTAMP
-       WHERE id=$1 AND user_id=$2 AND trusted_device_id=$3 AND consumed_at IS NULL AND expires_at>CURRENT_TIMESTAMP
-       RETURNING challenge`,
-      [proof.challengeId,user.id,active.id],
-    ) as Array<{challenge:string}>;
-    if(!challengeRows.length) throw new UnauthorizedException('Device challenge is invalid or expired');
-    if(!this.verifyDeviceSignature(active.public_key_jwk,challengeRows[0].challenge,proof.signature)) throw new UnauthorizedException('Trusted device proof failed');
+    await this.dataSource.transaction(async manager=>{
+      const challengeRows=await manager.query(
+        `SELECT challenge
+         FROM device_auth_challenges
+         WHERE id=$1
+           AND user_id=$2
+           AND trusted_device_id=$3
+           AND consumed_at IS NULL
+           AND expires_at>CURRENT_TIMESTAMP
+         FOR UPDATE`,
+        [proof.challengeId,user.id,active.id],
+      ) as Array<{challenge:string}>;
+      if(!challengeRows.length) throw new UnauthorizedException('Device challenge is invalid or expired');
+      if(!this.verifyDeviceSignature(active.public_key_jwk,challengeRows[0].challenge,proof.signature!)) {
+        throw new UnauthorizedException('Trusted device proof failed');
+      }
+      await manager.query(
+        `UPDATE device_auth_challenges
+         SET consumed_at=CURRENT_TIMESTAMP
+         WHERE id=$1 AND consumed_at IS NULL`,
+        [proof.challengeId],
+      );
+    });
     await this.dataSource.query(
       `UPDATE trusted_devices SET last_seen_at=CURRENT_TIMESTAMP,last_ip=$2,user_agent=COALESCE($3,user_agent) WHERE id=$1 AND status='ACTIVE'`,
       [active.id,normalizedIp,ua],
@@ -497,7 +528,14 @@ export class UsersService {
   private async createOrReplacePendingDeviceRequest(userId:string,clientDeviceId:string,publicKeyJwk:Record<string,unknown>,deviceLabel:string|null,userAgent:string|null,ipAddress:string|null):Promise<string> {
     return this.dataSource.transaction(async manager=>{
       await manager.query('SELECT id FROM users WHERE id=$1 FOR UPDATE',[userId]);
-      const existing=await manager.query(`SELECT id FROM device_access_requests WHERE user_id=$1 AND status='PENDING' LIMIT 1 FOR UPDATE`,[userId]) as Array<{id:string}>;
+      const existing=await manager.query(
+        `SELECT id
+         FROM device_access_requests
+         WHERE user_id=$1 AND client_device_id=$2 AND status='PENDING'
+         LIMIT 1
+         FOR UPDATE`,
+        [userId,clientDeviceId],
+      ) as Array<{id:string}>;
       if(existing[0]) {
         await manager.query(
           `UPDATE device_access_requests SET client_device_id=$2,proposed_public_key_jwk=$3::jsonb,device_label=$4,user_agent=$5,ip_address=$6,requested_at=CURRENT_TIMESTAMP WHERE id=$1`,
@@ -525,7 +563,19 @@ export class UsersService {
   }
 
   private normalizeTrustedDevice(input:TrustedDeviceRegistrationInput):TrustedDeviceRegistrationInput {
-    return {clientDeviceId:input.clientDeviceId.trim(),publicKeyJwk:this.normalizePublicKeyJwk(input.publicKeyJwk),deviceLabel:this.normalizeDeviceLabel(input.deviceLabel)??undefined,ipAddress:this.normalizeIp(input.ipAddress),userAgent:input.userAgent?.slice(0,1000)||null};
+    const clientDeviceId=input.clientDeviceId.trim();
+    const publicKeyJwk=this.normalizePublicKeyJwk(input.publicKeyJwk);
+    if(!this.verifyDeviceRegistrationSignature(publicKeyJwk,clientDeviceId,input.registrationSignature)) {
+      throw new UnauthorizedException('Device key possession proof failed');
+    }
+    return {
+      clientDeviceId,
+      publicKeyJwk,
+      registrationSignature:input.registrationSignature,
+      deviceLabel:this.normalizeDeviceLabel(input.deviceLabel)??undefined,
+      ipAddress:this.normalizeIp(input.ipAddress),
+      userAgent:input.userAgent?.slice(0,1000)||null,
+    };
   }
 
   private normalizePublicKeyJwk(value:Record<string,unknown>):Record<string,unknown> {
@@ -542,7 +592,39 @@ export class UsersService {
   private verifyDeviceSignature(publicKeyJwk:Record<string,unknown>,challenge:string,signature:string):boolean {
     try {
       const key=createPublicKey({key:this.normalizePublicKeyJwk(publicKeyJwk) as never,format:'jwk'});
-      return verifySignature('sha256',Buffer.from(challenge,'base64url'),{key,dsaEncoding:'ieee-p1363'},Buffer.from(signature,'base64url'));
+      const data=Buffer.from(challenge,'base64url');
+      const decodedSignature=Buffer.from(signature,'base64url');
+      // WebCrypto ECDSA uses IEEE-P1363 (r || s). Keep a DER fallback for
+      // browser/runtime interoperability instead of rejecting an otherwise valid
+      // approved device because of signature serialization differences.
+      if(verifySignature('sha256',data,{key,dsaEncoding:'ieee-p1363'},decodedSignature)) return true;
+      return verifySignature('sha256',data,key,decodedSignature);
+    } catch { return false; }
+  }
+
+  private deviceRegistrationMessage(publicKeyJwk:Record<string,unknown>,clientDeviceId:string):Buffer {
+    const normalized=this.normalizePublicKeyJwk(publicKeyJwk);
+    return Buffer.from([
+      'MDP_DEVICE_BINDING_V1',
+      clientDeviceId,
+      String(normalized.kty),
+      String(normalized.crv),
+      String(normalized.x),
+      String(normalized.y),
+    ].join('\n'),'utf8');
+  }
+
+  private verifyDeviceRegistrationSignature(
+    publicKeyJwk:Record<string,unknown>,
+    clientDeviceId:string,
+    signature:string,
+  ):boolean {
+    try {
+      const key=createPublicKey({key:this.normalizePublicKeyJwk(publicKeyJwk) as never,format:'jwk'});
+      const decodedSignature=Buffer.from(signature,'base64url');
+      const data=this.deviceRegistrationMessage(publicKeyJwk,clientDeviceId);
+      if(verifySignature('sha256',data,{key,dsaEncoding:'ieee-p1363'},decodedSignature)) return true;
+      return verifySignature('sha256',data,key,decodedSignature);
     } catch { return false; }
   }
 
