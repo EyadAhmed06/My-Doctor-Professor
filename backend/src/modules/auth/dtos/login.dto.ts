@@ -1,4 +1,4 @@
-import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsNotEmpty, IsObject, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
 
 export class LoginDto {
   @IsEmail()
@@ -13,4 +13,24 @@ export class LoginDto {
   @IsOptional()
   @IsBoolean()
   remember?: boolean;
+
+  @IsOptional()
+  @IsUUID('4')
+  device_id?: string;
+
+  @IsOptional()
+  @IsObject()
+  device_public_key_jwk?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsString()
+  device_label?: string;
+
+  @IsOptional()
+  @IsUUID('4')
+  device_challenge_id?: string;
+
+  @IsOptional()
+  @IsString()
+  device_signature?: string;
 }
