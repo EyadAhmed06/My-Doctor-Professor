@@ -106,6 +106,7 @@ export class AuthController {
       {
         clientDeviceId: dto.device_id,
         publicKeyJwk: dto.device_public_key_jwk,
+        registrationSignature: dto.device_registration_signature,
         deviceLabel: dto.device_label,
         challengeId: dto.device_challenge_id,
         signature: dto.device_signature,
