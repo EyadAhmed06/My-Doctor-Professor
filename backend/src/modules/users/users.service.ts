@@ -503,6 +503,11 @@ export class UsersService {
           `UPDATE device_access_requests SET client_device_id=$2,proposed_public_key_jwk=$3::jsonb,device_label=$4,user_agent=$5,ip_address=$6,requested_at=CURRENT_TIMESTAMP WHERE id=$1`,
           [existing[0].id,clientDeviceId,JSON.stringify(publicKeyJwk),deviceLabel,userAgent,ipAddress],
         );
+        await manager.query(
+          `INSERT INTO audit_logs (user_id,action,entity_name,entity_id,description,new_values,ip_address,user_agent)
+           VALUES ($1,'UPDATE','device_access_requests',$2,'Updated pending student device replacement request',$3::jsonb,$4,$5)`,
+          [userId,existing[0].id,JSON.stringify({device_label:deviceLabel}),ipAddress,userAgent],
+        );
         return existing[0].id;
       }
       const rows=await manager.query(
@@ -510,6 +515,11 @@ export class UsersService {
          VALUES ($1,$2,$3::jsonb,'ECDSA_P256_SHA256',$4,$5,$6,'PENDING') RETURNING id`,
         [userId,clientDeviceId,JSON.stringify(publicKeyJwk),deviceLabel,userAgent,ipAddress],
       ) as Array<{id:string}>;
+      await manager.query(
+        `INSERT INTO audit_logs (user_id,action,entity_name,entity_id,description,new_values,ip_address,user_agent)
+         VALUES ($1,'CREATE','device_access_requests',$2,'Requested access from a new student device',$3::jsonb,$4,$5)`,
+        [userId,rows[0].id,JSON.stringify({device_label:deviceLabel}),ipAddress,userAgent],
+      );
       return rows[0].id;
     });
   }
