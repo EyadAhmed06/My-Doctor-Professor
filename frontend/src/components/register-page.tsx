@@ -130,6 +130,7 @@ export function RegisterPage() {
           device_id:identity.deviceId,
           device_public_key_jwk:identity.publicKeyJwk,
           device_label:identity.deviceLabel,
+          device_registration_signature:await identity.signRegistrationProof(),
         }});
         router.push(`/verify-email?email=${encodeURIComponent(form.email)}`);
       }
