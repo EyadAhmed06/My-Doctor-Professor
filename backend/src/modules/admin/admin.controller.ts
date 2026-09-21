@@ -130,6 +130,32 @@ export class AdminController {
     return this.admin.revokeUserSession(userId, sessionId, actor);
   }
 
+  @Get('users/:userId/device-access')
+  getUserDeviceAccess(
+    @Param('userId', uuid) id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.admin.getUserDeviceAccess(id, actor);
+  }
+
+  @Post('users/:userId/device-requests/:requestId/approve')
+  approveUserDeviceRequest(
+    @Param('userId', uuid) userId: string,
+    @Param('requestId', uuid) requestId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.admin.approveUserDeviceRequest(userId, requestId, actor);
+  }
+
+  @Post('users/:userId/device-requests/:requestId/reject')
+  rejectUserDeviceRequest(
+    @Param('userId', uuid) userId: string,
+    @Param('requestId', uuid) requestId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.admin.rejectUserDeviceRequest(userId, requestId, actor);
+  }
+
   @Get('statistics')
   statistics(@Query() query: StatisticsQueryDto) {
     return this.admin.statistics(query);
