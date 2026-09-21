@@ -29,7 +29,7 @@ export class SignupDto {
   email: string;
 
   @IsString()
-  @MinLength(12)
+  @MinLength(8)
   @MaxLength(128)
   @Matches(/[a-z]/, { message: 'password must contain a lowercase letter' })
   @Matches(/[A-Z]/, { message: 'password must contain an uppercase letter' })
