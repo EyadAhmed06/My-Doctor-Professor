@@ -415,6 +415,14 @@ export class UsersService {
     return active.id;
   }
 
+  async getActiveTrustedDeviceId(userId:string):Promise<string|null> {
+    const rows=await this.dataSource.query(
+      `SELECT id FROM trusted_devices WHERE user_id=$1 AND status='ACTIVE' LIMIT 1`,
+      [userId],
+    ) as Array<{id:string}>;
+    return rows[0]?.id??null;
+  }
+
   async getDeviceAccessOverview(userId:string) {
     const [devices,requests]=await Promise.all([
       this.dataSource.query(`SELECT id,client_device_id,status,device_label,user_agent,first_ip,last_ip,created_at,last_seen_at,revoked_at,approved_by FROM trusted_devices WHERE user_id=$1 ORDER BY (status='ACTIVE') DESC,created_at DESC`,[userId]),
