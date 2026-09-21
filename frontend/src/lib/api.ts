@@ -4,6 +4,9 @@ export type ApiProblem = {
   statusCode?: number;
   message?: string | string[];
   error?: string;
+  challenge_id?: string;
+  challenge?: string;
+  device_request_id?: string;
 };
 
 export class ApiError extends Error {
