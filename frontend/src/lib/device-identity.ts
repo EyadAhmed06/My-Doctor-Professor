@@ -1,6 +1,7 @@
 const DEVICE_DB = "mdp-device-identity";
 const DEVICE_STORE = "identity";
 const DEVICE_RECORD = "primary";
+const DEVICE_BINDING_VERSION = "MDP_DEVICE_BINDING_V1";
 
 type StoredDeviceIdentity = {
   id: string;
@@ -14,6 +15,7 @@ export type DeviceIdentity = {
   publicKeyJwk: JsonWebKey;
   deviceLabel: string;
   signChallenge(challenge: string): Promise<string>;
+  signRegistrationProof(): Promise<string>;
 };
 
 function openDeviceDb(): Promise<IDBDatabase> {
@@ -76,6 +78,26 @@ function encodeBase64Url(value: ArrayBuffer): string {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
+function registrationMessage(deviceId: string, publicKeyJwk: JsonWebKey): ArrayBuffer {
+  if (
+    publicKeyJwk.kty !== "EC" ||
+    publicKeyJwk.crv !== "P-256" ||
+    typeof publicKeyJwk.x !== "string" ||
+    typeof publicKeyJwk.y !== "string"
+  ) {
+    throw new Error("Stored device public key is invalid.");
+  }
+  const canonical = [
+    DEVICE_BINDING_VERSION,
+    deviceId,
+    publicKeyJwk.kty,
+    publicKeyJwk.crv,
+    publicKeyJwk.x,
+    publicKeyJwk.y,
+  ].join("\n");
+  return new TextEncoder().encode(canonical).buffer;
+}
+
 function describeBrowser(): string {
   const ua = navigator.userAgent;
   const platform = /iPhone|iPad|iPod/i.test(ua)
@@ -123,10 +145,51 @@ async function createStoredIdentity(): Promise<StoredDeviceIdentity> {
   return identity;
 }
 
+async function storedIdentityIsValid(identity: StoredDeviceIdentity): Promise<boolean> {
+  try {
+    if (
+      !identity?.id ||
+      !(identity.privateKey instanceof CryptoKey) ||
+      identity.privateKey.type !== "private" ||
+      identity.privateKey.algorithm.name !== "ECDSA" ||
+      !identity.privateKey.usages.includes("sign")
+    ) {
+      return false;
+    }
+    const publicKey = await crypto.subtle.importKey(
+      "jwk",
+      identity.publicKeyJwk,
+      { name: "ECDSA", namedCurve: "P-256" },
+      false,
+      ["verify"],
+    );
+    const probe = crypto.getRandomValues(new Uint8Array(32));
+    const signature = await crypto.subtle.sign(
+      { name: "ECDSA", hash: "SHA-256" },
+      identity.privateKey,
+      probe,
+    );
+    return crypto.subtle.verify(
+      { name: "ECDSA", hash: "SHA-256" },
+      publicKey,
+      signature,
+      probe,
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function getOrCreateDeviceIdentity(): Promise<DeviceIdentity> {
   if (typeof window === "undefined") throw new Error("Device identity is available only in the browser.");
+
   let stored = await readStoredIdentity();
-  if (!stored) stored = await createStoredIdentity();
+  if (!stored || !(await storedIdentityIsValid(stored))) {
+    // A device request must never be created from a public key whose matching
+    // private key is unavailable/corrupt. Repair the browser identity first so
+    // any subsequent administrator approval is guaranteed to be usable.
+    stored = await createStoredIdentity();
+  }
 
   return {
     deviceId: stored.id,
@@ -137,6 +200,14 @@ export async function getOrCreateDeviceIdentity(): Promise<DeviceIdentity> {
         { name: "ECDSA", hash: "SHA-256" },
         stored!.privateKey,
         decodeBase64Url(challenge),
+      );
+      return encodeBase64Url(signature);
+    },
+    async signRegistrationProof() {
+      const signature = await crypto.subtle.sign(
+        { name: "ECDSA", hash: "SHA-256" },
+        stored!.privateKey,
+        registrationMessage(stored!.id, stored!.publicKeyJwk),
       );
       return encodeBase64Url(signature);
     },
