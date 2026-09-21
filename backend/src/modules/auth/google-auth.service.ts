@@ -74,7 +74,6 @@ export class GoogleAuthService {
         deviceProof,
         ip,
         userAgent,
-        trustedDeviceId,
       );
       await this.touchIdentity(user.id, identity);
       await this.usersService.updateLastLogin(user.id);
