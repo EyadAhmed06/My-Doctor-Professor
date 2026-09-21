@@ -631,6 +631,41 @@ export class AdminService implements OnModuleInit {
     return { message: "Session revoked successfully" };
   }
 
+  async getUserDeviceAccess(id: string, actor: AuthenticatedUser) {
+    const target = await this.requireUser(id);
+    await this.assertCanManageTarget(actor, target);
+    if (target.role !== UserRole.STUDENT) {
+      throw new BadRequestException("Trusted-device access applies to student accounts only");
+    }
+    return this.usersService.getDeviceAccessOverview(id);
+  }
+
+  async approveUserDeviceRequest(
+    userId: string,
+    requestId: string,
+    actor: AuthenticatedUser,
+  ) {
+    const target = await this.requireUser(userId);
+    await this.assertCanManageTarget(actor, target);
+    if (target.role !== UserRole.STUDENT) {
+      throw new BadRequestException("Trusted-device access applies to student accounts only");
+    }
+    return this.usersService.approveDeviceAccessRequest(userId, requestId, actor.userId);
+  }
+
+  async rejectUserDeviceRequest(
+    userId: string,
+    requestId: string,
+    actor: AuthenticatedUser,
+  ) {
+    const target = await this.requireUser(userId);
+    await this.assertCanManageTarget(actor, target);
+    if (target.role !== UserRole.STUDENT) {
+      throw new BadRequestException("Trusted-device access applies to student accounts only");
+    }
+    return this.usersService.rejectDeviceAccessRequest(userId, requestId, actor.userId);
+  }
+
   async importUsers(dto: ImportUsersDto, actor: AuthenticatedUser) {
     const created: any[] = [];
     const errors: any[] = [];
