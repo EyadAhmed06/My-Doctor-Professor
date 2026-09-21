@@ -423,6 +423,26 @@ export class UsersService {
     return rows[0]?.id??null;
   }
 
+  async assertSessionTrustedDevice(user:User,sessionId:string):Promise<void> {
+    if(user.role!==UserRole.STUDENT||user.email.toLowerCase()==='student@mydoctorprofessor.com') return;
+    const rows=await this.dataSource.query(
+      `SELECT s.id
+       FROM auth_sessions s
+       JOIN trusted_devices d ON d.id=s.trusted_device_id
+       WHERE s.id=$1
+         AND s.user_id=$2
+         AND s.revoked_at IS NULL
+         AND s.expires_at>CURRENT_TIMESTAMP
+         AND d.user_id=$2
+         AND d.status='ACTIVE'
+       LIMIT 1`,
+      [sessionId,user.id],
+    ) as Array<{id:string}>;
+    if(rows.length) return;
+    await this.revokeSession(sessionId);
+    throw new UnauthorizedException('Refresh session is not bound to the active trusted device');
+  }
+
   async getDeviceAccessOverview(userId:string) {
     const [devices,requests]=await Promise.all([
       this.dataSource.query(`SELECT id,client_device_id,status,device_label,user_agent,first_ip,last_ip,created_at,last_seen_at,revoked_at,approved_by FROM trusted_devices WHERE user_id=$1 ORDER BY (status='ACTIVE') DESC,created_at DESC`,[userId]),
