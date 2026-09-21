@@ -2,12 +2,15 @@ import {
   IsBoolean,
   IsDateString,
   IsInt,
+  IsObject,
   IsOptional,
   IsPhoneNumber,
   IsString,
   Max,
   Min,
   MinLength,
+  IsUUID,
+  MaxLength,
 } from 'class-validator';
 
 export class GoogleCredentialDto {
@@ -18,6 +21,27 @@ export class GoogleCredentialDto {
   @IsOptional()
   @IsBoolean()
   remember?: boolean;
+
+  @IsOptional()
+  @IsUUID('4')
+  device_id?: string;
+
+  @IsOptional()
+  @IsObject()
+  device_public_key_jwk?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  device_label?: string;
+
+  @IsOptional()
+  @IsUUID('4')
+  device_challenge_id?: string;
+
+  @IsOptional()
+  @IsString()
+  device_signature?: string;
 }
 
 export class CompleteGoogleSignupDto {
@@ -36,6 +60,17 @@ export class CompleteGoogleSignupDto {
   @IsOptional()
   @IsDateString()
   date_of_birth?: string;
+
+  @IsUUID('4')
+  device_id: string;
+
+  @IsObject()
+  device_public_key_jwk: Record<string, unknown>;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  device_label?: string;
 }
 
 export interface GoogleOnboardingResponseDto {
