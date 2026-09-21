@@ -169,6 +169,7 @@ async function requestWithDeviceProof<T>(
     device_id: identity.deviceId,
     device_public_key_jwk: identity.publicKeyJwk,
     device_label: identity.deviceLabel,
+    device_registration_signature: await identity.signRegistrationProof(),
   };
   try {
     return await apiRequest<T>(path, { method: "POST", body });
@@ -346,6 +347,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         device_id: identity.deviceId,
         device_public_key_jwk: identity.publicKeyJwk,
         device_label: identity.deviceLabel,
+        device_registration_signature: await identity.signRegistrationProof(),
       },
     });
     persistAccess(auth);
