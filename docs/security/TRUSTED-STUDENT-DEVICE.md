@@ -76,3 +76,27 @@ The database enforces a partial unique index permitting only one `ACTIVE` truste
 ## Rollout
 
 The trusted-device migration revokes pre-existing unrevoked student sessions. This prevents legacy refresh cookies from bypassing the new device-binding boundary. Existing students then establish their initial trusted browser on their next password-verified login.
+
+
+## Device-request reliability hardening
+
+A replacement request is accepted only after the requesting browser proves possession of the private key corresponding to the proposed public JWK. The browser signs the canonical message:
+
+```
+MDP_DEVICE_BINDING_V1
+<device UUID>
+EC
+P-256
+<x coordinate>
+<y coordinate>
+```
+
+The backend verifies that signature before creating or updating a pending request. This prevents an administrator from approving a public key that the requesting browser cannot actually use.
+
+The browser also self-tests its IndexedDB key pair before every authentication flow. If the stored private key and public JWK no longer form a valid pair, the browser generates a fresh identity before asking for device approval.
+
+Device identity initialization is serialized across tabs so two concurrent tabs do not race and leave IndexedDB pointing at a different key than the one submitted for approval.
+
+Pending requests are unique per `(user_id, client_device_id)`, not merely per user. Approving one device still revokes the current trusted device, revokes active sessions, and cancels every other pending replacement request, preserving the one-active-device invariant.
+
+Login challenges are now marked consumed only after the ECDSA signature verifies successfully. Signature verification accepts the WebCrypto IEEE-P1363 representation and a DER fallback for runtime interoperability.
