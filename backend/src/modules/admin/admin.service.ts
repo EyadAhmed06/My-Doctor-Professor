@@ -285,6 +285,7 @@ export class AdminService implements OnModuleInit {
         "instructor.office_location AS office_location",
         "admin.employee_number AS employee_number",
         "admin.is_super_admin AS is_super_admin",
+        "EXISTS (SELECT 1 FROM device_access_requests device_request WHERE device_request.user_id=user.id AND device_request.status='PENDING') AS has_pending_device_request",
       ])
       .orderBy("user.created_at", "DESC")
       .offset((page - 1) * limit)
