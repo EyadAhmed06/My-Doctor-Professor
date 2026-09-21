@@ -1,6 +1,9 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -8,6 +11,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import * as argon2 from 'argon2';
 import * as bcrypt from 'bcrypt';
+import { createHash, createPublicKey, randomBytes, verify as verifySignature } from 'crypto';
+import { isIP } from 'net';
 import { DataSource, EntityManager, Not, QueryFailedError, Repository } from 'typeorm';
 import { AuthSession } from './entities/auth-session.entity';
 import { Instructor } from './entities/instructor.entity';
@@ -16,9 +21,24 @@ import { SystemAdmin } from './entities/system-admin.entity';
 import { Gender, User, UserRole, UserStatus } from './entities/user.entity';
 import { generateForensicCode } from './forensic-code';
 
+export interface TrustedDeviceRegistrationInput {
+  clientDeviceId:string;
+  publicKeyJwk:Record<string,unknown>;
+  deviceLabel?:string;
+  ipAddress?:string|null;
+  userAgent?:string|null;
+}
+export interface StudentDeviceProofInput {
+  clientDeviceId?:string;
+  publicKeyJwk?:Record<string,unknown>;
+  deviceLabel?:string;
+  challengeId?:string;
+  signature?:string;
+}
 export interface CreateStudentAccountInput {
   fullName:string;email:string;password:string;phoneNumber:string;
   studentNumber:string;currentSemester:number;dateOfBirth?:Date;gender?:Gender;
+  trustedDevice?:TrustedDeviceRegistrationInput;
 }
 export interface CreateManagedAccountInput {
   fullName:string;email:string;password:string;phoneNumber:string;role:UserRole;
@@ -26,6 +46,7 @@ export interface CreateManagedAccountInput {
   specialization?:string;officeLocation?:string;
   employeeNumber?:string;isSuperAdmin?:boolean;
   dateOfBirth?:Date;gender?:Gender;
+  trustedDevice?:TrustedDeviceRegistrationInput;
 }
 
 @Injectable()
@@ -62,6 +83,7 @@ export class UsersService {
       phoneNumber:input.phoneNumber,role:UserRole.STUDENT,
       studentNumber:input.studentNumber,currentSemester:input.currentSemester,
       dateOfBirth:input.dateOfBirth,gender:input.gender,
+      trustedDevice:input.trustedDevice,
     },false);
   }
 
@@ -71,6 +93,7 @@ export class UsersService {
 
   private async createAccount(input:CreateManagedAccountInput,managed:boolean):Promise<User> {
     this.assertProfileFields(input);
+    const trustedDevice=input.trustedDevice?this.normalizeTrustedDevice(input.trustedDevice):null;
     const email=input.email.trim().toLowerCase();
     const passwordHash=await this.hashPassword(input.password);
     try {
@@ -100,6 +123,14 @@ export class UsersService {
             userId:user.id,studentNumber:input.studentNumber!.trim(),
             currentSemester:input.currentSemester!,
           }));
+          if(trustedDevice) {
+            await manager.query(
+              `INSERT INTO trusted_devices
+                (user_id,client_device_id,public_key_jwk,key_algorithm,status,device_label,user_agent,first_ip,last_ip,last_seen_at)
+               VALUES ($1,$2,$3::jsonb,'ECDSA_P256_SHA256','ACTIVE',$4,$5,$6,$6,CURRENT_TIMESTAMP)`,
+              [user.id,trustedDevice.clientDeviceId,JSON.stringify(trustedDevice.publicKeyJwk),trustedDevice.deviceLabel,trustedDevice.userAgent,trustedDevice.ipAddress],
+            );
+          }
         } else if(input.role===UserRole.INSTRUCTOR) {
           await manager.save(Instructor,manager.create(Instructor,{
             userId:user.id,specialization:input.specialization?.trim()||null,
@@ -182,6 +213,7 @@ export class UsersService {
     expiresAt: Date,
     ipAddress?: string | null,
     userAgent?: string | null,
+    trustedDeviceId?: string | null,
   ) {
     await this.sessionsRepository.save(this.sessionsRepository.create({
       id,
@@ -192,6 +224,7 @@ export class UsersService {
       lastUsedAt: null,
       ipAddress: ipAddress ?? null,
       userAgent: userAgent ?? null,
+      trustedDeviceId: trustedDeviceId ?? null,
     }));
   }
   findSession(id:string){return this.sessionsRepository.findOne({where:{id}});}
@@ -319,6 +352,171 @@ export class UsersService {
     await this.sessionsRepository.createQueryBuilder().update(AuthSession)
       .set({revokedAt:new Date()})
       .where('user_id = :userId AND revoked_at IS NULL',{userId}).execute();
+  }
+
+
+  async authorizeStudentDevice(user:User,proof:StudentDeviceProofInput|undefined,ipAddress?:string|null,userAgent?:string|null):Promise<string|null> {
+    if(user.role!==UserRole.STUDENT||user.email.toLowerCase()==='student@mydoctorprofessor.com') return null;
+    const clientDeviceId=proof?.clientDeviceId?.trim();
+    const publicKeyJwk=proof?.publicKeyJwk;
+    if(!clientDeviceId||!publicKeyJwk) {
+      throw new HttpException({statusCode:HttpStatus.PRECONDITION_REQUIRED,error:'DEVICE_CONTEXT_REQUIRED',message:'This student account requires a trusted browser device.'},HttpStatus.PRECONDITION_REQUIRED);
+    }
+    const normalizedKey=this.normalizePublicKeyJwk(publicKeyJwk);
+    const normalizedIp=this.normalizeIp(ipAddress);
+    const deviceLabel=this.normalizeDeviceLabel(proof?.deviceLabel);
+    const ua=userAgent?.slice(0,1000)||null;
+    const activeRows=await this.dataSource.query(
+      `SELECT id,client_device_id,public_key_jwk FROM trusted_devices WHERE user_id=$1 AND status='ACTIVE' LIMIT 1`,
+      [user.id],
+    ) as Array<{id:string;client_device_id:string;public_key_jwk:Record<string,unknown>}>;
+    if(!activeRows.length) {
+      return this.dataSource.transaction(async manager=>{
+        await manager.query('SELECT id FROM users WHERE id=$1 FOR UPDATE',[user.id]);
+        const existing=await manager.query(`SELECT id FROM trusted_devices WHERE user_id=$1 AND status='ACTIVE' LIMIT 1`,[user.id]) as Array<{id:string}>;
+        if(existing[0]) return existing[0].id;
+        const rows=await manager.query(
+          `INSERT INTO trusted_devices (user_id,client_device_id,public_key_jwk,key_algorithm,status,device_label,user_agent,first_ip,last_ip,last_seen_at)
+           VALUES ($1,$2,$3::jsonb,'ECDSA_P256_SHA256','ACTIVE',$4,$5,$6,$6,CURRENT_TIMESTAMP) RETURNING id`,
+          [user.id,clientDeviceId,JSON.stringify(normalizedKey),deviceLabel,ua,normalizedIp],
+        ) as Array<{id:string}>;
+        return rows[0].id;
+      });
+    }
+    const active=activeRows[0];
+    const sameDevice=active.client_device_id===clientDeviceId;
+    const sameKey=this.deviceKeyThumbprint(active.public_key_jwk)===this.deviceKeyThumbprint(normalizedKey);
+    if(!sameDevice||!sameKey) {
+      const requestId=await this.createOrReplacePendingDeviceRequest(user.id,clientDeviceId,normalizedKey,deviceLabel,ua,normalizedIp);
+      throw new ForbiddenException({statusCode:HttpStatus.FORBIDDEN,error:'DEVICE_NOT_AUTHORIZED',message:'This device is not approved for this student account. A device-access request has been sent to the system administrator.',device_request_id:requestId});
+    }
+    if(!proof?.challengeId||!proof?.signature) {
+      await this.dataSource.query(`DELETE FROM device_auth_challenges WHERE user_id=$1 AND (expires_at<=CURRENT_TIMESTAMP OR consumed_at IS NOT NULL)`,[user.id]);
+      const challenge=randomBytes(32).toString('base64url');
+      const rows=await this.dataSource.query(
+        `INSERT INTO device_auth_challenges (user_id,trusted_device_id,challenge,expires_at)
+         VALUES ($1,$2,$3,CURRENT_TIMESTAMP+INTERVAL '2 minutes') RETURNING id`,
+        [user.id,active.id,challenge],
+      ) as Array<{id:string}>;
+      throw new HttpException({statusCode:HttpStatus.PRECONDITION_REQUIRED,error:'DEVICE_PROOF_REQUIRED',message:'Trusted device proof is required.',challenge_id:rows[0].id,challenge},HttpStatus.PRECONDITION_REQUIRED);
+    }
+    const challengeRows=await this.dataSource.query(
+      `UPDATE device_auth_challenges SET consumed_at=CURRENT_TIMESTAMP
+       WHERE id=$1 AND user_id=$2 AND trusted_device_id=$3 AND consumed_at IS NULL AND expires_at>CURRENT_TIMESTAMP
+       RETURNING challenge`,
+      [proof.challengeId,user.id,active.id],
+    ) as Array<{challenge:string}>;
+    if(!challengeRows.length) throw new UnauthorizedException('Device challenge is invalid or expired');
+    if(!this.verifyDeviceSignature(active.public_key_jwk,challengeRows[0].challenge,proof.signature)) throw new UnauthorizedException('Trusted device proof failed');
+    await this.dataSource.query(
+      `UPDATE trusted_devices SET last_seen_at=CURRENT_TIMESTAMP,last_ip=$2,user_agent=COALESCE($3,user_agent) WHERE id=$1 AND status='ACTIVE'`,
+      [active.id,normalizedIp,ua],
+    );
+    return active.id;
+  }
+
+  async getDeviceAccessOverview(userId:string) {
+    const [devices,requests]=await Promise.all([
+      this.dataSource.query(`SELECT id,client_device_id,status,device_label,user_agent,first_ip,last_ip,created_at,last_seen_at,revoked_at,approved_by FROM trusted_devices WHERE user_id=$1 ORDER BY (status='ACTIVE') DESC,created_at DESC`,[userId]),
+      this.dataSource.query(`SELECT id,client_device_id,device_label,user_agent,ip_address,status,requested_at,reviewed_at,reviewed_by FROM device_access_requests WHERE user_id=$1 ORDER BY requested_at DESC LIMIT 20`,[userId]),
+    ]);
+    return {devices,requests};
+  }
+
+  async approveDeviceAccessRequest(userId:string,requestId:string,actorUserId:string) {
+    return this.dataSource.transaction(async manager=>{
+      await manager.query('SELECT id FROM users WHERE id=$1 FOR UPDATE',[userId]);
+      const requests=await manager.query(`SELECT * FROM device_access_requests WHERE id=$1 AND user_id=$2 FOR UPDATE`,[requestId,userId]) as Array<{id:string;client_device_id:string;proposed_public_key_jwk:Record<string,unknown>;device_label:string|null;user_agent:string|null;ip_address:string|null;status:string}>;
+      const request=requests[0];
+      if(!request) throw new NotFoundException('Device access request not found');
+      if(request.status!=='PENDING') throw new ConflictException('Device access request has already been reviewed');
+      await manager.query(`UPDATE trusted_devices SET status='REVOKED',revoked_at=CURRENT_TIMESTAMP WHERE user_id=$1 AND status='ACTIVE'`,[userId]);
+      await manager.query(`UPDATE auth_sessions SET revoked_at=CURRENT_TIMESTAMP WHERE user_id=$1 AND revoked_at IS NULL`,[userId]);
+      const devices=await manager.query(
+        `INSERT INTO trusted_devices (user_id,client_device_id,public_key_jwk,key_algorithm,status,device_label,user_agent,first_ip,last_ip,last_seen_at,approved_by)
+         VALUES ($1,$2,$3::jsonb,'ECDSA_P256_SHA256','ACTIVE',$4,$5,$6,$6,CURRENT_TIMESTAMP,$7)
+         ON CONFLICT (user_id,client_device_id) DO UPDATE SET public_key_jwk=EXCLUDED.public_key_jwk,key_algorithm=EXCLUDED.key_algorithm,status='ACTIVE',device_label=EXCLUDED.device_label,user_agent=EXCLUDED.user_agent,last_ip=EXCLUDED.last_ip,last_seen_at=CURRENT_TIMESTAMP,revoked_at=NULL,approved_by=EXCLUDED.approved_by
+         RETURNING id`,
+        [userId,request.client_device_id,JSON.stringify(request.proposed_public_key_jwk),request.device_label,request.user_agent,request.ip_address,actorUserId],
+      ) as Array<{id:string}>;
+      await manager.query(
+        `UPDATE device_access_requests SET status=CASE WHEN id=$1 THEN 'APPROVED' ELSE 'CANCELLED' END,reviewed_at=CURRENT_TIMESTAMP,reviewed_by=$3 WHERE user_id=$2 AND status='PENDING'`,
+        [requestId,userId,actorUserId],
+      );
+      await manager.query(
+        `INSERT INTO audit_logs (user_id,action,entity_name,entity_id,description,new_values)
+         VALUES ($1,'UPDATE','trusted_devices',$2,'Approved student device replacement',$3::jsonb)`,
+        [actorUserId,devices[0].id,JSON.stringify({student_user_id:userId,request_id:requestId})],
+      );
+      return {message:'Device access approved. Previous trusted device and active sessions were revoked.',device_id:devices[0].id};
+    });
+  }
+
+  async rejectDeviceAccessRequest(userId:string,requestId:string,actorUserId:string) {
+    const rows=await this.dataSource.query(
+      `UPDATE device_access_requests SET status='REJECTED',reviewed_at=CURRENT_TIMESTAMP,reviewed_by=$3 WHERE id=$1 AND user_id=$2 AND status='PENDING' RETURNING id`,
+      [requestId,userId,actorUserId],
+    ) as Array<{id:string}>;
+    if(!rows.length) throw new ConflictException('Device access request is missing or has already been reviewed');
+    await this.dataSource.query(
+      `INSERT INTO audit_logs (user_id,action,entity_name,entity_id,description,new_values)
+       VALUES ($1,'UPDATE','device_access_requests',$2,'Rejected student device replacement request',$3::jsonb)`,
+      [actorUserId,requestId,JSON.stringify({student_user_id:userId})],
+    );
+    return {message:'Device access request rejected.'};
+  }
+
+  private async createOrReplacePendingDeviceRequest(userId:string,clientDeviceId:string,publicKeyJwk:Record<string,unknown>,deviceLabel:string|null,userAgent:string|null,ipAddress:string|null):Promise<string> {
+    return this.dataSource.transaction(async manager=>{
+      await manager.query('SELECT id FROM users WHERE id=$1 FOR UPDATE',[userId]);
+      const existing=await manager.query(`SELECT id FROM device_access_requests WHERE user_id=$1 AND status='PENDING' LIMIT 1 FOR UPDATE`,[userId]) as Array<{id:string}>;
+      if(existing[0]) {
+        await manager.query(
+          `UPDATE device_access_requests SET client_device_id=$2,proposed_public_key_jwk=$3::jsonb,device_label=$4,user_agent=$5,ip_address=$6,requested_at=CURRENT_TIMESTAMP WHERE id=$1`,
+          [existing[0].id,clientDeviceId,JSON.stringify(publicKeyJwk),deviceLabel,userAgent,ipAddress],
+        );
+        return existing[0].id;
+      }
+      const rows=await manager.query(
+        `INSERT INTO device_access_requests (user_id,client_device_id,proposed_public_key_jwk,key_algorithm,device_label,user_agent,ip_address,status)
+         VALUES ($1,$2,$3::jsonb,'ECDSA_P256_SHA256',$4,$5,$6,'PENDING') RETURNING id`,
+        [userId,clientDeviceId,JSON.stringify(publicKeyJwk),deviceLabel,userAgent,ipAddress],
+      ) as Array<{id:string}>;
+      return rows[0].id;
+    });
+  }
+
+  private normalizeTrustedDevice(input:TrustedDeviceRegistrationInput):TrustedDeviceRegistrationInput {
+    return {clientDeviceId:input.clientDeviceId.trim(),publicKeyJwk:this.normalizePublicKeyJwk(input.publicKeyJwk),deviceLabel:this.normalizeDeviceLabel(input.deviceLabel)??undefined,ipAddress:this.normalizeIp(input.ipAddress),userAgent:input.userAgent?.slice(0,1000)||null};
+  }
+
+  private normalizePublicKeyJwk(value:Record<string,unknown>):Record<string,unknown> {
+    if(value.kty!=='EC'||value.crv!=='P-256'||typeof value.x!=='string'||typeof value.y!=='string'||'d' in value) throw new BadRequestException('Invalid device public key');
+    try { createPublicKey({key:value as never,format:'jwk'}); } catch { throw new BadRequestException('Invalid device public key'); }
+    return {kty:'EC',crv:'P-256',x:value.x,y:value.y};
+  }
+
+  private deviceKeyThumbprint(value:Record<string,unknown>):string {
+    const normalized=this.normalizePublicKeyJwk(value);
+    return createHash('sha256').update(JSON.stringify({crv:normalized.crv,kty:normalized.kty,x:normalized.x,y:normalized.y})).digest('hex');
+  }
+
+  private verifyDeviceSignature(publicKeyJwk:Record<string,unknown>,challenge:string,signature:string):boolean {
+    try {
+      const key=createPublicKey({key:this.normalizePublicKeyJwk(publicKeyJwk) as never,format:'jwk'});
+      return verifySignature('sha256',Buffer.from(challenge,'base64url'),{key,dsaEncoding:'ieee-p1363'},Buffer.from(signature,'base64url'));
+    } catch { return false; }
+  }
+
+  private normalizeIp(value?:string|null):string|null {
+    if(!value)return null;
+    const first=value.split(',')[0].trim().replace(/^::ffff:/,'');
+    return isIP(first)?first:null;
+  }
+
+  private normalizeDeviceLabel(value?:string|null):string|null {
+    const normalized=value?.trim().replace(/\s+/g,' ').slice(0,200);
+    return normalized||null;
   }
 
   async updateProfile(userId:string,input:{
