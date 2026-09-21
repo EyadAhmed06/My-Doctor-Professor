@@ -151,9 +151,16 @@ export class AuthController {
   @RateLimit({ key: 'auth-signup-route', maximum: 12, windowSeconds: 3600 })
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
-  async signup(@Body() dto: SignupDto): Promise<MessageResponse> {
+  async signup(
+    @Body() dto: SignupDto,
+    @Req() request: Request,
+  ): Promise<MessageResponse> {
     try {
-      await this.authService.signup(dto);
+      await this.authService.signup(
+        dto,
+        request.ip ?? request.socket.remoteAddress ?? null,
+        (request.headers['user-agent'] as string) || null,
+      );
     } catch (error) {
       if (!(error instanceof ConflictException)) throw error;
     }
