@@ -181,7 +181,7 @@ export function RegisterPage() {
                 </span>
                 <small className={styles.helper}>Choose your country code and enter the local number. We store it in international E.164 format.</small>
               </label>
-              {!googleOnboarding&&<><Field label="Password" icon={icons.Lock} placeholder="8+ characters with upper, lower, and number" type="password" value={form.password} onChange={update("password")} required minLength={8} autoComplete="new-password"/><Field label="Confirm password" icon={icons.Lock} placeholder="Repeat your password" type="password" value={form.confirm_password} onChange={update("confirm_password")} required autoComplete="new-password"/></>}
+              {!googleOnboarding&&<><Field label="Password" icon={icons.Lock} placeholder="8+ characters with upper, lower, and number" type="password" value={form.password} onChange={update("password")} required minLength={8} autoComplete="new-password"/><Field label="Confirm password" icon={icons.Lock} placeholder="Repeat your password" type="password" value={form.confirm_password} onChange={update("confirm_password")} required minLength={8} autoComplete="new-password"/></>}
             </div>
             <div className="registration-divider"><span>Academic information</span></div>
             <div className="form-grid academic-grid"><Field label="Current semester" placeholder="1" type="number" min={1} max={6} step={1} value={form.current_semester} onChange={update("current_semester")} required/></div>
