@@ -45,7 +45,7 @@ describe('Trusted student device cryptography', () => {
       { name: 'ECDSA', namedCurve: 'P-256' },
       false,
       ['sign', 'verify'],
-    ) as { publicKey: webcrypto.CryptoKey; privateKey: webcrypto.CryptoKey };
+    );
     const publicKeyJwk = await webcrypto.subtle.exportKey('jwk', pair.publicKey);
     const challenge = randomBytes(32).toString('base64url');
     const signature = Buffer.from(await webcrypto.subtle.sign(
@@ -67,7 +67,7 @@ describe('Trusted student device cryptography', () => {
       { name: 'ECDSA', namedCurve: 'P-256' },
       false,
       ['sign', 'verify'],
-    ) as { publicKey: webcrypto.CryptoKey; privateKey: webcrypto.CryptoKey };
+    );
     const publicKeyJwk = await webcrypto.subtle.exportKey('jwk', pair.publicKey);
     const deviceId = randomUUID();
     const signature = Buffer.from(await webcrypto.subtle.sign(
