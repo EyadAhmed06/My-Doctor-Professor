@@ -20,6 +20,11 @@ const loginProof=[
 const GOOGLE_ONBOARDING_KEY="mdp_google_onboarding";
 
 function resolveAuthErrorMessage(cause: unknown, locale: "en" | "ar"): string {
+  if (cause instanceof ApiError && cause.status === 403 && cause.problem?.error === "DEVICE_NOT_AUTHORIZED") {
+    return locale === "ar"
+      ? "هذا الجهاز غير معتمد لهذا الحساب. تم إرسال طلب تغيير الجهاز إلى مسؤول النظام للمراجعة."
+      : "This device is not approved for this account. A device-change request was sent to the system administrator for review.";
+  }
   if (cause instanceof ApiError && cause.status === 409 && cause.problem?.error === "ACTIVE_SESSION_EXISTS") {
     return locale === "ar"
       ? "أنت مسجّل الدخول بالفعل على جهاز آخر. سجّل الخروج من ذلك الجهاز للمتابعة، أو تواصل مع مسؤول النظام لتحرير جلستك."
