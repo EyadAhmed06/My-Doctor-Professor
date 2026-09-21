@@ -1,6 +1,7 @@
 "use client";
 
 import { ApiError, apiRequest } from "@/lib/api";
+import { getOrCreateDeviceIdentity, type DeviceIdentity } from "@/lib/device-identity";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 export type UserRole = "STUDENT" | "INSTRUCTOR" | "SYSTEM_ADMIN";
@@ -158,6 +159,41 @@ function isGoogleOnboarding(value: AuthResponse | GoogleOnboardingResult): value
   return "requires_onboarding" in value && value.requires_onboarding === true;
 }
 
+async function requestWithDeviceProof<T>(
+  path: string,
+  baseBody: Record<string, unknown>,
+  identity: DeviceIdentity,
+): Promise<T> {
+  const body = {
+    ...baseBody,
+    device_id: identity.deviceId,
+    device_public_key_jwk: identity.publicKeyJwk,
+    device_label: identity.deviceLabel,
+  };
+  try {
+    return await apiRequest<T>(path, { method: "POST", body });
+  } catch (error) {
+    if (
+      error instanceof ApiError &&
+      error.status === 428 &&
+      error.problem?.error === "DEVICE_PROOF_REQUIRED" &&
+      error.problem.challenge_id &&
+      error.problem.challenge
+    ) {
+      const signature = await identity.signChallenge(error.problem.challenge);
+      return apiRequest<T>(path, {
+        method: "POST",
+        body: {
+          ...body,
+          device_challenge_id: error.problem.challenge_id,
+          device_signature: signature,
+        },
+      });
+    }
+    throw error;
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -279,28 +315,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [accessToken, user, refresh]);
 
   const login = useCallback(async (input: LoginInput) => {
-    const auth = await apiRequest<AuthResponse>("/auth/login", {
-      method: "POST",
-      body: { email: input.email, password: input.password, remember: input.remember },
-    });
+    const identity = await getOrCreateDeviceIdentity();
+    const auth = await requestWithDeviceProof<AuthResponse>(
+      "/auth/login",
+      { email: input.email, password: input.password, remember: input.remember },
+      identity,
+    );
     persistAccess(auth);
     return auth.user;
   }, [persistAccess]);
 
   const googleLogin = useCallback(async (credential: string): Promise<AuthUser | GoogleOnboardingResult> => {
-    const result = await apiRequest<AuthResponse | GoogleOnboardingResult>("/auth/google", {
-      method: "POST",
-      body: { credential, remember: true },
-    });
+    const identity = await getOrCreateDeviceIdentity();
+    const result = await requestWithDeviceProof<AuthResponse | GoogleOnboardingResult>(
+      "/auth/google",
+      { credential, remember: true },
+      identity,
+    );
     if (isGoogleOnboarding(result)) return result;
     persistAccess(result);
     return result.user;
   }, [persistAccess]);
 
   const completeGoogleSignup = useCallback(async (input: CompleteGoogleSignupInput): Promise<AuthUser> => {
+    const identity = await getOrCreateDeviceIdentity();
     const auth = await apiRequest<AuthResponse>("/auth/google/signup", {
       method: "POST",
-      body: input,
+      body: {
+        ...input,
+        device_id: identity.deviceId,
+        device_public_key_jwk: identity.publicKeyJwk,
+        device_label: identity.deviceLabel,
+      },
     });
     persistAccess(auth);
     return auth.user;
