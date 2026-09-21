@@ -11,7 +11,7 @@ import { randomBytes, randomUUID, createHash } from 'crypto';
 import { DataSource, QueryFailedError } from 'typeorm';
 import { User, UserRole, UserStatus } from '../users/entities/user.entity';
 import { generateStudentNumber } from '../users/student-number';
-import { UsersService } from '../users/users.service';
+import { StudentDeviceProofInput, UsersService } from '../users/users.service';
 import { AuthRateLimitService } from './auth-rate-limit.service';
 import { AuthResponseDto } from './dtos/auth-response.dto';
 import { CompleteGoogleSignupDto, GoogleOnboardingResponseDto } from './dtos/google-auth.dto';
@@ -59,6 +59,7 @@ export class GoogleAuthService {
     credential: string,
     ip: string,
     userAgent?: string | null,
+    deviceProof?: StudentDeviceProofInput,
   ): Promise<AuthResponseDto | GoogleOnboardingResponseDto> {
     await this.rateLimits.enforceProvider(ip, 'google');
     const identity = await this.googleIdentity.verifyCredential(credential);
@@ -68,9 +69,16 @@ export class GoogleAuthService {
       const user = await this.usersService.findById(linkedUserId);
       if (!user) throw new UnauthorizedException('Linked account no longer exists');
       this.assertAccountEnabled(user);
+      const trustedDeviceId = await this.usersService.authorizeStudentDevice(
+        user,
+        deviceProof,
+        ip,
+        userAgent,
+        trustedDeviceId,
+      );
       await this.touchIdentity(user.id, identity);
       await this.usersService.updateLastLogin(user.id);
-      return this.createSession(user, ip, userAgent);
+      return this.createSession(user, ip, userAgent, trustedDeviceId);
     }
 
     const existingUser = await this.usersService.findByEmail(identity.email);
@@ -144,6 +152,13 @@ export class GoogleAuthService {
       studentNumber: generateStudentNumber(),
       currentSemester: dto.current_semester,
       dateOfBirth,
+      trustedDevice: {
+        clientDeviceId: dto.device_id,
+        publicKeyJwk: dto.device_public_key_jwk,
+        deviceLabel: dto.device_label,
+        ipAddress: ip,
+        userAgent,
+      },
     });
     await this.usersService.verifyEmail(user.id);
     if (onboarding.picture) {
@@ -159,7 +174,17 @@ export class GoogleAuthService {
     if (!refreshedUser) throw new UnauthorizedException('Account creation did not complete');
     user = refreshedUser;
     await this.usersService.updateLastLogin(user.id);
-    return this.createSession(user, ip, userAgent);
+    const trustedDeviceId = await this.usersService.authorizeStudentDevice(
+      user,
+      {
+        clientDeviceId: dto.device_id,
+        publicKeyJwk: dto.device_public_key_jwk,
+        deviceLabel: dto.device_label,
+      },
+      ip,
+      userAgent,
+    );
+    return this.createSession(user, ip, userAgent, trustedDeviceId);
   }
 
   private async createOnboardingResponse(identity: VerifiedGoogleIdentity): Promise<GoogleOnboardingResponseDto> {
@@ -284,6 +309,7 @@ export class GoogleAuthService {
     user: User,
     ip?: string | null,
     userAgent?: string | null,
+    trustedDeviceId?: string | null,
   ): Promise<AuthResponseDto> {
     // 1. Reclaim expired sessions before inspecting live slot.
     await this.usersService.revokeExpiredSessions(user.id);
