@@ -3,7 +3,7 @@ const DEVICE_STORE = "identity";
 const DEVICE_RECORD = "primary";
 const DEVICE_BINDING_VERSION = "MDP_DEVICE_BINDING_V1";
 const DEVICE_LOCK_KEY = "mdp-device-identity-lock";
-const DEVICE_LOCK_LEASE_MS = 5_000;
+const DEVICE_LOCK_LEASE_MS = 15_000;
 let sharedIdentityPromise: Promise<DeviceIdentity> | null = null;
 
 type StoredDeviceIdentity = {
@@ -65,7 +65,7 @@ async function writeStoredIdentity(identity: StoredDeviceIdentity): Promise<void
 
 async function withDeviceIdentityLock<T>(operation: () => Promise<T>): Promise<T> {
   const token = crypto.randomUUID();
-  const deadline = Date.now() + 8_000;
+  const deadline = Date.now() + 20_000;
 
   while (Date.now() < deadline) {
     let current: { token?: string; expiresAt?: number } | null = null;
