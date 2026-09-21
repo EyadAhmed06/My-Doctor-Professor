@@ -12,6 +12,7 @@ import {
   FiRefreshCw,
   FiSearch,
   FiShield,
+  FiSmartphone,
   FiTrash2,
   FiUpload,
   FiX,
@@ -62,6 +63,34 @@ type ImportResult = {
   errors: Array<{ index: number; email: string; error: string }>;
   created_count: number;
   error_count: number;
+};
+type TrustedDeviceRecord = {
+  id: string;
+  client_device_id: string;
+  status: "ACTIVE" | "REVOKED";
+  device_label: string | null;
+  user_agent: string | null;
+  first_ip: string | null;
+  last_ip: string | null;
+  created_at: string;
+  last_seen_at: string | null;
+  revoked_at: string | null;
+  approved_by: string | null;
+};
+type DeviceAccessRequestRecord = {
+  id: string;
+  client_device_id: string;
+  device_label: string | null;
+  user_agent: string | null;
+  ip_address: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+  requested_at: string;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+};
+type DeviceAccessOverview = {
+  devices: TrustedDeviceRecord[];
+  requests: DeviceAccessRequestRecord[];
 };
 type AuditLog = {
   id: string;
@@ -196,6 +225,9 @@ export function AdvancedAdminUsersPage() {
   const [importRows, setImportRows] = useState<UserDraft[]>([]);
   const [importValidation, setImportValidation] = useState<string[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [deviceUser, setDeviceUser] = useState<ManagedUser | null>(null);
+  const [deviceAccess, setDeviceAccess] = useState<DeviceAccessOverview | null>(null);
+  const [deviceAccessLoading, setDeviceAccessLoading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -266,6 +298,69 @@ export function AdvancedAdminUsersPage() {
       notify({ title: "Password reset initiated", description: `Existing sessions for ${target.email} were revoked.`, tone: "success" });
     } catch (cause) {
       notify({ title: "Could not initiate reset", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+    }
+  }
+
+  async function openDeviceAccess(target: ManagedUser) {
+    if (target.role !== "STUDENT") return;
+    setDeviceUser(target);
+    setDeviceAccess(null);
+    setDeviceAccessLoading(true);
+    try {
+      setDeviceAccess(await request<DeviceAccessOverview>(`/admin/users/${target.id}/device-access`, { cache: "no-store" }));
+    } catch (cause) {
+      notify({ title: "Could not load device access", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+      setDeviceUser(null);
+    } finally {
+      setDeviceAccessLoading(false);
+    }
+  }
+
+  async function refreshDeviceAccess() {
+    if (!deviceUser) return;
+    setDeviceAccessLoading(true);
+    try {
+      setDeviceAccess(await request<DeviceAccessOverview>(`/admin/users/${deviceUser.id}/device-access`, { cache: "no-store" }));
+    } catch (cause) {
+      notify({ title: "Could not refresh device access", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+    } finally {
+      setDeviceAccessLoading(false);
+    }
+  }
+
+  async function approveDeviceRequest(requestId: string) {
+    if (!deviceUser || busy) return;
+    const accepted = await confirm({
+      title: "Approve replacement device?",
+      description: `This will make the requested device the only trusted device for ${deviceUser.full_name}. The current trusted device and all active sessions will be revoked immediately.`,
+      confirmLabel: "Approve & replace",
+      cancelLabel: "Cancel",
+      tone: "danger",
+    });
+    if (!accepted) return;
+    setBusy(true);
+    try {
+      await request(`/admin/users/${deviceUser.id}/device-requests/${requestId}/approve`, { method: "POST" });
+      notify({ title: "Device access approved", description: "The requested device is now trusted. Previous student sessions were revoked.", tone: "success" });
+      await refreshDeviceAccess();
+    } catch (cause) {
+      notify({ title: "Could not approve device", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function rejectDeviceRequest(requestId: string) {
+    if (!deviceUser || busy) return;
+    setBusy(true);
+    try {
+      await request(`/admin/users/${deviceUser.id}/device-requests/${requestId}/reject`, { method: "POST" });
+      notify({ title: "Device request rejected", description: "The student's existing trusted device remains unchanged.", tone: "success" });
+      await refreshDeviceAccess();
+    } catch (cause) {
+      notify({ title: "Could not reject device request", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -346,8 +441,53 @@ export function AdvancedAdminUsersPage() {
     {user?.role !== "SYSTEM_ADMIN" ? <Panel title="Administrator access required"><p>This workspace is restricted to system administrators.</p></Panel> : <>
       <Panel className="role-filter-panel"><div className="role-filters"><label><span>Search</span><div className="role-search"><FiSearch /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name, email, or phone" /></div></label><label><span>Role</span><select value={role} onChange={(event) => setRole(event.target.value)}><option value="">All roles</option><option value="STUDENT">Students</option><option value="INSTRUCTOR">Instructors</option><option value="SYSTEM_ADMIN">Administrators</option></select></label><label><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">All statuses</option><option value="ACTIVE">Active</option><option value="PENDING_VERIFICATION">Pending verification</option><option value="SUSPENDED">Suspended</option><option value="DEACTIVATED">Deactivated</option></select></label><label><span>Rows</span><select value={limit} onChange={(event) => setLimit(Number(event.target.value))}>{[10, 20, 50, 100].map((value) => <option value={value} key={value}>{value}</option>)}</select></label></div></Panel>
       {error && <ErrorState description={error} onRetry={() => void load()} />}
-      {loading ? <PageSkeleton variant="list" label="Loading users" /> : rows.length ? <Panel title={`${total} accounts`} className="role-table-panel"><div className="role-table-scroll"><table className="role-table"><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Role profile</th><th>Last login</th><th>Actions</th></tr></thead><tbody>{rows.map((target) => <tr key={target.id}><td><div className="role-person"><span>{target.full_name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}</span><div><b>{target.full_name}</b><small>{target.email}<br />{target.phone_number}</small></div></div></td><td><Status value={target.role} /></td><td><select className="role-inline-select" value={target.status} disabled={target.id === user.id || busy} onChange={(event) => void changeStatus(target, event.target.value as ManagedUser["status"])}><option value="ACTIVE">Active</option><option value="SUSPENDED">Suspended</option><option value="DEACTIVATED">Deactivated</option>{target.status === "PENDING_VERIFICATION" && <option value="PENDING_VERIFICATION">Pending verification</option>}</select></td><td><small>{target.role === "STUDENT" ? `${target.student_number || "No number"} · Semester ${target.current_semester || "—"}` : target.role === "INSTRUCTOR" ? `${target.specialization || "No specialization"}${target.office_location ? ` · ${target.office_location}` : ""}` : `${target.employee_number || "No employee number"}${target.is_super_admin ? " · Super admin" : ""}`}{target.forensic_code ? ` · ${target.forensic_code}` : ""}</small></td><td><small>{target.last_login_at ? new Date(target.last_login_at).toLocaleString() : "Never"}</small></td><td><div className="role-row-actions"><button type="button" disabled={busy} onClick={() => void resetPassword(target)} title="Reset password"><FiShield /></button><button type="button" className="danger" data-phase5-confirmed="true" disabled={target.id === user.id || busy} onClick={() => void removeUser(target)} title={locale === "ar" ? "حذف المستخدم" : "Delete user"}><FiTrash2 /></button></div></td></tr>)}</tbody></table></div><Pagination page={page} totalPages={totalPages} total={total} limit={limit} onPage={setPage} /></Panel> : <EmptyState title="No accounts match these filters" description="Adjust the filters, move to another page, import a CSV, or create a new account." />}
+      {loading ? <PageSkeleton variant="list" label="Loading users" /> : rows.length ? <Panel title={`${total} accounts`} className="role-table-panel"><div className="role-table-scroll"><table className="role-table"><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Role profile</th><th>Last login</th><th>Actions</th></tr></thead><tbody>{rows.map((target) => <tr key={target.id}><td><div className="role-person"><span>{target.full_name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}</span><div><b>{target.full_name}</b><small>{target.email}<br />{target.phone_number}</small></div></div></td><td><Status value={target.role} /></td><td><select className="role-inline-select" value={target.status} disabled={target.id === user.id || busy} onChange={(event) => void changeStatus(target, event.target.value as ManagedUser["status"])}><option value="ACTIVE">Active</option><option value="SUSPENDED">Suspended</option><option value="DEACTIVATED">Deactivated</option>{target.status === "PENDING_VERIFICATION" && <option value="PENDING_VERIFICATION">Pending verification</option>}</select></td><td><small>{target.role === "STUDENT" ? `${target.student_number || "No number"} · Semester ${target.current_semester || "—"}` : target.role === "INSTRUCTOR" ? `${target.specialization || "No specialization"}${target.office_location ? ` · ${target.office_location}` : ""}` : `${target.employee_number || "No employee number"}${target.is_super_admin ? " · Super admin" : ""}`}{target.forensic_code ? ` · ${target.forensic_code}` : ""}</small></td><td><small>{target.last_login_at ? new Date(target.last_login_at).toLocaleString() : "Never"}</small></td><td><div className="role-row-actions">{target.role==="STUDENT"&&<button type="button" disabled={busy} onClick={() => void openDeviceAccess(target)} title="Trusted device access"><FiSmartphone /></button>}<button type="button" disabled={busy} onClick={() => void resetPassword(target)} title="Reset password"><FiShield /></button><button type="button" className="danger" data-phase5-confirmed="true" disabled={target.id === user.id || busy} onClick={() => void removeUser(target)} title={locale === "ar" ? "حذف المستخدم" : "Delete user"}><FiTrash2 /></button></div></td></tr>)}</tbody></table></div><Pagination page={page} totalPages={totalPages} total={total} limit={limit} onPage={setPage} /></Panel> : <EmptyState title="No accounts match these filters" description="Adjust the filters, move to another page, import a CSV, or create a new account." />}
     </>}
+
+    <Modal title={deviceUser ? `Device access · ${deviceUser.full_name}` : "Device access"} open={Boolean(deviceUser)} onClose={() => { setDeviceUser(null); setDeviceAccess(null); }} wide>
+      <div className="admin-import-workspace">
+        {deviceAccessLoading ? <PageSkeleton variant="list" label="Loading trusted device access" /> : deviceAccess ? <>
+          <section className="admin-import-summary">
+            <FiSmartphone />
+            <div>
+              <h3>One approved student device</h3>
+              <p>Approving a replacement revokes the current device and every active student session. The student must then sign in again from the approved browser.</p>
+            </div>
+          </section>
+          <div className="role-form-grid">
+            <section>
+              <h3>Trusted device</h3>
+              {deviceAccess.devices.filter((item) => item.status === "ACTIVE").length ? deviceAccess.devices.filter((item) => item.status === "ACTIVE").map((item) => <div key={item.id} className="admin-import-result complete">
+                <h3>{item.device_label || "Approved browser device"}</h3>
+                <p><b>Status:</b> ACTIVE</p>
+                <p><b>Enrolled:</b> {new Date(item.created_at).toLocaleString()}</p>
+                <p><b>Last seen:</b> {item.last_seen_at ? new Date(item.last_seen_at).toLocaleString() : "Never after enrollment"}</p>
+                <p><b>Last IP:</b> {item.last_ip || "Not recorded"}</p>
+                <p><b>User agent:</b> {item.user_agent || "Not recorded"}</p>
+              </div>) : <p>No active trusted device is enrolled. The student's next verified login can establish the initial device.</p>}
+            </section>
+            <section>
+              <h3>Pending replacement request</h3>
+              {deviceAccess.requests.filter((item) => item.status === "PENDING").length ? deviceAccess.requests.filter((item) => item.status === "PENDING").map((item) => <div key={item.id} className="admin-import-result partial">
+                <h3>{item.device_label || "New browser device"}</h3>
+                <p><b>Requested:</b> {new Date(item.requested_at).toLocaleString()}</p>
+                <p><b>IP:</b> {item.ip_address || "Not recorded"}</p>
+                <p><b>User agent:</b> {item.user_agent || "Not recorded"}</p>
+                <footer>
+                  <button className="pp-button secondary" type="button" disabled={busy} onClick={() => void rejectDeviceRequest(item.id)}>Reject</button>
+                  <button className="pp-button" type="button" disabled={busy} onClick={() => void approveDeviceRequest(item.id)}>Approve & replace device</button>
+                </footer>
+              </div>) : <p>No pending device change request.</p>}
+            </section>
+          </div>
+          {deviceAccess.requests.some((item) => item.status !== "PENDING") && <section>
+            <h3>Recent request history</h3>
+            <div className="role-table-scroll"><table className="role-table"><thead><tr><th>Device</th><th>Status</th><th>Requested</th><th>Reviewed</th></tr></thead><tbody>{deviceAccess.requests.filter((item) => item.status !== "PENDING").map((item) => <tr key={item.id}><td><small>{item.device_label || item.client_device_id}</small></td><td><Status value={item.status} /></td><td><small>{new Date(item.requested_at).toLocaleString()}</small></td><td><small>{item.reviewed_at ? new Date(item.reviewed_at).toLocaleString() : "—"}</small></td></tr>)}</tbody></table></div>
+          </section>}
+        </> : <ErrorState description="Device-access information is unavailable." onRetry={() => void refreshDeviceAccess()} />}
+        <footer><button className="pp-button secondary" type="button" onClick={() => { setDeviceUser(null); setDeviceAccess(null); }}>Close</button><button className="pp-button secondary" type="button" disabled={deviceAccessLoading} onClick={() => void refreshDeviceAccess()}><FiRefreshCw /> Refresh</button></footer>
+      </div>
+    </Modal>
 
     <Modal title="Create managed account" open={createOpen} onClose={() => setCreateOpen(false)} wide><form className="role-form" onSubmit={createUser}><div className="role-form-grid"><label>Full name<input required value={draft.full_name} onChange={(event) => setDraft((current) => ({ ...current, full_name: event.target.value }))} /></label><label>Email<input required type="email" value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} /></label><label>Phone number<input required placeholder="+201000000000" value={draft.phone_number} onChange={(event) => setDraft((current) => ({ ...current, phone_number: event.target.value }))} /></label><label>Initial password<input required minLength={12} type="password" value={draft.password} onChange={(event) => setDraft((current) => ({ ...current, password: event.target.value }))} /></label><label>Role<select value={draft.role} onChange={(event) => setDraft((current) => ({ ...current, role: event.target.value as UserRole }))}><option value="STUDENT">Student</option><option value="INSTRUCTOR">Instructor</option><option value="SYSTEM_ADMIN">System administrator</option></select></label>{draft.role === "STUDENT" && <><label>Student number<input required value={draft.student_number || ""} onChange={(event) => setDraft((current) => ({ ...current, student_number: event.target.value }))} /></label><label>Current semester<input required min={1} type="number" value={draft.current_semester || 1} onChange={(event) => setDraft((current) => ({ ...current, current_semester: Number(event.target.value) }))} /></label></>}{draft.role === "INSTRUCTOR" && <><label>Specialization<input value={draft.specialization || ""} onChange={(event) => setDraft((current) => ({ ...current, specialization: event.target.value }))} /></label><label>Office location<input value={draft.office_location || ""} onChange={(event) => setDraft((current) => ({ ...current, office_location: event.target.value }))} /></label></>}{draft.role === "SYSTEM_ADMIN" && <><label>Employee number<input required value={draft.employee_number || ""} onChange={(event) => setDraft((current) => ({ ...current, employee_number: event.target.value }))} /></label><label className="role-checkbox"><input type="checkbox" checked={Boolean(draft.is_super_admin)} onChange={(event) => setDraft((current) => ({ ...current, is_super_admin: event.target.checked }))} /> Grant super-administrator authority</label></>}</div><footer><button className="pp-button secondary" type="button" onClick={() => setCreateOpen(false)}>Cancel</button><button className="pp-button" disabled={busy} type="submit">{busy ? "Creating…" : "Create account"}</button></footer></form></Modal>
 
