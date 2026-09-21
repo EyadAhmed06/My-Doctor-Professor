@@ -103,6 +103,13 @@ export class AuthController {
       dto.credential,
       request.ip ?? request.socket.remoteAddress ?? 'unknown',
       userAgent,
+      {
+        clientDeviceId: dto.device_id,
+        publicKeyJwk: dto.device_public_key_jwk,
+        deviceLabel: dto.device_label,
+        challengeId: dto.device_challenge_id,
+        signature: dto.device_signature,
+      },
     );
     if ('refresh_token' in result) {
       this.writeRefreshCookies(request, response, result.refresh_token, dto.remember !== false);
