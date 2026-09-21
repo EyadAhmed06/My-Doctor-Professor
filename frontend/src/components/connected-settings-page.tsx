@@ -47,7 +47,7 @@ function normalizedPhone(value: string) {
 
 function passwordChecks(value: string) {
   return {
-    length: value.length >= 12,
+    length: value.length >= 8,
     lower: /[a-z]/.test(value),
     upper: /[A-Z]/.test(value),
     number: /[0-9]/.test(value),
@@ -373,8 +373,8 @@ export function ConnectedSettingsPage() {
           <div className="settings-security-actions"><button type="button" className="pp-button secondary" disabled={securityBusy||otherSessions===0} onClick={()=>void revokeOtherSessions()}><FiShield/> {securityBusy?"Signing out…":"Sign out other sessions"}</button></div>
           <form onSubmit={changePassword} noValidate className="settings-password-form">
             <h3>Change password</h3><div className="settings-password-grid"><label>Current password<div className="password-input"><input type={showCurrent ? "text" : "password"} value={currentPassword} onKeyUp={passwordKey} onChange={(event) => { setCurrentPassword(event.target.value); setFieldErrors((current) => ({ ...current, currentPassword: undefined })); }} required autoComplete="current-password" /><button type="button" onClick={() => setShowCurrent((value) => !value)} aria-label={showCurrent ? "Hide current password" : "Show current password"}>{showCurrent ? <FiEyeOff /> : <FiEye />}</button></div>{fieldErrors.currentPassword && <small className="field-error">{fieldErrors.currentPassword}</small>}</label>
-            <label>New password<div className="password-input"><input type={showNew ? "text" : "password"} value={newPassword} onKeyUp={passwordKey} onChange={(event) => { setNewPassword(event.target.value); setFieldErrors((current) => ({ ...current, newPassword: undefined })); }} required minLength={12} autoComplete="new-password" /><button type="button" onClick={() => setShowNew((value) => !value)} aria-label={showNew ? "Hide new password" : "Show new password"}>{showNew ? <FiEyeOff /> : <FiEye />}</button></div>{fieldErrors.newPassword && <small className="field-error">{fieldErrors.newPassword}</small>}</label></div>
-            {capsLock && <p className="caps-lock-warning">Caps Lock is on.</p>}<ul className="password-requirements"><li className={checks.length ? "met" : ""}>At least 12 characters</li><li className={checks.lower ? "met" : ""}>Lowercase letter</li><li className={checks.upper ? "met" : ""}>Uppercase letter</li><li className={checks.number ? "met" : ""}>Number</li></ul><button className="pp-button" disabled={saving || !currentPassword || !newPassword}><FiLock /> {saving ? "Updating…" : "Change password"}</button>
+            <label>New password<div className="password-input"><input type={showNew ? "text" : "password"} value={newPassword} onKeyUp={passwordKey} onChange={(event) => { setNewPassword(event.target.value); setFieldErrors((current) => ({ ...current, newPassword: undefined })); }} required minLength={8} autoComplete="new-password" /><button type="button" onClick={() => setShowNew((value) => !value)} aria-label={showNew ? "Hide new password" : "Show new password"}>{showNew ? <FiEyeOff /> : <FiEye />}</button></div>{fieldErrors.newPassword && <small className="field-error">{fieldErrors.newPassword}</small>}</label></div>
+            {capsLock && <p className="caps-lock-warning">Caps Lock is on.</p>}<ul className="password-requirements"><li className={checks.length ? "met" : ""}>At least 8 characters</li><li className={checks.lower ? "met" : ""}>Lowercase letter</li><li className={checks.upper ? "met" : ""}>Uppercase letter</li><li className={checks.number ? "met" : ""}>Number</li></ul><button className="pp-button" disabled={saving || !currentPassword || !newPassword}><FiLock /> {saving ? "Updating…" : "Change password"}</button>
           </form>
         </Panel>
 
