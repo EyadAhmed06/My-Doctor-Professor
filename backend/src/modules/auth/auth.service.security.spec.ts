@@ -22,6 +22,8 @@ function buildService(passwordValid: boolean) {
     resetFailedLoginAttempts: jest.fn().mockResolvedValue(undefined),
     updateLastLogin: jest.fn().mockResolvedValue(undefined),
     saveSession: jest.fn().mockResolvedValue(undefined),
+    authorizeStudentDevice: jest.fn().mockResolvedValue(null),
+    assertSessionTrustedDevice: jest.fn().mockResolvedValue(undefined),
   };
   const jwtService = { signAsync: jest.fn().mockResolvedValue('token') };
   const config = {
