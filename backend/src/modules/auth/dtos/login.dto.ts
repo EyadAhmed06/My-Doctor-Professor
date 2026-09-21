@@ -27,6 +27,10 @@ export class LoginDto {
   device_label?: string;
 
   @IsOptional()
+  @IsString()
+  device_registration_signature?: string;
+
+  @IsOptional()
   @IsUUID('4')
   device_challenge_id?: string;
 
