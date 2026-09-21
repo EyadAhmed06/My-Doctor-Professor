@@ -14,7 +14,7 @@ export class UpdateUserProfileDto {
 }
 export class ChangePasswordDto {
  @IsString() @IsNotEmpty() current_password:string;
- @IsString() @MinLength(12) @MaxLength(128)
+ @IsString() @MinLength(8) @MaxLength(128)
  @Matches(/[a-z]/) @Matches(/[A-Z]/) @Matches(/[0-9]/) new_password:string;
 }
 
