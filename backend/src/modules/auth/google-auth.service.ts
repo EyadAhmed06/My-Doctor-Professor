@@ -330,6 +330,7 @@ export class GoogleAuthService {
         new Date(Date.now() + this.refreshLifetimeSeconds * 1000),
         ip,
         userAgent,
+        trustedDeviceId,
       );
     } catch (error) {
       if (error instanceof ConflictException) throw error;
