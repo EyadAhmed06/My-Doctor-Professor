@@ -106,6 +106,18 @@ export class AddTrustedStudentDevices2160000000000 implements MigrationInterface
       CREATE INDEX IF NOT EXISTS idx_auth_sessions_trusted_device
         ON auth_sessions(trusted_device_id);
     `);
+
+    // Force pre-device student sessions through the new trusted-device login flow.
+    // There is no cryptographic way to bind an already-issued legacy session to a
+    // browser after the fact, so revocation is the safe migration boundary.
+    await queryRunner.query(`
+      UPDATE auth_sessions session
+      SET revoked_at = CURRENT_TIMESTAMP
+      FROM users account
+      WHERE session.user_id = account.id
+        AND account.role = 'STUDENT'
+        AND session.revoked_at IS NULL;
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
