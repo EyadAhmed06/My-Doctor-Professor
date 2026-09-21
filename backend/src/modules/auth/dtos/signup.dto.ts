@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsInt,
   IsNotEmpty,
+  IsObject,
   IsOptional,
   IsPhoneNumber,
   IsString,
@@ -13,6 +14,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  IsUUID,
 } from 'class-validator';
 import { Gender, UserRole } from '../../users/entities/user.entity';
 
@@ -53,4 +55,15 @@ export class SignupDto {
   @IsOptional()
   @IsEnum(Gender)
   gender?: Gender;
+
+  @IsUUID('4')
+  device_id: string;
+
+  @IsObject()
+  device_public_key_jwk: Record<string, unknown>;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  device_label?: string;
 }
