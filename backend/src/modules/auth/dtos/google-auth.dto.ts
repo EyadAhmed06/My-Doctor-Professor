@@ -36,6 +36,10 @@ export class GoogleCredentialDto {
   device_label?: string;
 
   @IsOptional()
+  @IsString()
+  device_registration_signature?: string;
+
+  @IsOptional()
   @IsUUID('4')
   device_challenge_id?: string;
 
@@ -71,6 +75,9 @@ export class CompleteGoogleSignupDto {
   @IsString()
   @MaxLength(200)
   device_label?: string;
+
+  @IsString()
+  device_registration_signature: string;
 }
 
 export interface GoogleOnboardingResponseDto {
