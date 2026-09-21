@@ -141,7 +141,10 @@ function registrationMessage(deviceId: string, publicKeyJwk: JsonWebKey): ArrayB
     publicKeyJwk.x,
     publicKeyJwk.y,
   ].join("\n");
-  return new TextEncoder().encode(canonical).buffer;
+  const encoded = new TextEncoder().encode(canonical);
+  const buffer = new ArrayBuffer(encoded.byteLength);
+  new Uint8Array(buffer).set(encoded);
+  return buffer;
 }
 
 function describeBrowser(): string {
