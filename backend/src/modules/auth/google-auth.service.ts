@@ -174,16 +174,7 @@ export class GoogleAuthService {
     if (!refreshedUser) throw new UnauthorizedException('Account creation did not complete');
     user = refreshedUser;
     await this.usersService.updateLastLogin(user.id);
-    const trustedDeviceId = await this.usersService.authorizeStudentDevice(
-      user,
-      {
-        clientDeviceId: dto.device_id,
-        publicKeyJwk: dto.device_public_key_jwk,
-        deviceLabel: dto.device_label,
-      },
-      ip,
-      userAgent,
-    );
+    const trustedDeviceId = await this.usersService.getActiveTrustedDeviceId(user.id);
     return this.createSession(user, ip, userAgent, trustedDeviceId);
   }
 
