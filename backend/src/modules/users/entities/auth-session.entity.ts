@@ -11,6 +11,7 @@ export class AuthSession {
   @Column({ type: 'text', name: 'refresh_token_hash' }) refreshTokenHash: string;
   @Column({ type: 'inet', nullable: true, name: 'ip_address' }) ipAddress: string | null;
   @Column({ type: 'text', nullable: true, name: 'user_agent' }) userAgent: string | null;
+  @Column('uuid', { nullable: true, name: 'trusted_device_id' }) trustedDeviceId: string | null;
   @Column({ type: 'timestamp', name: 'expires_at' }) expiresAt: Date;
   @Column({ type: 'timestamp', nullable: true, name: 'revoked_at' }) revokedAt: Date | null;
   @Column({ type: 'timestamp', nullable: true, name: 'last_used_at' }) lastUsedAt: Date | null;
