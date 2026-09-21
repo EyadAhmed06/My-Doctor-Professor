@@ -62,6 +62,9 @@ describe('Single Active Session Policy', () => {
       resetFailedLoginAttempts: jest.fn(async () => undefined),
       updateLastLogin: jest.fn(async () => undefined),
       recordFailedLogin: jest.fn(async () => undefined),
+      authorizeStudentDevice: jest.fn(async () => null),
+      assertSessionTrustedDevice: jest.fn(async () => undefined),
+      getActiveTrustedDeviceId: jest.fn(async () => null),
       revokeExpiredSessions: jest.fn(async (userId: string) => {
         const now = new Date();
         let count = 0;
@@ -87,6 +90,7 @@ describe('Single Active Session Policy', () => {
           expiresAt: Date,
           ipAddress?: string | null,
           userAgent?: string | null,
+          trustedDeviceId?: string | null,
         ) => {
           // Simulate database partial unique index constraint: uq_auth_sessions_active_user
           const activeDuplicate = mockSessions.find(
@@ -110,6 +114,7 @@ describe('Single Active Session Policy', () => {
             lastUsedAt: null,
             ipAddress: ipAddress ?? null,
             userAgent: userAgent ?? null,
+            trustedDeviceId: trustedDeviceId ?? null,
             createdAt: new Date(),
             user: null as never,
           });
@@ -274,6 +279,7 @@ describe('Single Active Session Policy', () => {
       lastUsedAt: null,
       ipAddress: '192.168.1.1',
       userAgent: 'Old Browser',
+      trustedDeviceId: null,
       createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
       user: null as never,
     });
