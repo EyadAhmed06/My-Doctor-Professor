@@ -66,4 +66,7 @@ export class SignupDto {
   @IsString()
   @MaxLength(200)
   device_label?: string;
+
+  @IsString()
+  device_registration_signature: string;
 }
