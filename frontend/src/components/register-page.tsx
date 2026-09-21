@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FiArrowLeft, FiBookOpen, FiCloud, FiShield, FiUsers } from "react-icons/fi";
 import { Brand, Field, icons, SubmitForm } from "./ui";
 import { apiRequest, ApiError } from "@/lib/api";
+import { getOrCreateDeviceIdentity } from "@/lib/device-identity";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./auth-provider";
@@ -16,7 +17,7 @@ import styles from "./register-page.module.css";
 const registrationProof=[
   {Icon:FiShield,title:"Secure & Private",copy:"One-time email codes protect account activation"},
   {Icon:FiBookOpen,title:"For Medical Students",copy:"Built specially for your journey"},
-  {Icon:FiCloud,title:"Access Anywhere",copy:"Continue from your signed-in browser"},
+  {Icon:FiCloud,title:"Device Protected",copy:"Your account stays bound to your approved browser"},
   {Icon:FiUsers,title:"Structured Learning",copy:"Courses, questions, notes, and review"},
 ];
 
@@ -118,7 +119,18 @@ export function RegisterPage() {
         sessionStorage.removeItem(GOOGLE_ONBOARDING_KEY);
         router.replace("/dashboard");
       }else{
-        await apiRequest<{message:string}>("/auth/signup",{method:"POST",body:{full_name:form.full_name,email:form.email,phone_number:phoneNumber,password:form.password,role:"STUDENT",current_semester:semester}});
+        const identity=await getOrCreateDeviceIdentity();
+        await apiRequest<{message:string}>("/auth/signup",{method:"POST",body:{
+          full_name:form.full_name,
+          email:form.email,
+          phone_number:phoneNumber,
+          password:form.password,
+          role:"STUDENT",
+          current_semester:semester,
+          device_id:identity.deviceId,
+          device_public_key_jwk:identity.publicKeyJwk,
+          device_label:identity.deviceLabel,
+        }});
         router.push(`/verify-email?email=${encodeURIComponent(form.email)}`);
       }
     }catch(cause){setError(resolveErrorMessage(cause, "Unable to create your account. Please try again."));}
