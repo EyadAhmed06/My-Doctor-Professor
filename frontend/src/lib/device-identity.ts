@@ -2,6 +2,9 @@ const DEVICE_DB = "mdp-device-identity";
 const DEVICE_STORE = "identity";
 const DEVICE_RECORD = "primary";
 const DEVICE_BINDING_VERSION = "MDP_DEVICE_BINDING_V1";
+const DEVICE_LOCK_KEY = "mdp-device-identity-lock";
+const DEVICE_LOCK_LEASE_MS = 5_000;
+let sharedIdentityPromise: Promise<DeviceIdentity> | null = null;
 
 type StoredDeviceIdentity = {
   id: string;
@@ -58,6 +61,49 @@ async function writeStoredIdentity(identity: StoredDeviceIdentity): Promise<void
   } finally {
     db.close();
   }
+}
+
+async function withDeviceIdentityLock<T>(operation: () => Promise<T>): Promise<T> {
+  const token = crypto.randomUUID();
+  const deadline = Date.now() + 8_000;
+
+  while (Date.now() < deadline) {
+    let current: { token?: string; expiresAt?: number } | null = null;
+    try {
+      current = JSON.parse(localStorage.getItem(DEVICE_LOCK_KEY) || "null") as { token?: string; expiresAt?: number } | null;
+    } catch {
+      current = null;
+    }
+
+    if (!current?.token || !current.expiresAt || current.expiresAt <= Date.now()) {
+      localStorage.setItem(DEVICE_LOCK_KEY, JSON.stringify({
+        token,
+        expiresAt: Date.now() + DEVICE_LOCK_LEASE_MS,
+      }));
+      let confirmed: { token?: string } | null = null;
+      try {
+        confirmed = JSON.parse(localStorage.getItem(DEVICE_LOCK_KEY) || "null") as { token?: string } | null;
+      } catch {
+        confirmed = null;
+      }
+      if (confirmed?.token === token) {
+        try {
+          return await operation();
+        } finally {
+          try {
+            const latest = JSON.parse(localStorage.getItem(DEVICE_LOCK_KEY) || "null") as { token?: string } | null;
+            if (latest?.token === token) localStorage.removeItem(DEVICE_LOCK_KEY);
+          } catch {
+            localStorage.removeItem(DEVICE_LOCK_KEY);
+          }
+        }
+      }
+    }
+
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 40));
+  }
+
+  throw new Error("Unable to initialize secure device identity. Close duplicate tabs and try again.");
 }
 
 function decodeBase64Url(value: string): ArrayBuffer {
@@ -182,34 +228,45 @@ async function storedIdentityIsValid(identity: StoredDeviceIdentity): Promise<bo
 
 export async function getOrCreateDeviceIdentity(): Promise<DeviceIdentity> {
   if (typeof window === "undefined") throw new Error("Device identity is available only in the browser.");
+  if (sharedIdentityPromise) return sharedIdentityPromise;
 
-  let stored = await readStoredIdentity();
-  if (!stored || !(await storedIdentityIsValid(stored))) {
-    // A device request must never be created from a public key whose matching
-    // private key is unavailable/corrupt. Repair the browser identity first so
-    // any subsequent administrator approval is guaranteed to be usable.
-    stored = await createStoredIdentity();
+  sharedIdentityPromise = withDeviceIdentityLock(async () => {
+    let stored = await readStoredIdentity();
+    if (!stored || !(await storedIdentityIsValid(stored))) {
+      // A device request must never be created from a public key whose matching
+      // private key is unavailable/corrupt. Repair the browser identity first so
+      // any subsequent administrator approval is guaranteed to be usable.
+      stored = await createStoredIdentity();
+    }
+
+    const stable = stored;
+    return {
+      deviceId: stable.id,
+      publicKeyJwk: stable.publicKeyJwk,
+      deviceLabel: describeBrowser(),
+      async signChallenge(challenge: string) {
+        const signature = await crypto.subtle.sign(
+          { name: "ECDSA", hash: "SHA-256" },
+          stable.privateKey,
+          decodeBase64Url(challenge),
+        );
+        return encodeBase64Url(signature);
+      },
+      async signRegistrationProof() {
+        const signature = await crypto.subtle.sign(
+          { name: "ECDSA", hash: "SHA-256" },
+          stable.privateKey,
+          registrationMessage(stable.id, stable.publicKeyJwk),
+        );
+        return encodeBase64Url(signature);
+      },
+    };
+  });
+
+  try {
+    return await sharedIdentityPromise;
+  } catch (error) {
+    sharedIdentityPromise = null;
+    throw error;
   }
-
-  return {
-    deviceId: stored.id,
-    publicKeyJwk: stored.publicKeyJwk,
-    deviceLabel: describeBrowser(),
-    async signChallenge(challenge: string) {
-      const signature = await crypto.subtle.sign(
-        { name: "ECDSA", hash: "SHA-256" },
-        stored!.privateKey,
-        decodeBase64Url(challenge),
-      );
-      return encodeBase64Url(signature);
-    },
-    async signRegistrationProof() {
-      const signature = await crypto.subtle.sign(
-        { name: "ECDSA", hash: "SHA-256" },
-        stored!.privateKey,
-        registrationMessage(stored!.id, stored!.publicKeyJwk),
-      );
-      return encodeBase64Url(signature);
-    },
-  };
 }
