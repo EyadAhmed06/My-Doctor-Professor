@@ -65,7 +65,7 @@ export class AuthService {
     this.resetLifetimeSeconds = this.readPositiveInteger('PASSWORD_RESET_TTL_SECONDS', 1800);
   }
 
-  async signup(dto: SignupDto): Promise<MessageResponse> {
+  async signup(dto: SignupDto, ip?: string | null, userAgent?: string | null): Promise<MessageResponse> {
     const user = await this.usersService.createStudentAccount({
       fullName: dto.full_name,
       email: dto.email,
@@ -75,6 +75,13 @@ export class AuthService {
       currentSemester: dto.current_semester,
       dateOfBirth: dto.date_of_birth ? new Date(dto.date_of_birth) : undefined,
       gender: dto.gender,
+      trustedDevice: {
+        clientDeviceId: dto.device_id,
+        publicKeyJwk: dto.device_public_key_jwk,
+        deviceLabel: dto.device_label,
+        ipAddress: ip,
+        userAgent,
+      },
     });
     await this.issueActionToken(
       user,
@@ -288,8 +295,20 @@ export class AuthService {
       await this.usersService.upgradePasswordHash(user.id, dto.password);
     }
     await this.usersService.resetFailedLoginAttempts(user.id);
+    const trustedDeviceId = await this.usersService.authorizeStudentDevice(
+      user,
+      {
+        clientDeviceId: dto.device_id,
+        publicKeyJwk: dto.device_public_key_jwk,
+        deviceLabel: dto.device_label,
+        challengeId: dto.device_challenge_id,
+        signature: dto.device_signature,
+      },
+      ip,
+      userAgent,
+    );
     await this.usersService.updateLastLogin(user.id);
-    return this.createSession(user, ip, userAgent);
+    return this.createSession(user, ip, userAgent, trustedDeviceId);
   }
 
   async refreshAccessToken(refreshToken: string): Promise<AuthResponseDto> {
@@ -414,6 +433,7 @@ export class AuthService {
     user: User,
     ip?: string | null,
     userAgent?: string | null,
+    trustedDeviceId?: string | null,
   ): Promise<AuthResponseDto> {
     await this.usersService.revokeExpiredSessions(user.id);
 
@@ -440,6 +460,7 @@ export class AuthService {
         new Date(Date.now() + this.refreshLifetimeSeconds * 1000),
         ip,
         userAgent,
+        trustedDeviceId,
       );
     } catch (error) {
       if (error instanceof ConflictException) throw error;
