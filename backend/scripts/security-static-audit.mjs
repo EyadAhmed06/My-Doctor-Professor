@@ -15,9 +15,7 @@ const reviewedSinks = new Map([
   [
     'src/modules/questions/pdf-text-extraction.service.ts:shell/process execution',
     [
-      'execFileSync uses no shell, fixed argument arrays, bounded time/buffer, and server-controlled binary paths.',
-      'execFileSync avoids shell parsing; pdfPath is generated in our private temp directory.',
-      'execFileSync avoids shell parsing; every argument is a separate fixed/value argument.',
+      'execFile uses no shell, fixed argument arrays, bounded time/buffer, and server-controlled binary paths.',
     ],
   ],
   [
