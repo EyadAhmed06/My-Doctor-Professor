@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { QuestionType } from '../../common/entities/question.entity';
+import { isSupportedMcqOptionCount } from '../../common/mcq-option-policy';
 import { TestAttempt } from '../../common/entities/test-attempt.entity';
 import { TestQuestion } from '../../common/entities/test-question.entity';
 import { Test } from '../../common/entities/test.entity';
@@ -26,14 +27,14 @@ export function validateTestForPublish(test: Test, items: TestQuestion[]): Valid
   if (!items.length) issues.push({ code: 'NO_QUESTIONS', severity: 'ERROR', message: 'Attach at least one active question before publishing.' });
   if (items.some((item) => !item.question?.isActive)) issues.push({ code: 'INACTIVE_QUESTIONS', severity: 'ERROR', message: 'One or more attached questions are inactive.' });
   const malformedMcqs = items.filter((item) => item.question?.questionType === QuestionType.MCQ && (
-    item.question.options?.length !== 5
+    !isSupportedMcqOptionCount(item.question.options?.length ?? 0)
     || item.question.options.filter((option) => option.isCorrect).length !== 1
   ));
   if (malformedMcqs.length) {
     issues.push({
       code: 'MALFORMED_MCQS',
       severity: 'ERROR',
-      message: `${malformedMcqs.length} MCQ question(s) must be fixed: every MCQ requires exactly five options and exactly one correct answer.`,
+      message: `${malformedMcqs.length} MCQ question(s) must be fixed: every MCQ requires four or five options and exactly one correct answer.`,
     });
   }
   if (items.some((item) => Number(item.marks) <= 0)) issues.push({ code: 'INVALID_MARKS', severity: 'ERROR', message: 'Every attached question must award more than zero marks.' });
