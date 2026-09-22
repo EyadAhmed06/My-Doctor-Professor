@@ -245,6 +245,89 @@ describe('QuestionImportService', () => {
     expect(result.issues[0].code).toBe('NO_USABLE_TEXT_LAYER');
   });
 
+  it('targets only the local page window for a malformed parsed question', () => {
+    const { service } = build();
+    const pdf = {
+      pageCount: 20,
+      text: 'synthetic',
+      extractionConfidence: 1,
+      pages: Array.from({ length: 20 }, (_, index) => ({
+        page: index + 1,
+        text: 'healthy text',
+        source: 'TEXT_LAYER',
+        confidence: 1,
+      })),
+    };
+    const document = {
+      documentType: 'MCQ',
+      answerKey: new Map(),
+      questions: [{
+        questionNumber: 50,
+        sourcePage: 10,
+        answerKeyPage: 20,
+        sourceSection: 'Lecture One',
+        questionText: 'Malformed question',
+        options: [
+          { label: 'A', text: 'one' },
+          { label: 'B', text: 'two' },
+          { label: 'C', text: 'three' },
+          { label: 'D', text: 'four' },
+        ],
+        correctLabel: 'B',
+        explanation: null,
+      }],
+      sections: [],
+      expectedQuestionCount: 1,
+      parsedQuestionCount: 1,
+      missingQuestionCount: 0,
+      isStructurallyComplete: false,
+    };
+
+    expect((service as any).recoveryPageNumbers(pdf, document)).toEqual([
+      9, 10, 11, 19, 20,
+    ]);
+  });
+
+  it('falls back to full-document recovery only when structural failure cannot be localized', () => {
+    const { service } = build();
+    const pdf = {
+      pageCount: 4,
+      text: 'synthetic',
+      extractionConfidence: 1,
+      pages: Array.from({ length: 4 }, (_, index) => ({
+        page: index + 1,
+        text: 'healthy text',
+        source: 'TEXT_LAYER',
+        confidence: 1,
+      })),
+    };
+    const document = {
+      documentType: 'MCQ',
+      answerKey: new Map(),
+      questions: [],
+      sections: [{
+        title: 'Lecture One',
+        expectedQuestionNumbers: [1],
+        parsedQuestionNumbers: [],
+        missingQuestionNumbers: [1],
+        unexpectedQuestionNumbers: [],
+        duplicateQuestionNumbers: [],
+        answerKeyConflicts: [],
+        expectedQuestionCount: 1,
+        parsedQuestionCount: 0,
+        completeness: 0,
+      }],
+      expectedQuestionCount: 1,
+      parsedQuestionCount: 0,
+      missingQuestionCount: 1,
+      isStructurallyComplete: false,
+    };
+
+    expect((service as any).recoveryPageNumbers(pdf, document)).toEqual([
+      1, 2, 3, 4,
+    ]);
+  });
+
   it('requires an explicit rights confirmation before inspection', async () => {
     const { service } = build();
     await expect(service.inspectPdf(
