@@ -222,3 +222,88 @@
   .question-import-filterbar { align-items: stretch; flex-direction: column; }
   .question-import-search { flex-basis: auto; }
 }
+
+
+/* Mobile review virtualization: keep the full CandidateEditor mounted for only one
+   question at a time while retaining a lightweight navigator for the whole PDF. */
+.question-import-mobile-review {
+  display: grid;
+  gap: 14px;
+}
+.question-import-mobile-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 2px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.question-import-mobile-list > button {
+  min-width: 0;
+  min-height: 46px;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 9px;
+  border: 1px solid var(--pp-border, #253352);
+  border-radius: 10px;
+  background: var(--pp-surface-2, #10182d);
+  color: var(--pp-text, #f4f6ff);
+  text-align: left;
+  cursor: pointer;
+}
+.question-import-mobile-list > button.active {
+  border-color: rgba(73,215,204,.68);
+  background: rgba(73,215,204,.10);
+  box-shadow: inset 0 0 0 1px rgba(73,215,204,.12);
+}
+.question-import-mobile-list > button > strong {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.question-import-mobile-list .role-status {
+  font-size: 8px;
+  padding: 4px 6px;
+}
+.question-import-mobile-answer {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--pp-muted, #9fb0d8);
+  font-size: 10px;
+}
+.question-import-mobile-chevron {
+  color: var(--pp-muted, #9fb0d8);
+  font-size: 20px;
+  line-height: 1;
+}
+.question-import-mobile-nav {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+.question-import-mobile-nav > span {
+  color: var(--pp-muted, #9fb0d8);
+  font-weight: 800;
+  font-size: 12px;
+  text-align: center;
+  white-space: nowrap;
+}
+.question-import-mobile-nav .pp-button:last-child {
+  justify-self: stretch;
+}
+.question-import-mobile-nav .pp-button:first-child {
+  justify-self: stretch;
+}
+
+@media (max-width: 520px) {
+  .question-import-mobile-list {
+    grid-template-columns: 1fr;
+    max-height: 190px;
+  }
+}
