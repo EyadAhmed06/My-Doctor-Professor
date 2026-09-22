@@ -77,7 +77,7 @@ export class UnicodeQuestionImportService extends QuestionImportService {
     const normalizedDto: PublishQuestionImportDto = {
       ...dto,
       candidates: dto.candidates.map((candidate) => {
-        const serialized = this.deserializeInspectorExplanation(candidate.explanation);
+        const serialized = this.deserializeInspectorExplanation(candidate.explanation, candidate.options.length);
         const optionExplanations = candidate.options.some((option) => Boolean(option.explanation?.trim()))
           ? candidate.options.map((option) => option.explanation?.trim() || null)
           : serialized.optionExplanations;
@@ -131,7 +131,7 @@ export class UnicodeQuestionImportService extends QuestionImportService {
     return result;
   }
 
-  private deserializeInspectorExplanation(value?: string): {
+  private deserializeInspectorExplanation(value: string | undefined, optionCount: number): {
     questionExplanation: string | null;
     optionExplanations: Array<string | null>;
   } {
@@ -139,7 +139,7 @@ export class UnicodeQuestionImportService extends QuestionImportService {
     if (!trimmed.includes(OPTION_EXPLANATION_HEADER)) {
       return {
         questionExplanation: trimmed || null,
-        optionExplanations: [null, null, null, null, null],
+        optionExplanations: Array.from({ length: optionCount }, () => null),
       };
     }
 
@@ -150,7 +150,9 @@ export class UnicodeQuestionImportService extends QuestionImportService {
     const byLabel = new Map(matches.map((match) => [match[1], match[2].trim()]));
     return {
       questionExplanation,
-      optionExplanations: ['A', 'B', 'C', 'D', 'E'].map((label) => byLabel.get(label) || null),
+      optionExplanations: Array.from({ length: optionCount }, (_, index) =>
+        byLabel.get(String.fromCharCode(65 + index)) || null,
+      ),
     };
   }
 }
