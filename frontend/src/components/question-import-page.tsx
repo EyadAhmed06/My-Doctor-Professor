@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
   FiAlertTriangle,
   FiArrowLeft,
@@ -225,6 +225,21 @@ function hasAnyExplanation(candidate: Candidate) {
     || candidate.options.some((option) => Boolean(option.explanation?.trim()));
 }
 
+function candidateIsPublishable(candidate: Candidate) {
+  if (candidate.reuse_question_id) return candidate.status !== "INVALID";
+  const anyExplanation = hasAnyExplanation(candidate);
+  const explanationStateReady = !anyExplanation
+    || (hasCompleteExplanations(candidate) && candidate.ai_enrichment?.status !== "STALE");
+  return candidate.status !== "INVALID"
+    && candidate.question_text.trim().length >= 8
+    && candidate.options.length === 5
+    && candidate.options.every((option) => option.option_text.trim())
+    && candidate.options.filter((option) => option.is_correct).length === 1
+    && explanationStateReady
+    && (candidate.topic_confidence >= 0.08 || Boolean(candidate.allow_topic_override))
+    && (!candidate.duplicate || Boolean(candidate.allow_duplicate));
+}
+
 function recalculateCandidate(candidate: Candidate): Candidate {
   const structuralCodes = new Set([
     "EMPTY_STEM",
@@ -300,6 +315,161 @@ function inspectionErrorMessage(cause: unknown) {
   }
   return cause instanceof Error ? cause.message : "The request failed.";
 }
+
+
+function useMobileQuestionReview() {
+  const [mobile, setMobile] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 720px)");
+    const sync = () => setMobile(media.matches);
+    sync();
+    media.addEventListener?.("change", sync);
+    return () => media.removeEventListener?.("change", sync);
+  }, []);
+
+  return mobile;
+}
+
+type CandidateEditorProps = {
+  candidate: Candidate;
+  displayNumber: number;
+  topicName: string;
+  structurallyBlocked: boolean;
+  enriching: boolean;
+  onUpdate: (candidateId: string, updater: (candidate: Candidate) => Candidate) => void;
+  onEditSource: (candidateId: string, updater: (candidate: Candidate) => Candidate) => void;
+  onAddChoice: (candidateId: string) => void;
+  onRemoveChoice: (candidateId: string, optionIndex: number) => void;
+  onRemove: (candidateId: string) => void;
+  onGenerate: (targets: Candidate[], force: boolean) => Promise<void>;
+};
+
+const CandidateEditor = memo(function CandidateEditor({
+  candidate,
+  displayNumber,
+  topicName,
+  structurallyBlocked,
+  enriching,
+  onUpdate,
+  onEditSource,
+  onAddChoice,
+  onRemoveChoice,
+  onRemove,
+  onGenerate,
+}: CandidateEditorProps) {
+  const currentAiStatus = aiStatus(candidate);
+  const publishable = candidateIsPublishable(candidate);
+
+  return (
+    <article className={`question-import-candidate ${candidate.approved ? "approved" : ""}`}>
+      <header>
+        <div className="question-import-candidate-number">
+          <span>{candidate.question_number ?? displayNumber}</span>
+          <div>
+            <strong>Question {candidate.question_number ?? displayNumber}</strong>
+            <small>{candidate.source_page ? `Page ${candidate.source_page}` : "Manual"}{candidate.answer_key_label ? ` · Source answer ${candidate.answer_key_label}` : ""}</small>
+          </div>
+        </div>
+        <div className="question-import-candidate-status">
+          <span className={`role-status ${statusClass(candidate.status)}`}>{candidate.status === "VALID" ? "READY" : candidate.status.replaceAll("_", " ")}</span>
+          <span>AI {currentAiStatus.replaceAll("_", " ")}</span>
+          <button type="button" className="question-import-remove-btn" onClick={() => onRemove(candidate.candidate_id)}><FiTrash2 /> Remove</button>
+        </div>
+      </header>
+
+      {candidate.issues.length > 0 && (
+        <div className="question-import-inline-issues">
+          {candidate.issues.map((issue, index) => (
+            <span className={issue.severity.toLowerCase()} key={`${issue.code}-${index}`}>
+              {issue.severity === "ERROR" ? <FiXCircle /> : <FiAlertTriangle />}{issue.message}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {candidate.duplicate && (
+        <div className="question-import-duplicate">
+          <FiSearch />
+          <div>
+            <strong>{candidate.duplicate.exact ? "Exact question already exists" : `Possible duplicate · ${percent(candidate.duplicate.similarity)}`}</strong>
+            <p>{candidate.duplicate.question_text}</p>
+          </div>
+          <div className="question-import-duplicate-actions">
+            <button type="button" onClick={() => onUpdate(candidate.candidate_id, (current) => ({ ...current, reuse_question_id: current.duplicate?.question_id, allow_duplicate: false, approved: false }))}><FiCheckCircle /> Reuse existing</button>
+            <button type="button" onClick={() => onUpdate(candidate.candidate_id, (current) => ({ ...current, reuse_question_id: undefined, allow_duplicate: true, approved: false }))}>Create separate copy</button>
+          </div>
+        </div>
+      )}
+
+      <label className="question-import-stem">
+        <span>Question stem</span>
+        <textarea value={candidate.question_text} onChange={(event) => onEditSource(candidate.candidate_id, (current) => ({ ...current, question_text: event.target.value, reuse_question_id: undefined }))} />
+      </label>
+
+      <div className="question-import-options">
+        <div className="question-import-options-header">
+          <span>Exactly five answer options required · currently {candidate.options.length}</span>
+          <button type="button" className="question-import-add-option-btn" disabled={candidate.options.length >= OPTION_LABELS.length} onClick={() => onAddChoice(candidate.candidate_id)}><FiPlus /> Add choice</button>
+        </div>
+
+        {candidate.options.map((option, optionIndex) => (
+          <div key={`${candidate.candidate_id}-${option.label}-${optionIndex}`} style={{ display: "grid", gap: "0.45rem", marginBottom: "0.75rem" }}>
+            <div className={`question-import-option-row ${option.is_correct ? "correct" : ""}`}>
+              <input aria-label={`Mark choice ${option.label} as correct`} type="radio" name={`correct-${candidate.candidate_id}`} checked={option.is_correct} onChange={() => onEditSource(candidate.candidate_id, (current) => ({ ...current, options: current.options.map((value, index) => ({ ...value, is_correct: index === optionIndex })) }))} />
+              <strong>{option.label}</strong>
+              <input aria-label={`Choice ${option.label}`} type="text" value={option.option_text} onChange={(event) => onEditSource(candidate.candidate_id, (current) => ({ ...current, reuse_question_id: undefined, options: current.options.map((value, index) => index === optionIndex ? { ...value, option_text: event.target.value } : value) }))} />
+              <button type="button" className="question-import-option-delete-btn" aria-label={`Remove choice ${option.label}`} title={`Remove choice ${option.label}`} disabled={candidate.options.length <= 2} onClick={() => onRemoveChoice(candidate.candidate_id, optionIndex)}><FiTrash2 /></button>
+            </div>
+            <label className="question-import-option-explanation">
+              <span style={{ fontSize: "0.82rem", opacity: 0.78 }}>{option.is_correct ? "Why this is correct" : "Why this is incorrect"} · max 2 short sentences</span>
+              <textarea rows={2} maxLength={EXPLANATION_MAX_LENGTH} value={option.explanation || ""} placeholder="Concise reason…" onChange={(event) => onUpdate(candidate.candidate_id, (current) => ({ ...current, approved: false, options: current.options.map((value, index) => index === optionIndex ? { ...value, explanation: event.target.value } : value) }))} />
+              <small style={{ justifySelf: "end" }}>{(option.explanation || "").length}/{EXPLANATION_MAX_LENGTH}</small>
+            </label>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gap: "0.75rem", padding: "0.9rem", border: "1px solid var(--border, #d9e0e8)", borderRadius: "12px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap" }}>
+          <div>
+            <strong>AI explanation</strong>
+            <div style={{ fontSize: "0.82rem", opacity: 0.76 }}>{candidate.ai_enrichment?.model || "Muse Spark 1.3"} · {currentAiStatus.replaceAll("_", " ")}{candidate.ai_enrichment?.confidence != null ? ` · ${Math.round(candidate.ai_enrichment.confidence * 100)}% confidence` : ""}</div>
+          </div>
+          <button type="button" className="pp-button secondary" disabled={enriching || structurallyBlocked || !isAiEligible(candidate)} onClick={() => void onGenerate([candidate], currentAiStatus !== "NOT_GENERATED" && currentAiStatus !== "DEFERRED_BILLING")}>
+            {enriching ? <><FiRefreshCw className="spin" /> Generating…</> : currentAiStatus === "NOT_GENERATED" ? "Generate explanation" : "Regenerate explanation"}
+          </button>
+        </div>
+        {currentAiStatus === "STALE" && <p className="form-error">Question content changed after generation. Regenerate before publication.</p>}
+        <label>
+          <span>Question-level takeaway · max 2 short sentences</span>
+          <textarea rows={2} maxLength={EXPLANATION_MAX_LENGTH} value={candidate.explanation || ""} placeholder="Summarized learning point…" onChange={(event) => onUpdate(candidate.candidate_id, (current) => ({ ...current, approved: false, explanation: event.target.value }))} />
+          <small style={{ float: "right" }}>{(candidate.explanation || "").length}/{EXPLANATION_MAX_LENGTH}</small>
+        </label>
+      </div>
+
+      <div className="question-import-meta-controls">
+        <label>Difficulty<select value={candidate.difficulty} onChange={(event) => onUpdate(candidate.candidate_id, (current) => ({ ...current, difficulty: event.target.value as Candidate["difficulty"] }))}><option value="EASY">Easy</option><option value="MEDIUM">Medium</option><option value="HARD">Hard</option></select></label>
+        <label>Marks<input type="number" min="1" max="999" value={candidate.marks} onChange={(event) => onUpdate(candidate.candidate_id, (current) => ({ ...current, marks: Math.max(1, Math.round(Number(event.target.value) || 1)) }))} /></label>
+      </div>
+
+      {candidate.topic_confidence < 0.08 && (
+        <label className="question-import-confirm">
+          <input type="checkbox" checked={Boolean(candidate.allow_topic_override)} onChange={(event) => onUpdate(candidate.candidate_id, (current) => ({ ...current, allow_topic_override: event.target.checked, approved: false }))} />
+          <span>I reviewed the topic mismatch and confirm this belongs to <strong>{topicName}</strong>.</span>
+        </label>
+      )}
+
+      <footer>
+        <label className="question-import-approve">
+          <input type="checkbox" checked={Boolean(candidate.approved)} disabled={!publishable} onChange={(event) => onUpdate(candidate.candidate_id, (current) => ({ ...current, approved: event.target.checked }))} />
+          <span>{candidate.reuse_question_id ? "Approve reuse" : "Approve for publication"}</span>
+        </label>
+        {!publishable && !candidate.reuse_question_id && <span style={{ fontSize: "0.82rem", opacity: 0.76 }}>AI is not required for approval. If any explanation is present, complete all question + A–E explanations (or regenerate them) before approval.</span>}
+      </footer>
+    </article>
+  );
+});
 
 export function QuestionImportPage() {
   const { user, loading: authLoading, request } = useAuth();
