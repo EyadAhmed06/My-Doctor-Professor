@@ -46,6 +46,14 @@ type DuplicateMatch = {
   exact: boolean;
 };
 
+type ExistingQuestionFingerprint = Pick<
+  Question,
+  'id' | 'questionText' | 'isActive' | 'topicId'
+> & {
+  normalizedText: string;
+  tokenSet: Set<string>;
+};
+
 type ImportCandidate = {
   candidate_id: string;
   question_number: number;
@@ -244,6 +252,8 @@ export class QuestionImportService {
       topic.lecture?.description || '',
       ...existing.slice(0, 100).map((question) => question.questionText),
     ].join(' ');
+    const topicReferenceTokens = new Set(this.tokens(topicCorpus));
+    const existingFingerprints = this.prepareExistingQuestions(existing);
 
     const parseStartedAt = Date.now();
     let parsedDocument = this.parseQuestions(pdf, documentType);
@@ -301,8 +311,8 @@ export class QuestionImportService {
         this.evaluateCandidate(
           candidate,
           index,
-          topicCorpus,
-          existing,
+          topicReferenceTokens,
+          existingFingerprints,
           pageConfidence,
           pdf.extractionConfidence,
         ),
@@ -524,10 +534,15 @@ export class QuestionImportService {
       topic.lecture?.description || '',
       ...existing.slice(0, 100).map((question) => question.questionText),
     ].join(' ');
+    const topicReferenceTokens = new Set(this.tokens(topicCorpus));
+    const existingFingerprints = this.prepareExistingQuestions(existing);
 
     for (const [index, candidate] of selected.entries()) {
       this.validatePublishCandidate(candidate, index);
-      const topicConfidence = this.topicConfidence(candidate.question_text, topicCorpus);
+      const topicConfidence = this.topicConfidenceFromTokens(
+        candidate.question_text,
+        topicReferenceTokens,
+      );
       if (topicConfidence < 0.08 && !candidate.allow_topic_override) {
         throw new BadRequestException(
           `Question ${index + 1} has a very low lexical match to ${topic.topicName}. Review it or explicitly confirm the topic override.`,
@@ -544,7 +559,10 @@ export class QuestionImportService {
         }
         continue;
       }
-      const duplicate = this.bestDuplicate(candidate.question_text, existing);
+      const duplicate = this.bestDuplicate(
+        candidate.question_text,
+        existingFingerprints,
+      );
       if (duplicate && duplicate.similarity >= 0.92 && !candidate.allow_duplicate) {
         throw new ConflictException(
           `Question ${index + 1} closely matches an existing question (${Math.round(duplicate.similarity * 100)}%). Reuse it or explicitly allow a new copy.`,
@@ -1119,8 +1137,8 @@ export class QuestionImportService {
   private evaluateCandidate(
     candidate: ParsedQuestion,
     index: number,
-    topicCorpus: string,
-    existing: Pick<Question, 'id' | 'questionText' | 'isActive' | 'topicId'>[],
+    topicReferenceTokens: Set<string>,
+    existing: ExistingQuestionFingerprint[],
     pageConfidence: Map<number, number> = new Map(),
     documentExtractionConfidence = 1,
   ): ImportCandidate {
@@ -1160,7 +1178,10 @@ export class QuestionImportService {
     }
 
     const topicInput = [candidate.sourceSection || '', candidate.questionText].join(' ');
-    const topicConfidence = this.topicConfidence(topicInput, topicCorpus);
+    const topicConfidence = this.topicConfidenceFromTokens(
+      topicInput,
+      topicReferenceTokens,
+    );
     if (topicConfidence < 0.08) {
       issues.push({ code: 'TOPIC_MISMATCH', severity: 'WARNING', message: 'The extracted wording has a very weak lexical match to the selected topic. Instructor confirmation is required.' });
     }
@@ -1252,20 +1273,61 @@ export class QuestionImportService {
 
   private bestDuplicate(
     text: string,
-    existing: Pick<Question, 'id' | 'questionText' | 'isActive' | 'topicId'>[],
+    existing: ExistingQuestionFingerprint[],
   ): DuplicateMatch | null {
+    const normalizedText = this.normalize(text);
+    const tokenSet = new Set(this.tokens(normalizedText));
     let best: DuplicateMatch | null = null;
+
     for (const question of existing) {
-      const similarity = this.similarity(text, question.questionText);
+      const similarity = this.similarityPrepared(
+        normalizedText,
+        tokenSet,
+        question.normalizedText,
+        question.tokenSet,
+      );
       if (similarity < 0.72 || (best && similarity <= best.similarity)) continue;
       best = {
         question_id: question.id,
         question_text: question.questionText,
         similarity: Number(similarity.toFixed(2)),
-        exact: this.normalize(text) === this.normalize(question.questionText),
+        exact: normalizedText === question.normalizedText,
       };
     }
     return best;
+  }
+
+  private prepareExistingQuestions(
+    existing: Pick<Question, 'id' | 'questionText' | 'isActive' | 'topicId'>[],
+  ): ExistingQuestionFingerprint[] {
+    return existing.map((question) => {
+      const normalizedText = this.normalize(question.questionText);
+      return {
+        ...question,
+        normalizedText,
+        tokenSet: new Set(this.tokens(normalizedText)),
+      };
+    });
+  }
+
+  private similarityPrepared(
+    leftNormalized: string,
+    leftTokens: Set<string>,
+    rightNormalized: string,
+    rightTokens: Set<string>,
+  ): number {
+    if (leftNormalized === rightNormalized) return 1;
+    if (!leftTokens.size || !rightTokens.size) return 0;
+    let intersection = 0;
+    const smaller =
+      leftTokens.size <= rightTokens.size ? leftTokens : rightTokens;
+    const larger =
+      smaller === leftTokens ? rightTokens : leftTokens;
+    for (const token of smaller) {
+      if (larger.has(token)) intersection += 1;
+    }
+    const union = leftTokens.size + rightTokens.size - intersection;
+    return union ? intersection / union : 0;
   }
 
   private similarity(left: string, right: string): number {
@@ -1281,10 +1343,22 @@ export class QuestionImportService {
   }
 
   private topicConfidence(text: string, corpus: string): number {
+    return this.topicConfidenceFromTokens(
+      text,
+      new Set(this.tokens(corpus)),
+    );
+  }
+
+  private topicConfidenceFromTokens(
+    text: string,
+    reference: Set<string>,
+  ): number {
     const content = new Set(this.tokens(text));
-    const reference = new Set(this.tokens(corpus));
     if (!content.size || !reference.size) return 0;
-    const overlap = [...content].filter((token) => reference.has(token)).length;
+    let overlap = 0;
+    for (const token of content) {
+      if (reference.has(token)) overlap += 1;
+    }
     const denominator = Math.min(20, content.size);
     return Number(Math.min(1, overlap / Math.max(1, denominator)).toFixed(2));
   }
