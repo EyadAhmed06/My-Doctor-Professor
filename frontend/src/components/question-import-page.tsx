@@ -489,6 +489,8 @@ export function QuestionImportPage() {
   const [error, setError] = useState<string | null>(null);
   const [candidateSearch, setCandidateSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | Candidate["status"]>("ALL");
+  const isMobileReview = useMobileQuestionReview();
+  const [mobileCandidateId, setMobileCandidateId] = useState<string | null>(null);
 
   const loadCourses = useCallback(async () => {
     if (!user || user.role === "STUDENT") return;
@@ -895,6 +897,29 @@ export function QuestionImportPage() {
     });
   }, [candidateSearch, candidates, statusFilter]);
 
+  useEffect(() => {
+    if (!isMobileReview) return;
+    setMobileCandidateId((current) => {
+      if (current && visibleCandidates.some(({ candidate }) => candidate.candidate_id === current)) return current;
+      return visibleCandidates[0]?.candidate.candidate_id ?? null;
+    });
+  }, [isMobileReview, visibleCandidates]);
+
+  const mobileCandidatePosition = useMemo(() => {
+    if (!isMobileReview || !mobileCandidateId) return -1;
+    return visibleCandidates.findIndex(({ candidate }) => candidate.candidate_id === mobileCandidateId);
+  }, [isMobileReview, mobileCandidateId, visibleCandidates]);
+
+  const mobileCandidate = mobileCandidatePosition >= 0
+    ? visibleCandidates[mobileCandidatePosition]
+    : null;
+
+  const selectMobileCandidateAt = useCallback((position: number) => {
+    const next = visibleCandidates[position];
+    if (!next) return;
+    setMobileCandidateId(next.candidate.candidate_id);
+  }, [visibleCandidates]);
+
   if (authLoading || loading) {
     return <ProductShell><main className="pp-page"><PageSkeleton variant="workspace" label="Loading question importer" /></main></ProductShell>;
   }
@@ -1023,71 +1048,80 @@ export function QuestionImportPage() {
 
                 <div className="question-import-add-question-bar"><button type="button" className="question-import-add-question-btn" onClick={addManualCandidate}><FiPlus /> Add MCQ manually</button></div>
 
-                {visibleCandidates.map(({ candidate, index: candidateIndex }) => {
-                  const currentAiStatus = aiStatus(candidate);
-                  const enriching = enrichingIds.has(candidate.candidate_id);
-                  return (
-                    <article className={`question-import-candidate ${candidate.approved ? "approved" : ""}`} key={candidate.candidate_id}>
-                      <header>
-                        <div className="question-import-candidate-number"><span>{candidate.question_number ?? candidateIndex + 1}</span><div><strong>Question {candidate.question_number ?? candidateIndex + 1}</strong><small>{candidate.source_page ? `Page ${candidate.source_page}` : "Manual"}{candidate.answer_key_label ? ` · Source answer ${candidate.answer_key_label}` : ""}</small></div></div>
-                        <div className="question-import-candidate-status">
-                          <span className={`role-status ${statusClass(candidate.status)}`}>{candidate.status === "VALID" ? "READY" : candidate.status.replaceAll("_", " ")}</span>
-                          <span>AI {currentAiStatus.replaceAll("_", " ")}</span>
-                          <button type="button" className="question-import-remove-btn" onClick={() => setCandidates((current) => current.filter((_, index) => index !== candidateIndex))}><FiTrash2 /> Remove</button>
+                {isMobileReview ? (
+                  <div className="question-import-mobile-review">
+                    <div className="question-import-mobile-list" role="list" aria-label="Inspected questions">
+                      {visibleCandidates.map(({ candidate, index }) => {
+                        const active = candidate.candidate_id === mobileCandidateId;
+                        return (
+                          <button
+                            type="button"
+                            role="listitem"
+                            key={candidate.candidate_id}
+                            className={active ? "active" : ""}
+                            aria-current={active ? "true" : undefined}
+                            onClick={() => setMobileCandidateId(candidate.candidate_id)}
+                          >
+                            <span className={`role-status ${statusClass(candidate.status)}`}>
+                              {candidate.status === "VALID" ? "READY" : candidate.status === "NEEDS_REVIEW" ? "REVIEW" : "INVALID"}
+                            </span>
+                            <strong>Q{candidate.question_number ?? index + 1}</strong>
+                            <span className="question-import-mobile-answer">{candidate.answer_key_label ? `Answer ${candidate.answer_key_label}` : "No key"}</span>
+                            <span className="question-import-mobile-chevron" aria-hidden="true">›</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {mobileCandidate ? (
+                      <>
+                        <div className="question-import-mobile-nav" aria-label="Question navigation">
+                          <button type="button" className="pp-button secondary" disabled={mobileCandidatePosition <= 0} onClick={() => selectMobileCandidateAt(mobileCandidatePosition - 1)}>
+                            Previous
+                          </button>
+                          <span>{mobileCandidatePosition + 1} / {visibleCandidates.length}</span>
+                          <button type="button" className="pp-button secondary" disabled={mobileCandidatePosition >= visibleCandidates.length - 1} onClick={() => selectMobileCandidateAt(mobileCandidatePosition + 1)}>
+                            Next
+                          </button>
                         </div>
-                      </header>
 
-                      {candidate.issues.length > 0 && <div className="question-import-inline-issues">{candidate.issues.map((issue, index) => <span className={issue.severity.toLowerCase()} key={`${issue.code}-${index}`}>{issue.severity === "ERROR" ? <FiXCircle /> : <FiAlertTriangle />}{issue.message}</span>)}</div>}
-
-                      {candidate.duplicate && <div className="question-import-duplicate"><FiSearch /><div><strong>{candidate.duplicate.exact ? "Exact question already exists" : `Possible duplicate · ${percent(candidate.duplicate.similarity)}`}</strong><p>{candidate.duplicate.question_text}</p></div><div className="question-import-duplicate-actions"><button type="button" onClick={() => updateCandidate(candidateIndex, (current) => ({ ...current, reuse_question_id: current.duplicate?.question_id, allow_duplicate: false, approved: false }))}><FiCheckCircle /> Reuse existing</button><button type="button" onClick={() => updateCandidate(candidateIndex, (current) => ({ ...current, reuse_question_id: undefined, allow_duplicate: true, approved: false }))}>Create separate copy</button></div></div>}
-
-                      <label className="question-import-stem"><span>Question stem</span><textarea value={candidate.question_text} onChange={(event) => editSource(candidateIndex, (current) => ({ ...current, question_text: event.target.value, reuse_question_id: undefined }))} /></label>
-
-                      <div className="question-import-options">
-                        <div className="question-import-options-header">
-                          <span>Exactly five answer options required · currently {candidate.options.length}</span>
-                          <button type="button" className="question-import-add-option-btn" disabled={candidate.options.length >= OPTION_LABELS.length} onClick={() => addChoice(candidateIndex)}><FiPlus /> Add choice</button>
-                        </div>
-                        {candidate.options.map((option, optionIndex) => (
-                          <div key={`${candidate.candidate_id}-${option.label}-${optionIndex}`} style={{ display: "grid", gap: "0.45rem", marginBottom: "0.75rem" }}>
-                            <div className={`question-import-option-row ${option.is_correct ? "correct" : ""}`}>
-                              <input aria-label={`Mark choice ${option.label} as correct`} type="radio" name={`correct-${candidate.candidate_id}`} checked={option.is_correct} onChange={() => editSource(candidateIndex, (current) => ({ ...current, options: current.options.map((value, index) => ({ ...value, is_correct: index === optionIndex })) }))} />
-                              <strong>{option.label}</strong>
-                              <input aria-label={`Choice ${option.label}`} type="text" value={option.option_text} onChange={(event) => editSource(candidateIndex, (current) => ({ ...current, reuse_question_id: undefined, options: current.options.map((value, index) => index === optionIndex ? { ...value, option_text: event.target.value } : value) }))} />
-                              <button type="button" className="question-import-option-delete-btn" aria-label={`Remove choice ${option.label}`} title={`Remove choice ${option.label}`} disabled={candidate.options.length <= 2} onClick={() => removeChoice(candidateIndex, optionIndex)}><FiTrash2 /></button>
-                            </div>
-                            <label className="question-import-option-explanation">
-                              <span style={{ fontSize: "0.82rem", opacity: 0.78 }}>{option.is_correct ? "Why this is correct" : "Why this is incorrect"} · max 2 short sentences</span>
-                              <textarea rows={2} maxLength={EXPLANATION_MAX_LENGTH} value={option.explanation || ""} placeholder="Concise reason…" onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, approved: false, options: current.options.map((value, index) => index === optionIndex ? { ...value, explanation: event.target.value } : value) }))} />
-                              <small style={{ justifySelf: "end" }}>{(option.explanation || "").length}/{EXPLANATION_MAX_LENGTH}</small>
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div style={{ display: "grid", gap: "0.75rem", padding: "0.9rem", border: "1px solid var(--border, #d9e0e8)", borderRadius: "12px" }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap" }}>
-                          <div><strong>AI explanation</strong><div style={{ fontSize: "0.82rem", opacity: 0.76 }}>{candidate.ai_enrichment?.model || "Muse Spark 1.3"} · {currentAiStatus.replaceAll("_", " ")}{candidate.ai_enrichment?.confidence != null ? ` · ${Math.round(candidate.ai_enrichment.confidence * 100)}% confidence` : ""}</div></div>
-                          <button type="button" className="pp-button secondary" disabled={enriching || structurallyBlocked || !isAiEligible(candidate)} onClick={() => void generateExplanations([candidate], currentAiStatus !== "NOT_GENERATED" && currentAiStatus !== "DEFERRED_BILLING")}>{enriching ? <><FiRefreshCw className="spin" /> Generating…</> : currentAiStatus === "NOT_GENERATED" ? "Generate explanation" : "Regenerate explanation"}</button>
-                        </div>
-                        {currentAiStatus === "STALE" && <p className="form-error">Question content changed after generation. Regenerate before publication.</p>}
-                        <label><span>Question-level takeaway · max 2 short sentences</span><textarea rows={2} maxLength={EXPLANATION_MAX_LENGTH} value={candidate.explanation || ""} placeholder="Summarized learning point…" onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, approved: false, explanation: event.target.value }))} /><small style={{ float: "right" }}>{(candidate.explanation || "").length}/{EXPLANATION_MAX_LENGTH}</small></label>
-                      </div>
-
-                      <div className="question-import-meta-controls">
-                        <label>Difficulty<select value={candidate.difficulty} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, difficulty: event.target.value as Candidate["difficulty"] }))}><option value="EASY">Easy</option><option value="MEDIUM">Medium</option><option value="HARD">Hard</option></select></label>
-                        <label>Marks<input type="number" min="1" max="999" value={candidate.marks} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, marks: Math.max(1, Math.round(Number(event.target.value) || 1)) }))} /></label>
-                      </div>
-
-                      {candidate.topic_confidence < 0.08 && <label className="question-import-confirm"><input type="checkbox" checked={Boolean(candidate.allow_topic_override)} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, allow_topic_override: event.target.checked, approved: false }))} /><span>I reviewed the topic mismatch and confirm this belongs to <strong>{inspection.topic.name}</strong>.</span></label>}
-
-                      <footer>
-                        <label className="question-import-approve"><input type="checkbox" checked={Boolean(candidate.approved)} disabled={!candidateIsPublishable(candidate)} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, approved: event.target.checked }))} /><span>{candidate.reuse_question_id ? "Approve reuse" : "Approve for publication"}</span></label>
-                        {!candidateIsPublishable(candidate) && !candidate.reuse_question_id && <span style={{ fontSize: "0.82rem", opacity: 0.76 }}>AI is not required for approval. If any explanation is present, complete all question + A–E explanations (or regenerate them) before approval.</span>}
-                      </footer>
-                    </article>
-                  );
-                })}
+                        <CandidateEditor
+                          key={mobileCandidate.candidate.candidate_id}
+                          candidate={mobileCandidate.candidate}
+                          displayNumber={mobileCandidate.index + 1}
+                          topicName={inspection.topic.name}
+                          structurallyBlocked={structurallyBlocked}
+                          enriching={enrichingIds.has(mobileCandidate.candidate.candidate_id)}
+                          onUpdate={updateCandidate}
+                          onEditSource={editSource}
+                          onAddChoice={addChoice}
+                          onRemoveChoice={removeChoice}
+                          onRemove={removeCandidate}
+                          onGenerate={generateExplanations}
+                        />
+                      </>
+                    ) : (
+                      <div className="question-import-empty-filter">No questions match the current filter.</div>
+                    )}
+                  </div>
+                ) : (
+                  visibleCandidates.map(({ candidate, index }) => (
+                    <CandidateEditor
+                      key={candidate.candidate_id}
+                      candidate={candidate}
+                      displayNumber={index + 1}
+                      topicName={inspection.topic.name}
+                      structurallyBlocked={structurallyBlocked}
+                      enriching={enrichingIds.has(candidate.candidate_id)}
+                      onUpdate={updateCandidate}
+                      onEditSource={editSource}
+                      onAddChoice={addChoice}
+                      onRemoveChoice={removeChoice}
+                      onRemove={removeCandidate}
+                      onGenerate={generateExplanations}
+                    />
+                  ))
+                )}
 
                 <div className="question-import-publish-bar">
                   <div><strong>{approvedCount} of {candidates.length} approved</strong><span>Server-side publication revalidates A–E, one correct answer, permissions, duplicates, and explanation length.</span></div>
