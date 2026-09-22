@@ -184,6 +184,30 @@ describe('PDF text extraction contract', () => {
     );
   });
 
+  it('batches only contiguous OCR pages and caps each render batch', () => {
+    const service = new PdfTextExtractionService();
+
+    expect(
+      (service as any).ocrRenderBatches([1, 2, 3, 4, 9, 10, 15], 3),
+    ).toEqual([
+      [1, 2, 3],
+      [4],
+      [9, 10],
+      [15],
+    ]);
+  });
+
+  it('normalizes duplicate OCR page numbers before batching work', () => {
+    const service = new PdfTextExtractionService();
+    const ordered = [...new Set([5, 3, 4, 4, 3])].sort(
+      (left, right) => left - right,
+    );
+
+    expect((service as any).ocrRenderBatches(ordered, 8)).toEqual([
+      [3, 4, 5],
+    ]);
+  });
+
   it('bounds OCR-style concurrent work and preserves result order', async () => {
     const service = new PdfTextExtractionService();
     let active = 0;
