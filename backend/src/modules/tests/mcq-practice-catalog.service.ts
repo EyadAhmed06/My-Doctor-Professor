@@ -61,7 +61,7 @@ export class McqPracticeCatalogService {
           SELECT COUNT(*)
           FROM mcq_options option_row
           WHERE option_row.question_id = question.id
-        ) = 5
+        ) BETWEEN 4 AND 5
         AND (
           SELECT COUNT(*)
           FROM mcq_options option_row
