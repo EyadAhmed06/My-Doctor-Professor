@@ -205,11 +205,11 @@ describe('AuthController web refresh transport', () => {
 
   it('returns the same public signup response for a new account and an existing unique account field', async () => {
     const first = setup();
-    const created = await first.controller.signup(signupDto as never);
+    const created = await first.controller.signup(signupDto as never, request('https://app.example.test'));
 
     const duplicate = setup();
     duplicate.authService.signup.mockRejectedValueOnce(new ConflictException('Email or phone number is already registered'));
-    const existing = await duplicate.controller.signup(signupDto as never);
+    const existing = await duplicate.controller.signup(signupDto as never, request('https://app.example.test'));
 
     expect(created).toEqual({ message: genericSignupMessage });
     expect(existing).toEqual({ message: genericSignupMessage });
@@ -219,7 +219,7 @@ describe('AuthController web refresh transport', () => {
     const { controller, authService } = setup();
     authService.signup.mockRejectedValueOnce(new Error('mail subsystem unavailable'));
 
-    await expect(controller.signup(signupDto as never)).rejects.toThrow('mail subsystem unavailable');
+    await expect(controller.signup(signupDto as never, request('https://app.example.test'))).rejects.toThrow('mail subsystem unavailable');
   });
 
   it('applies explicit IP abuse budgets to signup and refresh routes', () => {
