@@ -255,6 +255,7 @@ describe('UnicodeQuestionImportService recovery', () => {
       2,
       3,
     ]);
+  });
 
   it('keeps the text-only fast path while still recovering a fully raster MCQ PDF', async () => {
     const firstPass: UnicodeParsedPdf = {
@@ -380,7 +381,5 @@ describe('UnicodeQuestionImportService recovery', () => {
     expect(result.summary.extracted).toBe(1);
     expect(result.summary.structurally_complete).toBe(true);
     expect(result.candidates[0].answer_key_label).toBe('A');
-  });
-
   });
 });
