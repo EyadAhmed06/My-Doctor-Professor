@@ -453,14 +453,36 @@ export class PdfTextExtractionService {
     try {
       writeFileSync(pdfPath, buffer, { flag: 'wx' });
 
+      // pdfinfo and pdftotext are independent Poppler reads. Launch them
+      // together so clean text PDFs pay roughly the slower of the two costs
+      // instead of their sum.
       const pdfInfoStarted = Date.now();
-      const info = await this.runProcess(
+      const pdfInfoPromise = this.runProcess(
         binaries.pdfinfo,
         [pdfPath],
         processOptions,
-      );
-      pdfInfoMs = Date.now() - pdfInfoStarted;
+      ).finally(() => {
+        pdfInfoMs = Date.now() - pdfInfoStarted;
+      });
 
+      const textLayerStarted = Date.now();
+      const textLayerPromise = this.runProcess(
+        binaries.pdftotext,
+        ['-layout', '-enc', 'UTF-8', pdfPath, textPath],
+        processOptions,
+      ).finally(() => {
+        textLayerMs = Date.now() - textLayerStarted;
+      });
+
+      const [infoResult, textLayerResult] = await Promise.allSettled([
+        pdfInfoPromise,
+        textLayerPromise,
+      ]);
+
+      if (infoResult.status === 'rejected') {
+        throw infoResult.reason;
+      }
+      const info = infoResult.value;
       const pagesMatch = info.match(/^Pages:\s+(\d+)\s*$/m);
       if (!pagesMatch) {
         throw new BadRequestException(
@@ -481,19 +503,13 @@ export class PdfTextExtractionService {
       }
 
       let rawPages: UnicodePdfPage[];
-      const textLayerStarted = Date.now();
-      try {
-        await this.runProcess(
-          binaries.pdftotext,
-          ['-layout', '-enc', 'UTF-8', pdfPath, textPath],
-          processOptions,
-        );
+      if (textLayerResult.status === 'fulfilled') {
         rawPages = splitPdftotextPages(
           readFileSync(textPath, 'utf8'),
           pageCount,
         );
-      } catch (textLayerError) {
-        const details = this.processErrorText(textLayerError);
+      } else {
+        const details = this.processErrorText(textLayerResult.reason);
         if (/password|encrypted|incorrect password/i.test(details)) {
           throw new BadRequestException(
             'Password-protected or encrypted PDFs are not supported for question import',
@@ -505,7 +521,6 @@ export class PdfTextExtractionService {
           text: '',
         }));
       }
-      textLayerMs = Date.now() - textLayerStarted;
 
       let pages = rawPages.map((page) => this.prepareTextLayerPage(page));
       const explicitOcrPages = new Set(
