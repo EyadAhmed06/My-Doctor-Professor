@@ -227,6 +227,27 @@ export class QuestionImportService {
     }
 
     if (!pdf.text.trim()) {
+      this.logger.log(
+        JSON.stringify({
+          event: 'pdf_inspection_timing',
+          file_sha256_prefix: sha256.slice(0, 12),
+          page_count: pdf.pageCount,
+          extracted_questions: 0,
+          extraction_ms: extractionMs,
+          database_wait_ms: databaseWaitMs,
+          raster_fallback_triggered: rasterFallbackTriggered,
+          raster_fallback_ms: rasterFallbackMs,
+          parse_ms: 0,
+          recovery_triggered: false,
+          recovery_pages: [],
+          full_recovery_fallback: false,
+          full_recovery_pages: [],
+          recovery_ms: 0,
+          evaluation_ms: 0,
+          total_ms: Date.now() - inspectStartedAt,
+          outcome: 'NO_USABLE_TEXT',
+        }),
+      );
       return {
         original_filename: this.safeFilename(safeFile.originalname),
         file_sha256: sha256,
