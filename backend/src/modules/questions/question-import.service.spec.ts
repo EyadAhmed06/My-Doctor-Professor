@@ -187,6 +187,10 @@ describe('QuestionImportService', () => {
     expect(result.candidates[0].options).toHaveLength(4);
     expect(result.candidates[0].options.find((option) => option.is_correct)?.option_text).toBe('Left atrium');
     expect(result.candidates[0].explanation).toContain('Pulmonary veins return oxygenated blood');
+    expect(result.candidates[0].status).toBe('NEEDS_REVIEW');
+    expect(result.candidates[0].issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'FOUR_OPTION_MCQ', severity: 'WARNING' }),
+    ]));
   });
 
   it('supports A-E options and compact lecture answer keys without requiring explanations', async () => {
@@ -228,8 +232,35 @@ describe('QuestionImportService', () => {
 
     expect(result.candidates).toHaveLength(1);
     expect(result.candidates[0].options.map((option) => option.label)).toEqual(['A', 'B', 'C', 'D']);
-    expect(result.candidates[0].issues.some((issue) => issue.code === 'INVALID_OPTION_COUNT')).toBe(true);
-    expect(result.candidates[0].status).toBe('INVALID');
+    expect(result.candidates[0].issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'FOUR_OPTION_MCQ', severity: 'WARNING' }),
+    ]));
+    expect(result.candidates[0].status).toBe('NEEDS_REVIEW');
+  });
+
+  it('requires explicit instructor confirmation before publishing a four-option MCQ', () => {
+    const { service } = build();
+    const candidate = {
+      approved: true,
+      question_text: 'Which chamber receives oxygenated blood from the pulmonary veins?',
+      explanation: undefined,
+      difficulty: 'MEDIUM',
+      marks: 1,
+      options: [
+        { option_text: 'Right atrium', is_correct: false },
+        { option_text: 'Left atrium', is_correct: true },
+        { option_text: 'Right ventricle', is_correct: false },
+        { option_text: 'Left ventricle', is_correct: false },
+      ],
+      allow_four_options: false,
+    };
+
+    expect(() => (service as any).validatePublishCandidate(candidate, 0))
+      .toThrow('requires explicit instructor confirmation');
+
+    candidate.allow_four_options = true;
+    expect(() => (service as any).validatePublishCandidate(candidate, 0))
+      .not.toThrow();
   });
 
   it('does not invent questions when a PDF has no safely extractable text layer', async () => {
