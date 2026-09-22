@@ -738,3 +738,14 @@ html[data-theme=light] .question-visual--nephrology img{
 @media (max-width: 640px) {
   .bundle-payment-methods { grid-template-columns: 1fr; }
 }
+
+
+/* Mobile compositor safeguard for the PDF inspector and other dense workspaces.
+   Sticky backdrop blur is disproportionately expensive on phone GPUs. */
+@media (max-width: 720px) {
+  .pp-topbar {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--p-panel);
+  }
+}
