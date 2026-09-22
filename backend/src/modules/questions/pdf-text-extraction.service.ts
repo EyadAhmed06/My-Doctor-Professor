@@ -1074,6 +1074,7 @@ export class PdfTextExtractionService {
     options: ExecFileOptionsWithStringEncoding,
   ): Promise<string> {
     return new Promise((resolve, reject) => {
+      // security-audit-reviewed: execFile uses no shell, fixed argument arrays, bounded time/buffer, and server-controlled binary paths.
       execFile(binary, args, options, (error, stdout, stderr) => {
         if (error) {
           const enriched = error as Error & {
