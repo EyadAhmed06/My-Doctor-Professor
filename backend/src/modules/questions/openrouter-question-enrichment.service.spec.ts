@@ -21,13 +21,13 @@ describe('OpenRouterQuestionEnrichmentService', () => {
     jest.restoreAllMocks();
   });
 
-  function validPayload() {
+  function validPayload(labels = ['A', 'B', 'C', 'D', 'E']) {
     return {
       candidate_id: 'q1',
       source_correct_label: 'C',
       answer_consistency: 'CONSISTENT',
       question_explanation: 'C matches the defining finding; the alternatives do not.',
-      options: ['A', 'B', 'C', 'D', 'E'].map((label) => ({
+      options: labels.map((label) => ({
         label,
         assessment: label === 'C' ? 'CORRECT' : 'INCORRECT',
         explanation: label === 'C'
@@ -51,7 +51,7 @@ describe('OpenRouterQuestionEnrichmentService', () => {
     expect(result.sourceCorrectLabel).toBe('C');
     expect(result.optionExplanations).toHaveLength(5);
     expect(result.model).toBe('meta/muse-spark-1.3');
-    expect(result.promptVersion).toBe('mcq-explanation-v2-concise');
+    expect(result.promptVersion).toBe('mcq-explanation-v3-four-or-five-options');
   });
 
   it('caps provider output to the concise explanation budget', async () => {
@@ -104,10 +104,28 @@ describe('OpenRouterQuestionEnrichmentService', () => {
     await expect(new OpenRouterQuestionEnrichmentService().generate(input)).rejects.toThrow('change the source answer key');
   });
 
-  it('rejects malformed option cardinality before any API call', async () => {
+  it('accepts a valid four-option explanation and constrains the response schema to A-D', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const fourOptionInput = { ...input, options: input.options.slice(0, 4) };
+    global.fetch = jest.fn().mockResolvedValue(response(validPayload(['A', 'B', 'C', 'D'])));
+
+    const result = await new OpenRouterQuestionEnrichmentService().generate(fourOptionInput);
+    expect(result.optionExplanations).toHaveLength(4);
+
+    const request = (global.fetch as jest.Mock).mock.calls[0][1] as RequestInit;
+    const body = JSON.parse(String(request.body));
+    expect(body.response_format.json_schema.schema.properties.options).toMatchObject({
+      minItems: 4,
+      maxItems: 4,
+    });
+    expect(body.response_format.json_schema.schema.properties.source_correct_label.enum).toEqual(['A', 'B', 'C', 'D']);
+  });
+
+  it('rejects malformed option cardinality below four before any API call', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     global.fetch = jest.fn();
-    await expect(new OpenRouterQuestionEnrichmentService().generate({ ...input, options: input.options.slice(0, 4) })).rejects.toThrow('exactly five');
+    await expect(new OpenRouterQuestionEnrichmentService().generate({ ...input, options: input.options.slice(0, 3) }))
+      .rejects.toThrow('four or five sequential options');
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
