@@ -206,6 +206,26 @@ export class QuestionImportService {
     const databaseWaitMs = Date.now() - databaseStartedAt;
     if (!topic) throw new BadRequestException('Selected topic no longer exists');
 
+    // The MCQ fast path intentionally defers speculative OCR. A fully raster
+    // document is the one case where there is nothing to parse first, so
+    // preserve the old OCR capability by recovering all physical pages only
+    // after the cheap text-layer attempt proves there is no usable text.
+    let rasterFallbackTriggered = false;
+    let rasterFallbackMs = 0;
+    if (!pdf.text.trim()) {
+      rasterFallbackTriggered = true;
+      const rasterFallbackStartedAt = Date.now();
+      const recoveredRasterPdf = await this.recoverIncompletePdf(
+        safeFile.buffer,
+        pdf,
+        pdf.pages.map((page) => page.page),
+      );
+      rasterFallbackMs = Date.now() - rasterFallbackStartedAt;
+      if (recoveredRasterPdf?.text.trim()) {
+        pdf = recoveredRasterPdf;
+      }
+    }
+
     if (!pdf.text.trim()) {
       return {
         original_filename: this.safeFilename(safeFile.originalname),
@@ -263,6 +283,7 @@ export class QuestionImportService {
     let parseMs = Date.now() - parseStartedAt;
     let recoveryMs = 0;
     let recoveryPages: number[] = [];
+    let fullRecoveryPages: number[] = [];
 
     const needsStructuralRecovery =
       this.needsStructuralRecovery(parsedDocument);
@@ -308,12 +329,27 @@ export class QuestionImportService {
         recoveryPages.length < originalPdf.pageCount
       ) {
         fullRecoveryFallback = true;
-        const fullPageNumbers = originalPdf.pages.map((page) => page.page);
-        const fullRecoveredPdf = await this.recoverIncompletePdf(
-          safeFile.buffer,
-          originalPdf,
-          fullPageNumbers,
+
+        // Targeted recovery may already have paid the OCR cost for several
+        // pages. Reuse those exact OCR results during the correctness-preserving
+        // full fallback instead of rendering/Tesseracting them a second time.
+        const fullRecoveryBase = recoveredPdf || originalPdf;
+        const alreadyOcrRecovered = new Set(
+          fullRecoveryBase.pages
+            .filter((page) => page.source === 'OCR')
+            .map((page) => page.page),
         );
+        fullRecoveryPages = originalPdf.pages
+          .map((page) => page.page)
+          .filter((page) => !alreadyOcrRecovered.has(page));
+
+        const fullRecoveredPdf = fullRecoveryPages.length
+          ? await this.recoverIncompletePdf(
+              safeFile.buffer,
+              fullRecoveryBase,
+              fullRecoveryPages,
+            )
+          : fullRecoveryBase;
         if (fullRecoveredPdf) {
           const fullParseStartedAt = Date.now();
           const fullRecoveredDocument = this.parseQuestions(
@@ -446,10 +482,13 @@ export class QuestionImportService {
         extracted_questions: candidates.length,
         extraction_ms: extractionMs,
         database_wait_ms: databaseWaitMs,
+        raster_fallback_triggered: rasterFallbackTriggered,
+        raster_fallback_ms: rasterFallbackMs,
         parse_ms: parseMs,
         recovery_triggered: needsStructuralRecovery,
         recovery_pages: recoveryPages,
         full_recovery_fallback: fullRecoveryFallback,
+        full_recovery_pages: fullRecoveryPages,
         recovery_ms: recoveryMs,
         evaluation_ms: evaluationMs,
         total_ms: Date.now() - inspectStartedAt,
