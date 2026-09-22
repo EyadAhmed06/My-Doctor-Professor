@@ -389,4 +389,112 @@ describe('QuestionImportService', () => {
       actor,
     )).rejects.toThrow('Confirm that you have permission');
   });
+
+  it('reuses targeted OCR pages instead of OCRing them again during full fallback', async () => {
+    const { service } = build();
+    const pages = Array.from({ length: 4 }, (_, index) => ({
+      page: index + 1,
+      text: `page ${index + 1} text`,
+      source: 'TEXT_LAYER' as const,
+      confidence: 0.9,
+      textLength: 11,
+      ocrAttempted: false,
+      layoutReflowed: false,
+    }));
+    const originalPdf = {
+      pages,
+      pageCount: 4,
+      text: pages.map((page) => page.text).join('\n'),
+      extractionConfidence: 0.9,
+      extractionMethod: 'TEXT_LAYER' as const,
+      ocrPageCount: 0,
+      textLayerPageCount: 4,
+      emptyPageCount: 0,
+    };
+    const targetedPdf = {
+      ...originalPdf,
+      pages: pages.map((page) =>
+        page.page === 2
+          ? {
+              ...page,
+              text: 'page 2 OCR text',
+              source: 'OCR' as const,
+              ocrAttempted: true,
+            }
+          : { ...page },
+      ),
+      text: 'page 1 text\npage 2 OCR text\npage 3 text\npage 4 text',
+      extractionMethod: 'HYBRID_OCR' as const,
+      ocrPageCount: 1,
+      textLayerPageCount: 3,
+    };
+    const fullPdf = {
+      ...targetedPdf,
+      pages: targetedPdf.pages.map((page) => ({
+        ...page,
+        source: 'OCR' as const,
+        ocrAttempted: true,
+      })),
+      extractionMethod: 'OCR' as const,
+      ocrPageCount: 4,
+      textLayerPageCount: 0,
+    };
+    const parsedQuestion = {
+      questionNumber: 1,
+      sourcePage: 1,
+      answerKeyPage: 4,
+      sourceSection: 'Arbitrary Section',
+      questionText: 'Which option is correct?',
+      options: ['A', 'B', 'C', 'D', 'E'].map((label) => ({
+        label,
+        text: `${label} option`,
+      })),
+      correctLabel: 'A',
+      explanation: null,
+    };
+    const incompleteDocument = {
+      documentType: 'MCQ',
+      answerKey: new Map([[1, { label: 'A', page: 4 }]]),
+      questions: [parsedQuestion],
+      sections: [],
+      expectedQuestionCount: 2,
+      parsedQuestionCount: 1,
+      missingQuestionCount: 1,
+      isStructurallyComplete: false,
+    };
+    const completeDocument = {
+      ...incompleteDocument,
+      expectedQuestionCount: 1,
+      parsedQuestionCount: 1,
+      missingQuestionCount: 0,
+      isStructurallyComplete: true,
+    };
+
+    jest.spyOn(service as any, 'extractPdf').mockResolvedValue(originalPdf);
+    jest.spyOn(service as any, 'recoveryPageNumbers').mockReturnValue([2]);
+    jest.spyOn(service as any, 'parseQuestions')
+      .mockReturnValueOnce(incompleteDocument)
+      .mockReturnValueOnce(incompleteDocument)
+      .mockReturnValueOnce(completeDocument);
+    const recover = jest.spyOn(service as any, 'recoverIncompletePdf')
+      .mockResolvedValueOnce(targetedPdf)
+      .mockResolvedValueOnce(fullPdf);
+
+    const buffer = fiveOptionLecturePdf();
+    const result = await service.inspectPdf(
+      { topic_id: topic.id, copyright_confirmed: true },
+      file(buffer),
+      actor,
+    );
+
+    expect(recover).toHaveBeenNthCalledWith(1, buffer, originalPdf, [2]);
+    expect(recover).toHaveBeenNthCalledWith(
+      2,
+      buffer,
+      targetedPdf,
+      [1, 3, 4],
+    );
+    expect(result.summary.structurally_complete).toBe(true);
+  });
+
 });
