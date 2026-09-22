@@ -40,6 +40,7 @@ type ImportCandidate = {
   status: 'VALID' | 'NEEDS_REVIEW' | 'INVALID';
   issues: ImportIssue[];
   source_section?: string | null;
+  allow_four_options?: boolean;
   ai_enrichment?: AiEnrichmentMetadata | null;
   [key: string]: unknown;
 };
@@ -280,6 +281,7 @@ export class QuestionImportAiEnrichmentService {
     if (candidate.question_text.trim().length < 8) return false;
     if (!isSupportedMcqOptionCount(candidate.options.length)) return false;
     if (!hasSequentialMcqLabels(candidate.options.map((option) => option.label))) return false;
+    if (candidate.options.length === 4 && !candidate.allow_four_options) return false;
     return candidate.options.filter((option) => option.is_correct).length === 1;
   }
 
