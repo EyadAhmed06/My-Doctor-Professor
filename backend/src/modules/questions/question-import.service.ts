@@ -10,6 +10,12 @@ import { inflateSync } from 'zlib';
 import { DataSource, Repository } from 'typeorm';
 import { McqOption } from '../../common/entities/mcq-option.entity';
 import {
+  MAX_MCQ_OPTIONS,
+  MIN_MCQ_OPTIONS,
+  STANDARD_MCQ_OPTIONS,
+  isSupportedMcqOptionCount,
+} from '../../common/mcq-option-policy';
+import {
   Question,
   QuestionDifficulty,
   QuestionType,
@@ -138,7 +144,6 @@ type ParsedQuestionDocument = {
 
 const MAX_PDF_BYTES = 50 * 1024 * 1024;
 const MAX_PDF_PAGES = 200;
-const REQUIRED_MCQ_OPTIONS = 5;
 const MAX_PARSED_MCQ_OPTIONS = 6;
 const IMPORT_REFERENCE_PREFIX = 'MDP_PDF_IMPORT';
 
@@ -882,7 +887,7 @@ export class QuestionImportService {
       document.isStructurallyComplete === false ||
       document.questions.some(
         (question) =>
-          question.options.length !== REQUIRED_MCQ_OPTIONS ||
+          question.options.length !== STANDARD_MCQ_OPTIONS ||
           !question.correctLabel ||
           !question.options.some(
             (option) => option.label === question.correctLabel,
@@ -942,7 +947,7 @@ export class QuestionImportService {
     // question page and its immediate boundary neighbors, plus the known answer
     // key page when the key itself may be involved.
     for (const question of document.questions) {
-      const invalidOptions = question.options.length !== REQUIRED_MCQ_OPTIONS;
+      const invalidOptions = question.options.length !== STANDARD_MCQ_OPTIONS;
       const answerOutsideOptions =
         Boolean(question.correctLabel) &&
         !question.options.some(
@@ -1132,14 +1137,14 @@ export class QuestionImportService {
         if (replacements > 0) score += 6;
         if (
           questionStarts > 0 &&
-          optionStarts < questionStarts * (REQUIRED_MCQ_OPTIONS - 1)
+          optionStarts < questionStarts * (STANDARD_MCQ_OPTIONS - 1)
         ) {
           score += 5;
         }
         if (
           questionStarts > 0 &&
           optionStarts > 0 &&
-          optionStarts % REQUIRED_MCQ_OPTIONS !== 0
+          optionStarts % STANDARD_MCQ_OPTIONS !== 0
         ) {
           score += 2;
         }
@@ -1203,7 +1208,7 @@ export class QuestionImportService {
   ): number {
     return document.questions.filter(
       (question) =>
-        question.options.length === REQUIRED_MCQ_OPTIONS &&
+        question.options.length === STANDARD_MCQ_OPTIONS &&
         Boolean(question.correctLabel) &&
         question.options.some(
           (option) => option.label === question.correctLabel,
@@ -1417,11 +1422,17 @@ export class QuestionImportService {
     if (candidate.questionText.length < 8) {
       issues.push({ code: 'STEM_TOO_SHORT', severity: 'ERROR', message: 'Question stem is too short to publish safely.' });
     }
-    if (candidate.options.length !== REQUIRED_MCQ_OPTIONS) {
+    if (candidate.options.length === MIN_MCQ_OPTIONS) {
+      issues.push({
+        code: 'FOUR_OPTION_MCQ',
+        severity: 'WARNING',
+        message: 'This MCQ contains four answer choices (A-D). Confirm during review that the source intentionally has four choices rather than a missing fifth option.',
+      });
+    } else if (!isSupportedMcqOptionCount(candidate.options.length)) {
       issues.push({
         code: 'INVALID_OPTION_COUNT',
         severity: 'ERROR',
-        message: `MCQs must contain exactly ${REQUIRED_MCQ_OPTIONS} answer options (A-E).`,
+        message: `MCQs must contain ${MIN_MCQ_OPTIONS} or ${MAX_MCQ_OPTIONS} answer options.`,
       });
     }
     if (new Set(optionTexts).size !== optionTexts.length) {
@@ -1529,8 +1540,15 @@ export class QuestionImportService {
   private validatePublishCandidate(candidate: PublishImportedQuestionDto, index: number): void {
     const text = candidate.question_text.trim();
     if (text.length < 8) throw new BadRequestException(`Question ${index + 1} has an invalid stem`);
-    if (candidate.options.length !== REQUIRED_MCQ_OPTIONS) {
-      throw new BadRequestException(`Question ${index + 1} must contain exactly ${REQUIRED_MCQ_OPTIONS} options`);
+    if (!isSupportedMcqOptionCount(candidate.options.length)) {
+      throw new BadRequestException(
+        `Question ${index + 1} must contain ${MIN_MCQ_OPTIONS} or ${MAX_MCQ_OPTIONS} options`,
+      );
+    }
+    if (candidate.options.length === MIN_MCQ_OPTIONS && !candidate.allow_four_options) {
+      throw new BadRequestException(
+        `Question ${index + 1} has four options and requires explicit instructor confirmation before publication`,
+      );
     }
     const normalized = candidate.options.map((option) => this.normalize(option.option_text));
     if (normalized.some((option) => !option) || new Set(normalized).size !== normalized.length) {
