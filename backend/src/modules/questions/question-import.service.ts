@@ -826,30 +826,57 @@ export class QuestionImportService {
     document: ParsedQuestionDocument,
   ): number[] {
     const pages = new Set<number>();
-    const addPageWithNeighbors = (page: number | null | undefined) => {
+    const sections = document.sections || [];
+    const sectionByTitle = new Map(
+      sections.map((section) => [section.title || null, section]),
+    );
+
+    const addWindow = (
+      page: number | null | undefined,
+      before = 1,
+      after = 1,
+    ) => {
       if (!page) return;
-      for (const candidate of [page - 1, page, page + 1]) {
+      for (let offset = -before; offset <= after; offset += 1) {
+        const candidate = page + offset;
         if (candidate >= 1 && candidate <= pdf.pageCount) pages.add(candidate);
       }
     };
 
-    // Direct structural failures have the strongest page provenance.
+    // Option/stem corruption is local to the physical question page. A missing
+    // answer key is different: OCRing every question page would recreate the
+    // old full-document penalty, so defer those cases to section-tail recovery.
     for (const question of document.questions) {
-      const malformed =
-        question.options.length !== REQUIRED_MCQ_OPTIONS ||
-        !question.correctLabel ||
+      const invalidOptions = question.options.length !== REQUIRED_MCQ_OPTIONS;
+      const answerOutsideOptions =
+        Boolean(question.correctLabel) &&
         !question.options.some(
           (option) => option.label === question.correctLabel,
         );
-      if (!malformed) continue;
-      addPageWithNeighbors(question.sourcePage);
-      addPageWithNeighbors(question.answerKeyPage);
+      if (invalidOptions || answerOutsideOptions) {
+        addWindow(question.sourcePage);
+        addWindow(question.answerKeyPage);
+        continue;
+      }
+
+      if (!question.correctLabel) {
+        const section = sectionByTitle.get(question.sourceSection || null);
+        if (section?.expectedQuestionCount != null) {
+          // A key was detected for the section but this question did not map.
+          // Recover the question page plus the already-known answer-key pages.
+          addWindow(question.sourcePage);
+          for (const peer of document.questions) {
+            if (
+              (peer.sourceSection || null) === (question.sourceSection || null)
+            ) {
+              addWindow(peer.answerKeyPage);
+            }
+          }
+        }
+      }
     }
 
-    // Missing question numbers do not have their own source page. Infer the
-    // smallest safe recovery window from neighboring questions in the same
-    // section, then include one physical neighbor on each side.
-    for (const section of document.sections || []) {
+    for (const section of sections) {
       const scoped = document.questions
         .filter(
           (question) =>
@@ -857,6 +884,20 @@ export class QuestionImportService {
         )
         .sort((left, right) => left.questionNumber - right.questionNumber);
 
+      // No answer key detected: inspect the tail around the final question,
+      // where canonical PDFs place the section answer key. This avoids OCRing
+      // every otherwise-perfect question page solely because labels are absent.
+      if (section.expectedQuestionCount === null && scoped.length > 0) {
+        const lastSourcePage = scoped
+          .map((question) => question.sourcePage)
+          .filter((page): page is number => Boolean(page))
+          .sort((left, right) => left - right)
+          .at(-1);
+        addWindow(lastSourcePage, 1, 3);
+      }
+
+      // Missing question numbers do not have their own provenance. Recover the
+      // smallest safe page window around their nearest parsed neighbors.
       for (const missing of section.missingQuestionNumbers) {
         const lower = [...scoped]
           .reverse()
@@ -864,24 +905,43 @@ export class QuestionImportService {
         const upper = scoped.find(
           (question) => question.questionNumber > missing,
         );
-        addPageWithNeighbors(lower?.sourcePage);
-        addPageWithNeighbors(upper?.sourcePage);
+        addWindow(lower?.sourcePage);
+        addWindow(upper?.sourcePage);
       }
 
       if ((section.answerKeyConflicts || []).length > 0) {
-        for (const question of scoped) addPageWithNeighbors(question.answerKeyPage);
+        for (const question of scoped) addWindow(question.answerKeyPage);
       }
     }
 
-    // Low-confidence text-layer pages are cheap, high-value recovery targets.
+    // Some legacy/uncategorized documents expose no section diagnostics. If
+    // all parsed questions lack answer labels, target only the document tail.
+    if (
+      sections.length === 0 &&
+      document.questions.length > 0 &&
+      document.questions.every((question) => !question.correctLabel)
+    ) {
+      const lastSourcePage = document.questions
+        .map((question) => question.sourcePage)
+        .filter((page): page is number => Boolean(page))
+        .sort((left, right) => left - right)
+        .at(-1);
+      addWindow(lastSourcePage, 1, 3);
+    }
+
+    // Pages already recovered by OCR should not be OCRed a second time merely
+    // because their OCR confidence is modest. Only weak text-layer pages enter
+    // this secondary recovery set.
     for (const page of pdf.pages) {
-      if ((page.confidence ?? pdf.extractionConfidence) < 0.7) {
-        addPageWithNeighbors(page.page);
+      if (
+        page.source !== 'OCR' &&
+        (page.confidence ?? pdf.extractionConfidence) < 0.7
+      ) {
+        addWindow(page.page);
       }
     }
 
-    // If provenance is insufficient, retain the old correctness-first fallback.
-    // Otherwise never OCR the entire document just because one question failed.
+    // If provenance is genuinely unavailable, retain correctness-first behavior.
     if (pages.size === 0 && document.isStructurallyComplete === false) {
       return pdf.pages.map((page) => page.page);
     }
