@@ -82,7 +82,7 @@ function inspectionBody() {
     extraction_method: 'TEXT_LAYER',
     extraction_confidence: 0.96,
     status: 'REVIEW_REQUIRED',
-    inspector_contract_version: 6,
+    inspector_contract_version: 7,
     enrichment_contract: 'QUESTION_AND_OPTION_EXPLANATIONS_V1',
     previously_published_from_same_file: 0,
     topic: { id: '60000000-0000-4000-8000-000000000001', name: 'Cardiac anatomy and circulation' },
@@ -204,6 +204,75 @@ test('inspector lets an instructor repair missing or extra answer choices before
   await page.getByRole('button', { name: 'Remove choice E' }).click();
   await expect(page.locator('.question-import-option-row')).toHaveCount(4);
   await expect(page.getByRole('button', { name: 'Add choice' })).toBeEnabled();
+});
+
+test('bulk confirmation approves the intent of every four-choice MCQ at once', async ({ page }) => {
+  const source = inspectionBody();
+  const template = source.candidates[0];
+  source.candidates = Array.from({ length: 3 }, (_, index) => ({
+    ...template,
+    candidate_id: `candidate-four-${index + 1}`,
+    question_number: index + 1,
+    question_text: `Four-choice cardiac question ${index + 1} with sufficient stem text?`,
+    options: template.options.slice(0, 4).map((option) => ({ ...option })),
+    status: 'NEEDS_REVIEW' as const,
+    issues: [{
+      code: 'FOUR_OPTION_MCQ',
+      severity: 'WARNING' as const,
+      message: 'This MCQ contains four answer choices (A-D).',
+    }],
+    ai_enrichment: { ...template.ai_enrichment },
+  }));
+  source.summary = { extracted: 3, valid: 0, needs_review: 3, invalid: 0, duplicates: 0 };
+
+  let publishBody: {
+    candidates?: Array<{
+      approved?: boolean;
+      allow_four_options?: boolean;
+      options?: Array<{ is_correct?: boolean }>;
+    }>;
+  } | null = null;
+
+  await openInspection(page, source);
+  await page.route('**/api/v1/questions/imports/publish', async route => {
+    publishBody = route.request().postDataJSON();
+    await route.fulfill({
+      status: 201,
+      headers: {
+        'access-control-allow-origin': route.request().headers().origin || 'http://127.0.0.1:3001',
+        'access-control-allow-credentials': 'true',
+      },
+      contentType: 'application/json',
+      body: JSON.stringify({ created: 3, reused: 0, skipped: 0 }),
+    });
+  });
+
+  const confirmations = page.locator('.question-import-confirm').filter({
+    hasText: 'intentionally has four answer choices',
+  }).locator('input[type="checkbox"]');
+  await expect(confirmations).toHaveCount(3);
+  await expect(confirmations).not.toBeChecked();
+
+  const confirmAll = page.getByRole('button', { name: /Confirm all 4-choice MCQs \(3\)/i });
+  await expect(confirmAll).toBeEnabled();
+  await confirmAll.click();
+
+  for (let index = 0; index < 3; index += 1) {
+    await expect(confirmations.nth(index)).toBeChecked();
+  }
+  await expect(page.getByRole('button', { name: /All 4-choice MCQs confirmed \(3\)/i })).toBeDisabled();
+
+  await page.getByRole('button', { name: /Approve all ready/i }).first().click();
+  await page.getByRole('button', { name: /Publish approved \(3\)/i }).click();
+
+  await expect.poll(() => publishBody).not.toBeNull();
+  expect(publishBody?.candidates).toHaveLength(3);
+  expect(publishBody?.candidates?.every((candidate) =>
+    candidate.approved
+    && candidate.allow_four_options
+    && candidate.options?.length === 4
+    && candidate.options.filter((option) => option.is_correct).length === 1
+  )).toBe(true);
 });
 
 test('incomplete structural extraction is visible and blocks bulk approval', async ({ page }) => {
