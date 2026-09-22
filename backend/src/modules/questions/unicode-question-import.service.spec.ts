@@ -112,11 +112,12 @@ describe('UnicodeQuestionImportService recovery', () => {
       '1-A, 2-B',
     ].join('\n'), 'OCR');
 
-    const extract = jest
-      .fn()
-      .mockReturnValueOnce(firstPass)
-      .mockReturnValueOnce(recovered);
-    const extractor = { extract } as unknown as PdfTextExtractionService;
+    const extract = jest.fn().mockResolvedValue(firstPass);
+    const recoverPages = jest.fn().mockResolvedValue(recovered);
+    const extractor = {
+      extract,
+      recoverPages,
+    } as unknown as PdfTextExtractionService;
     const builder = {
       where: jest.fn().mockReturnThis(),
       getCount: jest.fn().mockResolvedValue(0),
@@ -158,8 +159,13 @@ describe('UnicodeQuestionImportService recovery', () => {
       actor,
     );
 
-    expect(extract).toHaveBeenCalledTimes(2);
-    expect(extract.mock.calls[1][1]).toEqual({ forceOcr: true });
+    expect(extract).toHaveBeenCalledTimes(1);
+    expect(recoverPages).toHaveBeenCalledTimes(1);
+    expect(recoverPages).toHaveBeenCalledWith(
+      buffer,
+      firstPass,
+      [1],
+    );
     expect(result.summary.expected).toBe(2);
     expect(result.summary.extracted).toBe(2);
     expect(result.summary.structurally_complete).toBe(true);
@@ -232,8 +238,13 @@ describe('UnicodeQuestionImportService recovery', () => {
       actor,
     );
 
-    expect(extract).toHaveBeenCalledTimes(2);
-    expect(extract.mock.calls[1][1]).toEqual({ forceOcr: true });
+    expect(extract).toHaveBeenCalledTimes(1);
+    expect(recoverPages).toHaveBeenCalledTimes(1);
+    expect(recoverPages).toHaveBeenCalledWith(
+      buffer,
+      firstPass,
+      [1],
+    );
     expect(result.summary.expected).toBe(3);
     expect(result.summary.extracted).toBe(3);
     expect(result.summary.missing).toBe(0);
