@@ -36,7 +36,7 @@ export function TutorOptionReview({
 
   return (
     <details className="tutor-option-review">
-      <summary>Review all 5 options</summary>
+      <summary>Review all {options.length} options</summary>
       {feedback.question_explanation && (
         <div className="tutor-option-takeaway">
           <b>Question takeaway</b>
