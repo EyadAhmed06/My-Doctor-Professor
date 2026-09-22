@@ -312,16 +312,14 @@ export function QuestionBankPage({ admin = false }: { admin?: boolean }) {
   }
 
   function removeEditOption(index: number) {
-    setEditOptions((items) => {
-      if (items.length <= 4) return items;
-      const removed = items[index];
-      if (removed?.id) {
-        setRemovedEditOptionIds((ids) => ids.includes(removed.id!) ? ids : [...ids, removed.id!]);
-      }
-      return items
-        .filter((_, itemIndex) => itemIndex !== index)
-        .map((item, itemIndex) => ({ ...item, displayOrder: itemIndex + 1 }));
-    });
+    if (editOptions.length <= 4) return;
+    const removed = editOptions[index];
+    if (removed?.id) {
+      setRemovedEditOptionIds((ids) => ids.includes(removed.id!) ? ids : [...ids, removed.id!]);
+    }
+    setEditOptions((items) => items
+      .filter((_, itemIndex) => itemIndex !== index)
+      .map((item, itemIndex) => ({ ...item, displayOrder: itemIndex + 1 })));
   }
 
   async function duplicateQuestion(question: Question) {
