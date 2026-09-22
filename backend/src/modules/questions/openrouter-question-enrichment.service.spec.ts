@@ -394,7 +394,7 @@ describe('OpenRouterQuestionEnrichmentService', () => {
 
   it.each([
     ['wrong candidate id', (payload: ReturnType<typeof validPayload>) => { payload.candidate_id = 'wrong'; }, 'wrong candidate id'],
-    ['six options', (payload: ReturnType<typeof validPayload>) => { payload.options.push({ ...payload.options[0], label: 'F' }); }, 'exactly five'],
+    ['six options', (payload: ReturnType<typeof validPayload>) => { payload.options.push({ ...payload.options[0], label: 'F' }); }, 'exactly 5'],
     ['wrong correct assessment', (payload: ReturnType<typeof validPayload>) => { payload.options[2].assessment = 'INCORRECT'; payload.options[1].assessment = 'CORRECT'; }, 'contradict'],
     ['invalid difficulty', (payload: ReturnType<typeof validPayload>) => { payload.difficulty = 'IMPOSSIBLE'; }, 'invalid difficulty'],
     ['invalid confidence', (payload: ReturnType<typeof validPayload>) => { payload.confidence = 1.5; }, 'invalid confidence'],
