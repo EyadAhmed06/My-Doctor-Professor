@@ -45,7 +45,13 @@ export class UnicodeQuestionImportService extends QuestionImportService {
   protected override async extractPdf(
     buffer: Buffer,
   ): Promise<UnicodeParsedPdf> {
-    return this.pdfTextExtraction.extract(buffer);
+    // MCQ inspection can prove whether OCR is necessary from the answer-key and
+    // A-E structure. Avoid speculative OCR of decorative/blank/weak pages on
+    // the fast path; QuestionImportService will request targeted recovery only
+    // when the parsed document demonstrates a structural gap.
+    return this.pdfTextExtraction.extract(buffer, {
+      deferWeakPageOcr: true,
+    });
   }
 
   protected override async recoverIncompletePdf(
