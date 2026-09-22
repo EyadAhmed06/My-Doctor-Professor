@@ -465,7 +465,7 @@ export function AdvancedAdminUsersPage() {
                 <p><b>Last seen:</b> {item.last_seen_at ? new Date(item.last_seen_at).toLocaleString() : "Never after enrollment"}</p>
                 <p><b>Last IP:</b> {item.last_ip || "Not recorded"}</p>
                 <p><b>User agent:</b> {item.user_agent || "Not recorded"}</p>
-              </div>) : <p>No active trusted device is enrolled. The student's next verified login can establish the initial device.</p>}
+              </div>) : <p>No active trusted device is enrolled. The student&apos;s next verified login can establish the initial device.</p>}
             </section>
             <section>
               <h3>Pending replacement request</h3>
