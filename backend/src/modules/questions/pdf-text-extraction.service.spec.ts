@@ -229,4 +229,74 @@ describe('PDF text extraction contract', () => {
     expect(maximumActive).toBe(2);
   });
 
+
+  it('caches identical targeted OCR recovery work so repeat inspection does not rerun Tesseract', async () => {
+    const service = new PdfTextExtractionService();
+    const current = {
+      pages: [
+        {
+          page: 1,
+          text: '1) Existing question',
+          source: 'TEXT_LAYER' as const,
+          confidence: 0.9,
+          textLength: 20,
+          ocrAttempted: false,
+          layoutReflowed: false,
+        },
+        {
+          page: 2,
+          text: 'weak page',
+          source: 'TEXT_LAYER' as const,
+          confidence: 0.3,
+          textLength: 9,
+          ocrAttempted: false,
+          layoutReflowed: false,
+        },
+      ],
+      pageCount: 2,
+      text: '1) Existing question\nweak page',
+      extractionConfidence: 0.6,
+      extractionMethod: 'TEXT_LAYER' as const,
+      ocrPageCount: 0,
+      textLayerPageCount: 2,
+      emptyPageCount: 0,
+    };
+    const recoveredText = [
+      '2) Recovered question?',
+      'A) one',
+      'B) two',
+      'C) three',
+      'D) four',
+      'E) five',
+    ].join('\n');
+    const ocr = jest.spyOn(service as any, 'ocrPages').mockResolvedValue([
+      { page: 2, text: recoveredText },
+    ]);
+    const buffer = Buffer.from('%PDF-1.4\nsynthetic');
+
+    const first = await service.recoverPages(buffer, current, [2]);
+    const second = await service.recoverPages(buffer, current, [2]);
+
+    expect(ocr).toHaveBeenCalledTimes(1);
+    expect(first.pages[1].source).toBe('OCR');
+    expect(second.pages[1].source).toBe('OCR');
+    expect(second.pages[1].text).toContain('Recovered question');
+  });
+
+  it('bounds OpenMP threads for each Tesseract worker', () => {
+    const previous = process.env.PDF_OCR_THREADS_PER_WORKER;
+    process.env.PDF_OCR_THREADS_PER_WORKER = '2';
+    try {
+      const service = new PdfTextExtractionService();
+      const options = (service as any).tesseractProcessOptions(
+        (service as any).processOptions(),
+      );
+
+      expect(options.env.OMP_THREAD_LIMIT).toBe('2');
+    } finally {
+      if (previous === undefined) delete process.env.PDF_OCR_THREADS_PER_WORKER;
+      else process.env.PDF_OCR_THREADS_PER_WORKER = previous;
+    }
+  });
+
 });
