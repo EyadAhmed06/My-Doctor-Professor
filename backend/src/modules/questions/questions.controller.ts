@@ -136,6 +136,7 @@ export class QuestionsController {
         status: 'VALID' as const,
         issues: [],
         source_section: candidate.source_section ?? null,
+        allow_four_options: Boolean(candidate.allow_four_options),
         ai_enrichment: candidate.ai_enrichment ? {
           provider: candidate.ai_enrichment.provider,
           model: candidate.ai_enrichment.model,
