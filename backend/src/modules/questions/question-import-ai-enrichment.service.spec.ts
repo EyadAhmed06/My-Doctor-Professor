@@ -77,7 +77,11 @@ describe('QuestionImportAiEnrichmentService', () => {
         reviewReason: null,
         model: 'meta/muse-spark-1.3',
         promptVersion: 'mcq-explanation-v3-four-or-five-options',
-      }),
+      });
+    const openRouter = {
+      isConfigured: () => true,
+      getSignature: () => signature,
+      generate,
     } as unknown as OpenRouterQuestionEnrichmentService;
 
     const service = new QuestionImportAiEnrichmentService(openRouter);
@@ -99,10 +103,7 @@ describe('QuestionImportAiEnrichmentService', () => {
       option_text: `Option ${label}`,
       is_correct: label === 'C',
     }));
-    const openRouter = {
-      isConfigured: () => true,
-      getSignature: () => signature,
-      generate: jest.fn().mockResolvedValue({
+    const generate = jest.fn().mockResolvedValue({
         candidateId: 'candidate-1',
         sourceCorrectLabel: 'C',
         answerConsistency: 'CONSISTENT',
@@ -127,7 +128,7 @@ describe('QuestionImportAiEnrichmentService', () => {
       allow_four_options: true,
     })));
 
-    expect(openRouter.generate).toHaveBeenCalledTimes(1);
+    expect(generate).toHaveBeenCalledTimes(1);
     expect(result.candidates[0].options).toHaveLength(4);
     expect(result.candidates[0].options.map((option) => option.explanation)).toEqual([
       'A rationale', 'B rationale', 'C rationale', 'D rationale',
