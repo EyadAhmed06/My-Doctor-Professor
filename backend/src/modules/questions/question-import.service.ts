@@ -1114,11 +1114,16 @@ export class QuestionImportService {
             /^\s*(?:\([A-F]\)|[A-F]\s*[.)\]:\-–—])\s+/gim,
           ) || []
         ).length;
-        const answerKeySignals = (
+        const explicitAnswerKeySignals = (
           text.match(
             /^\s*(?:answer\s*keys?|answers|correct\s+answers?|solutions?|key)\b/gim,
           ) || []
         ).length;
+        const compactAnswerKeySignals = text
+          .split('\n')
+          .filter((line) => this.isCompactAnswerKeyLine(line)).length;
+        const answerKeySignals =
+          explicitAnswerKeySignals + compactAnswerKeySignals;
         const replacements = (text.match(/\uFFFD/g) || []).length;
         const confidence = page.confidence ?? pdf.extractionConfidence;
 
