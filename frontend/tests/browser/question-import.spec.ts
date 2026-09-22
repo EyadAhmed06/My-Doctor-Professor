@@ -251,7 +251,9 @@ test('bulk confirmation approves the intent of every four-choice MCQ at once', a
     hasText: 'intentionally has four answer choices',
   }).locator('input[type="checkbox"]');
   await expect(confirmations).toHaveCount(3);
-  await expect(confirmations).not.toBeChecked();
+  for (let index = 0; index < 3; index += 1) {
+    await expect(confirmations.nth(index)).not.toBeChecked();
+  }
 
   const confirmAll = page.getByRole('button', { name: /Confirm all 4-choice MCQs \(3\)/i });
   await expect(confirmAll).toBeEnabled();
