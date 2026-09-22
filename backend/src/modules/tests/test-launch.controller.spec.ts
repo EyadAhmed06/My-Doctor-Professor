@@ -26,14 +26,18 @@ function validOptions() {
   return Array.from({ length: 5 }, (_, index) => ({ isCorrect: index === 0 }));
 }
 
-function assignments(count: number, questionType = QuestionType.MCQ, malformedIndex: number | null = null) {
+function assignments(count: number, questionType = QuestionType.MCQ, malformedIndex: number | null = null, fourOptionIndex: number | null = null) {
   return Array.from({ length: count }, (_, index) => ({
     id: `assignment-${index}`,
     displayOrder: index + 1,
     question: {
       questionType,
       options: questionType === QuestionType.MCQ
-        ? malformedIndex === index ? validOptions().slice(0, 4) : validOptions()
+        ? malformedIndex === index
+          ? validOptions().slice(0, 3)
+          : fourOptionIndex === index
+            ? validOptions().slice(0, 4)
+            : validOptions()
         : [],
     },
   }));
@@ -44,6 +48,7 @@ function controller({
   title = 'Practice',
   questionCount = 40,
   malformedIndex = null as number | null,
+  fourOptionIndex = null as number | null,
   activeAttempt = null as null | {
     id: string;
     testMode: TestMode;
@@ -55,7 +60,7 @@ function controller({
     getOne: jest.fn().mockResolvedValue(testRecord(type, title)),
   };
   const testQuestions = {
-    find: jest.fn().mockResolvedValue(assignments(questionCount, QuestionType.MCQ, malformedIndex)),
+    find: jest.fn().mockResolvedValue(assignments(questionCount, QuestionType.MCQ, malformedIndex, fourOptionIndex)),
   };
   const attempts = {
     findOne: jest.fn().mockResolvedValue(activeAttempt),
@@ -120,6 +125,16 @@ describe('TestLaunchController', () => {
     expect(result.issues).toEqual([]);
   });
 
+  it('treats a four-option MCQ as structurally valid for launch', async () => {
+    const { subject } = controller({ questionCount: 40, fourOptionIndex: 12 });
+
+    const result = await subject.getLaunchConfig('22222222-2222-4222-8222-222222222222', student);
+
+    expect(result.launch_ready).toBe(true);
+    expect(result.malformed_mcq_count).toBe(0);
+    expect(result.issues).toEqual([]);
+  });
+
   it('blocks a malformed MCQ even when an unfinished attempt exists', async () => {
     const activeAttempt = {
       id: '33333333-3333-4333-8333-333333333333',
@@ -133,7 +148,7 @@ describe('TestLaunchController', () => {
 
     expect(result.launch_ready).toBe(false);
     expect(result.malformed_mcq_count).toBe(1);
-    expect(result.issues.join(' ')).toContain('exactly five options');
+    expect(result.issues.join(' ')).toContain('four or five options');
   });
 
   it('keeps the 200-MCQ invariant for finals', async () => {
