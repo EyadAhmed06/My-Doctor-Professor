@@ -114,6 +114,7 @@ type ParsingSection = {
 type AnswerKeyEntry = { label: string; page: number | null };
 type ParsedSectionDiagnostics = {
   title: string | null;
+  answerKey?: Map<number, AnswerKeyEntry>;
   expectedQuestionNumbers: number[];
   parsedQuestionNumbers: number[];
   missingQuestionNumbers: number[];
@@ -240,8 +241,7 @@ export class QuestionImportService {
           parse_ms: 0,
           recovery_triggered: false,
           recovery_pages: [],
-          full_recovery_fallback: false,
-          full_recovery_pages: [],
+          structural_recovery_strategy: 'TARGETED_ONLY',
           recovery_ms: 0,
           evaluation_ms: 0,
           total_ms: Date.now() - inspectStartedAt,
@@ -304,95 +304,45 @@ export class QuestionImportService {
     let parseMs = Date.now() - parseStartedAt;
     let recoveryMs = 0;
     let recoveryPages: number[] = [];
-    let fullRecoveryPages: number[] = [];
 
     const needsStructuralRecovery =
       this.needsStructuralRecovery(parsedDocument);
-    let fullRecoveryFallback = false;
 
     if (needsStructuralRecovery) {
       recoveryPages = this.recoveryPageNumbers(pdf, parsedDocument);
-      const recoveryStartedAt = Date.now();
-      const originalPdf = pdf;
-      const originalDocument = parsedDocument;
-      const recoveredPdf = await this.recoverIncompletePdf(
-        safeFile.buffer,
-        originalPdf,
-        recoveryPages,
-      );
 
-      if (recoveredPdf) {
-        const recoveryParseStartedAt = Date.now();
-        const recoveredDocument = this.parseQuestions(
-          recoveredPdf,
-          documentType,
+      // Structural recovery is deliberately targeted-only. A malformed or
+      // missing question must never turn into an unconditional whole-document
+      // OCR pass. Fully raster PDFs are handled separately above, where every
+      // physical page is genuinely suspect because no text layer exists.
+      if (recoveryPages.length > 0) {
+        const recoveryStartedAt = Date.now();
+        const recoveredPdf = await this.recoverIncompletePdf(
+          safeFile.buffer,
+          pdf,
+          recoveryPages,
         );
-        parseMs += Date.now() - recoveryParseStartedAt;
 
-        if (
-          this.shouldPreferRecoveredDocument(
-            parsedDocument,
-            recoveredDocument,
-          )
-        ) {
-          pdf = recoveredPdf;
-          parsedDocument = recoveredDocument;
-        }
-      }
-
-      // Preserve the previous correctness contract: targeted OCR is the fast
-      // first recovery pass, not a reduction in recovery capability. If the
-      // document is still structurally incomplete and we have not already
-      // covered every page, fall back to full-page OCR while still reusing the
-      // original text-layer extraction (no second pdfinfo/pdftotext pass).
-      if (
-        this.needsStructuralRecovery(parsedDocument) &&
-        recoveryPages.length < originalPdf.pageCount
-      ) {
-        fullRecoveryFallback = true;
-
-        // Targeted recovery may already have paid the OCR cost for several
-        // pages. Reuse those exact OCR results during the correctness-preserving
-        // full fallback instead of rendering/Tesseracting them a second time.
-        const fullRecoveryBase = recoveredPdf || originalPdf;
-        const alreadyOcrRecovered = new Set(
-          fullRecoveryBase.pages
-            .filter((page) => page.source === 'OCR')
-            .map((page) => page.page),
-        );
-        fullRecoveryPages = originalPdf.pages
-          .map((page) => page.page)
-          .filter((page) => !alreadyOcrRecovered.has(page));
-
-        const fullRecoveredPdf = fullRecoveryPages.length
-          ? await this.recoverIncompletePdf(
-              safeFile.buffer,
-              fullRecoveryBase,
-              fullRecoveryPages,
-            )
-          : fullRecoveryBase;
-        if (fullRecoveredPdf) {
-          const fullParseStartedAt = Date.now();
-          const fullRecoveredDocument = this.parseQuestions(
-            fullRecoveredPdf,
+        if (recoveredPdf) {
+          const recoveryParseStartedAt = Date.now();
+          const recoveredDocument = this.parseQuestions(
+            recoveredPdf,
             documentType,
           );
-          parseMs += Date.now() - fullParseStartedAt;
+          parseMs += Date.now() - recoveryParseStartedAt;
 
-          const currentBaseline =
-            pdf === originalPdf ? originalDocument : parsedDocument;
           if (
             this.shouldPreferRecoveredDocument(
-              currentBaseline,
-              fullRecoveredDocument,
+              parsedDocument,
+              recoveredDocument,
             )
           ) {
-            pdf = fullRecoveredPdf;
-            parsedDocument = fullRecoveredDocument;
+            pdf = recoveredPdf;
+            parsedDocument = recoveredDocument;
           }
         }
+        recoveryMs = Date.now() - recoveryStartedAt;
       }
-      recoveryMs = Date.now() - recoveryStartedAt;
     }
 
     const parsed = parsedDocument.questions;
@@ -506,10 +456,11 @@ export class QuestionImportService {
         raster_fallback_triggered: rasterFallbackTriggered,
         raster_fallback_ms: rasterFallbackMs,
         parse_ms: parseMs,
-        recovery_triggered: needsStructuralRecovery,
+        recovery_triggered:
+          needsStructuralRecovery && recoveryPages.length > 0,
+        recovery_requested: needsStructuralRecovery,
         recovery_pages: recoveryPages,
-        full_recovery_fallback: fullRecoveryFallback,
-        full_recovery_pages: fullRecoveryPages,
+        structural_recovery_strategy: 'TARGETED_ONLY',
         recovery_ms: recoveryMs,
         evaluation_ms: evaluationMs,
         total_ms: Date.now() - inspectStartedAt,
@@ -950,6 +901,11 @@ export class QuestionImportService {
       sections.map((section) => [section.title || null, section]),
     );
 
+    const addPage = (page: number | null | undefined) => {
+      if (!page) return;
+      if (page >= 1 && page <= pdf.pageCount) pages.add(page);
+    };
+
     const addWindow = (
       page: number | null | undefined,
       before = 1,
@@ -957,14 +913,34 @@ export class QuestionImportService {
     ) => {
       if (!page) return;
       for (let offset = -before; offset <= after; offset += 1) {
-        const candidate = page + offset;
-        if (candidate >= 1 && candidate <= pdf.pageCount) pages.add(candidate);
+        addPage(page + offset);
       }
     };
 
-    // Option/stem corruption is local to the physical question page. A missing
-    // answer key is different: OCRing every question page would recreate the
-    // old full-document penalty, so defer those cases to section-tail recovery.
+    const rawQuestionPages = (questionNumber: number) =>
+      pdf.pages
+        .filter((page) =>
+          this.pageContainsQuestionNumber(page.text, questionNumber),
+        )
+        .map((page) => page.page);
+
+    const sectionAnswerKeyPages = (
+      section: ParsedSectionDiagnostics,
+      scoped: ParsedQuestion[],
+    ) => {
+      const known = new Set<number>();
+      for (const entry of section.answerKey?.values() || []) {
+        if (entry.page) known.add(entry.page);
+      }
+      for (const question of scoped) {
+        if (question.answerKeyPage) known.add(question.answerKeyPage);
+      }
+      return [...known].sort((left, right) => left - right);
+    };
+
+    // Parsed malformed questions already have physical provenance. Recover the
+    // question page and its immediate boundary neighbors, plus the known answer
+    // key page when the key itself may be involved.
     for (const question of document.questions) {
       const invalidOptions = question.options.length !== REQUIRED_MCQ_OPTIONS;
       const answerOutsideOptions =
@@ -972,6 +948,7 @@ export class QuestionImportService {
         !question.options.some(
           (option) => option.label === question.correctLabel,
         );
+
       if (invalidOptions || answerOutsideOptions) {
         addWindow(question.sourcePage);
         addWindow(question.answerKeyPage);
@@ -981,15 +958,16 @@ export class QuestionImportService {
       if (!question.correctLabel) {
         const section = sectionByTitle.get(question.sourceSection || null);
         if (section?.expectedQuestionCount != null) {
-          // A key was detected for the section but this question did not map.
-          // Recover the question page plus the already-known answer-key pages.
           addWindow(question.sourcePage);
-          for (const peer of document.questions) {
-            if (
-              (peer.sourceSection || null) === (question.sourceSection || null)
-            ) {
-              addWindow(peer.answerKeyPage);
-            }
+          for (const page of sectionAnswerKeyPages(
+            section,
+            document.questions.filter(
+              (peer) =>
+                (peer.sourceSection || null) ===
+                (question.sourceSection || null),
+            ),
+          )) {
+            addWindow(page);
           }
         }
       }
@@ -1002,10 +980,10 @@ export class QuestionImportService {
             (question.sourceSection || null) === (section.title || null),
         )
         .sort((left, right) => left.questionNumber - right.questionNumber);
+      const answerKeyPages = sectionAnswerKeyPages(section, scoped);
 
-      // No answer key detected: inspect the tail around the final question,
-      // where canonical PDFs place the section answer key. This avoids OCRing
-      // every otherwise-perfect question page solely because labels are absent.
+      // No answer key detected: canonical PDFs place the key after the section.
+      // Probe only the local tail around the final parsed question.
       if (section.expectedQuestionCount === null && scoped.length > 0) {
         const lastSourcePage = scoped
           .map((question) => question.sourcePage)
@@ -1015,26 +993,54 @@ export class QuestionImportService {
         addWindow(lastSourcePage, 1, 3);
       }
 
-      // Missing question numbers do not have their own provenance. Recover the
-      // smallest safe page window around their nearest parsed neighbors.
       for (const missing of section.missingQuestionNumbers) {
+        // Strongest signal: the text layer still contains the missing question
+        // number but the parser could not recover its A-E structure.
+        const directPages = rawQuestionPages(missing);
+        if (directPages.length > 0) {
+          for (const page of directPages) addWindow(page);
+          continue;
+        }
+
+        // Otherwise recover only around the nearest successfully parsed
+        // neighbors. This covers questions split across physical page breaks.
         const lower = [...scoped]
           .reverse()
           .find((question) => question.questionNumber < missing);
         const upper = scoped.find(
           (question) => question.questionNumber > missing,
         );
-        addWindow(lower?.sourcePage);
-        addWindow(upper?.sourcePage);
+        if (lower?.sourcePage || upper?.sourcePage) {
+          addWindow(lower?.sourcePage);
+          addWindow(upper?.sourcePage);
+          continue;
+        }
+
+        // If the section has no parsed question provenance at all, use the
+        // answer-key page as an anchor and probe the few pages immediately
+        // preceding it rather than OCRing the document.
+        for (const page of answerKeyPages) {
+          addWindow(page, 3, 0);
+        }
+      }
+
+      // Duplicate/unexpected numbers can often be localized directly from the
+      // raw text layer even when canonical parsing could not assign them safely.
+      const suspiciousNumbers = new Set([
+        ...section.unexpectedQuestionNumbers,
+        ...(section.duplicateQuestionNumbers || []),
+      ]);
+      for (const number of suspiciousNumbers) {
+        for (const page of rawQuestionPages(number)) addWindow(page);
       }
 
       if ((section.answerKeyConflicts || []).length > 0) {
-        for (const question of scoped) addWindow(question.answerKeyPage);
+        for (const page of answerKeyPages) addWindow(page);
       }
     }
 
-    // Some legacy/uncategorized documents expose no section diagnostics. If
-    // all parsed questions lack answer labels, target only the document tail.
+    // Legacy/uncategorized PDFs without section diagnostics still get a small
+    // answer-key-tail probe when all parsed questions are unmapped.
     if (
       sections.length === 0 &&
       document.questions.length > 0 &&
@@ -1048,28 +1054,107 @@ export class QuestionImportService {
       addWindow(lastSourcePage, 1, 3);
     }
 
-    // Pages already recovered by OCR should not be OCRed a second time merely
-    // because their OCR confidence is modest. Only weak text-layer pages enter
-    // this secondary recovery set.
+    // Weak text-layer pages are themselves suspect, but do not automatically
+    // expand each one to neighboring pages; that old behavior could make a
+    // moderately weak document silently approach whole-document OCR.
     for (const page of pdf.pages) {
       if (
         page.source !== 'OCR' &&
         (page.confidence ?? pdf.extractionConfidence) < 0.7
       ) {
-        addWindow(page.page);
+        addPage(page.page);
       }
     }
 
-    // If provenance is genuinely unavailable, retain correctness-first behavior.
+    // Last-resort localization uses only pages with concrete structural damage
+    // signals. If there is no evidence pointing to a page, return no recovery
+    // pages and leave the extraction explicitly incomplete rather than spending
+    // minutes OCRing unrelated pages.
     if (pages.size === 0 && document.isStructurallyComplete === false) {
-      return pdf.pages.map((page) => page.page);
+      for (const page of this.structuralProbePages(pdf)) addWindow(page);
     }
 
-    const targeted = [...pages].sort((left, right) => left - right);
-    if (targeted.length / Math.max(1, pdf.pageCount) > 0.6) {
-      return pdf.pages.map((page) => page.page);
+    return [...pages].sort((left, right) => left - right);
+  }
+
+  private pageContainsQuestionNumber(
+    text: string,
+    questionNumber: number,
+  ): boolean {
+    for (const line of text.split('\n')) {
+      const match = line.match(
+        /^\s*(?:Q(?:uestion)?\s*)?(?:\((\d{1,4})\)|(\d{1,4})\s*[.)\]:\-–—])\s+(.+)$/i,
+      );
+      if (!match) continue;
+      const parsed = Number(match[1] || match[2]);
+      if (parsed !== questionNumber) continue;
+
+      // Do not confuse compact answer-key rows such as "12) B" with a
+      // question stem.
+      const remainder = match[3].trim();
+      if (/^\(?[A-F]\)?(?:\s|$)/i.test(remainder)) continue;
+      return true;
     }
-    return targeted;
+    return false;
+  }
+
+  private structuralProbePages(pdf: ParsedPdf): number[] {
+    const scored = pdf.pages
+      .filter((page) => page.source !== 'OCR')
+      .map((page) => {
+        const text = page.text || '';
+        const questionStarts = (
+          text.match(
+            /^\s*(?:Q(?:uestion)?\s*)?(?:\(\d{1,4}\)|\d{1,4}\s*[.)\]:\-–—])\s+/gim,
+          ) || []
+        ).length;
+        const optionStarts = (
+          text.match(
+            /^\s*(?:\([A-F]\)|[A-F]\s*[.)\]:\-–—])\s+/gim,
+          ) || []
+        ).length;
+        const answerKeySignals = (
+          text.match(
+            /^\s*(?:answer\s*keys?|answers|correct\s+answers?|solutions?|key)\b/gim,
+          ) || []
+        ).length;
+        const replacements = (text.match(/\uFFFD/g) || []).length;
+        const confidence = page.confidence ?? pdf.extractionConfidence;
+
+        let score = 0;
+        if (confidence < 0.7) score += 6;
+        if (replacements > 0) score += 6;
+        if (
+          questionStarts > 0 &&
+          optionStarts < questionStarts * (REQUIRED_MCQ_OPTIONS - 1)
+        ) {
+          score += 5;
+        }
+        if (
+          questionStarts > 0 &&
+          optionStarts > 0 &&
+          optionStarts % REQUIRED_MCQ_OPTIONS !== 0
+        ) {
+          score += 2;
+        }
+        if (answerKeySignals > 0) score += 2;
+
+        return { page: page.page, score };
+      })
+      .filter((item) => item.score > 0)
+      .sort(
+        (left, right) =>
+          right.score - left.score || left.page - right.page,
+      );
+
+    const limit = Math.min(
+      6,
+      Math.max(2, Math.ceil(pdf.pageCount * 0.15)),
+    );
+    return scored
+      .slice(0, limit)
+      .map((item) => item.page)
+      .sort((left, right) => left - right);
   }
 
   private shouldPreferRecoveredDocument(
