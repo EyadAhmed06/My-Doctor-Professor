@@ -5,6 +5,7 @@ import { DataSource, EntityManager, Repository } from 'typeorm';
 import { BundleTest } from '../../common/entities/bundle-test.entity';
 import { Lecture } from '../../common/entities/lecture.entity';
 import { Question, QuestionType } from '../../common/entities/question.entity';
+import { isSupportedMcqOptionCount } from '../../common/mcq-option-policy';
 import { TestAttempt, TestAttemptStatus, TestMode } from '../../common/entities/test-attempt.entity';
 import { TestQuestion } from '../../common/entities/test-question.entity';
 import { Test, TestType } from '../../common/entities/test.entity';
@@ -102,7 +103,7 @@ export class McqPracticeService {
     const eligibleById = new Map<string, Question>();
     for (const question of await builder.getMany()) {
       if (
-        question.options.length === 5
+        isSupportedMcqOptionCount(question.options.length)
         && question.options.filter((option) => option.isCorrect).length === 1
       ) {
         eligibleById.set(question.id, question);
@@ -133,7 +134,7 @@ export class McqPracticeService {
       for (const courseId of courseIds) {
         const available = byCourse.get(courseId)?.length ?? 0;
         if (available < FINAL_QUESTIONS_PER_COURSE) {
-          throw new BadRequestException(`Course ${courseId} has only ${available} eligible five-option MCQs; 40 are required`);
+          throw new BadRequestException(`Course ${courseId} has only ${available} eligible MCQs; 40 are required`);
         }
       }
       selected = [...courseIds].flatMap((courseId) =>
