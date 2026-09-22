@@ -307,3 +307,37 @@
     max-height: 190px;
   }
 }
+
+
+/* Keep off-screen desktop question cards out of layout/paint work. Mobile mounts
+   only one full editor, but this still materially reduces long desktop reviews. */
+.question-import-candidate {
+  content-visibility: auto;
+  contain-intrinsic-size: 900px;
+}
+
+@media (max-width: 720px) {
+  .question-import-candidate {
+    content-visibility: visible;
+    contain-intrinsic-size: auto;
+    transition: none;
+  }
+
+  .question-import-candidate.approved {
+    box-shadow: none;
+  }
+
+  .question-import-publish-bar {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--pp-surface, #0c1427);
+    box-shadow: 0 8px 22px rgba(0,0,0,.16);
+  }
+
+  .question-import-add-option-btn,
+  .question-import-option-delete-btn,
+  .question-import-remove-btn,
+  .question-import-add-question-btn {
+    transition: none;
+  }
+}
