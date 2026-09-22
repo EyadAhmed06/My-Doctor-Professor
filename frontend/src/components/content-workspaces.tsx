@@ -247,7 +247,9 @@ export function QuestionBankPage({ admin = false }: { admin?: boolean }) {
       setEditingQuestion(detail);
       setEditQuestionForm({ title: detail.title || "", question_text: detail.questionText, explanation: detail.explanation || "", difficulty: detail.difficulty, marks: Number(detail.marks), model_answer: detail.essayConfiguration?.modelAnswer || "", grading_rubric: detail.essayConfiguration?.gradingRubric || "" });
       const existing = [...(detail.options || [])].sort((a, b) => a.displayOrder - b.displayOrder);
-      setEditOptions(Array.from({ length: 5 }, (_, index) => existing[index] || ({ optionText: "", explanation: "", isCorrect: false, displayOrder: index + 1 })));
+      setEditOptions(existing.length
+        ? existing
+        : Array.from({ length: 5 }, (_, index) => ({ optionText: "", explanation: "", isCorrect: false, displayOrder: index + 1 })));
     } catch (cause) { notify({ title: "Could not load question", description: cause instanceof Error ? cause.message : undefined, tone: "error" }); }
     finally { setSaving(false); }
   }
@@ -255,8 +257,8 @@ export function QuestionBankPage({ admin = false }: { admin?: boolean }) {
   async function saveQuestionEdit(event: FormEvent) {
     event.preventDefault();
     if (!editingQuestion) return;
-    if (editingQuestion.questionType === "MCQ" && (editOptions.length !== 5 || editOptions.some(option => !option.optionText.trim()) || editOptions.filter(option => option.isCorrect).length !== 1)) {
-      notify({ title: "Complete all five options", description: "Every MCQ must have options A–E and exactly one correct answer.", tone: "error" }); return;
+    if (editingQuestion.questionType === "MCQ" && ((editOptions.length < 4 || editOptions.length > 5) || editOptions.some(option => !option.optionText.trim()) || editOptions.filter(option => option.isCorrect).length !== 1)) {
+      notify({ title: "Complete the MCQ choices", description: "Every MCQ must have four or five complete options and exactly one correct answer.", tone: "error" }); return;
     }
     setSaving(true);
     try {
