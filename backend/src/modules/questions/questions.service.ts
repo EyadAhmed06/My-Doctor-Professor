@@ -14,6 +14,7 @@ import {
 } from 'typeorm';
 import { EssayConfiguration } from '../../common/entities/essay-configuration.entity';
 import { McqOption } from '../../common/entities/mcq-option.entity';
+import { isSupportedMcqOptionCount } from '../../common/mcq-option-policy';
 import {
   Question,
   QuestionType,
@@ -559,8 +560,8 @@ export class QuestionsService {
       const options = await this.options.find({
         where: { questionId: question.id },
       });
-      if (options.length !== 5) {
-        throw new ConflictException('An active MCQ requires exactly five options');
+      if (!isSupportedMcqOptionCount(options.length)) {
+        throw new ConflictException('An active MCQ requires four or five options');
       }
       if (options.filter((option) => option.isCorrect).length !== 1) {
         throw new ConflictException('An active MCQ requires exactly one correct option');
