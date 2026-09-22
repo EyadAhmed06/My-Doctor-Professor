@@ -302,7 +302,6 @@ describe('QuestionImportService', () => {
           { label: 'A', text: 'one' },
           { label: 'B', text: 'two' },
           { label: 'C', text: 'three' },
-          { label: 'D', text: 'four' },
         ],
         correctLabel: 'B',
         explanation: null,
