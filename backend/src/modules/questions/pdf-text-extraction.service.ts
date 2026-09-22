@@ -4,6 +4,7 @@ import {
   execFile,
   type ExecFileOptionsWithStringEncoding,
 } from 'child_process';
+import { createHash } from 'crypto';
 import {
   existsSync,
   mkdtempSync,
@@ -48,6 +49,8 @@ const PROCESS_TIMEOUT_MS = 30_000;
 const PROCESS_MAX_BUFFER_BYTES = 32 * 1024 * 1024;
 const OCR_RENDER_DPI = 220;
 const MIN_GOOD_TEXT_CHARACTERS = 80;
+const EXTRACTION_CACHE_TTL_MS = 15 * 60 * 1000;
+const EXTRACTION_CACHE_MAX_ENTRIES = 8;
 
 const STRUCTURAL_LINE_START =
   /^(?:\(?\d+\)?\s*(?:[.)\]:=-]|->|→)?\s*[A-Fa-f](?:\b|\s|$)|(?:Q(?:uestion)?\s*)?\(?\d+\)?\s*[.)\]:-]\s+|\(?[A-Fa-f]\)?\s*[.)\]:-]\s+|(?:answer\s*key|answers?|correct\s+answers?)\b)/i;
@@ -400,12 +403,33 @@ export function calculatePdfExtractionConfidence(
 @Injectable()
 export class PdfTextExtractionService {
   private readonly logger = new Logger(PdfTextExtractionService.name);
+  private readonly extractionCache = new Map<
+    string,
+    { storedAt: number; value: UnicodeParsedPdf }
+  >();
 
   async extract(
     buffer: Buffer,
     options: PdfExtractionOptions = {},
   ): Promise<UnicodeParsedPdf> {
     const startedAt = Date.now();
+    const cacheEligible = !options.forceOcr && !(options.ocrPages?.length);
+    const cacheKey = cacheEligible
+      ? createHash('sha256').update(buffer).digest('hex')
+      : null;
+    if (cacheKey) {
+      const cached = this.readExtractionCache(cacheKey);
+      if (cached) {
+        this.logger.log(
+          JSON.stringify({
+            event: 'pdf_extraction_cache_hit',
+            page_count: cached.pageCount,
+            total_ms: Date.now() - startedAt,
+          }),
+        );
+        return cached;
+      }
+    }
     const workDir = mkdtempSync(join(tmpdir(), 'mdp-pdf-'));
     const pdfPath = join(workDir, 'input.pdf');
     const textPath = join(workDir, 'output.txt');
@@ -552,6 +576,13 @@ export class PdfTextExtractionService {
           method: result.extractionMethod,
         }),
       );
+      if (
+        cacheKey &&
+        result.text.trim() &&
+        (result.emptyPageCount ?? 0) === 0
+      ) {
+        this.writeExtractionCache(cacheKey, result);
+      }
       return result;
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
@@ -861,6 +892,42 @@ export class PdfTextExtractionService {
     const configured = Number(process.env.PDF_OCR_CONCURRENCY || '2');
     if (!Number.isFinite(configured)) return 2;
     return Math.max(1, Math.min(4, Math.floor(configured)));
+  }
+
+  private readExtractionCache(key: string): UnicodeParsedPdf | null {
+    const entry = this.extractionCache.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.storedAt > EXTRACTION_CACHE_TTL_MS) {
+      this.extractionCache.delete(key);
+      return null;
+    }
+
+    // Refresh LRU position.
+    this.extractionCache.delete(key);
+    this.extractionCache.set(key, entry);
+    return this.cloneParsedPdf(entry.value);
+  }
+
+  private writeExtractionCache(key: string, value: UnicodeParsedPdf): void {
+    this.extractionCache.delete(key);
+    this.extractionCache.set(key, {
+      storedAt: Date.now(),
+      value: this.cloneParsedPdf(value),
+    });
+    while (this.extractionCache.size > EXTRACTION_CACHE_MAX_ENTRIES) {
+      const oldest = this.extractionCache.keys().next().value as
+        | string
+        | undefined;
+      if (!oldest) break;
+      this.extractionCache.delete(oldest);
+    }
+  }
+
+  private cloneParsedPdf(value: UnicodeParsedPdf): UnicodeParsedPdf {
+    return {
+      ...value,
+      pages: value.pages.map((page) => ({ ...page })),
+    };
   }
 
   private binaries() {
