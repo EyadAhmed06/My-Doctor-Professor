@@ -81,6 +81,7 @@ type Candidate = {
   reuse_question_id?: string;
   allow_topic_override?: boolean;
   allow_duplicate?: boolean;
+  allow_four_options?: boolean;
 };
 
 type Inspection = {
@@ -147,6 +148,8 @@ type EnrichmentResponse = {
 type PublishResult = { created: number; reused: number; skipped: number };
 
 const OPTION_LABELS = ["A", "B", "C", "D", "E"] as const;
+const MIN_MCQ_OPTIONS = 4;
+const MAX_MCQ_OPTIONS = 5;
 const EDITABLE_OPTION_LABELS = ["A", "B", "C", "D", "E", "F"] as const;
 const EXPLANATION_MAX_LENGTH = 220;
 const EXPLANATION_MAX_SENTENCES = 2;
@@ -179,6 +182,16 @@ function percent(value: number) {
   return `${Math.round(Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0)) * 100)}%`;
 }
 
+function hasSupportedOptionCount(count: number) {
+  return count >= MIN_MCQ_OPTIONS && count <= MAX_MCQ_OPTIONS;
+}
+
+function hasSequentialOptionLabels(candidate: Candidate) {
+  return candidate.options
+    .map((option) => option.label.toUpperCase())
+    .join(",") === OPTION_LABELS.slice(0, candidate.options.length).join(",");
+}
+
 function statusClass(status: Candidate["status"]) {
   if (status === "VALID") return "good";
   if (status === "NEEDS_REVIEW") return "warning";
@@ -194,8 +207,9 @@ function aiStatus(candidate: Candidate) {
 function isAiEligible(candidate: Candidate) {
   return candidate.status !== "INVALID"
     && candidate.question_text.trim().length >= 8
-    && candidate.options.length === 5
-    && candidate.options.map((option) => option.label.toUpperCase()).join(",") === "A,B,C,D,E"
+    && hasSupportedOptionCount(candidate.options.length)
+    && hasSequentialOptionLabels(candidate)
+    && (candidate.options.length !== MIN_MCQ_OPTIONS || Boolean(candidate.allow_four_options))
     && candidate.options.every((option) => option.option_text.trim().length > 0)
     && candidate.options.filter((option) => option.is_correct).length === 1;
 }
@@ -216,7 +230,7 @@ function isExplanationValid(value: string | null | undefined) {
 function hasCompleteExplanations(candidate: Candidate) {
   return Boolean(candidate.explanation?.trim())
     && isExplanationValid(candidate.explanation)
-    && candidate.options.length === 5
+    && hasSupportedOptionCount(candidate.options.length)
     && candidate.options.every((option) => Boolean(option.explanation?.trim()) && isExplanationValid(option.explanation));
 }
 
@@ -232,7 +246,8 @@ function candidateIsPublishable(candidate: Candidate) {
     || (hasCompleteExplanations(candidate) && candidate.ai_enrichment?.status !== "STALE");
   return candidate.status !== "INVALID"
     && candidate.question_text.trim().length >= 8
-    && candidate.options.length === 5
+    && hasSupportedOptionCount(candidate.options.length)
+    && (candidate.options.length !== MIN_MCQ_OPTIONS || Boolean(candidate.allow_four_options))
     && candidate.options.every((option) => option.option_text.trim())
     && candidate.options.filter((option) => option.is_correct).length === 1
     && explanationStateReady
@@ -244,6 +259,9 @@ function recalculateCandidate(candidate: Candidate): Candidate {
   const structuralCodes = new Set([
     "EMPTY_STEM",
     "INVALID_OPTIONS_COUNT",
+    "INVALID_OPTION_COUNT",
+    "FOUR_OPTION_MCQ",
+    "FOUR_OPTION_MCQ_CONFIRMED",
     "NO_CORRECT_OPTION",
     "MULTIPLE_CORRECT_OPTIONS",
     "EMPTY_OPTION",
@@ -254,8 +272,12 @@ function recalculateCandidate(candidate: Candidate): Candidate {
   if (candidate.question_text.trim().length < 8) {
     issues.push({ code: "EMPTY_STEM", severity: "ERROR", message: "Question stem must be at least 8 characters." });
   }
-  if (candidate.options.length !== 5) {
-    issues.push({ code: "INVALID_OPTIONS_COUNT", severity: "ERROR", message: "Every MCQ must contain exactly five options (A–E)." });
+  if (candidate.options.length === MIN_MCQ_OPTIONS) {
+    issues.push(candidate.allow_four_options
+      ? { code: "FOUR_OPTION_MCQ_CONFIRMED", severity: "INFO", message: "Instructor confirmed that this MCQ intentionally contains four answer choices (A–D)." }
+      : { code: "FOUR_OPTION_MCQ", severity: "WARNING", message: "This MCQ has four answer choices. Confirm that A–D is intentional rather than a missing fifth choice." });
+  } else if (!hasSupportedOptionCount(candidate.options.length)) {
+    issues.push({ code: "INVALID_OPTIONS_COUNT", severity: "ERROR", message: "Every MCQ must contain four or five answer options." });
   }
   if (candidate.options.some((option) => !option.option_text.trim())) {
     issues.push({ code: "EMPTY_OPTION", severity: "WARNING", message: "One or more answer options are empty." });
@@ -409,9 +431,24 @@ const CandidateEditor = memo(function CandidateEditor({
 
       <div className="question-import-options">
         <div className="question-import-options-header">
-          <span>Exactly five answer options required · currently {candidate.options.length}</span>
+          <span>Four or five answer options supported · currently {candidate.options.length}</span>
           <button type="button" className="question-import-add-option-btn" disabled={candidate.options.length >= OPTION_LABELS.length} onClick={() => onAddChoice(candidate.candidate_id)}><FiPlus /> Add choice</button>
         </div>
+
+        {candidate.options.length === MIN_MCQ_OPTIONS && (
+          <label className="question-import-confirm">
+            <input
+              type="checkbox"
+              checked={Boolean(candidate.allow_four_options)}
+              onChange={(event) => onUpdate(candidate.candidate_id, (current) => ({
+                ...current,
+                allow_four_options: event.target.checked,
+                approved: false,
+              }))}
+            />
+            <span>I confirm this question intentionally has four answer choices (A–D).</span>
+          </label>
+        )}
 
         {candidate.options.map((option, optionIndex) => (
           <div key={`${candidate.candidate_id}-${option.label}-${optionIndex}`} style={{ display: "grid", gap: "0.45rem", marginBottom: "0.75rem" }}>
@@ -465,7 +502,7 @@ const CandidateEditor = memo(function CandidateEditor({
           <input type="checkbox" checked={Boolean(candidate.approved)} disabled={!publishable} onChange={(event) => onUpdate(candidate.candidate_id, (current) => ({ ...current, approved: event.target.checked }))} />
           <span>{candidate.reuse_question_id ? "Approve reuse" : "Approve for publication"}</span>
         </label>
-        {!publishable && !candidate.reuse_question_id && <span style={{ fontSize: "0.82rem", opacity: 0.76 }}>AI is not required for approval. If any explanation is present, complete all question + A–E explanations (or regenerate them) before approval.</span>}
+        {!publishable && !candidate.reuse_question_id && <span style={{ fontSize: "0.82rem", opacity: 0.76 }}>AI is not required for approval. If any explanation is present, complete the question explanation plus every supplied option explanation (or regenerate them) before approval.</span>}
       </footer>
     </article>
   );
@@ -536,7 +573,7 @@ export function QuestionImportPage() {
     setError(null);
     setInspection(null);
     setCandidates([]);
-    notify({ title: "Inspecting PDF", description: "Extracting Unicode text, matching section-scoped answer keys and validating A–E MCQs.", tone: "info" });
+    notify({ title: "Inspecting PDF", description: "Extracting Unicode text, matching section-scoped answer keys and validating A–D / A–E MCQs.", tone: "info" });
     try {
       const body = new FormData();
       body.append("file", file);
@@ -547,7 +584,7 @@ export function QuestionImportPage() {
         body,
         signal: AbortSignal.timeout(300_000),
       });
-      if ((result.inspector_contract_version ?? 0) < 5) {
+      if ((result.inspector_contract_version ?? 0) < 7) {
         throw new Error("The running backend uses an outdated MCQ Inspector contract. Update/restart the backend before using this importer.");
       }
       setInspection(result);
@@ -558,6 +595,7 @@ export function QuestionImportPage() {
         approved: false,
         allow_topic_override: false,
         allow_duplicate: false,
+        allow_four_options: false,
       })));
       notify({
         title: "PDF inspection complete",
@@ -589,6 +627,7 @@ export function QuestionImportPage() {
       return {
         ...candidate,
         reuse_question_id: undefined,
+        allow_four_options: false,
         options: relabelOptions([
           ...candidate.options,
           {
@@ -608,6 +647,7 @@ export function QuestionImportPage() {
       return {
         ...candidate,
         reuse_question_id: undefined,
+        allow_four_options: false,
         options: relabelOptions(
           candidate.options.filter((_, index) => index !== optionIndex),
         ),
@@ -652,7 +692,7 @@ export function QuestionImportPage() {
     }
     const eligible = targets.filter(isAiEligible);
     if (!eligible.length) {
-      notify({ title: "No eligible questions", description: "Each question needs a valid stem, exactly A–E, and one source-correct answer before AI generation.", tone: "info" });
+      notify({ title: "No eligible questions", description: "Each question needs a valid stem, four or five sequential choices, one source-correct answer, and four-choice confirmation when applicable before AI generation.", tone: "info" });
       return;
     }
 
@@ -775,8 +815,34 @@ export function QuestionImportPage() {
       approved: false,
       allow_topic_override: true,
       allow_duplicate: false,
+      allow_four_options: false,
     });
     setCandidates((current) => [...current, candidate]);
+  }
+
+  function confirmAllFourChoiceQuestions() {
+    const pending = candidates.filter(
+      (candidate) => candidate.options.length === MIN_MCQ_OPTIONS && !candidate.allow_four_options,
+    );
+    if (!pending.length) {
+      notify({
+        title: "Four-choice MCQs already confirmed",
+        description: "There are no unconfirmed four-choice questions in this inspection.",
+        tone: "info",
+      });
+      return;
+    }
+    const ids = new Set(pending.map((candidate) => candidate.candidate_id));
+    setCandidates((current) => current.map((candidate) =>
+      ids.has(candidate.candidate_id)
+        ? recalculateCandidate({ ...candidate, allow_four_options: true, approved: false })
+        : candidate,
+    ));
+    notify({
+      title: "Four-choice MCQs confirmed",
+      description: `${pending.length} question(s) marked as intentionally containing A–D choices.`,
+      tone: "success",
+    });
   }
 
   function approveAllReady() {
@@ -826,7 +892,7 @@ export function QuestionImportPage() {
     if (blocked) {
       const reason = aiStatus(blocked) === "STALE"
         ? "Its explanation is stale after the question/options changed. Regenerate it first."
-        : "It needs exactly five complete options, one correct answer, and concise question + A–E explanations.";
+        : "It needs four or five complete options, one correct answer, four-choice confirmation when applicable, and concise explanations for every supplied choice.";
       notify({ title: `Question ${blocked.question_number ?? ""} is not publishable`, description: reason, tone: "error" });
       return;
     }
@@ -856,6 +922,7 @@ export function QuestionImportPage() {
             reuse_question_id: candidate.reuse_question_id || undefined,
             allow_topic_override: Boolean(candidate.allow_topic_override),
             allow_duplicate: Boolean(candidate.allow_duplicate),
+            allow_four_options: Boolean(candidate.allow_four_options),
           })),
         },
       });
@@ -874,6 +941,10 @@ export function QuestionImportPage() {
 
   const topics = useMemo(() => flattenTopics(course), [course]);
   const approvedCount = candidates.filter((candidate) => candidate.approved).length;
+  const fourChoiceCount = candidates.filter((candidate) => candidate.options.length === MIN_MCQ_OPTIONS).length;
+  const unconfirmedFourChoiceCount = candidates.filter(
+    (candidate) => candidate.options.length === MIN_MCQ_OPTIONS && !candidate.allow_four_options,
+  ).length;
   const structurallyBlocked = inspection?.summary?.structurally_complete === false;
   const expectedQuestions = inspection?.summary?.expected ?? null;
   const statusCounts = useMemo(() => ({
@@ -967,7 +1038,7 @@ export function QuestionImportPage() {
             <div className="question-import-fields">
               <label><span>Course</span><select value={courseId} onChange={(event) => void chooseCourse(event.target.value)}><option value="">Select course…</option>{courses.map((item) => <option value={item.id} key={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label>
               <label><span>Destination topic</span><select value={topicId} disabled={!course} onChange={(event) => { setTopicId(event.target.value); setInspection(null); setCandidates([]); }}><option value="">Select exact topic…</option>{topics.map((topic) => <option value={topic.id} key={`${topic.id}-${topic.path}`}>{topic.path} · {topic.topicName}</option>)}</select></label>
-              <label className="question-import-file"><span>Question PDF</span><input type="file" accept="application/pdf,.pdf" onChange={(event) => { setFile(event.target.files?.[0] || null); setInspection(null); setCandidates([]); }} /><small>PDF · max 50 MB · canonical MCQs must contain exactly A–E.</small></label>
+              <label className="question-import-file"><span>Question PDF</span><input type="file" accept="application/pdf,.pdf" onChange={(event) => { setFile(event.target.files?.[0] || null); setInspection(null); setCandidates([]); }} /><small>PDF · max 50 MB · canonical MCQs may contain A–D or A–E.</small></label>
             </div>
             <label className="question-import-rights"><input type="checkbox" checked={copyrightConfirmed} onChange={(event) => setCopyrightConfirmed(event.target.checked)} /><span>I confirm I have permission to use and publish this material.</span></label>
             <div className="question-import-upload-actions">
@@ -1053,6 +1124,18 @@ export function QuestionImportPage() {
                   <div><span className="page-eyebrow">REVIEW · EXPLAIN · PUBLISH</span><h2>Review inspected MCQs</h2><p>Explanations are intentionally short: maximum two sentences / 220 characters. Edit anything before approval.</p></div>
                   <div className="question-import-bulk-actions">
                     <strong>{approvedCount} / {candidates.length}</strong><span>approved</span>
+                    {fourChoiceCount > 0 && (
+                      <button
+                        type="button"
+                        className="pp-button secondary"
+                        disabled={unconfirmedFourChoiceCount === 0}
+                        onClick={confirmAllFourChoiceQuestions}
+                      >
+                        <FiCheckCircle /> {unconfirmedFourChoiceCount > 0
+                          ? `Confirm all 4-choice MCQs (${unconfirmedFourChoiceCount})`
+                          : `All 4-choice MCQs confirmed (${fourChoiceCount})`}
+                      </button>
+                    )}
                     <button type="button" className="pp-button" disabled={enrichingIds.size > 0 || structurallyBlocked} onClick={() => void generateExplanations(candidates.filter((candidate) => !["GENERATED", "CACHED"].includes(aiStatus(candidate))), false)}>{enrichingIds.size ? <><FiRefreshCw className="spin" /> Generating…</> : <><FiRefreshCw /> Generate missing explanations</>}</button>
                     <button type="button" className="pp-button secondary" disabled={structurallyBlocked} onClick={approveAllReady}><FiCheckCircle /> Approve all ready</button>
                   </div>
@@ -1141,7 +1224,7 @@ export function QuestionImportPage() {
                 )}
 
                 <div className="question-import-publish-bar">
-                  <div><strong>{approvedCount} of {candidates.length} approved</strong><span>Server-side publication revalidates A–E, one correct answer, permissions, duplicates, and explanation length.</span></div>
+                  <div><strong>{approvedCount} of {candidates.length} approved</strong><span>Server-side publication revalidates 4–5 choices, one correct answer, four-choice confirmation, permissions, duplicates, and explanation length.</span></div>
                   <div className="question-import-publish-actions"><button type="button" className="pp-button secondary" onClick={approveAllReady}><FiCheckCircle /> Approve all ready</button><button type="button" className="pp-button" disabled={publishing || approvedCount === 0 || enrichingIds.size > 0 || structurallyBlocked} onClick={() => void publishApproved()}>{publishing ? <><FiRefreshCw className="spin" /> Publishing…</> : <><FiCheck /> Publish approved ({approvedCount})</>}</button></div>
                 </div>
               </section>
