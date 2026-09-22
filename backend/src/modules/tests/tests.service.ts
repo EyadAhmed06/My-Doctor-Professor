@@ -17,6 +17,7 @@ import { NotificationType } from '../../common/entities/notification.entity';
 import { QuestionFlag, QuestionFlagType } from '../../common/entities/question-flag.entity';
 import { QuestionNote } from '../../common/entities/question-note.entity';
 import { Question, QuestionType } from '../../common/entities/question.entity';
+import { isSupportedMcqOptionCount } from '../../common/mcq-option-policy';
 import { StudentAnswer } from '../../common/entities/student-answer.entity';
 import {
   TestAttempt,
@@ -206,7 +207,7 @@ export class TestsService implements OnModuleInit {
       .andWhere(`(
         SELECT COUNT(*) FROM mcq_options option
         WHERE option.question_id = question.id
-      ) = 5`)
+      ) BETWEEN 4 AND 5`)
       .andWhere(`(
         SELECT COUNT(*) FROM mcq_options option
         WHERE option.question_id = question.id AND option.is_correct = TRUE
@@ -252,7 +253,10 @@ export class TestsService implements OnModuleInit {
       .andWhere('question.is_active = TRUE').andWhere('question.is_question_bank = TRUE')
       .andWhere('question.question_type = :mcqType', { mcqType: QuestionType.MCQ });
     if (dto.difficulty) builder.andWhere('question.difficulty = :difficulty', { difficulty: dto.difficulty });
-    const eligible = await builder.getMany();
+    const eligible = (await builder.getMany()).filter((question) =>
+      isSupportedMcqOptionCount(question.options.length)
+      && question.options.filter((option) => option.isCorrect).length === 1,
+    );
     if (eligible.length < dto.question_count) {
       throw new BadRequestException(`Only ${eligible.length} eligible questions are available for this selection`);
     }
