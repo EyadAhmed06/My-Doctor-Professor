@@ -2,6 +2,7 @@ import { Controller, Get, Param, ParseUUIDPipe, UseGuards } from '@nestjs/common
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { QuestionType } from '../../common/entities/question.entity';
+import { isSupportedMcqOptionCount } from '../../common/mcq-option-policy';
 import { TestAttempt, TestAttemptStatus } from '../../common/entities/test-attempt.entity';
 import { TestQuestion } from '../../common/entities/test-question.entity';
 import { TestType } from '../../common/entities/test.entity';
@@ -50,7 +51,7 @@ export class TestLaunchController {
     const mcqs = assignments.filter((item) => item.question.questionType === QuestionType.MCQ);
     const mcqCount = mcqs.length;
     const malformedMcqs = mcqs.filter((item) =>
-      item.question.options.length !== 5
+      !isSupportedMcqOptionCount(item.question.options.length)
       || item.question.options.filter((option) => option.isCorrect).length !== 1,
     );
     const isFinal = test.testType === TestType.COURSE || /\bfinal\b/i.test(test.title);
@@ -59,7 +60,7 @@ export class TestLaunchController {
 
     if (questionCount === 0) issues.push('This assessment has no questions yet.');
     if (malformedMcqs.length) {
-      issues.push(`${malformedMcqs.length} MCQ question(s) are malformed. Every MCQ must have exactly five options and exactly one correct answer.`);
+      issues.push(`${malformedMcqs.length} MCQ question(s) are malformed. Every MCQ must have four or five options and exactly one correct answer.`);
     }
     if (isFinal && questionCount !== FINAL_QUESTION_COUNT) {
       issues.push(`Final exams require exactly ${FINAL_QUESTION_COUNT} questions; ${questionCount} are currently configured.`);
