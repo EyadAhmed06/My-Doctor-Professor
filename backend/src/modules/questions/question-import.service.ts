@@ -262,25 +262,20 @@ export class QuestionImportService {
     let recoveryPages: number[] = [];
 
     const needsStructuralRecovery =
-      parsedDocument.isStructurallyComplete === false ||
-      parsedDocument.questions.some(
-        (question) =>
-          question.options.length !== REQUIRED_MCQ_OPTIONS ||
-          !question.correctLabel ||
-          !question.options.some(
-            (option) => option.label === question.correctLabel,
-          ),
-      );
+      this.needsStructuralRecovery(parsedDocument);
+    let fullRecoveryFallback = false;
 
     if (needsStructuralRecovery) {
       recoveryPages = this.recoveryPageNumbers(pdf, parsedDocument);
       const recoveryStartedAt = Date.now();
+      const originalPdf = pdf;
+      const originalDocument = parsedDocument;
       const recoveredPdf = await this.recoverIncompletePdf(
         safeFile.buffer,
-        pdf,
+        originalPdf,
         recoveryPages,
       );
-      recoveryMs = Date.now() - recoveryStartedAt;
+
       if (recoveredPdf) {
         const recoveryParseStartedAt = Date.now();
         const recoveredDocument = this.parseQuestions(
@@ -288,6 +283,7 @@ export class QuestionImportService {
           documentType,
         );
         parseMs += Date.now() - recoveryParseStartedAt;
+
         if (
           this.shouldPreferRecoveredDocument(
             parsedDocument,
@@ -298,6 +294,45 @@ export class QuestionImportService {
           parsedDocument = recoveredDocument;
         }
       }
+
+      // Preserve the previous correctness contract: targeted OCR is the fast
+      // first recovery pass, not a reduction in recovery capability. If the
+      // document is still structurally incomplete and we have not already
+      // covered every page, fall back to full-page OCR while still reusing the
+      // original text-layer extraction (no second pdfinfo/pdftotext pass).
+      if (
+        this.needsStructuralRecovery(parsedDocument) &&
+        recoveryPages.length < originalPdf.pageCount
+      ) {
+        fullRecoveryFallback = true;
+        const fullPageNumbers = originalPdf.pages.map((page) => page.page);
+        const fullRecoveredPdf = await this.recoverIncompletePdf(
+          safeFile.buffer,
+          originalPdf,
+          fullPageNumbers,
+        );
+        if (fullRecoveredPdf) {
+          const fullParseStartedAt = Date.now();
+          const fullRecoveredDocument = this.parseQuestions(
+            fullRecoveredPdf,
+            documentType,
+          );
+          parseMs += Date.now() - fullParseStartedAt;
+
+          const currentBaseline =
+            pdf === originalPdf ? originalDocument : parsedDocument;
+          if (
+            this.shouldPreferRecoveredDocument(
+              currentBaseline,
+              fullRecoveredDocument,
+            )
+          ) {
+            pdf = fullRecoveredPdf;
+            parsedDocument = fullRecoveredDocument;
+          }
+        }
+      }
+      recoveryMs = Date.now() - recoveryStartedAt;
     }
 
     const parsed = parsedDocument.questions;
@@ -410,6 +445,7 @@ export class QuestionImportService {
         parse_ms: parseMs,
         recovery_triggered: needsStructuralRecovery,
         recovery_pages: recoveryPages,
+        full_recovery_fallback: fullRecoveryFallback,
         recovery_ms: recoveryMs,
         evaluation_ms: evaluationMs,
         total_ms: Date.now() - inspectStartedAt,
@@ -822,6 +858,22 @@ export class QuestionImportService {
     _pageNumbers: number[],
   ): Promise<ParsedPdf | null> {
     return null;
+  }
+
+  private needsStructuralRecovery(
+    document: ParsedQuestionDocument,
+  ): boolean {
+    return (
+      document.isStructurallyComplete === false ||
+      document.questions.some(
+        (question) =>
+          question.options.length !== REQUIRED_MCQ_OPTIONS ||
+          !question.correctLabel ||
+          !question.options.some(
+            (option) => option.label === question.correctLabel,
+          ),
+      )
+    );
   }
 
   private recoveryPageNumbers(
