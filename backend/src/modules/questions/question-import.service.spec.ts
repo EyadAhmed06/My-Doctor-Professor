@@ -341,15 +341,15 @@ describe('QuestionImportService', () => {
     ]);
   });
 
-  it('falls back to full-document recovery only when structural failure cannot be localized', () => {
+  it('does not OCR unrelated pages when structural failure has no local evidence', () => {
     const { service } = build();
     const pdf = {
-      pageCount: 4,
+      pageCount: 8,
       text: 'synthetic',
       extractionConfidence: 1,
-      pages: Array.from({ length: 4 }, (_, index) => ({
+      pages: Array.from({ length: 8 }, (_, index) => ({
         page: index + 1,
-        text: 'healthy text',
+        text: 'healthy prose without MCQ markers',
         source: 'TEXT_LAYER',
         confidence: 1,
       })),
@@ -376,8 +376,79 @@ describe('QuestionImportService', () => {
       isStructurallyComplete: false,
     };
 
+    expect((service as any).recoveryPageNumbers(pdf, document)).toEqual([]);
+  });
+
+  it('localizes a missing question from its raw text marker instead of OCRing the document', () => {
+    const { service } = build();
+    const pdf = {
+      pageCount: 12,
+      text: 'synthetic',
+      extractionConfidence: 1,
+      pages: Array.from({ length: 12 }, (_, index) => ({
+        page: index + 1,
+        text:
+          index === 6
+            ? '1) Garbled question stem\nA) first option\nB) second option'
+            : 'healthy prose',
+        source: 'TEXT_LAYER',
+        confidence: 1,
+      })),
+    };
+    const document = {
+      documentType: 'MCQ',
+      answerKey: new Map(),
+      questions: [],
+      sections: [{
+        title: 'Lecture One',
+        answerKey: new Map([[1, { label: 'B', page: 10 }]]),
+        expectedQuestionNumbers: [1],
+        parsedQuestionNumbers: [],
+        missingQuestionNumbers: [1],
+        unexpectedQuestionNumbers: [],
+        duplicateQuestionNumbers: [],
+        answerKeyConflicts: [],
+        expectedQuestionCount: 1,
+        parsedQuestionCount: 0,
+        completeness: 0,
+      }],
+      expectedQuestionCount: 1,
+      parsedQuestionCount: 0,
+      missingQuestionCount: 1,
+      isStructurallyComplete: false,
+    };
+
     expect((service as any).recoveryPageNumbers(pdf, document)).toEqual([
-      1, 2, 3, 4,
+      6, 7, 8,
+    ]);
+  });
+
+  it('keeps recovery targeted even when most text-layer pages are weak', () => {
+    const { service } = build();
+    const pdf = {
+      pageCount: 10,
+      text: 'synthetic',
+      extractionConfidence: 0.8,
+      pages: Array.from({ length: 10 }, (_, index) => ({
+        page: index + 1,
+        text: 'text',
+        source: 'TEXT_LAYER',
+        confidence: index < 7 ? 0.6 : 0.95,
+      })),
+    };
+    const document = {
+      documentType: 'MCQ',
+      answerKey: new Map(),
+      questions: [],
+      sections: [],
+      expectedQuestionCount: null,
+      parsedQuestionCount: 0,
+      missingQuestionCount: 0,
+      isStructurallyComplete: false,
+    };
+
+    expect((service as any).recoveryPageNumbers(pdf, document)).toEqual([
+      1, 2, 3, 4, 5, 6, 7,
     ]);
   });
 
@@ -390,7 +461,7 @@ describe('QuestionImportService', () => {
     )).rejects.toThrow('Confirm that you have permission');
   });
 
-  it('reuses targeted OCR pages instead of OCRing them again during full fallback', async () => {
+  it('performs only one targeted recovery pass when the document remains incomplete', async () => {
     const { service } = build();
     const pages = Array.from({ length: 4 }, (_, index) => ({
       page: index + 1,
@@ -428,17 +499,6 @@ describe('QuestionImportService', () => {
       ocrPageCount: 1,
       textLayerPageCount: 3,
     };
-    const fullPdf = {
-      ...targetedPdf,
-      pages: targetedPdf.pages.map((page) => ({
-        ...page,
-        source: 'OCR' as const,
-        ocrAttempted: true,
-      })),
-      extractionMethod: 'OCR' as const,
-      ocrPageCount: 4,
-      textLayerPageCount: 0,
-    };
     const parsedQuestion = {
       questionNumber: 1,
       sourcePage: 1,
@@ -462,23 +522,14 @@ describe('QuestionImportService', () => {
       missingQuestionCount: 1,
       isStructurallyComplete: false,
     };
-    const completeDocument = {
-      ...incompleteDocument,
-      expectedQuestionCount: 1,
-      parsedQuestionCount: 1,
-      missingQuestionCount: 0,
-      isStructurallyComplete: true,
-    };
 
     jest.spyOn(service as any, 'extractPdf').mockResolvedValue(originalPdf);
     jest.spyOn(service as any, 'recoveryPageNumbers').mockReturnValue([2]);
     jest.spyOn(service as any, 'parseQuestions')
       .mockReturnValueOnce(incompleteDocument)
-      .mockReturnValueOnce(incompleteDocument)
-      .mockReturnValueOnce(completeDocument);
+      .mockReturnValueOnce(incompleteDocument);
     const recover = jest.spyOn(service as any, 'recoverIncompletePdf')
-      .mockResolvedValueOnce(targetedPdf)
-      .mockResolvedValueOnce(fullPdf);
+      .mockResolvedValueOnce(targetedPdf);
 
     const buffer = fiveOptionLecturePdf();
     const result = await service.inspectPdf(
@@ -487,14 +538,9 @@ describe('QuestionImportService', () => {
       actor,
     );
 
-    expect(recover).toHaveBeenNthCalledWith(1, buffer, originalPdf, [2]);
-    expect(recover).toHaveBeenNthCalledWith(
-      2,
-      buffer,
-      targetedPdf,
-      [1, 3, 4],
-    );
-    expect(result.summary.structurally_complete).toBe(true);
+    expect(recover).toHaveBeenCalledTimes(1);
+    expect(recover).toHaveBeenCalledWith(buffer, originalPdf, [2]);
+    expect(result.summary.structurally_complete).toBe(false);
   });
 
 });
