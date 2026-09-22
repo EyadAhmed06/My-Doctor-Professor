@@ -1,8 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-// security-audit-reviewed: execFileSync uses no shell, fixed argument arrays, bounded time/buffer, and server-controlled binary paths.
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+// security-audit-reviewed: execFile uses no shell, fixed argument arrays, bounded time/buffer, and server-controlled binary paths.
 import {
-  execFileSync,
-  type ExecFileSyncOptionsWithStringEncoding,
+  execFile,
+  type ExecFileOptionsWithStringEncoding,
 } from 'child_process';
 import {
   existsSync,
@@ -19,6 +19,7 @@ export type PdfExtractionMethod = 'TEXT_LAYER' | 'OCR' | 'HYBRID_OCR';
 
 export type PdfExtractionOptions = {
   forceOcr?: boolean;
+  ocrPages?: number[];
 };
 
 export type UnicodePdfPage = {
@@ -398,29 +399,36 @@ export function calculatePdfExtractionConfidence(
 
 @Injectable()
 export class PdfTextExtractionService {
-  extract(
+  private readonly logger = new Logger(PdfTextExtractionService.name);
+
+  async extract(
     buffer: Buffer,
     options: PdfExtractionOptions = {},
-  ): UnicodeParsedPdf {
+  ): Promise<UnicodeParsedPdf> {
+    const startedAt = Date.now();
     const workDir = mkdtempSync(join(tmpdir(), 'mdp-pdf-'));
     const pdfPath = join(workDir, 'input.pdf');
     const textPath = join(workDir, 'output.txt');
-    const pdftotextBinary = process.env.PDFTOTEXT_BIN?.trim() || 'pdftotext';
-    const pdfinfoBinary = process.env.PDFINFO_BIN?.trim() || 'pdfinfo';
-    const pdftoppmBinary = process.env.PDFTOPPM_BIN?.trim() || 'pdftoppm';
-    const tesseractBinary = process.env.TESSERACT_BIN?.trim() || 'tesseract';
-    const processOptions: ExecFileSyncOptionsWithStringEncoding = {
-      encoding: 'utf8',
-      timeout: PROCESS_TIMEOUT_MS,
-      maxBuffer: PROCESS_MAX_BUFFER_BYTES,
-      windowsHide: true,
-    };
+    const binaries = this.binaries();
+    const processOptions = this.processOptions();
+
+    let pageCount = 0;
+    let pdfInfoMs = 0;
+    let textLayerMs = 0;
+    let ocrMs = 0;
+    let requestedOcrPages = 0;
 
     try {
       writeFileSync(pdfPath, buffer, { flag: 'wx' });
 
-      // security-audit-reviewed: execFileSync avoids shell parsing; pdfPath is generated in our private temp directory.
-      const info = execFileSync(pdfinfoBinary, [pdfPath], processOptions);
+      const pdfInfoStarted = Date.now();
+      const info = await this.runProcess(
+        binaries.pdfinfo,
+        [pdfPath],
+        processOptions,
+      );
+      pdfInfoMs = Date.now() - pdfInfoStarted;
+
       const pagesMatch = info.match(/^Pages:\s+(\d+)\s*$/m);
       if (!pagesMatch) {
         throw new BadRequestException(
@@ -428,7 +436,7 @@ export class PdfTextExtractionService {
         );
       }
 
-      const pageCount = Number(pagesMatch[1]);
+      pageCount = Number(pagesMatch[1]);
       if (!Number.isInteger(pageCount) || pageCount < 1) {
         throw new BadRequestException(
           'The PDF does not contain a readable page structure',
@@ -441,10 +449,10 @@ export class PdfTextExtractionService {
       }
 
       let rawPages: UnicodePdfPage[];
+      const textLayerStarted = Date.now();
       try {
-        // security-audit-reviewed: execFileSync avoids shell parsing; every argument is a separate fixed/value argument.
-        execFileSync(
-          pdftotextBinary,
+        await this.runProcess(
+          binaries.pdftotext,
           ['-layout', '-enc', 'UTF-8', pdfPath, textPath],
           processOptions,
         );
@@ -460,97 +468,91 @@ export class PdfTextExtractionService {
           );
         }
 
-        // A broken/missing text layer is not terminal if the physical pages are
-        // renderable. Start with empty pages so the normal per-page OCR path can
-        // recover the document instead of aborting before OCR is attempted.
         rawPages = Array.from({ length: pageCount }, (_, index) => ({
           page: index + 1,
           text: '',
         }));
       }
+      textLayerMs = Date.now() - textLayerStarted;
 
-      const pages = rawPages.map((page) =>
-        this.prepareTextLayerPage(page),
+      let pages = rawPages.map((page) => this.prepareTextLayerPage(page));
+      const explicitOcrPages = new Set(
+        (options.ocrPages || []).filter(
+          (page) => Number.isInteger(page) && page >= 1 && page <= pageCount,
+        ),
       );
+      const pagesToOcr = pages
+        .filter(
+          (page) =>
+            options.forceOcr ||
+            explicitOcrPages.has(page.page) ||
+            shouldOcrPage(page.text),
+        )
+        .map((page) => page.page);
 
-      for (const page of pages) {
-        if (!options.forceOcr && !shouldOcrPage(page.text)) continue;
-        page.ocrAttempted = true;
-
-        const ocrText = this.ocrPage(
+      requestedOcrPages = pagesToOcr.length;
+      if (pagesToOcr.length > 0) {
+        const ocrStarted = Date.now();
+        const recovered = await this.ocrPages(
           pdfPath,
-          page.page,
+          pagesToOcr,
           workDir,
-          pdftoppmBinary,
-          tesseractBinary,
+          binaries.pdftoppm,
+          binaries.tesseract,
           processOptions,
         );
-        if (ocrText === null) continue;
+        ocrMs = Date.now() - ocrStarted;
 
-        const preparedOcr = this.prepareExtractedText(ocrText);
-        const ocrConfidence = calculatePageExtractionConfidence(
-          preparedOcr.text,
-        );
-        const currentConfidence =
-          page.confidence ?? calculatePageExtractionConfidence(page.text);
+        const recoveredByPage = new Map(recovered.map((item) => [item.page, item.text]));
+        pages = pages.map((page) => {
+          if (!recoveredByPage.has(page.page)) return page;
+          page.ocrAttempted = true;
+          const ocrText = recoveredByPage.get(page.page);
+          if (ocrText === null || ocrText === undefined) return page;
 
-        if (
-          preparedOcr.text.trim().length > 0 &&
-          (
-            options.forceOcr ||
-            page.text.trim().length === 0 ||
-            ocrConfidence > currentConfidence
-          )
-        ) {
-          page.text = preparedOcr.text;
-          page.source = 'OCR';
-          page.confidence = ocrConfidence;
-          page.textLength = page.text.trim().length;
-          page.layoutReflowed = preparedOcr.reflowed;
-        }
-      }
+          const preparedOcr = this.prepareExtractedText(ocrText);
+          const ocrConfidence = calculatePageExtractionConfidence(preparedOcr.text);
+          const currentConfidence =
+            page.confidence ?? calculatePageExtractionConfidence(page.text);
+          const forceReplace =
+            options.forceOcr || explicitOcrPages.has(page.page);
 
-      for (const page of pages) {
-        if (!page.text.trim()) {
-          page.source = 'EMPTY';
-          page.confidence = 0;
-          page.textLength = 0;
-        }
-      }
-
-      const cleanedPages = stripRepeatedEdgeFurniture(pages).map((page) =>
-        page.text.trim()
-          ? page
-          : {
+          if (
+            preparedOcr.text.trim().length > 0 &&
+            (
+              forceReplace ||
+              page.text.trim().length === 0 ||
+              ocrConfidence > currentConfidence
+            )
+          ) {
+            return {
               ...page,
-              source: 'EMPTY' as const,
-              confidence: 0,
-              textLength: 0,
-            },
-      );
-      const text = cleanedPages.map((page) => page.text).join('\n');
-      const ocrPageCount = cleanedPages.filter((page) => page.source === 'OCR').length;
-      const textLayerPageCount = cleanedPages.filter(
-        (page) => page.source === 'TEXT_LAYER',
-      ).length;
-      const emptyPageCount = cleanedPages.filter((page) => page.source === 'EMPTY').length;
-      const extractionMethod: PdfExtractionMethod =
-        ocrPageCount === 0
-          ? 'TEXT_LAYER'
-          : textLayerPageCount === 0
-            ? 'OCR'
-            : 'HYBRID_OCR';
+              text: preparedOcr.text,
+              source: 'OCR' as const,
+              confidence: ocrConfidence,
+              textLength: preparedOcr.text.trim().length,
+              layoutReflowed: preparedOcr.reflowed,
+            };
+          }
+          return page;
+        });
+      }
 
-      return {
-        pages: cleanedPages,
-        pageCount,
-        text,
-        extractionConfidence: calculatePdfExtractionConfidence(cleanedPages),
-        extractionMethod,
-        ocrPageCount,
-        textLayerPageCount,
-        emptyPageCount,
-      };
+      const result = this.finalizePages(pages, pageCount);
+      this.logger.log(
+        JSON.stringify({
+          event: 'pdf_extraction_timing',
+          page_count: pageCount,
+          pdfinfo_ms: pdfInfoMs,
+          text_layer_ms: textLayerMs,
+          ocr_pages: requestedOcrPages,
+          ocr_ms: ocrMs,
+          ocr_concurrency: this.ocrConcurrency(),
+          total_ms: Date.now() - startedAt,
+          method: result.extractionMethod,
+        }),
+      );
+      return result;
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
 
@@ -572,6 +574,136 @@ export class PdfTextExtractionService {
     } finally {
       rmSync(workDir, { recursive: true, force: true });
     }
+  }
+
+  /**
+   * Recover only the pages implicated by structural parsing failures.
+   * This deliberately reuses the successful text-layer extraction instead of
+   * repeating pdfinfo + pdftotext and OCRing the whole document.
+   */
+  async recoverPages(
+    buffer: Buffer,
+    currentPdf: UnicodeParsedPdf,
+    requestedPages: number[],
+  ): Promise<UnicodeParsedPdf> {
+    const pageNumbers = [...new Set(requestedPages)]
+      .filter(
+        (page) =>
+          Number.isInteger(page) &&
+          page >= 1 &&
+          page <= currentPdf.pageCount,
+      )
+      .sort((left, right) => left - right);
+
+    if (pageNumbers.length === 0) return currentPdf;
+
+    const startedAt = Date.now();
+    const workDir = mkdtempSync(join(tmpdir(), 'mdp-pdf-recovery-'));
+    const pdfPath = join(workDir, 'input.pdf');
+    const binaries = this.binaries();
+    const processOptions = this.processOptions();
+
+    try {
+      writeFileSync(pdfPath, buffer, { flag: 'wx' });
+      const recovered = await this.ocrPages(
+        pdfPath,
+        pageNumbers,
+        workDir,
+        binaries.pdftoppm,
+        binaries.tesseract,
+        processOptions,
+      );
+      const recoveredByPage = new Map(recovered.map((item) => [item.page, item.text]));
+
+      const merged = currentPdf.pages.map((page) => {
+        if (!recoveredByPage.has(page.page)) return { ...page };
+        const ocrText = recoveredByPage.get(page.page);
+        const attempted = { ...page, ocrAttempted: true };
+        if (ocrText === null || ocrText === undefined) return attempted;
+
+        const preparedOcr = this.prepareExtractedText(ocrText);
+        if (!preparedOcr.text.trim()) return attempted;
+
+        return {
+          ...attempted,
+          text: preparedOcr.text,
+          source: 'OCR' as const,
+          confidence: calculatePageExtractionConfidence(preparedOcr.text),
+          textLength: preparedOcr.text.trim().length,
+          layoutReflowed: preparedOcr.reflowed,
+        };
+      });
+
+      const result = this.finalizePages(merged, currentPdf.pageCount);
+      this.logger.log(
+        JSON.stringify({
+          event: 'pdf_recovery_timing',
+          page_count: currentPdf.pageCount,
+          recovery_pages: pageNumbers,
+          recovery_page_count: pageNumbers.length,
+          ocr_concurrency: this.ocrConcurrency(),
+          total_ms: Date.now() - startedAt,
+          method: result.extractionMethod,
+        }),
+      );
+      return result;
+    } finally {
+      rmSync(workDir, { recursive: true, force: true });
+    }
+  }
+
+  private finalizePages(
+    pages: UnicodePdfPage[],
+    pageCount: number,
+  ): UnicodeParsedPdf {
+    const normalizedPages = pages.map((page) =>
+      page.text.trim()
+        ? page
+        : {
+            ...page,
+            source: 'EMPTY' as const,
+            confidence: 0,
+            textLength: 0,
+          },
+    );
+    const cleanedPages = stripRepeatedEdgeFurniture(normalizedPages).map(
+      (page) =>
+        page.text.trim()
+          ? page
+          : {
+              ...page,
+              source: 'EMPTY' as const,
+              confidence: 0,
+              textLength: 0,
+            },
+    );
+    const text = cleanedPages.map((page) => page.text).join('\n');
+    const ocrPageCount = cleanedPages.filter(
+      (page) => page.source === 'OCR',
+    ).length;
+    const textLayerPageCount = cleanedPages.filter(
+      (page) => page.source === 'TEXT_LAYER',
+    ).length;
+    const emptyPageCount = cleanedPages.filter(
+      (page) => page.source === 'EMPTY',
+    ).length;
+    const extractionMethod: PdfExtractionMethod =
+      ocrPageCount === 0
+        ? 'TEXT_LAYER'
+        : textLayerPageCount === 0
+          ? 'OCR'
+          : 'HYBRID_OCR';
+
+    return {
+      pages: cleanedPages,
+      pageCount,
+      text,
+      extractionConfidence: calculatePdfExtractionConfidence(cleanedPages),
+      extractionMethod,
+      ocrPageCount,
+      textLayerPageCount,
+      emptyPageCount,
+    };
   }
 
   private prepareTextLayerPage(page: UnicodePdfPage): UnicodePdfPage {
@@ -602,20 +734,44 @@ export class PdfTextExtractionService {
     };
   }
 
-  private ocrPage(
+  private async ocrPages(
+    pdfPath: string,
+    pageNumbers: number[],
+    workDir: string,
+    pdftoppmBinary: string,
+    tesseractBinary: string,
+    processOptions: ExecFileOptionsWithStringEncoding,
+  ): Promise<Array<{ page: number; text: string | null }>> {
+    return this.mapWithConcurrency(
+      pageNumbers,
+      this.ocrConcurrency(),
+      async (page) => ({
+        page,
+        text: await this.ocrPage(
+          pdfPath,
+          page,
+          workDir,
+          pdftoppmBinary,
+          tesseractBinary,
+          processOptions,
+        ),
+      }),
+    );
+  }
+
+  private async ocrPage(
     pdfPath: string,
     pageNumber: number,
     workDir: string,
     pdftoppmBinary: string,
     tesseractBinary: string,
-    processOptions: ExecFileSyncOptionsWithStringEncoding,
-  ): string | null {
+    processOptions: ExecFileOptionsWithStringEncoding,
+  ): Promise<string | null> {
     const prefix = join(workDir, `ocr-page-${pageNumber}`);
     const imagePath = `${prefix}.png`;
 
     try {
-      // security-audit-reviewed: execFileSync avoids shell parsing; pdfPath is generated in our private temp directory.
-      execFileSync(
+      await this.runProcess(
         pdftoppmBinary,
         [
           '-f',
@@ -633,8 +789,7 @@ export class PdfTextExtractionService {
       );
       if (!existsSync(imagePath)) return null;
 
-      // security-audit-reviewed: execFileSync avoids shell parsing; every argument is a separate fixed/value argument.
-      return execFileSync(
+      return await this.runProcess(
         tesseractBinary,
         [
           imagePath,
@@ -649,13 +804,81 @@ export class PdfTextExtractionService {
         processOptions,
       );
     } catch {
-      // OCR is an enhancement. If the text layer contains anything usable,
-      // preserve it and let structural completeness report the missing content.
-      // A completely unreadable document is rejected later by inspectPdf.
       return null;
     } finally {
       rmSync(imagePath, { force: true });
     }
+  }
+
+  private runProcess(
+    binary: string,
+    args: string[],
+    options: ExecFileOptionsWithStringEncoding,
+  ): Promise<string> {
+    return new Promise((resolve, reject) => {
+      execFile(binary, args, options, (error, stdout, stderr) => {
+        if (error) {
+          const enriched = error as Error & {
+            stderr?: string;
+            stdout?: string;
+            code?: string;
+          };
+          enriched.stderr = stderr;
+          enriched.stdout = stdout;
+          reject(enriched);
+          return;
+        }
+        resolve(stdout);
+      });
+    });
+  }
+
+  private async mapWithConcurrency<T, R>(
+    items: T[],
+    concurrency: number,
+    worker: (item: T) => Promise<R>,
+  ): Promise<R[]> {
+    if (items.length === 0) return [];
+    const results = new Array<R>(items.length);
+    let cursor = 0;
+    const workerCount = Math.min(Math.max(1, concurrency), items.length);
+
+    await Promise.all(
+      Array.from({ length: workerCount }, async () => {
+        while (true) {
+          const index = cursor;
+          cursor += 1;
+          if (index >= items.length) return;
+          results[index] = await worker(items[index]);
+        }
+      }),
+    );
+
+    return results;
+  }
+
+  private ocrConcurrency(): number {
+    const configured = Number(process.env.PDF_OCR_CONCURRENCY || '2');
+    if (!Number.isFinite(configured)) return 2;
+    return Math.max(1, Math.min(4, Math.floor(configured)));
+  }
+
+  private binaries() {
+    return {
+      pdftotext: process.env.PDFTOTEXT_BIN?.trim() || 'pdftotext',
+      pdfinfo: process.env.PDFINFO_BIN?.trim() || 'pdfinfo',
+      pdftoppm: process.env.PDFTOPPM_BIN?.trim() || 'pdftoppm',
+      tesseract: process.env.TESSERACT_BIN?.trim() || 'tesseract',
+    };
+  }
+
+  private processOptions(): ExecFileOptionsWithStringEncoding {
+    return {
+      encoding: 'utf8',
+      timeout: PROCESS_TIMEOUT_MS,
+      maxBuffer: PROCESS_MAX_BUFFER_BYTES,
+      windowsHide: true,
+    };
   }
 
   private processErrorText(error: unknown): string {
@@ -675,3 +898,4 @@ export class PdfTextExtractionService {
       .join('\n');
   }
 }
+
