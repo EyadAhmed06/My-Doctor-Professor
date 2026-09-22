@@ -887,7 +887,7 @@ export class QuestionImportService {
       document.isStructurallyComplete === false ||
       document.questions.some(
         (question) =>
-          question.options.length !== STANDARD_MCQ_OPTIONS ||
+          !isSupportedMcqOptionCount(question.options.length) ||
           !question.correctLabel ||
           !question.options.some(
             (option) => option.label === question.correctLabel,
@@ -947,7 +947,7 @@ export class QuestionImportService {
     // question page and its immediate boundary neighbors, plus the known answer
     // key page when the key itself may be involved.
     for (const question of document.questions) {
-      const invalidOptions = question.options.length !== STANDARD_MCQ_OPTIONS;
+      const invalidOptions = !isSupportedMcqOptionCount(question.options.length);
       const answerOutsideOptions =
         Boolean(question.correctLabel) &&
         !question.options.some(
@@ -1208,7 +1208,7 @@ export class QuestionImportService {
   ): number {
     return document.questions.filter(
       (question) =>
-        question.options.length === STANDARD_MCQ_OPTIONS &&
+        isSupportedMcqOptionCount(question.options.length) &&
         Boolean(question.correctLabel) &&
         question.options.some(
           (option) => option.label === question.correctLabel,
