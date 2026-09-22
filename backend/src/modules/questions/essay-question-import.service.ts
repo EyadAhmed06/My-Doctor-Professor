@@ -56,7 +56,7 @@ export class EssayQuestionImportService {
     this.validatePdfFile(file);
     const safeFile = file;
     const sha256 = createHash('sha256').update(safeFile.buffer).digest('hex');
-    const pdf = this.pdfTextExtractor.extract(safeFile.buffer);
+    const pdf = await this.pdfTextExtractor.extract(safeFile.buffer);
     if (pdf.text.trim().length < MIN_TEXT_LENGTH) {
       return {
         original_filename: this.safeFilename(safeFile.originalname),
