@@ -125,7 +125,7 @@ export class EnrichQuestionImportMetadataDto {
 export class EnrichQuestionImportCandidateDto {
   @IsString() @IsNotEmpty() @MaxLength(200) candidate_id: string;
   @IsString() @IsNotEmpty() @MaxLength(12000) question_text: string;
-  @IsArray() @ArrayMinSize(5) @ArrayMaxSize(5)
+  @IsArray() @ArrayMinSize(4) @ArrayMaxSize(5)
   @ValidateNested({ each: true })
   @Type(() => EnrichQuestionImportOptionDto)
   options: EnrichQuestionImportOptionDto[];
@@ -169,7 +169,7 @@ export class PublishImportedQuestionDto {
   explanation?: string;
   @IsEnum(QuestionDifficulty) difficulty: QuestionDifficulty;
   @IsInt() @Min(1) @Max(999) marks: number;
-  @IsArray() @ArrayMinSize(5) @ArrayMaxSize(5)
+  @IsArray() @ArrayMinSize(4) @ArrayMaxSize(5)
   @ValidateNested({ each: true })
   @Type(() => PublishImportedOptionDto)
   options: PublishImportedOptionDto[];
@@ -177,6 +177,7 @@ export class PublishImportedQuestionDto {
   @IsOptional() @IsUUID() reuse_question_id?: string;
   @IsOptional() @IsBoolean() allow_topic_override?: boolean;
   @IsOptional() @IsBoolean() allow_duplicate?: boolean;
+  @IsOptional() @IsBoolean() allow_four_options?: boolean;
 }
 
 export class PublishQuestionImportDto {
