@@ -42,15 +42,22 @@ export class UnicodeQuestionImportService extends QuestionImportService {
     super(questions, topics, importDataSource, academicAccess);
   }
 
-  protected override extractPdf(buffer: Buffer): UnicodeParsedPdf {
+  protected override async extractPdf(
+    buffer: Buffer,
+  ): Promise<UnicodeParsedPdf> {
     return this.pdfTextExtraction.extract(buffer);
   }
 
-  protected override recoverIncompletePdf(
+  protected override async recoverIncompletePdf(
     buffer: Buffer,
-    _currentPdf: UnicodeParsedPdf,
-  ): UnicodeParsedPdf {
-    return this.pdfTextExtraction.extract(buffer, { forceOcr: true });
+    currentPdf: UnicodeParsedPdf,
+    pageNumbers: number[],
+  ): Promise<UnicodeParsedPdf> {
+    return this.pdfTextExtraction.recoverPages(
+      buffer,
+      currentPdf,
+      pageNumbers,
+    );
   }
 
   protected override parseQuestions(
