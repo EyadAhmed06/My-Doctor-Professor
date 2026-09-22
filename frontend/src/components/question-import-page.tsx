@@ -319,6 +319,7 @@ function enrichmentPayload(candidate: Candidate) {
     candidate_id: candidate.candidate_id,
     question_text: candidate.question_text,
     source_section: candidate.source_section || undefined,
+    allow_four_options: Boolean(candidate.allow_four_options),
     difficulty: candidate.difficulty,
     explanation: candidate.explanation?.trim() || undefined,
     options: candidate.options.map((option) => ({
