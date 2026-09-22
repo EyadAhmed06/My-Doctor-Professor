@@ -5,6 +5,11 @@ import { In, Repository } from 'typeorm';
 import { QuestionAiEnrichmentCache } from '../../common/entities/question-ai-enrichment-cache.entity';
 import { QuestionDifficulty } from '../../common/entities/question.entity';
 import {
+  hasSequentialMcqLabels,
+  isSupportedMcqOptionCount,
+  sequentialMcqLabels,
+} from '../../common/mcq-option-policy';
+import {
   McqExplanationResult,
   OpenRouterEnrichmentError,
   OpenRouterQuestionEnrichmentService,
@@ -75,7 +80,7 @@ export class QuestionImportAiEnrichmentService {
       return this.withIssue(inspection, {
         code: 'AI_ENRICHMENT_NOT_APPLICABLE',
         severity: 'INFO',
-        message: 'No source-validated five-option MCQs were eligible for automatic explanations.',
+        message: 'No source-validated four- or five-option MCQs were eligible for automatic explanations.',
       });
     }
 
@@ -266,14 +271,15 @@ export class QuestionImportAiEnrichmentService {
     if (metadata.provider !== signature.provider || metadata.model !== signature.model || metadata.prompt_version !== signature.promptVersion) return false;
     if (metadata.content_hash !== this.contentHash(candidate)) return false;
     if (!candidate.explanation?.trim()) return false;
-    return candidate.options.length === 5 && candidate.options.every((option) => Boolean(option.explanation?.trim()));
+    return isSupportedMcqOptionCount(candidate.options.length)
+      && candidate.options.every((option) => Boolean(option.explanation?.trim()));
   }
 
   private isEligible(candidate: ImportCandidate): boolean {
     if (candidate.status === 'INVALID') return false;
     if (candidate.question_text.trim().length < 8) return false;
-    if (candidate.options.length !== 5) return false;
-    if (candidate.options.map((option) => option.label.trim().toUpperCase()).join(',') !== 'A,B,C,D,E') return false;
+    if (!isSupportedMcqOptionCount(candidate.options.length)) return false;
+    if (!hasSequentialMcqLabels(candidate.options.map((option) => option.label))) return false;
     return candidate.options.filter((option) => option.is_correct).length === 1;
   }
 
@@ -420,8 +426,8 @@ export class QuestionImportAiEnrichmentService {
       && result.promptVersion === signature.promptVersion
       && result.sourceCorrectLabel === correct
       && Boolean(result.questionExplanation?.trim())
-      && result.optionExplanations?.length === 5
-      && result.optionExplanations.map((option) => option.label).join(',') === 'A,B,C,D,E'
+      && result.optionExplanations?.length === candidate.options.length
+      && result.optionExplanations.map((option) => option.label).join(',') === sequentialMcqLabels(candidate.options.length).join(',')
       && result.optionExplanations.every((option) => Boolean(option.explanation?.trim()));
   }
 
