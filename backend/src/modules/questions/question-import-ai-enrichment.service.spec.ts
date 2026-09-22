@@ -59,25 +59,22 @@ function generatedResult(candidateId: string) {
 
 describe('QuestionImportAiEnrichmentService', () => {
   it('returns a question explanation plus A-E explanations without changing the answer key', async () => {
-    const openRouter = {
-      isConfigured: () => true,
-      getSignature: () => signature,
-      generate: jest.fn().mockResolvedValue({
-        candidateId: 'candidate-1',
-        sourceCorrectLabel: 'C',
-        answerConsistency: 'CONSISTENT',
-        questionExplanation: 'The stem tests the preferred management principle.',
-        optionExplanations: ['A', 'B', 'C', 'D', 'E'].map((label) => ({
-          label,
-          assessment: label === 'C' ? 'CORRECT' : 'INCORRECT',
-          explanation: `${label} rationale`,
-        })),
-        difficulty: 'MEDIUM',
-        confidence: 0.94,
-        reviewReason: null,
-        model: 'meta/muse-spark-1.3',
-        promptVersion: 'mcq-explanation-v3-four-or-five-options',
-      });
+    const generate = jest.fn().mockResolvedValue({
+      candidateId: 'candidate-1',
+      sourceCorrectLabel: 'C',
+      answerConsistency: 'CONSISTENT',
+      questionExplanation: 'The stem tests the preferred management principle.',
+      optionExplanations: ['A', 'B', 'C', 'D', 'E'].map((label) => ({
+        label,
+        assessment: label === 'C' ? 'CORRECT' : 'INCORRECT',
+        explanation: `${label} rationale`,
+      })),
+      difficulty: 'MEDIUM',
+      confidence: 0.94,
+      reviewReason: null,
+      model: 'meta/muse-spark-1.3',
+      promptVersion: 'mcq-explanation-v3-four-or-five-options',
+    });
     const openRouter = {
       isConfigured: () => true,
       getSignature: () => signature,
@@ -104,21 +101,25 @@ describe('QuestionImportAiEnrichmentService', () => {
       is_correct: label === 'C',
     }));
     const generate = jest.fn().mockResolvedValue({
-        candidateId: 'candidate-1',
-        sourceCorrectLabel: 'C',
-        answerConsistency: 'CONSISTENT',
-        questionExplanation: 'The stem tests the preferred management principle.',
-        optionExplanations: ['A', 'B', 'C', 'D'].map((label) => ({
-          label,
-          assessment: label === 'C' ? 'CORRECT' : 'INCORRECT',
-          explanation: `${label} rationale`,
-        })),
-        difficulty: 'MEDIUM',
-        confidence: 0.94,
-        reviewReason: null,
-        model: 'meta/muse-spark-1.3',
-        promptVersion: 'mcq-explanation-v3-four-or-five-options',
-      }),
+      candidateId: 'candidate-1',
+      sourceCorrectLabel: 'C',
+      answerConsistency: 'CONSISTENT',
+      questionExplanation: 'The stem tests the preferred management principle.',
+      optionExplanations: ['A', 'B', 'C', 'D'].map((label) => ({
+        label,
+        assessment: label === 'C' ? 'CORRECT' : 'INCORRECT',
+        explanation: `${label} rationale`,
+      })),
+      difficulty: 'MEDIUM',
+      confidence: 0.94,
+      reviewReason: null,
+      model: 'meta/muse-spark-1.3',
+      promptVersion: 'mcq-explanation-v3-four-or-five-options',
+    });
+    const openRouter = {
+      isConfigured: () => true,
+      getSignature: () => signature,
+      generate,
     } as unknown as OpenRouterQuestionEnrichmentService;
 
     const service = new QuestionImportAiEnrichmentService(openRouter);
@@ -133,6 +134,53 @@ describe('QuestionImportAiEnrichmentService', () => {
     expect(result.candidates[0].options.map((option) => option.explanation)).toEqual([
       'A rationale', 'B rationale', 'C rationale', 'D rationale',
     ]);
+  });
+
+  it('reuses a cached four-option enrichment without inventing option E', async () => {
+    const fourOptions = ['A', 'B', 'C', 'D'].map((label) => ({
+      label,
+      option_text: `Option ${label}`,
+      is_correct: label === 'C',
+    }));
+    const serviceCandidate = candidate({
+      options: fourOptions,
+      status: 'NEEDS_REVIEW',
+      allow_four_options: true,
+    });
+    const seedService = new QuestionImportAiEnrichmentService({
+      isConfigured: () => true,
+      getSignature: () => signature,
+      generate: jest.fn(),
+    } as unknown as OpenRouterQuestionEnrichmentService);
+    const cachedResult = {
+      ...generatedResult('candidate-1'),
+      optionExplanations: generatedResult('candidate-1').optionExplanations.slice(0, 4),
+    };
+    const cache = {
+      find: jest.fn().mockResolvedValue([{
+        provider: signature.provider,
+        model: signature.model,
+        promptVersion: signature.promptVersion,
+        contentHash: seedService.contentHash(serviceCandidate),
+        result: cachedResult,
+      }]),
+      upsert: jest.fn(),
+    };
+    const generate = jest.fn();
+    const service = new QuestionImportAiEnrichmentService({
+      isConfigured: () => true,
+      getSignature: () => signature,
+      generate,
+    } as unknown as OpenRouterQuestionEnrichmentService, cache as never);
+
+    const result = await service.enrichInspection(inspection(serviceCandidate));
+
+    expect(generate).not.toHaveBeenCalled();
+    expect(result.candidates[0].options).toHaveLength(4);
+    expect(result.candidates[0].options.map((option) => option.explanation)).toEqual([
+      'A rationale', 'B rationale', 'C rationale', 'D rationale',
+    ]);
+    expect(result.candidates[0].options.some((option) => option.label === 'E')).toBe(false);
   });
 
   it('does not enrich an unconfirmed four-option MCQ', async () => {
