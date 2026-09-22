@@ -887,6 +887,7 @@ export class QuestionImportService {
       document.isStructurallyComplete === false ||
       document.questions.some(
         (question) =>
+          question.options.length === MIN_MCQ_OPTIONS ||
           !isSupportedMcqOptionCount(question.options.length) ||
           !question.correctLabel ||
           !question.options.some(
@@ -947,12 +948,22 @@ export class QuestionImportService {
     // question page and its immediate boundary neighbors, plus the known answer
     // key page when the key itself may be involved.
     for (const question of document.questions) {
+      const fourOptionAmbiguity = question.options.length === MIN_MCQ_OPTIONS;
       const invalidOptions = !isSupportedMcqOptionCount(question.options.length);
       const answerOutsideOptions =
         Boolean(question.correctLabel) &&
         !question.options.some(
           (option) => option.label === question.correctLabel,
         );
+
+      // Four options are valid after instructor confirmation, but on first
+      // inspection they are also indistinguishable from a dropped option E.
+      // Give OCR one narrow chance to recover the source page (and a possible
+      // continuation page) before asking the instructor to confirm A-D.
+      if (fourOptionAmbiguity) {
+        addWindow(question.sourcePage, 0, 1);
+        continue;
+      }
 
       if (invalidOptions || answerOutsideOptions) {
         addWindow(question.sourcePage);
@@ -1182,16 +1193,21 @@ export class QuestionImportService {
       this.countStructurallyValidParsedQuestions(current);
     const recoveredValidStructures =
       this.countStructurallyValidParsedQuestions(recovered);
+    const currentStandardStructures =
+      this.countStandardFiveOptionParsedQuestions(current);
+    const recoveredStandardStructures =
+      this.countStandardFiveOptionParsedQuestions(recovered);
 
     // OCR must not lose an answer-key contract that the text layer already
-    // established, nor may it trade valid A-E questions for merely more
-    // detected question numbers.
+    // established, nor may it trade structurally valid four/five-option
+    // questions for merely more detected question numbers.
     if (recoveredExpected < currentExpected) return false;
     if (recoveredMissing > currentMissing) return false;
     if (recoveredValidStructures < currentValidStructures) return false;
 
     if (recoveredMissing < currentMissing) return true;
     if (recoveredValidStructures > currentValidStructures) return true;
+    if (recoveredStandardStructures > currentStandardStructures) return true;
 
     if (
       recovered.isStructurallyComplete === true &&
@@ -1209,6 +1225,19 @@ export class QuestionImportService {
     return document.questions.filter(
       (question) =>
         isSupportedMcqOptionCount(question.options.length) &&
+        Boolean(question.correctLabel) &&
+        question.options.some(
+          (option) => option.label === question.correctLabel,
+        ),
+    ).length;
+  }
+
+  private countStandardFiveOptionParsedQuestions(
+    document: ParsedQuestionDocument,
+  ): number {
+    return document.questions.filter(
+      (question) =>
+        question.options.length === STANDARD_MCQ_OPTIONS &&
         Boolean(question.correctLabel) &&
         question.options.some(
           (option) => option.label === question.correctLabel,
