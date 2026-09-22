@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash } from 'crypto';
@@ -149,6 +150,8 @@ export class QuestionImportService {
     private readonly academicAccess: AcademicAccessService,
   ) {}
 
+  private readonly logger = new Logger(QuestionImportService.name);
+
   async inspectPdf(
     dto: InspectQuestionImportDto,
     file: UploadedResourceFile | undefined,
@@ -162,19 +165,29 @@ export class QuestionImportService {
     await this.academicAccess.assertTopicReadable(dto.topic_id, actor);
     this.validatePdfFile(file);
     const safeFile = file;
+    const inspectStartedAt = Date.now();
     const sha256 = createHash('sha256').update(safeFile.buffer).digest('hex');
-    let pdf = this.extractPdf(safeFile.buffer);
-    const previouslyPublished = await this.questions
+
+    // Database lookups are independent of binary PDF extraction, so overlap
+    // them instead of adding their latency to the critical path.
+    const previouslyPublishedPromise = this.questions
       .createQueryBuilder('question')
       .where('question.reference LIKE :reference', {
         reference: `%${IMPORT_REFERENCE_PREFIX}%sha256=${sha256}%`,
       })
       .getCount();
-
-    const topic = await this.topics.findOne({
+    const topicPromise = this.topics.findOne({
       where: { id: dto.topic_id },
       relations: { lecture: true },
     });
+
+    const extractionStartedAt = Date.now();
+    let pdf = await this.extractPdf(safeFile.buffer);
+    const extractionMs = Date.now() - extractionStartedAt;
+    const [previouslyPublished, topic] = await Promise.all([
+      previouslyPublishedPromise,
+      topicPromise,
+    ]);
     if (!topic) throw new BadRequestException('Selected topic no longer exists');
 
     if (!pdf.text.trim()) {
@@ -232,7 +245,11 @@ export class QuestionImportService {
       ...existing.slice(0, 100).map((question) => question.questionText),
     ].join(' ');
 
+    const parseStartedAt = Date.now();
     let parsedDocument = this.parseQuestions(pdf, documentType);
+    let parseMs = Date.now() - parseStartedAt;
+    let recoveryMs = 0;
+    let recoveryPages: number[] = [];
 
     const needsStructuralRecovery =
       parsedDocument.isStructurallyComplete === false ||
@@ -246,12 +263,21 @@ export class QuestionImportService {
       );
 
     if (needsStructuralRecovery) {
-      const recoveredPdf = this.recoverIncompletePdf(safeFile.buffer, pdf);
+      recoveryPages = this.recoveryPageNumbers(pdf, parsedDocument);
+      const recoveryStartedAt = Date.now();
+      const recoveredPdf = await this.recoverIncompletePdf(
+        safeFile.buffer,
+        pdf,
+        recoveryPages,
+      );
+      recoveryMs = Date.now() - recoveryStartedAt;
       if (recoveredPdf) {
+        const recoveryParseStartedAt = Date.now();
         const recoveredDocument = this.parseQuestions(
           recoveredPdf,
           documentType,
         );
+        parseMs += Date.now() - recoveryParseStartedAt;
         if (
           this.shouldPreferRecoveredDocument(
             parsedDocument,
@@ -361,6 +387,21 @@ export class QuestionImportService {
         (sectionCounts.get(candidate.source_section) || 0) + 1,
       );
     }
+
+    this.logger.log(
+      JSON.stringify({
+        event: 'pdf_inspection_timing',
+        file_sha256_prefix: sha256.slice(0, 12),
+        page_count: pdf.pageCount,
+        extracted_questions: candidates.length,
+        extraction_ms: extractionMs,
+        parse_ms: parseMs,
+        recovery_triggered: needsStructuralRecovery,
+        recovery_pages: recoveryPages,
+        recovery_ms: recoveryMs,
+        total_ms: Date.now() - inspectStartedAt,
+      }),
+    );
 
     return {
       original_filename: this.safeFilename(safeFile.originalname),
@@ -598,7 +639,7 @@ export class QuestionImportService {
     }
   }
 
-  protected extractPdf(buffer: Buffer): ParsedPdf {
+  protected async extractPdf(buffer: Buffer): Promise<ParsedPdf> {
     const binary = buffer.toString('latin1');
     if (/\/Encrypt\b/.test(binary)) {
       throw new BadRequestException('Password-protected or encrypted PDFs are not supported for question import');
@@ -754,11 +795,84 @@ export class QuestionImportService {
     return output;
   }
 
-  protected recoverIncompletePdf(
+  protected async recoverIncompletePdf(
     _buffer: Buffer,
     _currentPdf: ParsedPdf,
-  ): ParsedPdf | null {
+    _pageNumbers: number[],
+  ): Promise<ParsedPdf | null> {
     return null;
+  }
+
+  private recoveryPageNumbers(
+    pdf: ParsedPdf,
+    document: ParsedQuestionDocument,
+  ): number[] {
+    const pages = new Set<number>();
+    const addPageWithNeighbors = (page: number | null | undefined) => {
+      if (!page) return;
+      for (const candidate of [page - 1, page, page + 1]) {
+        if (candidate >= 1 && candidate <= pdf.pageCount) pages.add(candidate);
+      }
+    };
+
+    // Direct structural failures have the strongest page provenance.
+    for (const question of document.questions) {
+      const malformed =
+        question.options.length !== REQUIRED_MCQ_OPTIONS ||
+        !question.correctLabel ||
+        !question.options.some(
+          (option) => option.label === question.correctLabel,
+        );
+      if (!malformed) continue;
+      addPageWithNeighbors(question.sourcePage);
+      addPageWithNeighbors(question.answerKeyPage);
+    }
+
+    // Missing question numbers do not have their own source page. Infer the
+    // smallest safe recovery window from neighboring questions in the same
+    // section, then include one physical neighbor on each side.
+    for (const section of document.sections || []) {
+      const scoped = document.questions
+        .filter(
+          (question) =>
+            (question.sourceSection || null) === (section.title || null),
+        )
+        .sort((left, right) => left.questionNumber - right.questionNumber);
+
+      for (const missing of section.missingQuestionNumbers) {
+        const lower = [...scoped]
+          .reverse()
+          .find((question) => question.questionNumber < missing);
+        const upper = scoped.find(
+          (question) => question.questionNumber > missing,
+        );
+        addPageWithNeighbors(lower?.sourcePage);
+        addPageWithNeighbors(upper?.sourcePage);
+      }
+
+      if ((section.answerKeyConflicts || []).length > 0) {
+        for (const question of scoped) addPageWithNeighbors(question.answerKeyPage);
+      }
+    }
+
+    // Low-confidence text-layer pages are cheap, high-value recovery targets.
+    for (const page of pdf.pages) {
+      if ((page.confidence ?? pdf.extractionConfidence) < 0.7) {
+        addPageWithNeighbors(page.page);
+      }
+    }
+
+    // If provenance is insufficient, retain the old correctness-first fallback.
+    // Otherwise never OCR the entire document just because one question failed.
+    if (pages.size === 0 && document.isStructurallyComplete === false) {
+      return pdf.pages.map((page) => page.page);
+    }
+
+    const targeted = [...pages].sort((left, right) => left - right);
+    if (targeted.length / Math.max(1, pdf.pageCount) > 0.6) {
+      return pdf.pages.map((page) => page.page);
+    }
+    return targeted;
   }
 
   private shouldPreferRecoveredDocument(
