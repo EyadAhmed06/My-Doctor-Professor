@@ -47,6 +47,23 @@ describe('PublishQuestionImportDto explanation policy', () => {
     expect(await validate(dto)).toHaveLength(0);
   });
 
+  it('accepts a four-option import payload so server publication can apply instructor confirmation', async () => {
+    const payload = payloadWithExplanation('Concise explanation.');
+    payload.candidates[0].options = payload.candidates[0].options.slice(0, 4);
+    (payload.candidates[0] as typeof payload.candidates[0] & { allow_four_options?: boolean }).allow_four_options = true;
+
+    const dto = plainToInstance(PublishQuestionImportDto, payload);
+    expect(await validate(dto)).toHaveLength(0);
+  });
+
+  it('rejects an import payload with fewer than four options', async () => {
+    const payload = payloadWithExplanation('Concise explanation.');
+    payload.candidates[0].options = payload.candidates[0].options.slice(0, 3);
+
+    const dto = plainToInstance(PublishQuestionImportDto, payload);
+    expect(await validate(dto)).not.toHaveLength(0);
+  });
+
   it('rejects an explanation longer than 220 characters', async () => {
     const dto = plainToInstance(
       PublishQuestionImportDto,
