@@ -379,3 +379,33 @@ test('billing exhaustion stops later enrichment batches and reports deferred que
   await expect(page.getByText(/1 generated · 0 reused · 11 deferred/)).toBeVisible();
   await expect(page.getByText('AI DEFERRED BILLING')).toHaveCount(11);
 });
+
+
+test('mobile review mounts only one full MCQ editor for a large inspected PDF', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const source = inspectionBody();
+  const template = source.candidates[0];
+  source.candidates = Array.from({ length: 80 }, (_, index) => ({
+    ...template,
+    candidate_id: `candidate-mobile-${index + 1}`,
+    question_number: index + 1,
+    question_text: `Which chamber receives oxygenated blood in mobile scenario ${index + 1}?`,
+    options: template.options.map((option) => ({ ...option })),
+  }));
+  source.summary = { extracted: 80, valid: 80, needs_review: 0, invalid: 0, duplicates: 0 };
+
+  await openInspection(page, source);
+
+  await expect(page.locator('.question-import-mobile-list > button')).toHaveCount(80);
+  await expect(page.locator('.question-import-candidate')).toHaveCount(1);
+  await expect(page.locator('.question-import-option-row')).toHaveCount(5);
+  await expect(page.locator('.question-import-candidate')).toContainText('Question 1');
+
+  await page.locator('.question-import-mobile-list > button').nth(39).click();
+
+  await expect(page.locator('.question-import-candidate')).toHaveCount(1);
+  await expect(page.locator('.question-import-candidate')).toContainText('Question 40');
+  await expect(page.locator('.question-import-option-row')).toHaveCount(5);
+  await expect(page.locator('.question-import-mobile-nav')).toContainText('40 / 80');
+});
