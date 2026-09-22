@@ -52,6 +52,7 @@ const OCR_RENDER_DPI = 220;
 const MIN_GOOD_TEXT_CHARACTERS = 80;
 const EXTRACTION_CACHE_TTL_MS = 15 * 60 * 1000;
 const EXTRACTION_CACHE_MAX_ENTRIES = 8;
+const EXTRACTION_CACHE_VERSION = 'pdf-extract-v2';
 
 const STRUCTURAL_LINE_START =
   /^(?:\(?\d+\)?\s*(?:[.)\]:=-]|->|→)?\s*[A-Fa-f](?:\b|\s|$)|(?:Q(?:uestion)?\s*)?\(?\d+\)?\s*[.)\]:-]\s+|\(?[A-Fa-f]\)?\s*[.)\]:-]\s+|(?:answer\s*key|answers?|correct\s+answers?)\b)/i;
@@ -416,7 +417,13 @@ export class PdfTextExtractionService {
     const startedAt = Date.now();
     const cacheEligible = !options.forceOcr && !(options.ocrPages?.length);
     const cacheKey = cacheEligible
-      ? createHash('sha256').update(buffer).digest('hex')
+      ? [
+          EXTRACTION_CACHE_VERSION,
+          options.deferWeakPageOcr ? 'defer-weak-ocr' : 'eager-weak-ocr',
+          process.env.TESSERACT_LANG?.trim() || 'eng',
+          String(OCR_RENDER_DPI),
+          createHash('sha256').update(buffer).digest('hex'),
+        ].join(':')
       : null;
     if (cacheKey) {
       const cached = this.readExtractionCache(cacheKey);
@@ -838,7 +845,7 @@ export class PdfTextExtractionService {
                 '-c',
                 'preserve_interword_spaces=1',
               ],
-              processOptions,
+              this.tesseractProcessOptions(processOptions),
             );
             return { page, text };
           } catch {
@@ -972,7 +979,7 @@ export class PdfTextExtractionService {
           '-c',
           'preserve_interword_spaces=1',
         ],
-        processOptions,
+        this.tesseractProcessOptions(processOptions),
       );
     } catch {
       return null;
@@ -1062,6 +1069,24 @@ export class PdfTextExtractionService {
     const configured = Number(process.env.PDF_OCR_CONCURRENCY || '2');
     if (!Number.isFinite(configured)) return 2;
     return Math.max(1, Math.min(4, Math.floor(configured)));
+  }
+
+  private ocrThreadsPerWorker(): number {
+    const configured = Number(process.env.PDF_OCR_THREADS_PER_WORKER || '1');
+    if (!Number.isFinite(configured)) return 1;
+    return Math.max(1, Math.min(2, Math.floor(configured)));
+  }
+
+  private tesseractProcessOptions(
+    options: ExecFileOptionsWithStringEncoding,
+  ): ExecFileOptionsWithStringEncoding {
+    return {
+      ...options,
+      env: {
+        ...process.env,
+        OMP_THREAD_LIMIT: String(this.ocrThreadsPerWorker()),
+      },
+    };
   }
 
   private readExtractionCache(key: string): UnicodeParsedPdf | null {
