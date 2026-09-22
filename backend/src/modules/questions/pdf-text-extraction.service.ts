@@ -6,14 +6,14 @@ import {
 } from 'child_process';
 import { createHash } from 'crypto';
 import {
-  existsSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from 'fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { basename, join } from 'path';
 
 export type PdfPageSource = 'TEXT_LAYER' | 'OCR' | 'EMPTY';
 export type PdfExtractionMethod = 'TEXT_LAYER' | 'OCR' | 'HYBRID_OCR';
@@ -773,24 +773,164 @@ export class PdfTextExtractionService {
     tesseractBinary: string,
     processOptions: ExecFileOptionsWithStringEncoding,
   ): Promise<Array<{ page: number; text: string | null }>> {
-    return this.mapWithConcurrency(
-      pageNumbers,
-      this.ocrConcurrency(),
-      async (page) => ({
-        page,
-        text: await this.ocrPage(
-          pdfPath,
-          page,
-          workDir,
-          pdftoppmBinary,
-          tesseractBinary,
-          processOptions,
-        ),
-      }),
+    const orderedPages = [...new Set(pageNumbers)].sort(
+      (left, right) => left - right,
     );
+    if (orderedPages.length === 0) return [];
+
+    const batches = this.ocrRenderBatches(
+      orderedPages,
+      this.ocrRenderBatchSize(),
+    );
+    const recovered = new Map<number, string | null>();
+
+    // Render a small contiguous batch with one Poppler process, then OCR the
+    // resulting images concurrently and delete them before rendering the next
+    // batch. This keeps disk/memory bounded while avoiding one pdftoppm process
+    // per page.
+    for (const batch of batches) {
+      const rendered = await this.renderPageBatch(
+        pdfPath,
+        batch,
+        workDir,
+        pdftoppmBinary,
+        processOptions,
+      );
+
+      if (!rendered) {
+        // Correctness-first fallback: if batched Poppler output is incomplete
+        // or unexpectedly named, fall back to the proven single-page path only
+        // for this batch.
+        const fallback = await this.mapWithConcurrency(
+          batch,
+          this.ocrConcurrency(),
+          async (page) => ({
+            page,
+            text: await this.ocrSinglePage(
+              pdfPath,
+              page,
+              workDir,
+              pdftoppmBinary,
+              tesseractBinary,
+              processOptions,
+            ),
+          }),
+        );
+        for (const item of fallback) recovered.set(item.page, item.text);
+        continue;
+      }
+
+      const ocrResults = await this.mapWithConcurrency(
+        rendered,
+        this.ocrConcurrency(),
+        async ({ page, imagePath }) => {
+          try {
+            const text = await this.runProcess(
+              tesseractBinary,
+              [
+                imagePath,
+                'stdout',
+                '-l',
+                process.env.TESSERACT_LANG?.trim() || 'eng',
+                '--psm',
+                '3',
+                '-c',
+                'preserve_interword_spaces=1',
+              ],
+              processOptions,
+            );
+            return { page, text };
+          } catch {
+            return { page, text: null };
+          } finally {
+            rmSync(imagePath, { force: true });
+          }
+        },
+      );
+
+      for (const item of ocrResults) recovered.set(item.page, item.text);
+    }
+
+    return orderedPages.map((page) => ({
+      page,
+      text: recovered.get(page) ?? null,
+    }));
   }
 
-  private async ocrPage(
+  private async renderPageBatch(
+    pdfPath: string,
+    pageNumbers: number[],
+    workDir: string,
+    pdftoppmBinary: string,
+    processOptions: ExecFileOptionsWithStringEncoding,
+  ): Promise<Array<{ page: number; imagePath: string }> | null> {
+    if (pageNumbers.length === 0) return [];
+    const firstPage = pageNumbers[0];
+    const lastPage = pageNumbers[pageNumbers.length - 1];
+    const prefix = join(
+      workDir,
+      `ocr-render-${firstPage}-${lastPage}`,
+    );
+    const prefixName = basename(prefix);
+
+    try {
+      await this.runProcess(
+        pdftoppmBinary,
+        [
+          '-f',
+          String(firstPage),
+          '-l',
+          String(lastPage),
+          '-png',
+          '-r',
+          String(OCR_RENDER_DPI),
+          pdfPath,
+          prefix,
+        ],
+        {
+          ...processOptions,
+          timeout: Math.min(
+            120_000,
+            Math.max(
+              PROCESS_TIMEOUT_MS,
+              PROCESS_TIMEOUT_MS * pageNumbers.length,
+            ),
+          ),
+        },
+      );
+
+      const files = readdirSync(workDir)
+        .filter(
+          (name) =>
+            name.startsWith(`${prefixName}-`) &&
+            name.toLocaleLowerCase().endsWith('.png'),
+        )
+        .sort((left, right) =>
+          left.localeCompare(right, undefined, { numeric: true }),
+        );
+
+      if (files.length !== pageNumbers.length) {
+        for (const file of files) {
+          rmSync(join(workDir, file), { force: true });
+        }
+        return null;
+      }
+
+      return pageNumbers.map((page, index) => ({
+        page,
+        imagePath: join(workDir, files[index]),
+      }));
+    } catch {
+      for (const file of readdirSync(workDir).filter((name) =>
+        name.startsWith(`${prefixName}-`),
+      )) {
+        rmSync(join(workDir, file), { force: true });
+      }
+      return null;
+    }
+  }
+
+  private async ocrSinglePage(
     pdfPath: string,
     pageNumber: number,
     workDir: string,
@@ -818,7 +958,6 @@ export class PdfTextExtractionService {
         ],
         processOptions,
       );
-      if (!existsSync(imagePath)) return null;
 
       return await this.runProcess(
         tesseractBinary,
@@ -839,6 +978,36 @@ export class PdfTextExtractionService {
     } finally {
       rmSync(imagePath, { force: true });
     }
+  }
+
+  private ocrRenderBatches(
+    pageNumbers: number[],
+    batchSize: number,
+  ): number[][] {
+    const batches: number[][] = [];
+    let current: number[] = [];
+
+    for (const page of pageNumbers) {
+      const contiguous =
+        current.length === 0 ||
+        page === current[current.length - 1] + 1;
+      const hasCapacity = current.length < batchSize;
+
+      if (!contiguous || !hasCapacity) {
+        if (current.length > 0) batches.push(current);
+        current = [];
+      }
+      current.push(page);
+    }
+
+    if (current.length > 0) batches.push(current);
+    return batches;
+  }
+
+  private ocrRenderBatchSize(): number {
+    const configured = Number(process.env.PDF_OCR_RENDER_BATCH_SIZE || '8');
+    if (!Number.isFinite(configured)) return 8;
+    return Math.max(1, Math.min(16, Math.floor(configured)));
   }
 
   private runProcess(
