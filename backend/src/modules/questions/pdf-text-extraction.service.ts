@@ -51,7 +51,7 @@ const PROCESS_MAX_BUFFER_BYTES = 32 * 1024 * 1024;
 const OCR_RENDER_DPI = 220;
 const MIN_GOOD_TEXT_CHARACTERS = 80;
 const EXTRACTION_CACHE_TTL_MS = 15 * 60 * 1000;
-const EXTRACTION_CACHE_MAX_ENTRIES = 8;
+const EXTRACTION_CACHE_MAX_ENTRIES = 12;
 const EXTRACTION_CACHE_VERSION = 'pdf-extract-v2';
 
 const STRUCTURAL_LINE_START =
@@ -580,6 +580,7 @@ export class PdfTextExtractionService {
           ocr_pages: requestedOcrPages,
           ocr_ms: ocrMs,
           ocr_concurrency: this.ocrConcurrency(),
+          ocr_threads_per_worker: this.ocrThreadsPerWorker(),
           total_ms: Date.now() - startedAt,
           method: result.extractionMethod,
         }),
@@ -637,6 +638,36 @@ export class PdfTextExtractionService {
     if (pageNumbers.length === 0) return currentPdf;
 
     const startedAt = Date.now();
+    const currentStateHash = createHash('sha256')
+      .update(currentPdf.text)
+      .update(
+        currentPdf.pages
+          .map((page) => `${page.page}:${page.source || 'UNKNOWN'}`)
+          .join('|'),
+      )
+      .digest('hex');
+    const recoveryCacheKey = [
+      EXTRACTION_CACHE_VERSION,
+      'recovery',
+      process.env.TESSERACT_LANG?.trim() || 'eng',
+      String(OCR_RENDER_DPI),
+      createHash('sha256').update(buffer).digest('hex'),
+      currentStateHash,
+      pageNumbers.join(','),
+    ].join(':');
+    const cached = this.readExtractionCache(recoveryCacheKey);
+    if (cached) {
+      this.logger.log(
+        JSON.stringify({
+          event: 'pdf_recovery_cache_hit',
+          page_count: currentPdf.pageCount,
+          recovery_page_count: pageNumbers.length,
+          total_ms: Date.now() - startedAt,
+        }),
+      );
+      return cached;
+    }
+
     const workDir = mkdtempSync(join(tmpdir(), 'mdp-pdf-recovery-'));
     const pdfPath = join(workDir, 'input.pdf');
     const binaries = this.binaries();
@@ -681,10 +712,14 @@ export class PdfTextExtractionService {
           recovery_pages: pageNumbers,
           recovery_page_count: pageNumbers.length,
           ocr_concurrency: this.ocrConcurrency(),
+          ocr_threads_per_worker: this.ocrThreadsPerWorker(),
           total_ms: Date.now() - startedAt,
           method: result.extractionMethod,
         }),
       );
+      if (result.text.trim()) {
+        this.writeExtractionCache(recoveryCacheKey, result);
+      }
       return result;
     } finally {
       rmSync(workDir, { recursive: true, force: true });
