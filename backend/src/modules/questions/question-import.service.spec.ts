@@ -238,6 +238,83 @@ describe('QuestionImportService', () => {
     expect(result.candidates[0].status).toBe('NEEDS_REVIEW');
   });
 
+  it('targets a four-option MCQ for narrow OCR recovery before instructor confirmation', () => {
+    const { service } = build();
+    const pdf = {
+      pageCount: 12,
+      text: 'synthetic',
+      extractionConfidence: 1,
+      pages: Array.from({ length: 12 }, (_, index) => ({
+        page: index + 1,
+        text: 'healthy text',
+        source: 'TEXT_LAYER',
+        confidence: 1,
+      })),
+    };
+    const document = {
+      documentType: 'MCQ',
+      answerKey: new Map(),
+      questions: [{
+        questionNumber: 7,
+        sourcePage: 6,
+        answerKeyPage: 12,
+        sourceSection: 'Lecture One',
+        questionText: 'A legitimate or truncated four-choice question',
+        options: [
+          { label: 'A', text: 'one' },
+          { label: 'B', text: 'two' },
+          { label: 'C', text: 'three' },
+          { label: 'D', text: 'four' },
+        ],
+        correctLabel: 'B',
+        explanation: null,
+      }],
+      sections: [],
+      expectedQuestionCount: 1,
+      parsedQuestionCount: 1,
+      missingQuestionCount: 0,
+      isStructurallyComplete: true,
+    };
+
+    expect((service as any).needsStructuralRecovery(document)).toBe(true);
+    expect((service as any).recoveryPageNumbers(pdf, document)).toEqual([6, 7]);
+  });
+
+  it('prefers recovered A-E structure over A-D when OCR finds the missing fifth choice without regressions', () => {
+    const { service } = build();
+    const baseQuestion = {
+      questionNumber: 1,
+      sourcePage: 1,
+      answerKeyPage: 2,
+      sourceSection: 'Lecture One',
+      questionText: 'Question',
+      correctLabel: 'B',
+      explanation: null,
+    };
+    const current = {
+      documentType: 'MCQ',
+      answerKey: new Map([[1, { label: 'B', page: 2 }]]),
+      questions: [{
+        ...baseQuestion,
+        options: ['A', 'B', 'C', 'D'].map((label) => ({ label, text: `Option ${label}` })),
+      }],
+      sections: [],
+      expectedQuestionCount: 1,
+      parsedQuestionCount: 1,
+      missingQuestionCount: 0,
+      isStructurallyComplete: true,
+    };
+    const recovered = {
+      ...current,
+      questions: [{
+        ...baseQuestion,
+        options: ['A', 'B', 'C', 'D', 'E'].map((label) => ({ label, text: `Option ${label}` })),
+      }],
+    };
+
+    expect((service as any).shouldPreferRecoveredDocument(current, recovered)).toBe(true);
+  });
+
   it('requires explicit instructor confirmation before publishing a four-option MCQ', () => {
     const { service } = build();
     const candidate = {
