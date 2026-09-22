@@ -146,13 +146,15 @@ export class UnicodeQuestionImportService extends QuestionImportService {
     const headerIndex = trimmed.indexOf(OPTION_EXPLANATION_HEADER);
     const questionExplanation = trimmed.slice(0, headerIndex).trim() || null;
     const block = trimmed.slice(headerIndex + OPTION_EXPLANATION_HEADER.length).trim();
-    const matches = Array.from(block.matchAll(/^([A-E])\)\s+([\s\S]*?)(?=^[A-E]\)\s+|$)/gm));
+    const labels = Array.from({ length: optionCount }, (_, index) => String.fromCharCode(65 + index));
+    const labelPattern = labels.join('');
+    const matches = Array.from(block.matchAll(
+      new RegExp(`^([${labelPattern}])\\)\\s+([\\s\\S]*?)(?=^[${labelPattern}]\\)\\s+|$)`, 'gm'),
+    ));
     const byLabel = new Map(matches.map((match) => [match[1], match[2].trim()]));
     return {
       questionExplanation,
-      optionExplanations: Array.from({ length: optionCount }, (_, index) =>
-        byLabel.get(String.fromCharCode(65 + index)) || null,
-      ),
+      optionExplanations: labels.map((label) => byLabel.get(label) || null),
     };
   }
 }
