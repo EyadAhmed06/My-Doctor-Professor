@@ -153,9 +153,31 @@ describe('AssessmentAttemptService', () => {
       .rejects.toBeInstanceOf(ConflictException);
   });
 
-  it('blocks starting when an attached MCQ has fewer than five options', async () => {
+  it('allows starting when an attached MCQ has four options', async () => {
+    const fourOption = validMcq();
+    fourOption.options = fourOption.options.slice(0, 4);
+
+    const repository = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn((value) => ({ id: '88888888-8888-4888-8888-888888888888', ...value })),
+      save: jest.fn(async (value) => value),
+    };
+    const manager = {
+      query: jest.fn().mockResolvedValue(undefined),
+      getRepository: jest.fn().mockReturnValue(repository),
+    };
+    const service = baseService({
+      assignments: [assignment(fourOption)],
+      dataSource: { transaction: jest.fn().mockImplementation(async (callback) => callback(manager)) },
+    });
+
+    await expect(service.startAttempt(testRecord().id, { test_mode: TestMode.TUTOR }, actor))
+      .resolves.toMatchObject({ testMode: TestMode.TUTOR });
+  });
+
+  it('blocks starting when an attached MCQ has fewer than four options', async () => {
     const malformed = validMcq();
-    malformed.options = malformed.options.slice(0, 4);
+    malformed.options = malformed.options.slice(0, 3);
     const transaction = jest.fn();
     const service = baseService({
       assignments: [assignment(malformed)],
@@ -163,7 +185,7 @@ describe('AssessmentAttemptService', () => {
     });
 
     await expect(service.startAttempt(testRecord().id, { test_mode: TestMode.TUTOR }, actor))
-      .rejects.toThrow('exactly five options');
+      .rejects.toThrow('four or five options');
     expect(transaction).not.toHaveBeenCalled();
   });
 
