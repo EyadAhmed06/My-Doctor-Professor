@@ -188,14 +188,22 @@ export class QuestionImportService {
       where: { id: dto.topic_id },
       relations: { lecture: true },
     });
+    const existingQuestionsPromise = this.questions.find({
+      where: { topicId: dto.topic_id },
+      select: { id: true, questionText: true, isActive: true, topicId: true },
+      take: 1000,
+    });
 
     const extractionStartedAt = Date.now();
     let pdf = await this.extractPdf(safeFile.buffer);
     const extractionMs = Date.now() - extractionStartedAt;
-    const [previouslyPublished, topic] = await Promise.all([
+    const databaseStartedAt = Date.now();
+    const [previouslyPublished, topic, existing] = await Promise.all([
       previouslyPublishedPromise,
       topicPromise,
+      existingQuestionsPromise,
     ]);
+    const databaseWaitMs = Date.now() - databaseStartedAt;
     if (!topic) throw new BadRequestException('Selected topic no longer exists');
 
     if (!pdf.text.trim()) {
@@ -240,11 +248,6 @@ export class QuestionImportService {
       throw new BadRequestException('This file contains essay cases, not MCQs. Use the Essay PDF Inspector for this document.');
     }
 
-    const existing = await this.questions.find({
-      where: { topicId: topic.id },
-      select: { id: true, questionText: true, isActive: true, topicId: true },
-      take: 1000,
-    });
     const topicCorpus = [
       topic.topicName,
       topic.description || '',
@@ -442,6 +445,7 @@ export class QuestionImportService {
         page_count: pdf.pageCount,
         extracted_questions: candidates.length,
         extraction_ms: extractionMs,
+        database_wait_ms: databaseWaitMs,
         parse_ms: parseMs,
         recovery_triggered: needsStructuralRecovery,
         recovery_pages: recoveryPages,
