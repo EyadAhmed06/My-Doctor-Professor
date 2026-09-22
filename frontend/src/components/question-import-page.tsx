@@ -571,18 +571,18 @@ export function QuestionImportPage() {
     }
   }
 
-  function updateCandidate(index: number, updater: (candidate: Candidate) => Candidate) {
-    setCandidates((current) => current.map((candidate, candidateIndex) =>
-      candidateIndex === index ? recalculateCandidate(updater(candidate)) : candidate,
+  const updateCandidate = useCallback((candidateId: string, updater: (candidate: Candidate) => Candidate) => {
+    setCandidates((current) => current.map((candidate) =>
+      candidate.candidate_id === candidateId ? recalculateCandidate(updater(candidate)) : candidate,
     ));
-  }
+  }, []);
 
-  function editSource(index: number, updater: (candidate: Candidate) => Candidate) {
-    updateCandidate(index, (candidate) => markSourceChanged(updater(candidate)));
-  }
+  const editSource = useCallback((candidateId: string, updater: (candidate: Candidate) => Candidate) => {
+    updateCandidate(candidateId, (candidate) => markSourceChanged(updater(candidate)));
+  }, [updateCandidate]);
 
-  function addChoice(candidateIndex: number) {
-    editSource(candidateIndex, (candidate) => {
+  const addChoice = useCallback((candidateId: string) => {
+    editSource(candidateId, (candidate) => {
       if (candidate.options.length >= OPTION_LABELS.length) return candidate;
       return {
         ...candidate,
@@ -598,10 +598,10 @@ export function QuestionImportPage() {
         ]),
       };
     });
-  }
+  }, [editSource]);
 
-  function removeChoice(candidateIndex: number, optionIndex: number) {
-    editSource(candidateIndex, (candidate) => {
+  const removeChoice = useCallback((candidateId: string, optionIndex: number) => {
+    editSource(candidateId, (candidate) => {
       if (candidate.options.length <= 2) return candidate;
       return {
         ...candidate,
@@ -611,9 +611,13 @@ export function QuestionImportPage() {
         ),
       };
     });
-  }
+  }, [editSource]);
 
-  function mergeEnriched(batch: Candidate[]) {
+  const removeCandidate = useCallback((candidateId: string) => {
+    setCandidates((current) => current.filter((candidate) => candidate.candidate_id !== candidateId));
+  }, []);
+
+  const mergeEnriched = useCallback((batch: Candidate[]) => {
     const byId = new Map(batch.map((candidate) => [candidate.candidate_id, candidate]));
     setCandidates((current) => current.map((candidate) => {
       const enriched = byId.get(candidate.candidate_id);
@@ -632,9 +636,9 @@ export function QuestionImportPage() {
         approved: false,
       });
     }));
-  }
+  }, []);
 
-  async function generateExplanations(targets: Candidate[], force: boolean) {
+  const generateExplanations = useCallback(async (targets: Candidate[], force: boolean) => {
     if (!inspection || targets.length === 0) return;
     if (inspection.summary?.structurally_complete === false) {
       notify({
@@ -741,7 +745,7 @@ export function QuestionImportPage() {
         return next;
       });
     }
-  }
+  }, [inspection, mergeEnriched, notify, request]);
 
   function addManualCandidate() {
     const candidate: Candidate = recalculateCandidate({
@@ -788,7 +792,7 @@ export function QuestionImportPage() {
         ...candidate,
         allow_topic_override: candidate.topic_confidence < 0.08 ? true : candidate.allow_topic_override,
       };
-      const ready = isPublishable(reviewedCandidate);
+      const ready = candidateIsPublishable(reviewedCandidate);
       if (ready) approved += 1;
       return { ...reviewedCandidate, approved: ready };
     }));
@@ -799,21 +803,6 @@ export function QuestionImportPage() {
         : "Fix structural errors, duplicates, or partial/stale explanations before approval.",
       tone: approved ? "success" : "info",
     });
-  }
-
-  function isPublishable(candidate: Candidate) {
-    if (candidate.reuse_question_id) return candidate.status !== "INVALID";
-    const anyExplanation = hasAnyExplanation(candidate);
-    const explanationStateReady = !anyExplanation
-      || (hasCompleteExplanations(candidate) && candidate.ai_enrichment?.status !== "STALE");
-    return candidate.status !== "INVALID"
-      && candidate.question_text.trim().length >= 8
-      && candidate.options.length === 5
-      && candidate.options.every((option) => option.option_text.trim())
-      && candidate.options.filter((option) => option.is_correct).length === 1
-      && explanationStateReady
-      && (candidate.topic_confidence >= 0.08 || Boolean(candidate.allow_topic_override))
-      && (!candidate.duplicate || Boolean(candidate.allow_duplicate));
   }
 
   async function publishApproved() {
@@ -831,7 +820,7 @@ export function QuestionImportPage() {
       notify({ title: "Nothing approved", description: "Approve at least one reviewed question first.", tone: "info" });
       return;
     }
-    const blocked = approved.find((candidate) => !isPublishable(candidate));
+    const blocked = approved.find((candidate) => !candidateIsPublishable(candidate));
     if (blocked) {
       const reason = aiStatus(blocked) === "STALE"
         ? "Its explanation is stale after the question/options changed. Regenerate it first."
@@ -1093,8 +1082,8 @@ export function QuestionImportPage() {
                       {candidate.topic_confidence < 0.08 && <label className="question-import-confirm"><input type="checkbox" checked={Boolean(candidate.allow_topic_override)} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, allow_topic_override: event.target.checked, approved: false }))} /><span>I reviewed the topic mismatch and confirm this belongs to <strong>{inspection.topic.name}</strong>.</span></label>}
 
                       <footer>
-                        <label className="question-import-approve"><input type="checkbox" checked={Boolean(candidate.approved)} disabled={!isPublishable(candidate)} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, approved: event.target.checked }))} /><span>{candidate.reuse_question_id ? "Approve reuse" : "Approve for publication"}</span></label>
-                        {!isPublishable(candidate) && !candidate.reuse_question_id && <span style={{ fontSize: "0.82rem", opacity: 0.76 }}>AI is not required for approval. If any explanation is present, complete all question + A–E explanations (or regenerate them) before approval.</span>}
+                        <label className="question-import-approve"><input type="checkbox" checked={Boolean(candidate.approved)} disabled={!candidateIsPublishable(candidate)} onChange={(event) => updateCandidate(candidateIndex, (current) => ({ ...current, approved: event.target.checked }))} /><span>{candidate.reuse_question_id ? "Approve reuse" : "Approve for publication"}</span></label>
+                        {!candidateIsPublishable(candidate) && !candidate.reuse_question_id && <span style={{ fontSize: "0.82rem", opacity: 0.76 }}>AI is not required for approval. If any explanation is present, complete all question + A–E explanations (or regenerate them) before approval.</span>}
                       </footer>
                     </article>
                   );
