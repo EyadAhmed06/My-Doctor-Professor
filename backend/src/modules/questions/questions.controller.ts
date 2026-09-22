@@ -47,7 +47,7 @@ import { QuestionsService } from './questions.service';
 import { StudentQuestionAccessService } from './student-question-access.service';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
-const PDF_INSPECTOR_CONTRACT_VERSION = 6;
+const PDF_INSPECTOR_CONTRACT_VERSION = 7;
 
 @Controller('questions')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -109,7 +109,7 @@ export class QuestionsController {
     return {
       ...inspection,
       inspector_contract_version: PDF_INSPECTOR_CONTRACT_VERSION,
-      enrichment_contract: 'deferred-source-answer+question-explanation+five-option-explanations+difficulty',
+      enrichment_contract: 'deferred-source-answer+question-explanation+four-or-five-option-explanations+difficulty',
       candidates,
     };
   }
@@ -149,7 +149,7 @@ export class QuestionsController {
     };
     const enriched = await this.importEnrichment.enrichInspection(inspection);
     return {
-      enrichment_contract: 'source-answer+question-explanation+five-option-explanations+difficulty',
+      enrichment_contract: 'source-answer+question-explanation+four-or-five-option-explanations+difficulty',
       candidates: enriched.candidates,
       issues: enriched.issues,
       enrichment_summary: (enriched as typeof enriched & {
