@@ -2,6 +2,7 @@ import {
   calculatePageExtractionConfidence,
   calculatePdfExtractionConfidence,
   normalizePdfSymbolsForDisplay,
+  PdfTextExtractionService,
   reflowMcqColumns,
   shouldOcrPage,
   stripRepeatedEdgeFurniture,
@@ -182,4 +183,26 @@ describe('PDF text extraction contract', () => {
       calculatePageExtractionConfidence(clean),
     );
   });
+
+  it('bounds OCR-style concurrent work and preserves result order', async () => {
+    const service = new PdfTextExtractionService();
+    let active = 0;
+    let maximumActive = 0;
+
+    const result = await (service as any).mapWithConcurrency(
+      [1, 2, 3, 4, 5],
+      2,
+      async (value: number) => {
+        active += 1;
+        maximumActive = Math.max(maximumActive, active);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        active -= 1;
+        return value * 10;
+      },
+    );
+
+    expect(result).toEqual([10, 20, 30, 40, 50]);
+    expect(maximumActive).toBe(2);
+  });
+
 });
