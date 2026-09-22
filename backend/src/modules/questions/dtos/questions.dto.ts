@@ -136,6 +136,7 @@ export class EnrichQuestionImportCandidateDto {
   explanation?: string;
   @IsOptional() @IsEnum(QuestionDifficulty) difficulty?: QuestionDifficulty;
   @IsOptional() @IsString() @MaxLength(255) source_section?: string;
+  @IsOptional() @IsBoolean() allow_four_options?: boolean;
   @IsOptional() @ValidateNested() @Type(() => EnrichQuestionImportMetadataDto)
   ai_enrichment?: EnrichQuestionImportMetadataDto;
 }
