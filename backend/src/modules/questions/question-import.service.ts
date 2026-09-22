@@ -307,6 +307,7 @@ export class QuestionImportService {
         page.confidence ?? pdf.extractionConfidence,
       ]),
     );
+    const evaluationStartedAt = Date.now();
     const candidates = parsed.map((candidate, index) =>
         this.evaluateCandidate(
           candidate,
@@ -317,6 +318,7 @@ export class QuestionImportService {
           pdf.extractionConfidence,
         ),
       );
+    const evaluationMs = Date.now() - evaluationStartedAt;
     const valid = candidates.filter((candidate) => candidate.status === 'VALID').length;
     const needsReview = candidates.filter((candidate) => candidate.status === 'NEEDS_REVIEW').length;
     const invalid = candidates.filter((candidate) => candidate.status === 'INVALID').length;
@@ -409,6 +411,7 @@ export class QuestionImportService {
         recovery_triggered: needsStructuralRecovery,
         recovery_pages: recoveryPages,
         recovery_ms: recoveryMs,
+        evaluation_ms: evaluationMs,
         total_ms: Date.now() - inspectStartedAt,
       }),
     );
