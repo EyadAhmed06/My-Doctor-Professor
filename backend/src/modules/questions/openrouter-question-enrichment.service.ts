@@ -1,4 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import {
+  hasSequentialMcqLabels,
+  isSupportedMcqOptionCount,
+  sequentialMcqLabels,
+} from '../../common/mcq-option-policy';
 
 export type McqOptionInput = { label: string; text: string };
 export type McqExplanationInput = {
@@ -52,7 +57,7 @@ export type OpenRouterGenerateOptions = {
 
 const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
 const DEFAULT_MODEL = 'meta/muse-spark-1.3';
-const PROMPT_VERSION = 'mcq-explanation-v2-concise';
+const PROMPT_VERSION = 'mcq-explanation-v3-four-or-five-options';
 const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_ATTEMPTS = 3;
 const MAX_EXPLANATION_CHARS = 220;
@@ -149,7 +154,7 @@ export class OpenRouterQuestionEnrichmentService {
           plugins: [{ id: 'response-healing' }],
           response_format: {
             type: 'json_schema',
-            json_schema: { name: 'mcq_explanation', strict: true, schema: this.responseSchema() },
+            json_schema: { name: 'mcq_explanation', strict: true, schema: this.responseSchema(input) },
           },
           messages: [
             {
@@ -163,7 +168,7 @@ export class OpenRouterQuestionEnrichmentService {
                 'Every question explanation and every option explanation must be at most two short sentences, preferably one sentence, and no more than 220 characters.',
                 'Write the minimum useful explanation: direct, specific, and exam-relevant.',
                 'If the source answer appears medically inconsistent, keep it unchanged and mark answer_consistency as QUESTIONABLE with a concise review_reason.',
-                'Return exactly one explanation for each of A, B, C, D and E.',
+                `Return exactly one explanation for each supplied answer option (${sequentialMcqLabels(input.options.length).join(', ')}). Do not invent or omit choices.`,
                 'Return only the JSON object required by the response schema, without prose or Markdown fences.',
               ].join(' '),
             },
@@ -450,7 +455,9 @@ export class OpenRouterQuestionEnrichmentService {
 
   private assertInput(input: McqExplanationInput): void {
     const labels = input.options.map((option) => option.label.trim().toUpperCase());
-    if (input.options.length !== 5 || labels.join(',') !== 'A,B,C,D,E') throw new Error('AI enrichment requires exactly five sequential options labelled A-E.');
+    if (!isSupportedMcqOptionCount(input.options.length) || !hasSequentialMcqLabels(labels)) {
+      throw new Error('AI enrichment requires four or five sequential options labelled A-D or A-E.');
+    }
     const correct = input.sourceCorrectLabel.trim().toUpperCase();
     if (!labels.includes(correct)) throw new Error('The source correct answer is not present in the supplied options.');
   }
@@ -463,8 +470,11 @@ export class OpenRouterQuestionEnrichmentService {
     const expectedCorrect = input.sourceCorrectLabel.trim().toUpperCase();
     if (sourceCorrectLabel !== expectedCorrect) throw new Error('AI attempted to change the source answer key.');
 
+    const expectedLabels = sequentialMcqLabels(input.options.length);
     const optionRows = Array.isArray(row.options) ? row.options : [];
-    if (optionRows.length !== 5) throw new Error('AI did not return exactly five option explanations.');
+    if (optionRows.length !== input.options.length) {
+      throw new Error(`AI did not return exactly ${input.options.length} option explanations.`);
+    }
     const normalized = optionRows.map((item) => {
       if (!item || typeof item !== 'object') throw new Error('AI returned an invalid option explanation row.');
       const option = item as Record<string, unknown>;
@@ -474,7 +484,7 @@ export class OpenRouterQuestionEnrichmentService {
         explanation: this.normalizeExplanation(String(option.explanation || '')),
       };
     });
-    if (normalized.map((option) => option.label).join(',') !== 'A,B,C,D,E') throw new Error('AI option labels did not match A-E exactly.');
+    if (normalized.map((option) => option.label).join(',') !== expectedLabels.join(',')) throw new Error(`AI option labels did not match ${expectedLabels.join('-')} exactly.`);
     if (normalized.some((option) => !['CORRECT', 'INCORRECT'].includes(option.assessment))) throw new Error('AI returned an invalid option assessment.');
     const correctRows = normalized.filter((option) => option.assessment === 'CORRECT');
     if (correctRows.length !== 1 || correctRows[0].label !== expectedCorrect) throw new Error('AI option assessments contradict the source answer key.');
@@ -526,22 +536,23 @@ export class OpenRouterQuestionEnrichmentService {
     }
   }
 
-  private responseSchema(): Record<string, unknown> {
+  private responseSchema(input: McqExplanationInput): Record<string, unknown> {
+    const labels = sequentialMcqLabels(input.options.length);
     return {
       type: 'object', additionalProperties: false,
       required: ['candidate_id', 'source_correct_label', 'answer_consistency', 'question_explanation', 'options', 'difficulty', 'confidence', 'review_reason'],
       properties: {
         candidate_id: { type: 'string' },
-        source_correct_label: { type: 'string', enum: ['A', 'B', 'C', 'D', 'E'] },
+        source_correct_label: { type: 'string', enum: labels },
         answer_consistency: { type: 'string', enum: ['CONSISTENT', 'QUESTIONABLE'] },
         question_explanation: { type: 'string', minLength: 1, maxLength: MAX_EXPLANATION_CHARS },
         options: {
-          type: 'array', minItems: 5, maxItems: 5,
+          type: 'array', minItems: input.options.length, maxItems: input.options.length,
           items: {
             type: 'object', additionalProperties: false,
             required: ['label', 'assessment', 'explanation'],
             properties: {
-              label: { type: 'string', enum: ['A', 'B', 'C', 'D', 'E'] },
+              label: { type: 'string', enum: labels },
               assessment: { type: 'string', enum: ['CORRECT', 'INCORRECT'] },
               explanation: { type: 'string', minLength: 1, maxLength: MAX_EXPLANATION_CHARS },
             },
