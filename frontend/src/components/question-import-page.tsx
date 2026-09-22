@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, memo, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, memo, useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import {
   FiAlertTriangle,
   FiArrowLeft,
@@ -887,15 +887,32 @@ export function QuestionImportPage() {
     stale: candidates.filter((candidate) => aiStatus(candidate) === "STALE").length,
     failed: candidates.filter((candidate) => aiStatus(candidate) === "FAILED").length,
   }), [candidates]);
-  const visibleCandidates = useMemo(() => {
-    const query = candidateSearch.trim().toLowerCase();
-    return candidates.map((candidate, index) => ({ candidate, index })).filter(({ candidate }) => {
+  const deferredCandidateSearch = useDeferredValue(candidateSearch.trim().toLowerCase());
+
+  const searchableCandidates = useMemo(() => candidates.map((candidate, index) => ({
+    candidate,
+    index,
+    searchText: [
+      candidate.question_number,
+      candidate.question_text,
+      candidate.answer_key_label,
+      candidate.explanation,
+      ...candidate.options.flatMap((option) => [option.option_text, option.explanation]),
+    ]
+      .map((value) => String(value ?? "").toLowerCase())
+      .join("\n"),
+  })), [candidates]);
+
+  const visibleCandidates = useMemo(() => searchableCandidates
+    .filter(({ candidate, searchText }) => {
       if (statusFilter !== "ALL" && candidate.status !== statusFilter) return false;
-      if (!query) return true;
-      return [candidate.question_number, candidate.question_text, candidate.answer_key_label, ...candidate.options.flatMap((option) => [option.option_text, option.explanation])]
-        .some((value) => String(value ?? "").toLowerCase().includes(query));
-    });
-  }, [candidateSearch, candidates, statusFilter]);
+      return !deferredCandidateSearch || searchText.includes(deferredCandidateSearch);
+    })
+    .map(({ candidate, index }) => ({ candidate, index })), [
+      deferredCandidateSearch,
+      searchableCandidates,
+      statusFilter,
+    ]);
 
   useEffect(() => {
     if (!isMobileReview) return;
