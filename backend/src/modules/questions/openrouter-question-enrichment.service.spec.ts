@@ -121,6 +121,19 @@ describe('OpenRouterQuestionEnrichmentService', () => {
     expect(body.response_format.json_schema.schema.properties.source_correct_label.enum).toEqual(['A', 'B', 'C', 'D']);
   });
 
+  it('rejects an invented option E for a four-option request', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const fourOptionInput = { ...input, options: input.options.slice(0, 4) };
+    global.fetch = jest.fn().mockResolvedValue(response(validPayload(['A', 'B', 'C', 'D', 'E'])));
+
+    await expect(new OpenRouterQuestionEnrichmentService().generate(fourOptionInput))
+      .rejects.toMatchObject({
+        kind: 'INVALID_RESPONSE',
+        message: expect.stringContaining('exactly 4 option explanations'),
+      });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects malformed option cardinality below four before any API call', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     global.fetch = jest.fn();
