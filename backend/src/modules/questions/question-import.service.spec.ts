@@ -288,6 +288,59 @@ describe('QuestionImportService', () => {
     ]);
   });
 
+  it('targets the section tail instead of OCRing every question page when the answer key is missing', () => {
+    const { service } = build();
+    const pdf = {
+      pageCount: 20,
+      text: 'synthetic',
+      extractionConfidence: 1,
+      pages: Array.from({ length: 20 }, (_, index) => ({
+        page: index + 1,
+        text: 'healthy text',
+        source: 'TEXT_LAYER',
+        confidence: 1,
+      })),
+    };
+    const questions = Array.from({ length: 10 }, (_, index) => ({
+      questionNumber: index + 1,
+      sourcePage: index + 2,
+      answerKeyPage: null,
+      sourceSection: 'Lecture One',
+      questionText: `Question ${index + 1}`,
+      options: ['A', 'B', 'C', 'D', 'E'].map((label) => ({
+        label,
+        text: `${label} option`,
+      })),
+      correctLabel: null,
+      explanation: null,
+    }));
+    const document = {
+      documentType: 'MCQ',
+      answerKey: new Map(),
+      questions,
+      sections: [{
+        title: 'Lecture One',
+        expectedQuestionNumbers: [],
+        parsedQuestionNumbers: questions.map((question) => question.questionNumber),
+        missingQuestionNumbers: [],
+        unexpectedQuestionNumbers: [],
+        duplicateQuestionNumbers: [],
+        answerKeyConflicts: [],
+        expectedQuestionCount: null,
+        parsedQuestionCount: questions.length,
+        completeness: null,
+      }],
+      expectedQuestionCount: null,
+      parsedQuestionCount: questions.length,
+      missingQuestionCount: 0,
+      isStructurallyComplete: false,
+    };
+
+    expect((service as any).recoveryPageNumbers(pdf, document)).toEqual([
+      10, 11, 12, 13, 14,
+    ]);
+  });
+
   it('falls back to full-document recovery only when structural failure cannot be localized', () => {
     const { service } = build();
     const pdf = {
