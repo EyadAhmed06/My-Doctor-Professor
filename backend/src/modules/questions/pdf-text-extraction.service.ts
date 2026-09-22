@@ -579,7 +579,7 @@ export class PdfTextExtractionService {
       if (
         cacheKey &&
         result.text.trim() &&
-        (result.emptyPageCount ?? 0) === 0
+        result.extractionConfidence >= 0.7
       ) {
         this.writeExtractionCache(cacheKey, result);
       }
