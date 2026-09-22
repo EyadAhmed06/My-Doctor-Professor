@@ -21,9 +21,9 @@ When parsing proves structural incompleteness:
 4. OCR rendered pages with bounded concurrency.
 5. Merge only recovered pages into the original text-layer result.
 6. Reparse and keep the recovered document only when it is structurally better.
-7. If targeted recovery still cannot restore the previous correctness contract, fall back to the remaining pages of the document. Pages already OCRed successfully are reused rather than OCRed again.
+7. If targeted recovery still leaves the document structurally incomplete, return that explicit incomplete state instead of escalating to unrelated pages.
 
-A fully raster PDF is handled specially: the text-only attempt is cheap, then all pages are OCRed because there is no usable text to parse.
+A fully raster PDF is handled separately: when the text-only attempt yields no usable text at all, every physical page is genuinely suspect, so the raster fallback may OCR the entire document. This is distinct from structural recovery of a mostly-readable PDF.
 
 ## Runtime controls
 
@@ -61,7 +61,7 @@ The backend emits structured events:
 - `pdf_recovery_cache_hit`
 - `pdf_inspection_timing`
 
-Important fields include text-layer time, OCR time/page count, parser time, recovery pages, full-fallback pages, candidate-evaluation time, and total request time.
+Important fields include text-layer time, OCR time/page count, parser time, targeted recovery pages, candidate-evaluation time, and total request time. Structural recovery logs `structural_recovery_strategy=TARGETED_ONLY`.
 
 ## Correctness invariants
 
@@ -73,6 +73,7 @@ Performance work must not:
 - silently accept missing questions;
 - remove page provenance;
 - change duplicate/topic scoring semantics;
-- remove the full OCR correctness fallback.
+- turn one local structural defect into a whole-document OCR pass;
+- treat a fully raster PDF as equivalent to a mostly-readable PDF with one damaged question.
 
 CI builds the production OCR image and runs the PDF/parser/import contract suite for every relevant change.
