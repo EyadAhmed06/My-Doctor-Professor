@@ -1090,9 +1090,10 @@ export class QuestionImportService {
       if (parsed !== questionNumber) continue;
 
       // Do not confuse compact answer-key rows such as "12) B" with a
-      // question stem.
+      // question stem. A real stem may legitimately begin with "A patient...",
+      // so only reject a remainder that is nothing more than one option label.
       const remainder = match[3].trim();
-      if (/^\(?[A-F]\)?(?:\s|$)/i.test(remainder)) continue;
+      if (/^\(?[A-F]\)?[.)]?\s*$/i.test(remainder)) continue;
       return true;
     }
     return false;
