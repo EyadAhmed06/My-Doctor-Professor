@@ -383,3 +383,68 @@ describe('UnicodeQuestionImportService recovery', () => {
     expect(result.candidates[0].answer_key_label).toBe('A');
   });
 });
+
+
+describe('UnicodeQuestionImportService four-option explanation persistence contract', () => {
+  function serviceForExplanationParsing() {
+    return new UnicodeQuestionImportService(
+      {} as Repository<Question>,
+      {} as Repository<Topic>,
+      {} as DataSource,
+      {} as AcademicAccessService,
+      {} as PdfTextExtractionService,
+    );
+  }
+
+  it('deserializes only A-D explanations for a four-option MCQ', () => {
+    const service = serviceForExplanationParsing();
+    const serialized = [
+      'Question takeaway.',
+      '--- Option explanations ---',
+      'A) Reason A',
+      'B) Reason B',
+      'C) Reason C',
+      'D) Reason D',
+    ].join('\n');
+
+    const result = (service as unknown as {
+      deserializeInspectorExplanation(value: string, optionCount: number): {
+        questionExplanation: string | null;
+        optionExplanations: Array<string | null>;
+      };
+    }).deserializeInspectorExplanation(serialized, 4);
+
+    expect(result.questionExplanation).toBe('Question takeaway.');
+    expect(result.optionExplanations).toEqual([
+      'Reason A',
+      'Reason B',
+      'Reason C',
+      'Reason D',
+    ]);
+  });
+
+  it('does not manufacture an option-E explanation when the MCQ has four options', () => {
+    const service = serviceForExplanationParsing();
+    const serialized = [
+      'Question takeaway.',
+      '--- Option explanations ---',
+      'A) Reason A',
+      'B) Reason B',
+      'C) Reason C',
+      'D) Reason D',
+      'E) Stale legacy reason that does not belong to this question',
+    ].join('\n');
+
+    const result = (service as unknown as {
+      deserializeInspectorExplanation(value: string, optionCount: number): {
+        questionExplanation: string | null;
+        optionExplanations: Array<string | null>;
+      };
+    }).deserializeInspectorExplanation(serialized, 4);
+
+    expect(result.optionExplanations).toHaveLength(4);
+    expect(result.optionExplanations).not.toContain(
+      'Stale legacy reason that does not belong to this question',
+    );
+  });
+});
