@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { McqOption } from '../../common/entities/mcq-option.entity';
 import { Question, QuestionType } from '../../common/entities/question.entity';
+import { isSupportedMcqOptionCount } from '../../common/mcq-option-policy';
 import { StudentAnswer } from '../../common/entities/student-answer.entity';
 import { TestAttempt, TestAttemptStatus, TestMode } from '../../common/entities/test-attempt.entity';
 import { TestQuestion } from '../../common/entities/test-question.entity';
@@ -274,11 +275,11 @@ export class AssessmentAttemptService {
 
   private assertMcqIntegrity(questions: Question[]): void {
     const invalid = questions.filter((question) => question.questionType === QuestionType.MCQ && (
-      question.options?.length !== 5
+      !isSupportedMcqOptionCount(question.options?.length ?? 0)
       || question.options.filter((option) => option.isCorrect).length !== 1
     ));
     if (invalid.length) {
-      throw new ConflictException(`${invalid.length} MCQ question(s) are malformed. Every MCQ must have exactly five options and exactly one correct answer.`);
+      throw new ConflictException(`${invalid.length} MCQ question(s) are malformed. Every MCQ must have four or five options and exactly one correct answer.`);
     }
   }
 
