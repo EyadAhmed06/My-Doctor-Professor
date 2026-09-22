@@ -255,5 +255,132 @@ describe('UnicodeQuestionImportService recovery', () => {
       2,
       3,
     ]);
+
+  it('keeps the text-only fast path while still recovering a fully raster MCQ PDF', async () => {
+    const firstPass: UnicodeParsedPdf = {
+      pages: [
+        {
+          page: 1,
+          text: '',
+          source: 'EMPTY',
+          confidence: 0,
+          textLength: 0,
+          ocrAttempted: false,
+          layoutReflowed: false,
+        },
+        {
+          page: 2,
+          text: '',
+          source: 'EMPTY',
+          confidence: 0,
+          textLength: 0,
+          ocrAttempted: false,
+          layoutReflowed: false,
+        },
+      ],
+      pageCount: 2,
+      text: '',
+      extractionConfidence: 0,
+      extractionMethod: 'TEXT_LAYER',
+      ocrPageCount: 0,
+      textLayerPageCount: 0,
+      emptyPageCount: 2,
+    };
+    const recoveredText = [
+      'Arbitrary Section',
+      `1) First question?\n${fiveOptions('q1')}`,
+      'Answer Key',
+      '1-A',
+    ].join('\n');
+    const recovered: UnicodeParsedPdf = {
+      pages: [
+        {
+          page: 1,
+          text: recoveredText,
+          source: 'OCR',
+          confidence: 0.9,
+          textLength: recoveredText.length,
+          ocrAttempted: true,
+          layoutReflowed: false,
+        },
+        {
+          page: 2,
+          text: '',
+          source: 'EMPTY',
+          confidence: 0,
+          textLength: 0,
+          ocrAttempted: true,
+          layoutReflowed: false,
+        },
+      ],
+      pageCount: 2,
+      text: recoveredText,
+      extractionConfidence: 0.65,
+      extractionMethod: 'HYBRID_OCR',
+      ocrPageCount: 1,
+      textLayerPageCount: 0,
+      emptyPageCount: 1,
+    };
+
+    const extract = jest.fn().mockResolvedValue(firstPass);
+    const recoverPages = jest.fn().mockResolvedValue(recovered);
+    const extractor = {
+      extract,
+      recoverPages,
+    } as unknown as PdfTextExtractionService;
+    const builder = {
+      where: jest.fn().mockReturnThis(),
+      getCount: jest.fn().mockResolvedValue(0),
+    };
+    const questions = {
+      createQueryBuilder: jest.fn(() => builder),
+      find: jest.fn().mockResolvedValue([]),
+    } as unknown as Repository<Question>;
+    const topic = {
+      id: '33333333-3333-4333-8333-333333333333',
+      topicName: 'Arbitrary Section',
+      description: 'Test topic',
+      lecture: { title: 'Test lecture', description: '' },
+    } as Topic;
+    const topics = {
+      findOne: jest.fn().mockResolvedValue(topic),
+    } as unknown as Repository<Topic>;
+    const access = {
+      assertTopicReadable: jest.fn().mockResolvedValue(undefined),
+    } as unknown as AcademicAccessService;
+
+    const service = new UnicodeQuestionImportService(
+      questions,
+      topics,
+      {} as DataSource,
+      access,
+      extractor,
+    );
+    const buffer = Buffer.from('%PDF-1.4\n%%EOF');
+
+    const result = await service.inspectPdf(
+      { topic_id: topic.id, copyright_confirmed: true },
+      {
+        originalname: 'scanned-questions.pdf',
+        mimetype: 'application/pdf',
+        size: buffer.length,
+        buffer,
+      },
+      actor,
+    );
+
+    expect(extract).toHaveBeenCalledWith(buffer, {
+      deferWeakPageOcr: true,
+    });
+    expect(recoverPages).toHaveBeenCalledWith(
+      buffer,
+      firstPass,
+      [1, 2],
+    );
+    expect(result.summary.extracted).toBe(1);
+    expect(result.summary.structurally_complete).toBe(true);
+    expect(result.candidates[0].answer_key_label).toBe('A');
+  });
+
   });
 });
