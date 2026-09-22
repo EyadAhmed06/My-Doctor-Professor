@@ -117,7 +117,7 @@ describe('McqPracticeService security', () => {
       question_count: 200,
       test_mode: TestMode.TIMED,
       duration_minutes: 200,
-    }, actor)).rejects.toThrow('Course course-1 has only 39 eligible five-option MCQs; 40 are required');
+    }, actor)).rejects.toThrow('Course course-1 has only 39 eligible MCQs; 40 are required');
   });
 
   it('counts duplicate question rows only once before enforcing the 40-question invariant', async () => {
@@ -158,7 +158,7 @@ describe('McqPracticeService security', () => {
     }, actor)).rejects.toThrow('Only 39 eligible MCQs');
   });
 
-  it('does not count malformed historical MCQs with fewer than five options as eligible', async () => {
+  it('does not count malformed historical MCQs with fewer than four options as eligible', async () => {
     const lectureId = '22222222-2222-4222-8222-222222222222';
     const courseId = '55555555-5555-4555-8555-555555555555';
     const lectureBuilder = {
@@ -169,7 +169,7 @@ describe('McqPracticeService security', () => {
     const validOptions = Array.from({ length: 5 }, (_, index) => ({ isCorrect: index === 0 }));
     const questions = Array.from({ length: 40 }, (_, index) => ({
       id: `question-${index}`,
-      options: index === 39 ? validOptions.slice(0, 4) : validOptions,
+      options: index === 39 ? validOptions.slice(0, 3) : index === 38 ? validOptions.slice(0, 4) : validOptions,
     }));
     const questionBuilder = {
       innerJoinAndSelect: jest.fn().mockReturnThis(),
