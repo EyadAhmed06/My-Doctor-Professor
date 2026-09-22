@@ -21,6 +21,7 @@ export type PdfExtractionMethod = 'TEXT_LAYER' | 'OCR' | 'HYBRID_OCR';
 export type PdfExtractionOptions = {
   forceOcr?: boolean;
   ocrPages?: number[];
+  deferWeakPageOcr?: boolean;
 };
 
 export type UnicodePdfPage = {
@@ -510,7 +511,7 @@ export class PdfTextExtractionService {
           (page) =>
             options.forceOcr ||
             explicitOcrPages.has(page.page) ||
-            shouldOcrPage(page.text),
+            (!options.deferWeakPageOcr && shouldOcrPage(page.text)),
         )
         .map((page) => page.page);
 
