@@ -84,7 +84,7 @@ export function AssessmentReview({ attemptId, source = "assessments" }: { attemp
         {selectedOption && <p><span>Your answer:</span> {selectedOption.optionText}</p>}
         {correctOption && item.answer?.isCorrect !== true && <p><span>Correct answer:</span> {correctOption.optionText}</p>}
         <div className="review-explanation"><b>Explanation</b><p>{item.question.explanation || "No explanation has been published for this question."}</p></div>
-        {structuredFeedback && item.question.options.length === 5 && <TutorOptionReview feedback={structuredFeedback} options={item.question.options} />}
+        {structuredFeedback && item.question.options.length >= 4 && item.question.options.length <= 5 && <TutorOptionReview feedback={structuredFeedback} options={item.question.options} />}
       </article>;
     })}
     <button className="pp-button" type="button" onClick={() => router.push(exitPath)}>Back</button>
