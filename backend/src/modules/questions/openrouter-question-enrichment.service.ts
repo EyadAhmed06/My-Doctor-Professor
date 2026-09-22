@@ -327,7 +327,7 @@ export class OpenRouterQuestionEnrichmentService {
     }
     if (
       status === 404 &&
-      /no (?:compatible )?endpoints? found|no endpoints? (?:are )?available|provider routing|no provider/i.test(
+      /no (?:compatible )?endpoints? found|no endpoints?(?:\s+out of\s+\d+(?:\s+requested)?)?\s+(?:are )?available|provider routing|no provider/i.test(
         values.providerMessage,
       )
     ) {
@@ -385,7 +385,7 @@ export class OpenRouterQuestionEnrichmentService {
       return false;
     }
 
-    return /parameter|response[_ -]?format|structured|no (?:compatible )?endpoints? found|no endpoints? (?:are )?available|provider routing|no provider/.test(
+    return /parameter|response[_ -]?format|structured|no (?:compatible )?endpoints? found|no endpoints?(?:\s+out of\s+\d+(?:\s+requested)?)?\s+(?:are )?available|provider routing|no provider/i.test(
       message,
     );
   }
