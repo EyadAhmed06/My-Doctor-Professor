@@ -1,7 +1,7 @@
 import { plainToInstance } from 'class-transformer';
 import { validate, ValidationError } from 'class-validator';
 import { QuestionDifficulty } from '../../../common/entities/question.entity';
-import { PublishQuestionImportDto } from './questions.dto';
+import { EnrichQuestionImportDto, PublishQuestionImportDto } from './questions.dto';
 
 function payloadWithExplanation(explanation: string) {
   return {
@@ -88,5 +88,42 @@ describe('PublishQuestionImportDto explanation policy', () => {
     expect(constraintMessages(errors)).toContain(
       'explanation must be at most 2 sentences and 220 characters',
     );
+  });
+});
+
+
+describe('EnrichQuestionImportDto option-count policy', () => {
+  function enrichmentPayload(optionCount: number) {
+    return {
+      topic_name: 'Cardiology',
+      candidates: [{
+        candidate_id: 'candidate-1',
+        question_text: 'Which chamber receives oxygenated blood from the pulmonary veins?',
+        allow_four_options: optionCount === 4,
+        options: Array.from({ length: optionCount }, (_, index) => ({
+          label: String.fromCharCode(65 + index),
+          option_text: `Option ${String.fromCharCode(65 + index)}`,
+          is_correct: index === 1,
+        })),
+      }],
+    };
+  }
+
+  it('accepts four-option candidates for explanation generation', async () => {
+    const dto = plainToInstance(EnrichQuestionImportDto, enrichmentPayload(4));
+    expect(await validate(dto)).toHaveLength(0);
+  });
+
+  it('accepts the standard five-option candidates for explanation generation', async () => {
+    const dto = plainToInstance(EnrichQuestionImportDto, enrichmentPayload(5));
+    expect(await validate(dto)).toHaveLength(0);
+  });
+
+  it('rejects enrichment candidates outside the four-or-five option contract', async () => {
+    const tooFew = plainToInstance(EnrichQuestionImportDto, enrichmentPayload(3));
+    const tooMany = plainToInstance(EnrichQuestionImportDto, enrichmentPayload(6));
+
+    expect(await validate(tooFew)).not.toHaveLength(0);
+    expect(await validate(tooMany)).not.toHaveLength(0);
   });
 });
