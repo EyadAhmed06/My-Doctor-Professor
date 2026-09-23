@@ -363,7 +363,7 @@ type CandidateEditorProps = {
   onUpdate: (candidateId: string, updater: (candidate: Candidate) => Candidate) => void;
   onEditSource: (candidateId: string, updater: (candidate: Candidate) => Candidate) => void;
   onAddChoice: (candidateId: string) => void;
-  onRemoveChoice: (candidateId: string, optionIndex: number) => void;
+  onRemoveChoice: (candidateId: string, optionLabel: string) => void;
   onRemove: (candidateId: string) => void;
   onGenerate: (targets: Candidate[], force: boolean) => Promise<void>;
 };
@@ -457,7 +457,7 @@ const CandidateEditor = memo(function CandidateEditor({
               <input aria-label={`Mark choice ${option.label} as correct`} type="radio" name={`correct-${candidate.candidate_id}`} checked={option.is_correct} onChange={() => onEditSource(candidate.candidate_id, (current) => ({ ...current, options: current.options.map((value, index) => ({ ...value, is_correct: index === optionIndex })) }))} />
               <strong>{option.label}</strong>
               <input aria-label={`Choice ${option.label}`} type="text" value={option.option_text} onChange={(event) => onEditSource(candidate.candidate_id, (current) => ({ ...current, reuse_question_id: undefined, options: current.options.map((value, index) => index === optionIndex ? { ...value, option_text: event.target.value } : value) }))} />
-              <button type="button" className="question-import-option-delete-btn" aria-label={`Remove choice ${option.label}`} title={`Remove choice ${option.label}`} disabled={candidate.options.length <= 2} onClick={() => onRemoveChoice(candidate.candidate_id, optionIndex)}><FiTrash2 /></button>
+              <button type="button" className="question-import-option-delete-btn" aria-label={`Remove choice ${option.label}`} title={`Remove choice ${option.label}`} disabled={candidate.options.length <= 2} onClick={() => onRemoveChoice(candidate.candidate_id, option.label)}><FiTrash2 /></button>
             </div>
             <label className="question-import-option-explanation">
               <span style={{ fontSize: "0.82rem", opacity: 0.78 }}>{option.is_correct ? "Why this is correct" : "Why this is incorrect"} · max 2 short sentences</span>
@@ -642,10 +642,17 @@ export function QuestionImportPage() {
     });
   }, [editSource]);
 
-  const removeChoice = useCallback((candidateId: string, optionIndex: number) => {
-    editSource(candidateId, (candidate) => {
-      if (candidate.options.length <= 2) return candidate;
-      return {
+  const removeChoice = useCallback((candidateId: string, optionLabel: string) => {
+    setCandidates((current) => current.map((candidate) => {
+      if (candidate.candidate_id !== candidateId || candidate.options.length <= 2) return candidate;
+
+      const normalizedLabel = optionLabel.trim().toUpperCase();
+      const optionIndex = candidate.options.findIndex(
+        (option) => option.label.trim().toUpperCase() === normalizedLabel,
+      );
+      if (optionIndex < 0) return candidate;
+
+      const nextCandidate = {
         ...candidate,
         reuse_question_id: undefined,
         allow_four_options: false,
@@ -653,8 +660,10 @@ export function QuestionImportPage() {
           candidate.options.filter((_, index) => index !== optionIndex),
         ),
       };
-    });
-  }, [editSource]);
+
+      return recalculateCandidate(markSourceChanged(nextCandidate));
+    }));
+  }, []);
 
   const removeCandidate = useCallback((candidateId: string) => {
     setCandidates((current) => current.filter((candidate) => candidate.candidate_id !== candidateId));
