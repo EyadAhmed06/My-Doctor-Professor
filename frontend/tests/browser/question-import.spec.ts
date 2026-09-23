@@ -162,11 +162,29 @@ test('instructor inspects a five-option PDF candidate and publishes an approved 
   await expect(page.locator('input[value="Aorta"]')).toBeVisible();
   const explanationEditors = page.locator('.question-import-option-explanation');
   await expect(explanationEditors).toHaveCount(5);
-  const explanationWidthRatios = await explanationEditors.evaluateAll((editors) => editors.map((editor) => {
+  const explanationGeometry = await explanationEditors.evaluateAll((editors) => editors.map((editor) => {
     const textarea = editor.querySelector('textarea');
-    return textarea ? textarea.clientWidth / editor.clientWidth : 0;
+    const optionBlock = editor.closest('.question-import-option-block');
+    const optionRow = optionBlock?.querySelector('.question-import-option-row');
+    const candidate = editor.closest('.question-import-candidate');
+    return {
+      editorWidth: editor.clientWidth,
+      textareaWidth: textarea?.clientWidth ?? 0,
+      blockWidth: optionBlock instanceof HTMLElement ? optionBlock.clientWidth : 0,
+      rowClientWidth: optionRow instanceof HTMLElement ? optionRow.clientWidth : 0,
+      rowScrollWidth: optionRow instanceof HTMLElement ? optionRow.scrollWidth : 0,
+      candidateClientWidth: candidate instanceof HTMLElement ? candidate.clientWidth : 0,
+      candidateScrollWidth: candidate instanceof HTMLElement ? candidate.scrollWidth : 0,
+    };
   }));
-  expect(explanationWidthRatios.every((ratio) => ratio >= 0.9)).toBe(true);
+
+  for (const geometry of explanationGeometry) {
+    expect(geometry.editorWidth).toBeGreaterThan(0);
+    expect(geometry.textareaWidth / geometry.editorWidth).toBeGreaterThanOrEqual(0.98);
+    expect(geometry.editorWidth / geometry.blockWidth).toBeGreaterThanOrEqual(0.98);
+    expect(geometry.rowScrollWidth).toBeLessThanOrEqual(geometry.rowClientWidth + 1);
+    expect(geometry.candidateScrollWidth).toBeLessThanOrEqual(geometry.candidateClientWidth + 1);
+  }
 
   await expect(page.locator('.question-import-review-heading')).toContainText('0');
 
