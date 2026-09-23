@@ -643,25 +643,23 @@ export function QuestionImportPage() {
   }, [editSource]);
 
   const removeChoice = useCallback((candidateId: string, optionLabel: string) => {
-    // Route removals through the same candidate-id based source-edit pipeline as
-    // add/edit operations. The updater receives the latest committed candidate,
-    // so a rapid add -> remove sequence cannot act on a stale rendered array.
+    console.log("REMOVE_CHOICE_CALL", candidateId, optionLabel);
     editSource(candidateId, (candidate) => {
+      console.log("REMOVE_CHOICE_UPDATER", candidateId, candidate.candidate_id, candidate.options.map((option) => option.label).join(","));
       if (candidate.options.length <= 2) return candidate;
 
       const normalizedLabel = optionLabel.trim().toUpperCase();
       const optionIndex = candidate.options.findIndex(
         (option) => option.label.trim().toUpperCase() === normalizedLabel,
       );
+      console.log("REMOVE_CHOICE_INDEX", normalizedLabel, optionIndex);
       if (optionIndex < 0) return candidate;
 
       const options = relabelOptions(
         candidate.options.filter((_, index) => index !== optionIndex),
       );
+      console.log("REMOVE_CHOICE_NEXT", options.map((option) => option.label).join(","));
 
-      // Deleting an option changes the source question. In particular, a
-      // five-choice MCQ becoming A-D must require explicit four-choice
-      // confirmation again before it can be published.
       return {
         ...candidate,
         reuse_question_id: undefined,
