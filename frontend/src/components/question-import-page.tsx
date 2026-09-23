@@ -457,7 +457,15 @@ const CandidateEditor = memo(function CandidateEditor({
               <input aria-label={`Mark choice ${option.label} as correct`} type="radio" name={`correct-${candidate.candidate_id}`} checked={option.is_correct} onChange={() => onEditSource(candidate.candidate_id, (current) => ({ ...current, options: current.options.map((value, index) => ({ ...value, is_correct: index === optionIndex })) }))} />
               <strong>{option.label}</strong>
               <input aria-label={`Choice ${option.label}`} type="text" value={option.option_text} onChange={(event) => onEditSource(candidate.candidate_id, (current) => ({ ...current, reuse_question_id: undefined, options: current.options.map((value, index) => index === optionIndex ? { ...value, option_text: event.target.value } : value) }))} />
-              <button type="button" className="question-import-option-delete-btn" aria-label={`Remove choice ${option.label}`} title={`Remove choice ${option.label}`} disabled={candidate.options.length <= 2} onClick={() => onRemoveChoice(candidate.candidate_id, option.label)}><FiTrash2 /></button>
+              <button
+                type="button"
+                className="question-import-option-delete-btn"
+                aria-label={`Remove choice ${option.label}`}
+                title={`Remove choice ${option.label}`}
+                data-phase5-confirmed="true"
+                disabled={candidate.options.length <= 2}
+                onClick={() => onRemoveChoice(candidate.candidate_id, option.label)}
+              ><FiTrash2 /></button>
             </div>
             <label className="question-import-option-explanation">
               <span style={{ fontSize: "0.82rem", opacity: 0.78 }}>{option.is_correct ? "Why this is correct" : "Why this is incorrect"} · max 2 short sentences</span>
