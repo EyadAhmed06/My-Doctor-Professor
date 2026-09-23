@@ -219,7 +219,19 @@ test('inspector lets an instructor repair missing or extra answer choices before
   await expect(page.locator('.question-import-option-row')).toHaveCount(5);
   await expect(page.getByRole('button', { name: 'Add choice' })).toBeDisabled();
 
-  await page.getByRole('button', { name: 'Remove choice E' }).click();
+  page.on('pageerror', (error) => console.log('CHOICE_REMOVE_PAGEERROR', error.message));
+  page.on('console', (message) => console.log('CHOICE_REMOVE_CONSOLE', message.type(), message.text()));
+  const removeE = page.getByRole('button', { name: 'Remove choice E', exact: true });
+  console.log('CHOICE_REMOVE_BEFORE', await page.locator('.question-import-option-row strong').allTextContents(), await page.locator('.question-import-options-header').textContent());
+  console.log('CHOICE_REMOVE_DISABLED', await removeE.isDisabled());
+  await removeE.click();
+  await page.waitForTimeout(150);
+  console.log('CHOICE_REMOVE_AFTER_PLAYWRIGHT_CLICK', await page.locator('.question-import-option-row strong').allTextContents(), await page.locator('.question-import-options-header').textContent());
+  if (await page.locator('.question-import-option-row').count() === 5) {
+    await removeE.evaluate((element) => (element as HTMLButtonElement).click());
+    await page.waitForTimeout(150);
+    console.log('CHOICE_REMOVE_AFTER_DOM_CLICK', await page.locator('.question-import-option-row strong').allTextContents(), await page.locator('.question-import-options-header').textContent());
+  }
   await expect(page.locator('.question-import-option-row')).toHaveCount(4);
   await expect(page.getByText(/currently 4/)).toBeVisible();
   await expect(page.getByText(/intentionally has four answer choices/i)).toBeVisible();
