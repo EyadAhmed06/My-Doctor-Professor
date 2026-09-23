@@ -183,16 +183,15 @@ test('instructor inspects a five-option PDF candidate and publishes an approved 
 });
 
 test('removing a populated fifth choice is atomic and exposes four-choice review', async ({ page }) => {
-  page.on('console', message => console.log('[browser-console]', message.type(), message.text()));
-  page.on('pageerror', error => console.log('[browser-pageerror]', error.message));
   await openInspection(page);
 
   await expect(page.locator('.question-import-option-row')).toHaveCount(5);
   await expect(page.getByRole('textbox', { name: 'Choice E', exact: true })).toHaveValue('Aorta');
   await expect(page.getByRole('button', { name: 'Remove choice E', exact: true })).toHaveCount(1);
 
-  await page.getByRole('button', { name: 'Remove choice E' }).click();
+  await page.getByRole('button', { name: 'Remove choice E', exact: true }).click();
 
+  await expect(page.getByRole('alertdialog', { name: 'Confirm destructive action' })).toHaveCount(0);
   await expect(page.locator('.question-import-option-row')).toHaveCount(4);
   await expect(page.getByText(/currently 4/)).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Choice E', exact: true })).toHaveCount(0);
@@ -222,7 +221,8 @@ test('inspector lets an instructor repair missing or extra answer choices before
   await expect(page.locator('.question-import-option-row')).toHaveCount(5);
   await expect(page.getByRole('button', { name: 'Add choice' })).toBeDisabled();
 
-  await page.getByRole('button', { name: 'Remove choice E' }).click();
+  await page.getByRole('button', { name: 'Remove choice E', exact: true }).click();
+  await expect(page.getByRole('alertdialog', { name: 'Confirm destructive action' })).toHaveCount(0);
   await expect(page.locator('.question-import-option-row')).toHaveCount(4);
   await expect(page.getByText(/currently 4/)).toBeVisible();
   await expect(page.getByText(/intentionally has four answer choices/i)).toBeVisible();
