@@ -643,20 +643,29 @@ export function QuestionImportPage() {
   }, [editSource]);
 
   const removeChoice = useCallback((candidateId: string, optionLabel: string) => {
+    console.info("[question-import-choice-debug] remove requested", candidateId, optionLabel);
     // Route removals through the same candidate-id based source-edit pipeline as
     // add/edit operations. The updater receives the latest committed candidate,
     // so a rapid add -> remove sequence cannot act on a stale rendered array.
     editSource(candidateId, (candidate) => {
-      if (candidate.options.length <= 2) return candidate;
-
       const normalizedLabel = optionLabel.trim().toUpperCase();
       const optionIndex = candidate.options.findIndex(
         (option) => option.label.trim().toUpperCase() === normalizedLabel,
       );
-      if (optionIndex < 0) return candidate;
+      console.info(
+        "[question-import-choice-debug] reducer input",
+        candidate.candidate_id,
+        candidate.options.map((option) => option.label).join(","),
+        optionIndex,
+      );
+      if (candidate.options.length <= 2 || optionIndex < 0) return candidate;
 
       const options = relabelOptions(
         candidate.options.filter((_, index) => index !== optionIndex),
+      );
+      console.info(
+        "[question-import-choice-debug] reducer output",
+        options.map((option) => option.label).join(","),
       );
 
       // Deleting an option changes the source question. In particular, a
