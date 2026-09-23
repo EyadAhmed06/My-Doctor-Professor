@@ -452,7 +452,7 @@ const CandidateEditor = memo(function CandidateEditor({
         )}
 
         {candidate.options.map((option, optionIndex) => (
-          <div key={`${candidate.candidate_id}-${option.label}-${optionIndex}`} style={{ display: "grid", gap: "0.45rem", marginBottom: "0.75rem" }}>
+          <div key={`${candidate.candidate_id}-${option.label}-${optionIndex}`} className="question-import-option-block">
             <div className={`question-import-option-row ${option.is_correct ? "correct" : ""}`}>
               <input aria-label={`Mark choice ${option.label} as correct`} type="radio" name={`correct-${candidate.candidate_id}`} checked={option.is_correct} onChange={() => onEditSource(candidate.candidate_id, (current) => ({ ...current, options: current.options.map((value, index) => ({ ...value, is_correct: index === optionIndex })) }))} />
               <strong>{option.label}</strong>
