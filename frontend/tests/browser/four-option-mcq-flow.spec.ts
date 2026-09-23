@@ -322,9 +322,28 @@ test('question bank keeps five choices as the default manual-authoring path', as
   await create.getByLabel('Correct option').selectOption('0');
   await create.getByRole('button', { name: 'Create question' }).click();
 
-  await expect.poll(() => state.questions.length).toBe(1);
-  expect(state.questions[0].options).toHaveLength(5);
+  // POST /questions completes before the five parallel POST /options requests.
+  // The product intentionally waits for all option requests before closing the
+  // create dialog, so synchronize on that real UI completion boundary instead
+  // of observing the mock's intermediate "question exists, options pending"
+  // state.
+  await expect(create).toBeHidden();
+  await expect.poll(
+    () => state.questions[0]?.options.length ?? 0,
+    { message: 'all five manually authored options are persisted before creation completes' },
+  ).toBe(5);
+
+  expect(state.questions).toHaveLength(1);
+  expect(state.questions[0].options.map((option) => option.displayOrder)).toEqual([1, 2, 3, 4, 5]);
+  expect(state.questions[0].options.map((option) => option.optionText)).toEqual([
+    'Right atrium',
+    'Left atrium',
+    'Right ventricle',
+    'Left ventricle',
+    'Aorta',
+  ]);
   expect(state.questions[0].options.filter((option) => option.isCorrect)).toHaveLength(1);
+  expect(state.questions[0].options.find((option) => option.isCorrect)?.optionText).toBe('Right atrium');
 });
 
 const attemptId = 'four-five-attempt';
