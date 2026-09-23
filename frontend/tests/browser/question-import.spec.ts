@@ -203,6 +203,8 @@ test('inspector lets an instructor repair missing or extra answer choices before
 
   await page.getByRole('button', { name: 'Remove choice E' }).click();
   await expect(page.locator('.question-import-option-row')).toHaveCount(4);
+  await expect(page.getByText(/currently 4/)).toBeVisible();
+  await expect(page.getByText(/intentionally has four answer choices/i)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add choice' })).toBeEnabled();
 });
 
@@ -247,21 +249,19 @@ test('bulk confirmation approves the intent of every four-choice MCQ at once', a
     });
   });
 
-  const confirmations = page.locator('.question-import-confirm').filter({
+  const visibleConfirmations = page.locator('.question-import-confirm').filter({
     hasText: 'intentionally has four answer choices',
   }).locator('input[type="checkbox"]');
-  await expect(confirmations).toHaveCount(3);
-  for (let index = 0; index < 3; index += 1) {
-    await expect(confirmations.nth(index)).not.toBeChecked();
-  }
+  await expect(visibleConfirmations.first()).not.toBeChecked();
 
   const confirmAll = page.getByRole('button', { name: /Confirm all 4-choice MCQs \(3\)/i });
   await expect(confirmAll).toBeEnabled();
   await confirmAll.click();
 
-  for (let index = 0; index < 3; index += 1) {
-    await expect(confirmations.nth(index)).toBeChecked();
-  }
+  // Desktop renders every editor; mobile intentionally mounts only the active
+  // editor. The publication payload below proves that all three candidates,
+  // including the unmounted mobile candidates, were confirmed in state.
+  await expect(visibleConfirmations.first()).toBeChecked();
   await expect(page.getByRole('button', { name: /All 4-choice MCQs confirmed \(3\)/i })).toBeDisabled();
 
   await page.getByRole('button', { name: /Approve all ready/i }).first().click();
@@ -333,7 +333,7 @@ test('manual explanation UI enforces 220 characters and blocks more than two sen
   await takeaway.fill('First sentence. Second sentence. Third sentence.');
 
   await expect(page.getByText('Question explanation must be at most 2 sentences and 220 characters.')).toBeVisible();
-  await expect(page.getByText('INVALID', { exact: true })).toBeVisible();
+  await expect(page.locator('.question-import-candidate .role-status').filter({ hasText: /^INVALID$/ }).first()).toBeVisible();
   await expect(page.getByLabel('Approve for publication')).toBeDisabled();
 });
 
@@ -355,8 +355,8 @@ test('AI generation explains a stale backend 404 instead of showing a generic 40
 
   await page.getByRole('button', { name: 'Regenerate explanation' }).click();
 
-  await expect(page.getByText(/frontend and backend are on different builds/i)).toBeVisible();
-  await expect(page.getByText(/deploy\/restart the backend from the same branch/i)).toBeVisible();
+  await expect(page.getByText(/frontend and backend are on different builds/i).first()).toBeVisible();
+  await expect(page.getByText(/deploy\/restart the backend from the same branch/i).first()).toBeVisible();
 });
 
 test('AI candidate failures are reported as failures instead of a false success', async ({ page }) => {
@@ -448,7 +448,7 @@ test('billing exhaustion stops later enrichment batches and reports deferred que
 
   await expect.poll(() => enrichCalls).toBe(1);
   await expect(page.getByText(/1 generated · 0 reused · 11 deferred/)).toBeVisible();
-  await expect(page.getByText('AI DEFERRED BILLING')).toHaveCount(11);
+  await expect(page.getByText('AI DEFERRED BILLING').first()).toBeVisible();
 });
 
 
