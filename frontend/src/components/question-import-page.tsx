@@ -643,22 +643,24 @@ export function QuestionImportPage() {
   }, [editSource]);
 
   const removeChoice = useCallback((candidateId: string, optionLabel: string) => {
-    console.log("REMOVE_CHOICE_CALL", candidateId, optionLabel);
+    document.documentElement.dataset.removeChoiceCall = `${candidateId}:${optionLabel}`;
     editSource(candidateId, (candidate) => {
-      console.log("REMOVE_CHOICE_UPDATER", candidateId, candidate.candidate_id, candidate.options.map((option) => option.label).join(","));
+      document.documentElement.dataset.removeChoiceUpdater =
+        `${candidate.candidate_id}:${candidate.options.map((option) => option.label).join(",")}`;
       if (candidate.options.length <= 2) return candidate;
 
       const normalizedLabel = optionLabel.trim().toUpperCase();
       const optionIndex = candidate.options.findIndex(
         (option) => option.label.trim().toUpperCase() === normalizedLabel,
       );
-      console.log("REMOVE_CHOICE_INDEX", normalizedLabel, optionIndex);
+      document.documentElement.dataset.removeChoiceIndex = String(optionIndex);
       if (optionIndex < 0) return candidate;
 
       const options = relabelOptions(
         candidate.options.filter((_, index) => index !== optionIndex),
       );
-      console.log("REMOVE_CHOICE_NEXT", options.map((option) => option.label).join(","));
+      document.documentElement.dataset.removeChoiceNext =
+        options.map((option) => option.label).join(",");
 
       return {
         ...candidate,
