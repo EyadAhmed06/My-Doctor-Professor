@@ -34,8 +34,8 @@ jobs:
       - name: Reproducible install
         run: npm ci --ignore-scripts
 
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install browser engines
+        run: npx playwright install --with-deps chromium webkit
 
       - name: Build production frontend
         env:
@@ -48,7 +48,6 @@ jobs:
           NEXT_PUBLIC_API_URL: /api/v1
         run: >-
           npx playwright test tests/browser/question-import.spec.ts
-          --project=chromium-desktop
           --grep "removing a populated fifth choice|repair missing or extra answer choices"
 
       - name: Upload focused Playwright artifacts
