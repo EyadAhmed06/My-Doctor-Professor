@@ -220,6 +220,18 @@ test('inspector lets an instructor repair missing or extra answer choices before
   await expect(page.getByRole('button', { name: 'Add choice' })).toBeDisabled();
 
   const removeE = page.getByRole('button', { name: 'Remove choice E', exact: true });
+  console.log('REMOVE_REACT_INFO', await removeE.evaluate((element) => {
+    const key = Object.keys(element).find((name) => name.startsWith('__reactProps'));
+    const props = key
+      ? (element as unknown as Record<string, { onClick?: unknown; disabled?: unknown }>)[key]
+      : undefined;
+    return {
+      key: key ?? null,
+      onClickType: typeof props?.onClick,
+      disabled: props?.disabled ?? null,
+      propKeys: props ? Object.keys(props) : [],
+    };
+  }));
   await removeE.click();
   await page.waitForTimeout(100);
   console.log('REMOVE_DATASET', await page.evaluate(() => ({
@@ -229,6 +241,22 @@ test('inspector lets an instructor repair missing or extra answer choices before
     next: document.documentElement.dataset.removeChoiceNext ?? null,
   })));
   console.log('REMOVE_UI', await page.locator('.question-import-option-row strong').allTextContents(), await page.locator('.question-import-options-header').textContent());
+  if (await page.locator('.question-import-option-row').count() === 5) {
+    await removeE.evaluate((element) => {
+      const key = Object.keys(element).find((name) => name.startsWith('__reactProps'));
+      const props = key
+        ? (element as unknown as Record<string, { onClick?: () => void }>)[key]
+        : undefined;
+      props?.onClick?.();
+    });
+    await page.waitForTimeout(100);
+    console.log('REMOVE_AFTER_DIRECT_REACT_PROP', await page.evaluate(() => ({
+      call: document.documentElement.dataset.removeChoiceCall ?? null,
+      updater: document.documentElement.dataset.removeChoiceUpdater ?? null,
+      index: document.documentElement.dataset.removeChoiceIndex ?? null,
+      next: document.documentElement.dataset.removeChoiceNext ?? null,
+    })), await page.locator('.question-import-option-row strong').allTextContents());
+  }
   await expect(page.locator('.question-import-option-row')).toHaveCount(4);
   await expect(page.getByText(/currently 4/)).toBeVisible();
   await expect(page.getByText(/intentionally has four answer choices/i)).toBeVisible();
