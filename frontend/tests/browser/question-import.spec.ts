@@ -182,6 +182,24 @@ test('instructor inspects a five-option PDF candidate and publishes an approved 
   expect(body.candidates?.[0]?.options?.filter(option => option.is_correct)).toHaveLength(1);
 });
 
+test('removing a populated fifth choice is atomic and exposes four-choice review', async ({ page }) => {
+  await openInspection(page);
+
+  await expect(page.locator('.question-import-option-row')).toHaveCount(5);
+  await expect(page.getByLabel('Choice E')).toHaveValue('Aorta');
+
+  await page.getByRole('button', { name: 'Remove choice E' }).click();
+
+  await expect(page.locator('.question-import-option-row')).toHaveCount(4);
+  await expect(page.getByText(/currently 4/)).toBeVisible();
+  await expect(page.getByLabel('Choice E')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Remove choice E' })).toHaveCount(0);
+  await expect(page.getByText(/intentionally has four answer choices/i)).toBeVisible();
+
+  const labels = await page.locator('.question-import-option-row strong').allTextContents();
+  expect(labels).toEqual(['A', 'B', 'C', 'D']);
+});
+
 test('inspector lets an instructor repair missing or extra answer choices before publication', async ({ page }) => {
   const source = inspectionBody();
   source.candidates[0].options = source.candidates[0].options.slice(0, 2);
