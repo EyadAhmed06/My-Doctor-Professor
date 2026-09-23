@@ -154,10 +154,30 @@
     gap: 12px !important;
   }
   .question-import-candidate { padding: 14px !important; }
-  .question-import-options label {
+
+  /* This used to target every label inside .question-import-options. That
+     accidentally turned the explanation label itself into a three-column grid,
+     forcing its textarea into the 28px middle column on phones/tablets. Keep
+     the compact grid on the actual choice row only; explanations remain a
+     full-width single-column editor below it. */
+  .question-import-option-row {
     display: grid !important;
-    grid-template-columns: auto 28px minmax(0, 1fr) !important;
+    grid-template-columns: auto 28px minmax(0, 1fr) auto !important;
     align-items: center !important;
+  }
+  .question-import-option-explanation {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+  .question-import-option-explanation textarea {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
   }
 }
 
