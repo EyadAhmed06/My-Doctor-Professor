@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   question-import-choice-contract:
-    name: MCQ importer choice contract
+    name: MCQ importer responsive choice contract
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -42,13 +42,13 @@ jobs:
           NEXT_PUBLIC_API_URL: /api/v1
         run: npm run build
 
-      - name: Run MCQ importer choice contract
+      - name: Run MCQ importer responsive choice contract
         env:
           CI: true
           NEXT_PUBLIC_API_URL: /api/v1
         run: >-
           npx playwright test tests/browser/question-import.spec.ts
-          --grep "removing a populated fifth choice|repair missing or extra answer choices"
+          --grep "instructor inspects a five-option PDF candidate|removing a populated fifth choice|repair missing or extra answer choices"
 
       - name: Upload focused Playwright artifacts
         if: failure()
