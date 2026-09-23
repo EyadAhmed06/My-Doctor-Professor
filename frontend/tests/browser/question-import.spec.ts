@@ -448,6 +448,14 @@ test('billing exhaustion stops later enrichment batches and reports deferred que
 
   await expect.poll(() => enrichCalls).toBe(1);
   await expect(page.getByText(/1 generated · 0 reused · 11 deferred/)).toBeVisible();
+
+  // Desktop mounts all candidates, while mobile intentionally mounts only the
+  // selected editor. Move to a deferred candidate on mobile before asserting
+  // its per-question state.
+  const mobileNavigator = page.locator('.question-import-mobile-list');
+  if (await mobileNavigator.count()) {
+    await mobileNavigator.locator('button').nth(1).click();
+  }
   await expect(page.getByText('AI DEFERRED BILLING').first()).toBeVisible();
 });
 
