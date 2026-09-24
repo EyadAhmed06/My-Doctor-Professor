@@ -8,7 +8,7 @@ import {
 const signature = {
   provider: 'OPENROUTER' as const,
   model: 'meta/muse-spark-1.3',
-  promptVersion: 'mcq-explanation-v4-clinical-rationale',
+  promptVersion: 'mcq-explanation-v5-evidence-grounded',
 };
 
 function candidate(overrides: Record<string, unknown> = {}) {
@@ -53,7 +53,7 @@ function generatedResult(candidateId: string) {
     confidence: 0.94,
     reviewReason: null,
     model: 'meta/muse-spark-1.3',
-    promptVersion: 'mcq-explanation-v4-clinical-rationale',
+    promptVersion: 'mcq-explanation-v5-evidence-grounded',
   };
 }
 
@@ -73,7 +73,7 @@ describe('QuestionImportAiEnrichmentService', () => {
       confidence: 0.94,
       reviewReason: null,
       model: 'meta/muse-spark-1.3',
-      promptVersion: 'mcq-explanation-v4-clinical-rationale',
+      promptVersion: 'mcq-explanation-v5-evidence-grounded',
     });
     const openRouter = {
       isConfigured: () => true,
@@ -114,7 +114,7 @@ describe('QuestionImportAiEnrichmentService', () => {
       confidence: 0.94,
       reviewReason: null,
       model: 'meta/muse-spark-1.3',
-      promptVersion: 'mcq-explanation-v4-clinical-rationale',
+      promptVersion: 'mcq-explanation-v5-evidence-grounded',
     });
     const openRouter = {
       isConfigured: () => true,
@@ -238,7 +238,7 @@ describe('QuestionImportAiEnrichmentService', () => {
         confidence: 0.55,
         reviewReason: 'The keyed answer conflicts with standard management guidance.',
         model: 'meta/muse-spark-1.3',
-        promptVersion: 'mcq-explanation-v4-clinical-rationale',
+        promptVersion: 'mcq-explanation-v5-evidence-grounded',
       }),
     } as unknown as OpenRouterQuestionEnrichmentService;
 

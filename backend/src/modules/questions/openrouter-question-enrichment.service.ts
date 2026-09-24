@@ -61,7 +61,7 @@ export type OpenRouterGenerateOptions = {
 
 const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
 const DEFAULT_MODEL = 'meta/muse-spark-1.3';
-const PROMPT_VERSION = 'mcq-explanation-v4-clinical-rationale';
+const PROMPT_VERSION = 'mcq-explanation-v5-evidence-grounded';
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_ATTEMPTS = 3;
 const MAX_OUTPUT_TOKENS = 1_800;
@@ -170,10 +170,12 @@ export class OpenRouterQuestionEnrichmentService {
                 'For every incorrect option, explain the specific mismatch: contrast the stem with the finding, mechanism, presentation, or indication that would make that distractor plausible.',
                 'Do not merely say an option is wrong, unlikely, or less likely; give the discriminating reason.',
                 'Use established medical knowledge when needed to explain the distinction, but never invent patient-specific history, examination findings, laboratory values, imaging, treatments, or other facts that are not present in the stem.',
+                'Separate facts stated in the stem from general medical knowledge. A typical association (for example, a preceding viral illness in subacute thyroiditis) must not be described as observed in this patient unless the stem explicitly reports it.',
+                'When a distractor requires an exposure, symptom, or test result that the stem does not mention, say that the evidence is not supplied; do not assert the exposure or finding is absent. Prefer explicit discriminating findings in the stem over missing information.',
                 'Keep the reasoning focused on this MCQ rather than turning it into a general textbook chapter.',
                 `Each explanation may use up to ${EXPLANATION_MAX_SENTENCES} sentences and ${EXPLANATION_MAX_LENGTH} characters; normally aim for 1-3 substantive sentences (roughly 120-450 characters) when the distinction warrants it.`,
                 'The question-level takeaway should synthesize the decisive reasoning in one or two sentences rather than repeat the full stem.',
-                'The assessment field already carries CORRECT or INCORRECT, so the explanation field should contain the rationale itself rather than wasting space repeating the verdict.',
+                'The assessment field carries CORRECT or INCORRECT; put only the rationale in the explanation field. The interface presents the option label and verdict.',
                 'If the source answer appears medically inconsistent, keep it unchanged and mark answer_consistency as QUESTIONABLE with a specific review_reason.',
                 `Return exactly one explanation for each supplied answer option (${sequentialMcqLabels(input.options.length).join(', ')}). Do not invent or omit choices.`,
                 'Return only the JSON object required by the response schema, without prose or Markdown fences.',

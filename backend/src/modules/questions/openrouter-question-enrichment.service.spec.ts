@@ -51,7 +51,7 @@ describe('OpenRouterQuestionEnrichmentService', () => {
     expect(result.sourceCorrectLabel).toBe('C');
     expect(result.optionExplanations).toHaveLength(5);
     expect(result.model).toBe('meta/muse-spark-1.3');
-    expect(result.promptVersion).toBe('mcq-explanation-v4-clinical-rationale');
+    expect(result.promptVersion).toBe('mcq-explanation-v5-evidence-grounded');
   });
 
   it('sends the bounded clinical-rationale contract to OpenRouter', async () => {
@@ -75,6 +75,8 @@ describe('OpenRouterQuestionEnrichmentService', () => {
     expect(body.messages[0].content).toContain('clinically reasoned answer-key explanations');
     expect(body.messages[0].content).toContain('specific mismatch');
     expect(body.messages[0].content).toContain('never invent patient-specific');
+    expect(body.messages[0].content).toContain('must not be described as observed in this patient');
+    expect(body.messages[0].content).toContain('do not assert the exposure or finding is absent');
   });
 
   it('accepts schema-valid JSON wrapped in a Markdown fence', async () => {
