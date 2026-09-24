@@ -608,7 +608,7 @@ export function QuestionImportPage() {
       })));
       notify({
         title: "PDF inspection complete",
-        description: `${result.candidates.length} MCQ candidate(s) extracted. Generate concise explanations, review, then publish.`,
+        description: `${result.candidates.length} MCQ candidate(s) extracted. Generate clinical answer rationales, review, then publish.`,
         tone: "success",
       });
     } catch (cause) {
@@ -914,7 +914,7 @@ export function QuestionImportPage() {
     if (blocked) {
       const reason = aiStatus(blocked) === "STALE"
         ? "Its explanation is stale after the question/options changed. Regenerate it first."
-        : "It needs four or five complete options, one correct answer, four-choice confirmation when applicable, and concise explanations for every supplied choice.";
+        : "It needs four or five complete options, one correct answer, four-choice confirmation when applicable, and complete rationales for every supplied choice.";
       notify({ title: `Question ${blocked.question_number ?? ""} is not publishable`, description: reason, tone: "error" });
       return;
     }
