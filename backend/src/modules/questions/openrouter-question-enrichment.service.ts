@@ -513,7 +513,7 @@ export class OpenRouterQuestionEnrichmentService {
     if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) throw new Error('AI returned an invalid confidence value.');
     const reviewReason = row.review_reason == null ? null : this.normalizeExplanation(String(row.review_reason)) || null;
     if (answerConsistency === 'QUESTIONABLE' && !reviewReason) throw new Error('Questionable answer consistency requires a review reason.');
-    if (reviewReason && reviewReason.length > MAX_REVIEW_REASON_CHARS) throw new Error('AI review reason exceeded the concise review limit.');
+    if (reviewReason && reviewReason.length > MAX_REVIEW_REASON_CHARS) throw new Error('AI review reason exceeded the review limit.');
 
     return {
       candidateId: input.candidateId,
