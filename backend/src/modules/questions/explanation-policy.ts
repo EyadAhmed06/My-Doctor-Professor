@@ -16,22 +16,22 @@ export function countExplanationSentences(value: string) {
   return terminated + (hasTrailingTerminator ? 0 : 1);
 }
 
-export function isConciseExplanation(value: string) {
+export function isExplanationWithinPolicy(value: string) {
   return (
     value.length <= EXPLANATION_MAX_LENGTH &&
     countExplanationSentences(value) <= EXPLANATION_MAX_SENTENCES
   );
 }
 
-export function IsConciseExplanation(
+export function IsExplanationWithinPolicy(
   validationOptions?: ValidationOptions,
 ) {
   return ValidateBy(
     {
-      name: 'isConciseExplanation',
+      name: 'isExplanationWithinPolicy',
       validator: {
         validate: (value: unknown) =>
-          typeof value !== 'string' || isConciseExplanation(value),
+          typeof value !== 'string' || isExplanationWithinPolicy(value),
         defaultMessage: () =>
           `explanation must be at most ${EXPLANATION_MAX_SENTENCES} sentences and ${EXPLANATION_MAX_LENGTH} characters`,
       },
