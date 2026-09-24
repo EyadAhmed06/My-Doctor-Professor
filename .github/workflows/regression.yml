@@ -48,7 +48,7 @@ jobs:
           NEXT_PUBLIC_API_URL: /api/v1
         run: >-
           npx playwright test tests/browser/question-import.spec.ts
-          --grep "instructor inspects a five-option PDF candidate|removing a populated fifth choice|repair missing or extra answer choices"
+          --grep "instructor inspects a five-option PDF candidate|removing a populated fifth choice|repair missing or extra answer choices|manual explanation UI enforces 700 characters"
 
       - name: Run manual four/five-option authoring contract
         env:
