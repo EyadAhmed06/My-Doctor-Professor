@@ -160,6 +160,8 @@ test('instructor inspects a five-option PDF candidate and publishes an approved 
   await expect(page.getByText('96%').first()).toBeVisible();
   await expect(page.locator('input[value="Left atrium"]')).toBeVisible();
   await expect(page.locator('input[value="Aorta"]')).toBeVisible();
+  await expect(page.getByText(/A\) Incorrect · clinically reasoned rationale/i)).toBeVisible();
+  await expect(page.getByText(/B\) Correct · clinically reasoned rationale/i)).toBeVisible();
   const explanationEditors = page.locator('.question-import-option-explanation');
   await expect(explanationEditors).toHaveCount(5);
   const explanationGeometry = await explanationEditors.evaluateAll((editors) => editors.map((editor) => {
