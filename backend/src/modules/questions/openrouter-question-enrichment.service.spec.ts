@@ -44,30 +44,37 @@ describe('OpenRouterQuestionEnrichmentService', () => {
     return { ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify(content) } }] }) } as Response;
   }
 
-  it('accepts a valid concise five-option explanation without changing the source answer', async () => {
+  it('accepts a valid clinically reasoned five-option explanation without changing the source answer', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     global.fetch = jest.fn().mockResolvedValue(response(validPayload()));
     const result = await new OpenRouterQuestionEnrichmentService().generate(input);
     expect(result.sourceCorrectLabel).toBe('C');
     expect(result.optionExplanations).toHaveLength(5);
     expect(result.model).toBe('meta/muse-spark-1.3');
-    expect(result.promptVersion).toBe('mcq-explanation-v3-four-or-five-options');
+    expect(result.promptVersion).toBe('mcq-explanation-v4-clinical-rationale');
   });
 
-  it('caps provider output to the concise explanation budget', async () => {
+  it('sends the bounded clinical-rationale contract to OpenRouter', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     global.fetch = jest.fn().mockResolvedValue(response(validPayload()));
 
     await new OpenRouterQuestionEnrichmentService().generate(input);
 
     const request = (global.fetch as jest.Mock).mock.calls[0][1] as RequestInit;
-    expect(JSON.parse(String(request.body))).toMatchObject({
+    const body = JSON.parse(String(request.body));
+    expect(body).toMatchObject({
       model: 'meta/muse-spark-1.3',
-      max_tokens: 1200,
+      max_tokens: 1800,
+      reasoning: { effort: 'minimal' },
       provider: { require_parameters: true },
       plugins: [{ id: 'response-healing' }],
       response_format: { type: 'json_schema' },
     });
+    expect(body.response_format.json_schema.schema.properties.question_explanation.maxLength).toBe(700);
+    expect(body.response_format.json_schema.schema.properties.options.items.properties.explanation.maxLength).toBe(700);
+    expect(body.messages[0].content).toContain('clinically reasoned answer-key explanations');
+    expect(body.messages[0].content).toContain('specific mismatch');
+    expect(body.messages[0].content).toContain('never invent patient-specific');
   });
 
   it('accepts schema-valid JSON wrapped in a Markdown fence', async () => {
@@ -142,22 +149,33 @@ describe('OpenRouterQuestionEnrichmentService', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('rejects explanations longer than two sentences', async () => {
+  it('rejects explanations longer than three sentences', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     const payload = validPayload();
-    payload.question_explanation = 'First useful point. Second useful point. Third unnecessary point.';
+    payload.question_explanation = 'First useful point. Second useful point. Third useful point. Fourth unnecessary point.';
     global.fetch = jest.fn().mockResolvedValue(response(payload));
 
-    await expect(new OpenRouterQuestionEnrichmentService().generate(input)).rejects.toThrow('exceeded 2 sentences');
+    await expect(new OpenRouterQuestionEnrichmentService().generate(input)).rejects.toThrow('exceeded 3 sentences');
   });
 
-  it('rejects explanations that exceed the concise character budget', async () => {
+  it('rejects explanations that exceed the bounded rationale character budget', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     const payload = validPayload();
-    payload.options[0].explanation = 'A'.repeat(221);
+    payload.options[0].explanation = 'A'.repeat(701);
     global.fetch = jest.fn().mockResolvedValue(response(payload));
 
-    await expect(new OpenRouterQuestionEnrichmentService().generate(input)).rejects.toThrow('exceeded 220 characters');
+    await expect(new OpenRouterQuestionEnrichmentService().generate(input)).rejects.toThrow('exceeded 700 characters');
+  });
+
+  it('accepts a substantive answer-key rationale within the bounded policy', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const payload = validPayload();
+    payload.options[0].explanation =
+      'This distractor can produce a similar symptom, but the stem lacks the finding that would support it. The decisive pattern instead points to the keyed diagnosis.';
+    global.fetch = jest.fn().mockResolvedValue(response(payload));
+
+    await expect(new OpenRouterQuestionEnrichmentService().generate(input))
+      .resolves.toMatchObject({ sourceCorrectLabel: 'C' });
   });
 
   it('normalizes multiline explanations into compact student-facing text', async () => {
