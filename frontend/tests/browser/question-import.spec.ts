@@ -362,16 +362,16 @@ test('incomplete structural extraction is visible and blocks bulk approval', asy
   await expect(page.getByRole('button', { name: /Regenerate explanation/i })).toBeDisabled();
 });
 
-test('manual explanation UI enforces 220 characters and blocks more than two sentences', async ({ page }) => {
+test('manual explanation UI enforces 700 characters and blocks more than three sentences', async ({ page }) => {
   await openInspection(page);
 
   const takeaway = page.getByLabel(/Question-level takeaway/i);
-  await expect(takeaway).toHaveAttribute('maxlength', '220');
-  await expect(page.getByText(/\/220$/).last()).toBeVisible();
+  await expect(takeaway).toHaveAttribute('maxlength', '700');
+  await expect(page.getByText(/\/700$/).last()).toBeVisible();
 
-  await takeaway.fill('First sentence. Second sentence. Third sentence.');
+  await takeaway.fill('First sentence. Second sentence. Third sentence. Fourth sentence.');
 
-  await expect(page.getByText('Question explanation must be at most 2 sentences and 220 characters.')).toBeVisible();
+  await expect(page.getByText('Question explanation must be at most 3 sentences and 700 characters.')).toBeVisible();
   await expect(page.locator('.question-import-candidate .role-status').filter({ hasText: /^INVALID$/ }).first()).toBeVisible();
   await expect(page.getByLabel('Approve for publication')).toBeDisabled();
 });
