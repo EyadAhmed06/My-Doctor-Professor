@@ -468,7 +468,7 @@ const CandidateEditor = memo(function CandidateEditor({
               ><FiTrash2 /></button>
             </div>
             <label className="question-import-option-explanation">
-              <span style={{ fontSize: "0.82rem", opacity: 0.78 }}>{option.label}) {option.is_correct ? "Correct" : "Incorrect"} · clinically reasoned rationale · max {EXPLANATION_MAX_SENTENCES} sentences</span>
+              <span style={{ fontSize: "0.82rem", opacity: 0.78 }}><strong>{option.label}) {option.is_correct ? "Correct:" : "Incorrect:"}</strong> clinically reasoned rationale · max {EXPLANATION_MAX_SENTENCES} sentences</span>
               <textarea rows={4} maxLength={EXPLANATION_MAX_LENGTH} value={option.explanation || ""} placeholder={option.is_correct ? "Connect the decisive stem clues to why this answer fits…" : "Explain the specific finding or distinction that makes this distractor not fit…"} onChange={(event) => onUpdate(candidate.candidate_id, (current) => ({ ...current, approved: false, options: current.options.map((value, index) => index === optionIndex ? { ...value, explanation: event.target.value } : value) }))} />
               <small style={{ justifySelf: "end" }}>{(option.explanation || "").length}/{EXPLANATION_MAX_LENGTH}</small>
             </label>
