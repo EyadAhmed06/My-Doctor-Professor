@@ -4,6 +4,10 @@ import {
   isSupportedMcqOptionCount,
   sequentialMcqLabels,
 } from '../../common/mcq-option-policy';
+import {
+  EXPLANATION_MAX_LENGTH,
+  EXPLANATION_MAX_SENTENCES,
+} from './explanation-policy';
 
 export type McqOptionInput = { label: string; text: string };
 export type McqExplanationInput = {
@@ -57,13 +61,11 @@ export type OpenRouterGenerateOptions = {
 
 const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
 const DEFAULT_MODEL = 'meta/muse-spark-1.3';
-const PROMPT_VERSION = 'mcq-explanation-v3-four-or-five-options';
+const PROMPT_VERSION = 'mcq-explanation-v4-clinical-rationale';
 const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_ATTEMPTS = 3;
-const MAX_EXPLANATION_CHARS = 220;
-const MAX_EXPLANATION_SENTENCES = 2;
-const MAX_OUTPUT_TOKENS = 1_200;
-const MAX_REVIEW_REASON_CHARS = 180;
+const MAX_OUTPUT_TOKENS = 1_800;
+const MAX_REVIEW_REASON_CHARS = 320;
 const MAX_ERROR_BODY_CHARS = 16_384;
 const MAX_PROVIDER_MESSAGE_CHARS = 500;
 const MAX_RETRY_DELAY_MS = 15_000;
@@ -148,6 +150,7 @@ export class OpenRouterQuestionEnrichmentService {
           model: this.model,
           temperature: 0.1,
           max_tokens: MAX_OUTPUT_TOKENS,
+          reasoning: { effort: 'minimal' },
           ...(requireParameters
             ? { provider: { require_parameters: true } }
             : {}),
@@ -160,14 +163,18 @@ export class OpenRouterQuestionEnrichmentService {
             {
               role: 'system',
               content: [
-                'You generate concise educational explanations for medical MCQs.',
+                'You generate high-quality, clinically reasoned answer-key explanations for medical MCQs.',
                 'The supplied source answer is authoritative and must never be changed.',
                 'Never rewrite the question or any option text.',
-                'Explain only the decisive fact or distinction that helps the student understand why an option is correct or incorrect.',
-                'Do not add background teaching, definitions, repetition, filler, or a restatement of the question unless essential to the distinction.',
-                'Every question explanation and every option explanation must be at most two short sentences, preferably one sentence, and no more than 220 characters.',
-                'Write the minimum useful explanation: direct, specific, and exam-relevant.',
-                'If the source answer appears medically inconsistent, keep it unchanged and mark answer_consistency as QUESTIONABLE with a concise review_reason.',
+                'For the correct option, connect the decisive findings in the stem to the diagnosis, concept, mechanism, or management principle that makes the option correct.',
+                'For every incorrect option, explain the specific mismatch: contrast the stem with the finding, mechanism, presentation, or indication that would make that distractor plausible.',
+                'Do not merely say an option is wrong, unlikely, or less likely; give the discriminating reason.',
+                'Use established medical knowledge when needed to explain the distinction, but never invent patient-specific history, examination findings, laboratory values, imaging, treatments, or other facts that are not present in the stem.',
+                'Keep the reasoning focused on this MCQ rather than turning it into a general textbook chapter.',
+                `Each explanation may use up to ${EXPLANATION_MAX_SENTENCES} sentences and ${EXPLANATION_MAX_LENGTH} characters; normally aim for 1-3 substantive sentences (roughly 120-450 characters) when the distinction warrants it.`,
+                'The question-level takeaway should synthesize the decisive reasoning in one or two sentences rather than repeat the full stem.',
+                'The assessment field already carries CORRECT or INCORRECT, so the explanation field should contain the rationale itself rather than wasting space repeating the verdict.',
+                'If the source answer appears medically inconsistent, keep it unchanged and mark answer_consistency as QUESTIONABLE with a specific review_reason.',
                 `Return exactly one explanation for each supplied answer option (${sequentialMcqLabels(input.options.length).join(', ')}). Do not invent or omit choices.`,
                 'Return only the JSON object required by the response schema, without prose or Markdown fences.',
               ].join(' '),
@@ -182,10 +189,13 @@ export class OpenRouterQuestionEnrichmentService {
                 options: input.options,
                 source_correct_label: input.sourceCorrectLabel,
                 explanation_style: {
-                  objective: 'minimum useful explanation for the student',
-                  max_sentences: MAX_EXPLANATION_SENTENCES,
-                  max_characters: MAX_EXPLANATION_CHARS,
-                  preferred_sentences: 1,
+                  objective: 'exam-focused, clinically reasoned answer-key rationale',
+                  correct_option: 'connect decisive stem clues to why the keyed answer fits',
+                  incorrect_options: 'state the specific discriminating reason each distractor does not fit',
+                  max_sentences: EXPLANATION_MAX_SENTENCES,
+                  max_characters: EXPLANATION_MAX_LENGTH,
+                  target_characters: '120-450 when clinically useful',
+                  question_takeaway_sentences: '1-2',
                 },
               }),
             },
@@ -489,11 +499,11 @@ export class OpenRouterQuestionEnrichmentService {
     const correctRows = normalized.filter((option) => option.assessment === 'CORRECT');
     if (correctRows.length !== 1 || correctRows[0].label !== expectedCorrect) throw new Error('AI option assessments contradict the source answer key.');
     if (normalized.some((option) => !option.explanation)) throw new Error('AI returned an empty option explanation.');
-    normalized.forEach((option) => this.assertConciseExplanation(option.explanation, `Option ${option.label}`));
+    normalized.forEach((option) => this.assertExplanationPolicy(option.explanation, `Option ${option.label}`));
 
     const questionExplanation = this.normalizeExplanation(String(row.question_explanation || ''));
     if (!questionExplanation) throw new Error('AI returned an empty question explanation.');
-    this.assertConciseExplanation(questionExplanation, 'Question');
+    this.assertExplanationPolicy(questionExplanation, 'Question');
 
     const answerConsistency = String(row.answer_consistency || '').trim().toUpperCase();
     if (!['CONSISTENT', 'QUESTIONABLE'].includes(answerConsistency)) throw new Error('AI returned an invalid answer consistency status.');
@@ -523,16 +533,16 @@ export class OpenRouterQuestionEnrichmentService {
     return value.replace(/\s+/g, ' ').trim();
   }
 
-  private assertConciseExplanation(value: string, field: string): void {
-    if (value.length > MAX_EXPLANATION_CHARS) {
-      throw new Error(`${field} explanation exceeded ${MAX_EXPLANATION_CHARS} characters.`);
+  private assertExplanationPolicy(value: string, field: string): void {
+    if (value.length > EXPLANATION_MAX_LENGTH) {
+      throw new Error(`${field} explanation exceeded ${EXPLANATION_MAX_LENGTH} characters.`);
     }
     const sentences = value
       .split(/(?<=[.!?])\s+/)
       .map((sentence) => sentence.trim())
       .filter(Boolean);
-    if (sentences.length > MAX_EXPLANATION_SENTENCES) {
-      throw new Error(`${field} explanation exceeded ${MAX_EXPLANATION_SENTENCES} sentences.`);
+    if (sentences.length > EXPLANATION_MAX_SENTENCES) {
+      throw new Error(`${field} explanation exceeded ${EXPLANATION_MAX_SENTENCES} sentences.`);
     }
   }
 
@@ -545,7 +555,7 @@ export class OpenRouterQuestionEnrichmentService {
         candidate_id: { type: 'string' },
         source_correct_label: { type: 'string', enum: labels },
         answer_consistency: { type: 'string', enum: ['CONSISTENT', 'QUESTIONABLE'] },
-        question_explanation: { type: 'string', minLength: 1, maxLength: MAX_EXPLANATION_CHARS },
+        question_explanation: { type: 'string', minLength: 1, maxLength: EXPLANATION_MAX_LENGTH },
         options: {
           type: 'array', minItems: input.options.length, maxItems: input.options.length,
           items: {
@@ -554,7 +564,7 @@ export class OpenRouterQuestionEnrichmentService {
             properties: {
               label: { type: 'string', enum: labels },
               assessment: { type: 'string', enum: ['CORRECT', 'INCORRECT'] },
-              explanation: { type: 'string', minLength: 1, maxLength: MAX_EXPLANATION_CHARS },
+              explanation: { type: 'string', minLength: 1, maxLength: EXPLANATION_MAX_LENGTH },
             },
           },
         },
