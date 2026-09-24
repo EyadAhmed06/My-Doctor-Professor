@@ -20,7 +20,7 @@ import {
   QuestionDifficulty,
   QuestionType,
 } from '../../../common/entities/question.entity';
-import { EXPLANATION_MAX_LENGTH, IsConciseExplanation } from '../explanation-policy';
+import { EXPLANATION_MAX_LENGTH, IsExplanationWithinPolicy } from '../explanation-policy';
 
 const BooleanQuery = () =>
   Transform(({ value }) => {
@@ -108,7 +108,7 @@ export class EnrichQuestionImportOptionDto {
   @IsOptional()
   @IsString()
   @MaxLength(EXPLANATION_MAX_LENGTH)
-  @IsConciseExplanation()
+  @IsExplanationWithinPolicy()
   explanation?: string;
 }
 
@@ -132,7 +132,7 @@ export class EnrichQuestionImportCandidateDto {
   @IsOptional()
   @IsString()
   @MaxLength(EXPLANATION_MAX_LENGTH)
-  @IsConciseExplanation()
+  @IsExplanationWithinPolicy()
   explanation?: string;
   @IsOptional() @IsEnum(QuestionDifficulty) difficulty?: QuestionDifficulty;
   @IsOptional() @IsString() @MaxLength(255) source_section?: string;
@@ -155,7 +155,7 @@ export class PublishImportedOptionDto {
   @IsOptional()
   @IsString()
   @MaxLength(EXPLANATION_MAX_LENGTH)
-  @IsConciseExplanation()
+  @IsExplanationWithinPolicy()
   explanation?: string;
   @IsBoolean() is_correct: boolean;
 }
@@ -166,7 +166,7 @@ export class PublishImportedQuestionDto {
   @IsOptional()
   @IsString()
   @MaxLength(EXPLANATION_MAX_LENGTH)
-  @IsConciseExplanation()
+  @IsExplanationWithinPolicy()
   explanation?: string;
   @IsEnum(QuestionDifficulty) difficulty: QuestionDifficulty;
   @IsInt() @Min(1) @Max(999) marks: number;
