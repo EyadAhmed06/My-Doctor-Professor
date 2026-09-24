@@ -20,7 +20,7 @@ import {
   QuestionDifficulty,
   QuestionType,
 } from '../../../common/entities/question.entity';
-import { IsConciseExplanation } from '../explanation-policy';
+import { EXPLANATION_MAX_LENGTH, IsConciseExplanation } from '../explanation-policy';
 
 const BooleanQuery = () =>
   Transform(({ value }) => {
@@ -107,7 +107,7 @@ export class EnrichQuestionImportOptionDto {
   @IsBoolean() is_correct: boolean;
   @IsOptional()
   @IsString()
-  @MaxLength(220)
+  @MaxLength(EXPLANATION_MAX_LENGTH)
   @IsConciseExplanation()
   explanation?: string;
 }
@@ -131,7 +131,7 @@ export class EnrichQuestionImportCandidateDto {
   options: EnrichQuestionImportOptionDto[];
   @IsOptional()
   @IsString()
-  @MaxLength(220)
+  @MaxLength(EXPLANATION_MAX_LENGTH)
   @IsConciseExplanation()
   explanation?: string;
   @IsOptional() @IsEnum(QuestionDifficulty) difficulty?: QuestionDifficulty;
@@ -154,7 +154,7 @@ export class PublishImportedOptionDto {
   @IsString() @IsNotEmpty() @MaxLength(2000) option_text: string;
   @IsOptional()
   @IsString()
-  @MaxLength(220)
+  @MaxLength(EXPLANATION_MAX_LENGTH)
   @IsConciseExplanation()
   explanation?: string;
   @IsBoolean() is_correct: boolean;
@@ -165,7 +165,7 @@ export class PublishImportedQuestionDto {
   @IsString() @IsNotEmpty() question_text: string;
   @IsOptional()
   @IsString()
-  @MaxLength(220)
+  @MaxLength(EXPLANATION_MAX_LENGTH)
   @IsConciseExplanation()
   explanation?: string;
   @IsEnum(QuestionDifficulty) difficulty: QuestionDifficulty;
