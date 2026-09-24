@@ -36,7 +36,7 @@ function constraintMessages(errors: ValidationError[]): string[] {
 }
 
 describe('PublishQuestionImportDto explanation policy', () => {
-  it('accepts an explanation with at most two sentences and 220 characters', async () => {
+  it('accepts an explanation with at most three sentences and 700 characters', async () => {
     const dto = plainToInstance(
       PublishQuestionImportDto,
       payloadWithExplanation(
@@ -64,29 +64,29 @@ describe('PublishQuestionImportDto explanation policy', () => {
     expect(await validate(dto)).not.toHaveLength(0);
   });
 
-  it('rejects an explanation longer than 220 characters', async () => {
+  it('rejects an explanation longer than 700 characters', async () => {
     const dto = plainToInstance(
       PublishQuestionImportDto,
-      payloadWithExplanation('a'.repeat(221)),
+      payloadWithExplanation('a'.repeat(701)),
     );
 
     const errors = await validate(dto);
     expect(errors).not.toHaveLength(0);
     expect(constraintMessages(errors)).toContain(
-      'explanation must be shorter than or equal to 220 characters',
+      'explanation must be shorter than or equal to 700 characters',
     );
   });
 
-  it('rejects an explanation with more than two sentences', async () => {
+  it('rejects an explanation with more than three sentences', async () => {
     const dto = plainToInstance(
       PublishQuestionImportDto,
-      payloadWithExplanation('First sentence. Second sentence. Third sentence.'),
+      payloadWithExplanation('First sentence. Second sentence. Third sentence. Fourth sentence.'),
     );
 
     const errors = await validate(dto);
     expect(errors).not.toHaveLength(0);
     expect(constraintMessages(errors)).toContain(
-      'explanation must be at most 2 sentences and 220 characters',
+      'explanation must be at most 3 sentences and 700 characters',
     );
   });
 });
