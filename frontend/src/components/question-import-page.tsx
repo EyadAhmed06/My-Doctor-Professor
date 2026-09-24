@@ -151,8 +151,8 @@ const OPTION_LABELS = ["A", "B", "C", "D", "E"] as const;
 const MIN_MCQ_OPTIONS = 4;
 const MAX_MCQ_OPTIONS = 5;
 const EDITABLE_OPTION_LABELS = ["A", "B", "C", "D", "E", "F"] as const;
-const EXPLANATION_MAX_LENGTH = 220;
-const EXPLANATION_MAX_SENTENCES = 2;
+const EXPLANATION_MAX_LENGTH = 700;
+const EXPLANATION_MAX_SENTENCES = 3;
 const ENRICHMENT_BATCH_SIZE = 10;
 
 function relabelOptions(options: CandidateOption[]) {
@@ -286,10 +286,10 @@ function recalculateCandidate(candidate: Candidate): Candidate {
   if (correctCount === 0) issues.push({ code: "NO_CORRECT_OPTION", severity: "ERROR", message: "Select the single correct answer." });
   if (correctCount > 1) issues.push({ code: "MULTIPLE_CORRECT_OPTIONS", severity: "ERROR", message: "Only one option can be correct." });
   if (candidate.explanation && !isExplanationValid(candidate.explanation)) {
-    issues.push({ code: "INVALID_QUESTION_EXPLANATION", severity: "ERROR", message: "Question explanation must be at most 2 sentences and 220 characters." });
+    issues.push({ code: "INVALID_QUESTION_EXPLANATION", severity: "ERROR", message: `Question explanation must be at most ${EXPLANATION_MAX_SENTENCES} sentences and ${EXPLANATION_MAX_LENGTH} characters.` });
   }
   if (candidate.options.some((option) => option.explanation && !isExplanationValid(option.explanation))) {
-    issues.push({ code: "INVALID_OPTION_EXPLANATION", severity: "ERROR", message: "Each option explanation must be at most 2 sentences and 220 characters." });
+    issues.push({ code: "INVALID_OPTION_EXPLANATION", severity: "ERROR", message: `Each option explanation must be at most ${EXPLANATION_MAX_SENTENCES} sentences and ${EXPLANATION_MAX_LENGTH} characters.` });
   }
 
   const hasError = issues.some((issue) => issue.severity === "ERROR");
@@ -468,8 +468,8 @@ const CandidateEditor = memo(function CandidateEditor({
               ><FiTrash2 /></button>
             </div>
             <label className="question-import-option-explanation">
-              <span style={{ fontSize: "0.82rem", opacity: 0.78 }}>{option.is_correct ? "Why this is correct" : "Why this is incorrect"} · max 2 short sentences</span>
-              <textarea rows={2} maxLength={EXPLANATION_MAX_LENGTH} value={option.explanation || ""} placeholder="Concise reason…" onChange={(event) => onUpdate(candidate.candidate_id, (current) => ({ ...current, approved: false, options: current.options.map((value, index) => index === optionIndex ? { ...value, explanation: event.target.value } : value) }))} />
+              <span style={{ fontSize: "0.82rem", opacity: 0.78 }}>{option.label}) {option.is_correct ? "Correct" : "Incorrect"} · clinically reasoned rationale · max {EXPLANATION_MAX_SENTENCES} sentences</span>
+              <textarea rows={4} maxLength={EXPLANATION_MAX_LENGTH} value={option.explanation || ""} placeholder={option.is_correct ? "Connect the decisive stem clues to why this answer fits…" : "Explain the specific finding or distinction that makes this distractor not fit…"} onChange={(event) => onUpdate(candidate.candidate_id, (current) => ({ ...current, approved: false, options: current.options.map((value, index) => index === optionIndex ? { ...value, explanation: event.target.value } : value) }))} />
               <small style={{ justifySelf: "end" }}>{(option.explanation || "").length}/{EXPLANATION_MAX_LENGTH}</small>
             </label>
           </div>
@@ -488,8 +488,8 @@ const CandidateEditor = memo(function CandidateEditor({
         </div>
         {currentAiStatus === "STALE" && <p className="form-error">Question content changed after generation. Regenerate before publication.</p>}
         <label>
-          <span>Question-level takeaway · max 2 short sentences</span>
-          <textarea rows={2} maxLength={EXPLANATION_MAX_LENGTH} value={candidate.explanation || ""} placeholder="Summarized learning point…" onChange={(event) => onUpdate(candidate.candidate_id, (current) => ({ ...current, approved: false, explanation: event.target.value }))} />
+          <span>Question-level takeaway · decisive reasoning summary · max {EXPLANATION_MAX_SENTENCES} sentences</span>
+          <textarea rows={3} maxLength={EXPLANATION_MAX_LENGTH} value={candidate.explanation || ""} placeholder="Summarize the decisive reasoning without repeating the full stem…" onChange={(event) => onUpdate(candidate.candidate_id, (current) => ({ ...current, approved: false, explanation: event.target.value }))} />
           <small style={{ float: "right" }}>{(candidate.explanation || "").length}/{EXPLANATION_MAX_LENGTH}</small>
         </label>
       </div>
@@ -1047,7 +1047,7 @@ export function QuestionImportPage() {
             </Link>
             <span className="page-eyebrow">INSTRUCTOR · AUTOMATED INGESTION</span>
             <h1>PDF Question Inspector</h1>
-            <p>Extract A–E MCQs first, then use Muse Spark 1.3 to generate concise, reviewable explanations without changing the source answer key.</p>
+            <p>Extract A–D or A–E MCQs first, then use Muse Spark 1.3 to generate clinically reasoned, option-by-option answer rationales without changing the source answer key.</p>
           </div>
           <div className="question-import-trust">
             <FiShield />
@@ -1143,7 +1143,7 @@ export function QuestionImportPage() {
             {candidates.length > 0 && (
               <section className="question-import-review">
                 <div className="question-import-review-heading">
-                  <div><span className="page-eyebrow">REVIEW · EXPLAIN · PUBLISH</span><h2>Review inspected MCQs</h2><p>Explanations are intentionally short: maximum two sentences / 220 characters. Edit anything before approval.</p></div>
+                  <div><span className="page-eyebrow">REVIEW · EXPLAIN · PUBLISH</span><h2>Review inspected MCQs</h2><p>AI explanations use an exam-focused answer-key style: each option gets a specific clinical rationale, bounded to {EXPLANATION_MAX_SENTENCES} sentences / {EXPLANATION_MAX_LENGTH} characters. Edit anything before approval.</p></div>
                   <div className="question-import-bulk-actions">
                     <strong>{approvedCount} / {candidates.length}</strong><span>approved</span>
                     {fourChoiceCount > 0 && (
