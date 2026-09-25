@@ -42,4 +42,5 @@
 .studio-explanation strong{display:block;margin-bottom:5px}
 .studio-explanation p{margin:0;line-height:1.65;color:var(--p-muted)}
 .studio-question-review footer{color:var(--p-muted);font-size:12px}
+@media(max-width:720px){.studio-markers>span,.studio-markers>em,.studio-question-review footer{font-size:13px}.studio-question-summary{grid-template-columns:38px minmax(0,1fr) auto;gap:9px}.studio-question-summary>strong,.studio-summary-copy>strong,.studio-options span,.studio-explanation p{overflow-wrap:anywhere}}
 @media(max-width:720px){.studio-heading{align-items:stretch;flex-direction:column}.studio-heading .pp-button{align-self:flex-start}.studio-toolbar{align-items:stretch;flex-direction:column}.studio-toolbar input{width:100%}.studio-filters{grid-template-columns:1fr}.studio-question-summary{grid-template-columns:38px minmax(0,1fr);padding:14px;gap:10px}.studio-question-summary>svg{display:none}.studio-number{width:36px;height:36px}.studio-options>div{grid-template-columns:30px minmax(0,1fr)}.studio-options>div>small{grid-column:2}.studio-options>div>p{grid-column:2}.student-studio-page{padding-inline:10px!important}}

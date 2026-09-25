@@ -4,3 +4,4 @@
 .practice-launch-controls label{display:grid;gap:6px;color:var(--p-muted);font-size:12px;font-weight:700}
 .practice-launch-controls select{min-height:44px;border:1px solid var(--p-line);border-radius:10px;background:var(--p-panel2);color:var(--p-text);padding:0 12px}
 .practice-launch-controls .pp-button{width:100%}
+@media(max-width:760px){.practice-launch-controls{width:100%;min-width:0}.practice-launch-controls label{font-size:14px}.practice-launch-controls select,.practice-launch-controls .pp-button{min-height:48px;font-size:16px}.practice-week-select{width:38px;height:38px}.practice-lecture-picker .rounds-lecture-list>button{min-height:48px}}

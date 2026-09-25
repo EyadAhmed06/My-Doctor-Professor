@@ -14,7 +14,6 @@ import { BundleAccessService } from '../bundle-access/bundle-access.service';
 import { Student } from '../users/entities/student.entity';
 import { GeneratePracticeTestDto } from './dtos/tests.dto';
 
-const PRACTICE_QUESTION_COUNT = 40;
 const FINAL_QUESTION_COUNT = 200;
 const FINAL_COURSE_COUNT = 5;
 const FINAL_QUESTIONS_PER_COURSE = 40;
@@ -37,8 +36,8 @@ export class McqPracticeService {
   ) {}
 
   async generate(dto: GeneratePracticeTestDto, actor: AuthenticatedUser, rawIdempotencyKey?: string): Promise<GeneratedPractice> {
-    if (![PRACTICE_QUESTION_COUNT, FINAL_QUESTION_COUNT].includes(dto.question_count)) {
-      throw new BadRequestException('Assessments must contain either 40 practice MCQs or 200 final MCQs');
+    if (!Number.isInteger(dto.question_count) || dto.question_count < 1 || dto.question_count > FINAL_QUESTION_COUNT) {
+      throw new BadRequestException('Assessments must contain between 1 and 200 MCQs');
     }
     if (![TestMode.TUTOR, TestMode.TIMED].includes(dto.test_mode)) {
       throw new BadRequestException('Lecture practice is available in Tutor or Timed mode');
@@ -83,7 +82,7 @@ export class McqPracticeService {
       .getMany();
     if (lectures.length !== uniqueLectureIds.length) throw new NotFoundException('One or more lectures were not found');
     const courseIds = new Set(lectures.map((lecture) => lecture.week.courseId));
-    const bundleFinal = dto.question_count === FINAL_QUESTION_COUNT;
+    const bundleFinal = dto.question_count === FINAL_QUESTION_COUNT && courseIds.size === FINAL_COURSE_COUNT;
     if (!bundleFinal && courseIds.size !== 1) {
       throw new BadRequestException('A non-final practice must use lectures from one course');
     }
@@ -98,6 +97,16 @@ export class McqPracticeService {
       .andWhere('question.is_active = TRUE')
       .andWhere('question.is_question_bank = TRUE')
       .andWhere('question.question_type = :questionType', { questionType: QuestionType.MCQ });
+    if (dto.topic_ids?.length) {
+      const topicRows = await this.dataSource.query<Array<{ id: string }>>(
+        'SELECT id FROM topics WHERE id = ANY($1::uuid[]) AND lecture_id = ANY($2::uuid[])',
+        [dto.topic_ids, uniqueLectureIds],
+      );
+      if (new Set(topicRows.map((row) => row.id)).size !== dto.topic_ids.length) {
+        throw new BadRequestException('One or more selected sections are outside the selected lectures');
+      }
+      builder.andWhere('question.topic_id IN (:...topicIds)', { topicIds: dto.topic_ids });
+    }
     if (dto.difficulty) builder.andWhere('question.difficulty = :difficulty', { difficulty: dto.difficulty });
 
     const eligibleById = new Map<string, Question>();
@@ -214,6 +223,7 @@ export class McqPracticeService {
     const canonical = {
       bundle_id: dto.bundle_id,
       lecture_ids: [...new Set(dto.lecture_ids)].sort(),
+      topic_ids: [...new Set(dto.topic_ids ?? [])].sort(),
       question_count: dto.question_count,
       test_mode: dto.test_mode,
       duration_minutes: dto.duration_minutes ?? null,

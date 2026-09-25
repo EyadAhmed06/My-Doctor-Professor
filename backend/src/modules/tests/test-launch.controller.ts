@@ -16,7 +16,6 @@ import { TestsService } from './tests.service';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
 const FINAL_QUESTION_COUNT = 200;
-const PRACTICE_QUESTION_COUNT = 40;
 
 @Controller('test-launch')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -68,8 +67,8 @@ export class TestLaunchController {
     if (isFinal && mcqCount !== FINAL_QUESTION_COUNT) {
       issues.push(`Final exams require ${FINAL_QUESTION_COUNT} MCQs; ${mcqCount} configured questions are MCQs.`);
     }
-    if (isPractice && (questionCount !== PRACTICE_QUESTION_COUNT || mcqCount !== PRACTICE_QUESTION_COUNT)) {
-      issues.push(`Curriculum practice now requires exactly ${PRACTICE_QUESTION_COUNT} MCQs. This is a legacy ${questionCount}-question practice${activeAttempt ? ' with an unfinished attempt that can still be resumed once its question structure is valid' : ' and cannot be started again'}.`);
+    if (isPractice && mcqCount !== questionCount) {
+      issues.push('Curriculum practice must contain only MCQs.');
     }
     if (!isFinal && !isPractice && mcqCount !== questionCount) {
       issues.push(`${questionCount - mcqCount} non-MCQ question${questionCount - mcqCount === 1 ? '' : 's'} are included by the instructor.`);
@@ -78,7 +77,7 @@ export class TestLaunchController {
     const structurallyReady = questionCount > 0
       && malformedMcqs.length === 0
       && (!isFinal || (questionCount === FINAL_QUESTION_COUNT && mcqCount === FINAL_QUESTION_COUNT))
-      && (!isPractice || (questionCount === PRACTICE_QUESTION_COUNT && mcqCount === PRACTICE_QUESTION_COUNT));
+      && (!isPractice || mcqCount === questionCount);
 
     return {
       test,
@@ -86,7 +85,7 @@ export class TestLaunchController {
       mcq_count: mcqCount,
       malformed_mcq_count: malformedMcqs.length,
       is_final: isFinal,
-      required_question_count: isFinal ? FINAL_QUESTION_COUNT : isPractice ? PRACTICE_QUESTION_COUNT : questionCount,
+      required_question_count: isFinal ? FINAL_QUESTION_COUNT : questionCount,
       timed_available: Boolean(test.durationMinutes),
       launch_ready: malformedMcqs.length === 0 && (Boolean(activeAttempt) || structurallyReady),
       active_attempt: activeAttempt ? {

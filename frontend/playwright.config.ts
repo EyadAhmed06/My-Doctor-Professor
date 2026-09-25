@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const playwrightPort = Number(process.env.PLAYWRIGHT_PORT || 3001);
+const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 
 export default defineConfig({
   testDir: './tests/browser',
@@ -17,18 +18,18 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   projects: [
-    { name: 'chromium-desktop', use: { ...devices['Desktop Chrome'] } },
+    { name: 'chromium-desktop', use: { ...devices['Desktop Chrome'], ...(chromiumExecutablePath ? { launchOptions: { executablePath: chromiumExecutablePath } } : {}) } },
     {
       name: 'chromium-mobile-small',
-      use: { ...devices['Desktop Chrome'], viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true },
+      use: { ...devices['Desktop Chrome'], viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true, ...(chromiumExecutablePath ? { launchOptions: { executablePath: chromiumExecutablePath } } : {}) },
     },
     {
       name: 'chromium-mobile',
-      use: { ...devices['Desktop Chrome'], viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true },
+      use: { ...devices['Desktop Chrome'], viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true, ...(chromiumExecutablePath ? { launchOptions: { executablePath: chromiumExecutablePath } } : {}) },
     },
     {
       name: 'chromium-tablet',
-      use: { ...devices['Desktop Chrome'], viewport: { width: 820, height: 1180 }, isMobile: true, hasTouch: true },
+      use: { ...devices['Desktop Chrome'], viewport: { width: 820, height: 1180 }, isMobile: true, hasTouch: true, ...(chromiumExecutablePath ? { launchOptions: { executablePath: chromiumExecutablePath } } : {}) },
     },
     {
       name: 'webkit-iphone',

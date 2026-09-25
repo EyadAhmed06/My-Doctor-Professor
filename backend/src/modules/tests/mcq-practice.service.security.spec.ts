@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
 import { TestMode } from '../../common/entities/test-attempt.entity';
 import { UserRole } from '../users/entities/user.entity';
 import { BundleAccessService } from '../bundle-access/bundle-access.service';
@@ -22,15 +22,15 @@ describe('McqPracticeService security', () => {
     return new McqPracticeService(questions, lectures, students, dataSource, bundleAccess);
   };
 
-  it('rejects legacy 10/20-question payloads so generated quizzes match the 40-question launch contract', async () => {
-    const service = createService();
+  it('allows short quiz counts to pass validation and checks bundle access', async () => {
+    const service = createService({} as never, {} as never, { exists: jest.fn().mockResolvedValue(true) } as never, { query: jest.fn().mockResolvedValue([]) } as never);
 
     await expect(service.generate({
       bundle_id: '11111111-1111-4111-8111-111111111111',
       lecture_ids: ['22222222-2222-4222-8222-222222222222'],
       question_count: 20,
       test_mode: TestMode.TUTOR,
-    }, actor)).rejects.toBeInstanceOf(BadRequestException);
+    }, actor)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('requires an ACTIVE, current, paid-or-free entitlement before selecting lectures', async () => {
@@ -57,15 +57,22 @@ describe('McqPracticeService security', () => {
     expect(entitlementSql).toContain('bundle.available_until > CURRENT_TIMESTAMP');
   });
 
-  it('treats every 200-question request as a five-course final instead of allowing 200 questions from one course', async () => {
+  it('treats 200 questions from one course as practice and checks the available pool', async () => {
     const lectureId = '22222222-2222-4222-8222-222222222222';
     const lectureBuilder = {
       leftJoinAndSelect: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       getMany: jest.fn().mockResolvedValue([{ id: lectureId, week: { courseId: 'course-1' } }]),
     };
+    const questionBuilder = {
+      innerJoinAndSelect: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([]),
+    };
     const service = createService(
-      {} as never,
+      { createQueryBuilder: jest.fn().mockReturnValue(questionBuilder) } as never,
       { createQueryBuilder: jest.fn().mockReturnValue(lectureBuilder) } as never,
       { exists: jest.fn().mockResolvedValue(true) } as never,
       { query: jest.fn().mockResolvedValue([{ lecture_id: lectureId }]) } as never,
@@ -77,7 +84,7 @@ describe('McqPracticeService security', () => {
       question_count: 200,
       test_mode: TestMode.TIMED,
       duration_minutes: 200,
-    }, actor)).rejects.toThrow('exactly five courses');
+    }, actor)).rejects.toThrow('Only 0 eligible MCQs are available');
   });
 
   it('requires at least 40 eligible MCQs in each of the five final courses, not only 200 in total', async () => {

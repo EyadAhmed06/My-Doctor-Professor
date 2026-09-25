@@ -941,6 +941,7 @@ export function QuestionImportPage() {
               is_correct: option.is_correct,
             })),
             source_page: candidate.source_page ?? undefined,
+            source_section: candidate.source_section || undefined,
             reuse_question_id: candidate.reuse_question_id || undefined,
             allow_topic_override: Boolean(candidate.allow_topic_override),
             allow_duplicate: Boolean(candidate.allow_duplicate),

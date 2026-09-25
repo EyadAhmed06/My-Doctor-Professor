@@ -42,6 +42,21 @@ function section(
 }
 
 describe('canonical MCQ parser', () => {
+  it('keeps the six blue-heading endocrinology sections distinct', () => {
+    const names = [
+      'Diabetes (diagnosis and classification)',
+      'Macro vascular',
+      'Other Symptoms of diabetes',
+      'Microvascular Complications',
+      'Pharma of DM',
+      'Gestational diabetes',
+    ];
+    const parsed = parseCanonicalMcqDocument(pdfFromPages(names.map((name) => section(name, 2))));
+    expect(parsed.sections.map((item) => item.title)).toEqual(names);
+    expect(parsed.questions).toHaveLength(12);
+    expect(parsed.questions.map((item) => item.sourceSection)).toEqual(names.flatMap((name) => [name, name]));
+    expect(parsed.isStructurallyComplete).toBe(true);
+  });
   it('keeps legacy section-heading splitting as a compatibility fallback', () => {
     const combined = [
       '[[MDP_PAGE_3]]',

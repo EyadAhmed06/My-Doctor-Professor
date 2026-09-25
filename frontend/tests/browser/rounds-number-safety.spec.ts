@@ -84,6 +84,6 @@ test('Rounds renders invalid or missing counters as zero instead of leaking NaN 
 
   await expect(page.getByRole('heading', { name: 'Cardiovascular System' })).toBeVisible();
   await expect(page.getByText('0 eligible MCQs').first()).toBeVisible();
-  await expect(page.getByText('Need 40 more eligible MCQs')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Select a lecture with eligible MCQs' })).toBeVisible();
   expect(nanWarnings).toEqual([]);
 });

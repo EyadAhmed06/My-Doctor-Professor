@@ -98,21 +98,21 @@ describe('TestLaunchController', () => {
       test_mode: TestMode.TUTOR,
       started_at: activeAttempt.startedAt,
     });
-    expect(result.issues.join(' ')).toContain('legacy 1-question practice');
+    expect(result.issues).toEqual([]);
   });
 
-  it('blocks starting a legacy custom practice when no resumable attempt exists', async () => {
+  it('allows starting a short custom practice without an existing attempt', async () => {
     const { subject } = controller({ questionCount: 1 });
 
     const result = await subject.getLaunchConfig('22222222-2222-4222-8222-222222222222', student);
 
-    expect(result.launch_ready).toBe(false);
-    expect(result.required_question_count).toBe(40);
+    expect(result.launch_ready).toBe(true);
+    expect(result.required_question_count).toBe(1);
     expect(result.active_attempt).toBeNull();
-    expect(result.issues.join(' ')).toContain('cannot be started again');
+    expect(result.issues).toEqual([]);
   });
 
-  it('allows a newly generated custom practice only when exactly forty valid MCQs are configured', async () => {
+  it('allows a newly generated custom practice with valid MCQs', async () => {
     const { subject } = controller({ questionCount: 40 });
 
     const result = await subject.getLaunchConfig('22222222-2222-4222-8222-222222222222', student);

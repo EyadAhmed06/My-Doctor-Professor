@@ -580,6 +580,9 @@ export class QuestionImportService {
     if (selected.length === 0) {
       throw new BadRequestException('Approve at least one extracted question before publishing');
     }
+    const sectionNames = [...new Set(selected.map((candidate) => candidate.source_section?.trim()).filter((name): name is string => Boolean(name)))];
+    const siblingTopics = sectionNames.length ? await this.topics.find({ where: { lectureId: topic.lectureId } }) : [];
+    const sectionTopics = new Map(siblingTopics.map((item) => [item.topicName.toLocaleLowerCase(), item]));
 
     const existing = await this.questions.find({
       where: { topicId: topic.id },
@@ -646,10 +649,26 @@ export class QuestionImportService {
           continue;
         }
 
+        const sectionName = candidate.source_section?.trim();
+        let destinationTopicId = topic.id;
+        if (sectionName) {
+          const key = sectionName.toLocaleLowerCase();
+          let destination = sectionTopics.get(key);
+          if (!destination) {
+            destination = await manager.save(Topic, manager.create(Topic, {
+              lectureId: topic.lectureId,
+              topicName: sectionName,
+              description: null,
+              displayOrder: siblingTopics.length + sectionTopics.size + 1,
+            }));
+            sectionTopics.set(key, destination);
+          }
+          destinationTopicId = destination.id;
+        }
         const question = await manager.save(
           Question,
           manager.create(Question, {
-            topicId: dto.topic_id,
+            topicId: destinationTopicId,
             questionType: QuestionType.MCQ,
             title: null,
             questionText: candidate.question_text.trim(),
@@ -1272,7 +1291,7 @@ export class QuestionImportService {
   }
 
   private splitLectureSections(combined: string): ParsingSection[] {
-    const headingPattern = /^\s*(Lecture\s+(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|\d+)(?:\s*[:-])?[^\n]*)$/gim;
+    const headingPattern = /^[ \t]*(Lecture\s+(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|\d+)(?:\s*[:-])?[^\n]*|Diabetes \(diagnosis and classification\)|Macro vascular|Other Symptoms of diabetes|Microvascular Complications|Pharma of DM|Gestational diabetes)[ \t]*$/gim;
     const headings = Array.from(combined.matchAll(headingPattern));
     if (headings.length === 0) {
       return [{ title: null, text: combined, offset: 0 }];

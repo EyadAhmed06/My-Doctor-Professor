@@ -26,7 +26,7 @@ type Content = { bundle: Bundle; courses: Course[] };
 type Generated = { test: { id: string }; attempt: { id: string }; question_count: number };
 type PracticeMode = "TUTOR" | "TIMED";
 
-const PRACTICE_QUESTION_COUNT = 40;
+const MAX_PRACTICE_QUESTION_COUNT = 200;
 
 function numericCount(value: unknown) {
   const number = Number(value);
@@ -34,16 +34,8 @@ function numericCount(value: unknown) {
 }
 
 function defaultPracticeLectures(lectures: Lecture[]) {
-  const selected: string[] = [];
-  let pool = 0;
-  for (const lecture of lectures) {
-    const count = numericCount(lecture.mcq_count);
-    if (count <= 0) continue;
-    selected.push(lecture.id);
-    pool += count;
-    if (pool >= PRACTICE_QUESTION_COUNT) break;
-  }
-  return selected;
+  const first = lectures.find((lecture) => numericCount(lecture.mcq_count) > 0);
+  return first ? [first.id] : [];
 }
 
 function sessionHref(generated: Generated, bundleId: string, lectureIds: string[], mode: PracticeMode) {
@@ -135,7 +127,8 @@ export function ConnectedRoundsPage() {
   const currentBundle = bundles.find((item) => item.id === bundleId);
   const selectedLectures = lectureRows.filter(({ lecture }) => selectedIds.includes(lecture.id));
   const selectedQuestionPool = selectedLectures.reduce((sum, item) => sum + numericCount(item.lecture.mcq_count), 0);
-  const ready = selectedIds.length > 0 && selectedQuestionPool >= PRACTICE_QUESTION_COUNT && !currentBundle?.read_only;
+  const questionCount = Math.min(selectedQuestionPool, MAX_PRACTICE_QUESTION_COUNT);
+  const ready = selectedIds.length > 0 && questionCount > 0 && !currentBundle?.read_only;
 
   useEffect(() => {
     if (!weeks.length) {
@@ -181,14 +174,14 @@ export function ConnectedRoundsPage() {
         body: {
           bundle_id: bundleId,
           lecture_ids: selectedIds,
-          question_count: PRACTICE_QUESTION_COUNT,
+          question_count: questionCount,
           test_mode: mode,
-          duration_minutes: mode === "TIMED" ? PRACTICE_QUESTION_COUNT : undefined,
+          duration_minutes: mode === "TIMED" ? questionCount : undefined,
         },
       });
       window.location.assign(sessionHref(generated, bundleId, selectedIds, mode));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to build this 40-question quiz.");
+      setError(cause instanceof Error ? cause.message : "Unable to build this quiz.");
       setStarting(false);
     }
   }
@@ -200,7 +193,7 @@ export function ConnectedRoundsPage() {
           <div>
             <span className="page-eyebrow">CURRICULUM QUIZ BUILDER</span>
             <h1>{course?.courseName || "Lecture Questions"}</h1>
-            <p>Select one or more lectures. The generated practice set is always 40 MCQs in Tutor or Timed mode.</p>
+            <p>Select any lecture with eligible MCQs. Practice uses its available questions, up to 200, in Tutor or Timed mode.</p>
           </div>
           <div className="rounds-reference-selectors">
             <label>Bundle<select value={bundleId} onChange={(event) => setBundleId(event.target.value)}>{bundles.map((item) => <option key={item.id} value={item.id}>{item.title}{item.read_only ? " · read-only" : ""}</option>)}</select></label>
@@ -254,17 +247,17 @@ export function ConnectedRoundsPage() {
                     <div><small>LECTURE {activeLecture.lectureNumber}</small><h2>{activeLecture.title}</h2><p>{activeLecture.description || "The instructor has not published a lecture description yet."}</p></div>
                   </div>
                   <div className="rounds-action-grid">
-                    <article><FiFileText /><div><b>{PRACTICE_QUESTION_COUNT}</b><span>Quiz size</span><small>Fixed 40-question MCQ practice set.</small></div></article>
-                    <article><FiLayers /><div><b>{selectedIds.length}</b><span>Lectures selected</span><small>Preselected only as far as needed to reach the 40-MCQ pool.</small></div></article>
-                    <article><FiBookOpen /><div><b>{selectedQuestionPool}</b><span>Eligible MCQ pool</span><small>At least 40 active question-bank MCQs are required.</small></div></article>
+                    <article><FiFileText /><div><b>{questionCount}</b><span>Quiz size</span><small>All available eligible MCQs, up to 200.</small></div></article>
+                    <article><FiLayers /><div><b>{selectedIds.length}</b><span>Lectures selected</span><small>Select a single lecture or combine lectures.</small></div></article>
+                    <article><FiBookOpen /><div><b>{selectedQuestionPool}</b><span>Eligible MCQ pool</span><small>Active question-bank MCQs in your selection.</small></div></article>
                   </div>
                   <div className={`rounds-primary-action practice-launch ${ready ? "ready" : "needs-questions"}`}>
                     <div>
                       <small>{ready ? "READY" : "QUESTION POOL"}</small>
-                      <h3>{ready ? `Start a 40-MCQ ${mode === "TIMED" ? "Timed" : "Tutor"} quiz` : `Need ${Math.max(0, PRACTICE_QUESTION_COUNT - selectedQuestionPool)} more eligible MCQs`}</h3>
+                      <h3>{ready ? `Start a ${questionCount}-MCQ ${mode === "TIMED" ? "Timed" : "Tutor"} quiz` : "Select a lecture with eligible MCQs"}</h3>
                       <p>{ready ? "Questions are sampled from exactly the lectures you selected and answers are saved to the backend." : "Select additional lectures or ask the instructor to publish more active question-bank MCQs. The app will not silently duplicate questions."}</p>
                     </div>
-                    <div className="practice-launch-controls"><label>Mode<select aria-label="Quiz mode" value={mode} disabled={starting} onChange={(event) => setMode(event.target.value as PracticeMode)}><option value="TUTOR">Tutor · explanation after each answer</option><option value="TIMED">Timed · 40 minutes</option></select></label><button className="pp-button" type="button" disabled={!ready || starting} onClick={() => void startPractice()}><FiPlayCircle />{starting ? "Building quiz…" : "Start 40 questions"}<FiArrowRight /></button></div>
+                    <div className="practice-launch-controls"><label>Mode<select aria-label="Quiz mode" value={mode} disabled={starting} onChange={(event) => setMode(event.target.value as PracticeMode)}><option value="TUTOR">Tutor · explanation after each answer</option><option value="TIMED">Timed · {questionCount} minutes</option></select></label><button className="pp-button" type="button" disabled={!ready || starting} onClick={() => void startPractice()}><FiPlayCircle />{starting ? "Building quiz…" : `Start ${questionCount} questions`}<FiArrowRight /></button></div>
                   </div>
                   <div className="rounds-secondary-actions"><Link className="pp-button secondary" href={`/flashcards?bundle=${bundleId}${activeLecture ? `&lecture=${activeLecture.id}` : ""}`}>Review flashcards</Link><Link className="pp-button secondary" href={`/past-exams?bundle=${bundleId}`}>Open configured exams</Link></div>
                 </>
@@ -272,10 +265,10 @@ export function ConnectedRoundsPage() {
             </section>
 
             <aside className="rounds-context-rail">
-              <Panel title="Selection"><div className="rounds-coverage-number">{selectedIds.length}<small> lectures</small></div><Progress value={Math.min(100, Math.round(selectedQuestionPool / PRACTICE_QUESTION_COUNT * 100))} />
-                <dl><div><dt>Required MCQs</dt><dd>{PRACTICE_QUESTION_COUNT}</dd></div><div><dt>Eligible MCQ pool</dt><dd>{selectedQuestionPool}</dd></div><div><dt>Course eligible MCQs</dt><dd>{totals.mcqs}</dd></div></dl>
+              <Panel title="Selection"><div className="rounds-coverage-number">{selectedIds.length}<small> lectures</small></div><Progress value={ready ? 100 : 0} />
+                <dl><div><dt>Quiz MCQs</dt><dd>{questionCount}</dd></div><div><dt>Eligible MCQ pool</dt><dd>{selectedQuestionPool}</dd></div><div><dt>Course eligible MCQs</dt><dd>{totals.mcqs}</dd></div></dl>
               </Panel>
-              <Panel title={currentBundle?.read_only ? "Read-only access" : "Quiz rule"}><p>{currentBundle?.read_only ? "You may review existing content, but cannot start a new attempt from this bundle." : "Lecture practice is fixed at 40 MCQs. Tutor is untimed; Timed lasts exactly 40 minutes. Pre-authored exams use their instructor configuration instead."}</p></Panel>
+              <Panel title={currentBundle?.read_only ? "Read-only access" : "Quiz rule"}><p>{currentBundle?.read_only ? "You may review existing content, but cannot start a new attempt from this bundle." : "Practice uses the eligible questions in your selection, up to 200. Tutor is untimed; Timed allows one minute per question."}</p></Panel>
               <button className="rounds-refresh" type="button" onClick={() => setRefreshKey((value) => value + 1)}><FiRefreshCw /> Refresh content</button>
             </aside>
           </div>}

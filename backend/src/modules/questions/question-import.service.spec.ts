@@ -130,6 +130,48 @@ describe('QuestionImportService', () => {
     },
   } as Topic;
 
+  it('publishes candidates from distinct PDF headings to distinct lecture topics', async () => {
+    const lectureId = '77777777-7777-4777-8777-777777777777';
+    const selectedTopic = { ...topic, lectureId };
+    const topics = {
+      findOne: jest.fn().mockResolvedValue(selectedTopic),
+      find: jest.fn().mockResolvedValue([selectedTopic]),
+    };
+    const questions = { find: jest.fn().mockResolvedValue([]) };
+    const saved: Array<{ topicId: string }> = [];
+    let nextId = 1;
+    const manager = {
+      create: jest.fn((_entity, value) => value),
+      save: jest.fn(async (entity, value) => {
+        if (entity === Question) saved.push(value as { topicId: string });
+        return Array.isArray(value) ? value : { ...value, id: `created-${nextId++}` };
+      }),
+    };
+    const dataSource = { transaction: jest.fn(async (callback) => callback(manager)) };
+    const service = new QuestionImportService(questions as never, topics as never, dataSource as never, {
+      assertTopicReadable: jest.fn().mockResolvedValue(undefined),
+    } as never);
+    const candidate = (source_section: string) => ({
+      approved: true,
+      question_text: 'A patient with diabetes presents with classic findings and the clinical diagnosis is clear.',
+      difficulty: 'MEDIUM' as const,
+      marks: 1,
+      source_section,
+      allow_topic_override: true,
+      options: ['A', 'B', 'C', 'D', 'E'].map((label, index) => ({ option_text: `${label} option`, is_correct: index === 0 })),
+    });
+    await service.publish({
+      topic_id: topic.id,
+      original_filename: 'Endocrinology.pdf',
+      file_sha256: 'a'.repeat(64),
+      copyright_confirmed: true,
+      candidates: [candidate('Macro vascular'), candidate('Gestational diabetes')],
+    } as never, actor);
+    expect(saved).toHaveLength(2);
+    expect(saved[0].topicId).not.toBe(saved[1].topicId);
+    expect(topics.find).toHaveBeenCalledWith({ where: { lectureId } });
+  });
+
   function build() {
     const builder = {
       where: jest.fn().mockReturnThis(),

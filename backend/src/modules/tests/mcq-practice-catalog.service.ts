@@ -48,9 +48,12 @@ export class McqPracticeCatalogService {
 
     const counts = await this.dataSource.query<Array<{
       lecture_id: string;
+      topic_id: string;
+      topic_name: string;
       question_count: number;
     }>>(`
-      SELECT topic.lecture_id, COUNT(DISTINCT question.id)::int AS question_count
+      SELECT topic.lecture_id, topic.id AS topic_id, topic.topic_name,
+        COUNT(DISTINCT question.id)::int AS question_count
       FROM questions question
       INNER JOIN topics topic ON topic.id = question.topic_id
       WHERE topic.lecture_id = ANY($1::uuid[])
@@ -68,12 +71,11 @@ export class McqPracticeCatalogService {
           WHERE option_row.question_id = question.id
             AND option_row.is_correct = TRUE
         ) = 1
-      GROUP BY topic.lecture_id
+      GROUP BY topic.lecture_id, topic.id, topic.topic_name
     `, [accessibleLectureIds]);
 
-    const byLecture = new Map(
-      counts.map((row) => [row.lecture_id, Number(row.question_count)]),
-    );
+    const byLecture = new Map<string, number>();
+    for (const row of counts) byLecture.set(row.lecture_id, (byLecture.get(row.lecture_id) ?? 0) + Number(row.question_count));
 
     return {
       course,
@@ -82,6 +84,11 @@ export class McqPracticeCatalogService {
         lectures: week.lectures.map((lecture) => ({
           ...lecture,
           question_count: byLecture.get(lecture.id) ?? 0,
+          topics: counts.filter((row) => row.lecture_id === lecture.id).map((row) => ({
+            id: row.topic_id,
+            title: row.topic_name,
+            question_count: Number(row.question_count),
+          })),
         })),
       })),
     };

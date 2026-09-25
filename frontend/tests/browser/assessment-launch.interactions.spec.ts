@@ -52,7 +52,7 @@ async function baseMock(page: Page, handler: (endpoint: string, request: import(
 }
 
 for (const practiceMode of ['TUTOR', 'TIMED'] as const) {
-test(`lecture quiz builder launches exactly 40 in ${practiceMode.toLowerCase()} mode`, async ({ page }) => {
+test(`lecture quiz builder launches the selected lecture's 25 MCQs in ${practiceMode.toLowerCase()} mode`, async ({ page }) => {
   let generatedBody: Record<string, unknown> | null = null;
   await baseMock(page, async (endpoint, request, respond) => {
     if (endpoint === '/bundles/mine') {
@@ -80,7 +80,7 @@ test(`lecture quiz builder launches exactly 40 in ${practiceMode.toLowerCase()} 
     }
     if (endpoint === '/tests/practice/generate' && request.method() === 'POST') {
       generatedBody = request.postDataJSON() as Record<string, unknown>;
-      await respond({ test: { id: generatedTestId }, attempt: { id: attemptId }, question_count: 40 });
+      await respond({ test: { id: generatedTestId }, attempt: { id: attemptId }, question_count: 25 });
       return true;
     }
     return false;
@@ -88,19 +88,19 @@ test(`lecture quiz builder launches exactly 40 in ${practiceMode.toLowerCase()} 
 
   await page.goto(`/rounds?bundle=${bundleId}&course=${courseId}`);
   await expect(page.getByRole('heading', { name: 'Internal Medicine' })).toBeVisible();
-  const launch = page.getByRole('button', { name: /Start 40 questions/i });
+  const launch = page.getByRole('button', { name: /Start 25 questions/i });
   await expect(launch).toBeEnabled();
   await page.getByLabel('Quiz mode').selectOption(practiceMode);
-  await expect(page.getByText(`Start a 40-MCQ ${practiceMode === 'TIMED' ? 'Timed' : 'Tutor'} quiz`)).toBeVisible();
+  await expect(page.getByText(`Start a 25-MCQ ${practiceMode === 'TIMED' ? 'Timed' : 'Tutor'} quiz`)).toBeVisible();
   await launch.click();
 
   await expect.poll(() => generatedBody).not.toBeNull();
   expect(generatedBody).toMatchObject({
     bundle_id: bundleId,
-    lecture_ids: [lecture1, lecture2],
-    question_count: 40,
+    lecture_ids: [lecture1],
+    question_count: 25,
     test_mode: practiceMode,
-    ...(practiceMode === 'TIMED' ? { duration_minutes: 40 } : {}),
+    ...(practiceMode === 'TIMED' ? { duration_minutes: 25 } : {}),
   });
   await expect(page).toHaveURL(new RegExp(`/mock-exam/session\\?attempt=${attemptId}`));
 });

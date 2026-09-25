@@ -297,3 +297,18 @@ test('Timed mode auto-submits an expired attempt and opens review', async ({ pag
   await expect(page.getByRole('heading', { name: 'Timed Mock Exam' })).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText(/Detailed explanations are shown below/i)).toBeVisible();
 });
+
+test('student exam actions remain readable and within a phone viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await installAssessmentMock(page, 'TUTOR');
+  await page.goto(`/mock-exam/session?attempt=${attemptId}&test=${testId}&source=rounds`);
+  const next = page.locator('.exam-session-footer .next');
+  await expect(next).toBeVisible();
+  const geometry = await next.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return { fontSize: parseFloat(getComputedStyle(element).fontSize), height: rect.height, right: rect.right };
+  });
+  expect(geometry.fontSize).toBeGreaterThanOrEqual(13);
+  expect(geometry.height).toBeGreaterThanOrEqual(44);
+  expect(geometry.right).toBeLessThanOrEqual(360);
+});

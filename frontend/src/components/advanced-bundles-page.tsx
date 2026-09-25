@@ -443,22 +443,22 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [startingMode, setStartingMode] = useState<"TUTOR" | "TIMED" | null>(null);
-  const [questionTarget, setQuestionTarget] = useState<40 | 200>(40);
-  const required = questionTarget;
+  const [questionTarget, setQuestionTarget] = useState<"practice" | "final">("practice");
 
   useEffect(() => {
     setSelectedCourseId("");
     setSelectedIds([]);
-    setQuestionTarget(40);
+    setQuestionTarget("practice");
   }, [content.bundle.id]);
 
   const selectedLectures = courses.flatMap((course) => course.weeks.flatMap((week) => week.lectures)).filter((lecture) => selectedIds.includes(lecture.id));
   const selectedCourseCount = courses.filter((course) => course.weeks.some((week) => week.lectures.some((lecture) => selectedIds.includes(lecture.id)))).length;
   const pool = selectedLectures.reduce((sum, lecture) => sum + Number(lecture.mcq_count || 0), 0);
-  const ready = selectedIds.length > 0 && pool >= required && (required !== 200 || selectedCourseCount === 5) && !content.bundle.read_only;
+  const required = questionTarget === "final" ? 200 : Math.min(pool, 200);
+  const ready = selectedIds.length > 0 && required > 0 && pool >= required && (questionTarget !== "final" || selectedCourseCount === 5) && !content.bundle.read_only;
 
   function toggleLecture(course: Course, lecture: Lecture) {
-    if (required === 40 && selectedCourseId && selectedCourseId !== course.id) {
+    if (questionTarget === "practice" && selectedCourseId && selectedCourseId !== course.id) {
       setSelectedCourseId(course.id);
       setSelectedIds([lecture.id]);
       return;
@@ -471,7 +471,7 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
 
   function toggleWeek(course: Course, week: Week) {
     const eligible = week.lectures.filter((lecture) => Number(lecture.mcq_count || 0) > 0).map((lecture) => lecture.id);
-    if (required === 40 && selectedCourseId && selectedCourseId !== course.id) {
+    if (questionTarget === "practice" && selectedCourseId && selectedCourseId !== course.id) {
       setSelectedCourseId(course.id);
       setSelectedIds(eligible);
       return;
@@ -521,23 +521,22 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
   }
 
   return <section className="bundle-question-builder">
-    <Panel title={`Build a ${required}-MCQ quiz`}>
+    <Panel title={questionTarget === "final" ? "Build a 200-MCQ final" : `Build a ${required}-MCQ practice quiz`}>
       <div className="question-count-selector" role="group" aria-label="Exam question count">
-        <button type="button" className={required === 40 ? "active" : ""} onClick={() => { setQuestionTarget(40); setSelectedCourseId(""); setSelectedIds([]); }}>40 MCQs</button>
-        <button type="button" className={required === 200 ? "active" : ""} onClick={() => { setQuestionTarget(200); setSelectedCourseId(""); setSelectedIds([]); }}>200 MCQs</button>
-        <small>{required === 200 ? "Full exam · 200 minutes in Timed mode" : "Standard quiz · 40 minutes in Timed mode"}</small>
+        <button type="button" className={questionTarget === "practice" ? "active" : ""} onClick={() => { setQuestionTarget("practice"); setSelectedCourseId(""); setSelectedIds([]); }}>Practice · available MCQs</button>
+        <button type="button" className={questionTarget === "final" ? "active" : ""} onClick={() => { setQuestionTarget("final"); setSelectedCourseId(""); setSelectedIds([]); }}>200-MCQ final</button>
+        <small>{questionTarget === "final" ? "Full exam · 200 minutes in Timed mode" : "Practice · one minute per question in Timed mode"}</small>
       </div>
       <div className="question-builder-intro">
-        <div><FiFileText /><span><b>Select lectures from the curriculum</b><small>Forty unique MCQs are randomly sampled from the selected lectures.</small></span></div>
+        <div><FiFileText /><span><b>Select lectures from the curriculum</b><small>Practice includes available eligible MCQs from your selection, up to 200.</small></span></div>
         <strong className={ready ? "ready" : ""}>{pool} / {required} eligible MCQs</strong>
       </div>
       <div className="question-curriculum">
         {courses.map((course) => {
-          const courseSelected = required === 200
+          const courseSelected = questionTarget === "final"
             ? course.weeks.some((week) => week.lectures.some((lecture) => selectedIds.includes(lecture.id)))
             : selectedCourseId === course.id;
           return <section className={`question-course ${courseSelected ? "selected" : ""}`} key={course.id}>
-            <header><b>{course.courseCode} · {course.courseName}</b><small>{required === 200 ? "Select five courses for the full final" : "Choose lectures from one course per quiz"}</small></header>
             {course.weeks.map((week) => {
               const eligible = week.lectures.filter((lecture) => Number(lecture.mcq_count || 0) > 0);
               const allSelected = eligible.length > 0 && courseSelected && eligible.every((lecture) => selectedIds.includes(lecture.id));
@@ -566,7 +565,7 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
       </div>
       <div className={`question-quiz-launch ${ready ? "ready" : ""}`}>
         <div>
-          <b>{ready ? `Your random ${required}-question exam is ready` : `Select lectures containing ${Math.max(0, required - pool)} more MCQs`}</b>
+          <b>{ready ? `Your ${required}-question ${questionTarget === "final" ? "final" : "practice quiz"} is ready` : questionTarget === "final" ? `Select lectures containing ${Math.max(0, required - pool)} more MCQs across five courses` : "Select a lecture with eligible MCQs"}</b>
           <small>{selectedIds.length} lecture{selectedIds.length === 1 ? "" : "s"} selected. Questions will not be duplicated.</small>
         </div>
         <span>
@@ -739,7 +738,7 @@ function BundleWorkspaceTab({ content, tab, courses, lectures, openWeeks, setOpe
 
   if (tab === "curriculum" && !courses.length) return <EmptyState title="No courses in this semester" description="This bundle does not currently contain courses for the selected semester." />;
 
-  if (tab === "curriculum") return <section className="bundle-accordion-stack"><div className="bundle-expand-actions"><Link className="pp-button secondary" href={`/rounds?bundle=${encodeURIComponent(content.bundle.id)}`}>Select lectures for 40-MCQ quiz</Link><button type="button" onClick={() => setOpenWeeks(new Set(courses.flatMap((course) => course.weeks.map((week) => week.id))))}>Expand all</button><button type="button" onClick={() => setOpenWeeks(new Set())}>Collapse all</button></div>{courses.map((course) => <Panel key={course.id} title={`${course.courseCode} · ${course.courseName}`} className="bundle-course">{course.weeks.map((week) => {
+  if (tab === "curriculum") return <section className="bundle-accordion-stack"><div className="bundle-expand-actions"><Link className="pp-button secondary" href={`/rounds?bundle=${encodeURIComponent(content.bundle.id)}`}>Select lectures for practice</Link><button type="button" onClick={() => setOpenWeeks(new Set(courses.flatMap((course) => course.weeks.map((week) => week.id))))}>Expand all</button><button type="button" onClick={() => setOpenWeeks(new Set())}>Collapse all</button></div>{courses.map((course) => <Panel key={course.id} title={`${course.courseCode} · ${course.courseName}`} className="bundle-course">{course.weeks.map((week) => {
     const questions = week.lectures.reduce((sum, lecture) => sum + lecture.question_count, 0);
     const decks = week.lectures.reduce((sum, lecture) => sum + lecture.flashcard_deck_count, 0);
     const resources = week.lectures.reduce((sum, lecture) => sum + lecture.resource_count, 0);

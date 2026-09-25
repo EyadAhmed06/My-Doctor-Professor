@@ -64,6 +64,8 @@ export class GeneratePracticeTestDto {
  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(50) @ArrayUnique()
  @IsString({each:true}) @Matches(POSTGRES_UUID_TEXT,{each:true,message:'each lecture_id must use UUID text format'})
  lecture_ids:string[];
+ @IsOptional() @IsArray() @ArrayMinSize(1) @ArrayMaxSize(200) @ArrayUnique() @IsUUID('all', {each:true})
+ topic_ids?:string[];
  @IsInt() @Min(1) @Max(200) question_count:number;
  @IsOptional() @IsEnum(QuestionDifficulty) difficulty?:QuestionDifficulty;
  @IsEnum(TestMode) test_mode:TestMode;

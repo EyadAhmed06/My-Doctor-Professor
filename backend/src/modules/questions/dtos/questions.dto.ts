@@ -135,7 +135,7 @@ export class EnrichQuestionImportCandidateDto {
   @IsExplanationWithinPolicy()
   explanation?: string;
   @IsOptional() @IsEnum(QuestionDifficulty) difficulty?: QuestionDifficulty;
-  @IsOptional() @IsString() @MaxLength(255) source_section?: string;
+  @IsOptional() @IsString() @MaxLength(150) source_section?: string;
   @IsOptional() @IsBoolean() allow_four_options?: boolean;
   @IsOptional() @ValidateNested() @Type(() => EnrichQuestionImportMetadataDto)
   ai_enrichment?: EnrichQuestionImportMetadataDto;
@@ -175,6 +175,7 @@ export class PublishImportedQuestionDto {
   @Type(() => PublishImportedOptionDto)
   options: PublishImportedOptionDto[];
   @IsOptional() @IsInt() @Min(1) source_page?: number;
+  @IsOptional() @IsString() @MaxLength(255) source_section?: string;
   @IsOptional() @IsUUID() reuse_question_id?: string;
   @IsOptional() @IsBoolean() allow_topic_override?: boolean;
   @IsOptional() @IsBoolean() allow_duplicate?: boolean;

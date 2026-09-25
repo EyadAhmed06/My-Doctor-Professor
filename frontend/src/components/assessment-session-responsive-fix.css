@@ -4,7 +4,8 @@
   .exam-session-footer>div .end,.exam-session-footer>div .next{min-width:0;white-space:nowrap}
 }
 @media(max-width:560px){
-  .exam-session-footer{grid-template-columns:auto minmax(0,1fr)}
+  .exam-session-footer{grid-template-columns:auto minmax(0,1fr);gap:6px;padding:8px;bottom:env(safe-area-inset-bottom,0px)}
   .exam-session-footer>div{gap:6px}
-  .exam-session-footer>div .end,.exam-session-footer>div .next{padding:0 9px;font-size:9px}
+  .exam-session-footer>button,.exam-session-footer>div .end,.exam-session-footer>div .next{min-height:44px;padding:0 10px;font-size:13px;white-space:normal;text-align:center}
+  .exam-session-footer>div .end,.exam-session-footer>div .next{flex:1 1 auto}
 }
