@@ -1,0 +1,290 @@
+[CmdletBinding()]
+param(
+    [ValidateSet('Apply', 'Status', 'Destroy')]
+    [string]$Action = 'Apply',
+
+    # Control-plane Region. The existing Terraform state bucket and AWS Free Tier API live in us-east-1.
+    [string]$AwsRegion = 'us-east-1',
+
+    # Egypt-facing workload Region. Milan keeps the application in Europe while remaining relatively close to Egypt.
+    [string]$WorkloadRegion = 'eu-south-1',
+
+    # Keep the Bedrock credit invocation in a known-good Region for Amazon Nova Micro.
+    [string]$BedrockRegion = 'us-east-1',
+
+    [string]$AwsProfile = 'mdp-new-account',
+
+    [string]$ProjectName = 'my-doctor-professor',
+
+    [string]$BudgetEmail = '',
+
+    [switch]$ConfigureGitHubVariables,
+
+    [switch]$ConfirmDestroy
+)
+
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+
+function Assert-Command {
+    param([Parameter(Mandatory)][string]$Name)
+
+    if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
+        throw "Required command '$Name' was not found in PATH."
+    }
+}
+
+function Invoke-Native {
+    param(
+        [Parameter(Mandatory)][string]$Command,
+        [Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments
+    )
+
+    & $Command @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "Command failed ($LASTEXITCODE): $Command $($Arguments -join ' ')"
+    }
+}
+
+function Show-FreeTierStatus {
+    Write-Host "`nAWS Free Tier plan state:" -ForegroundColor Cyan
+    & aws freetier get-account-plan-state --profile $AwsProfile --region $AwsRegion --output json
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning 'Could not query get-account-plan-state. The AWS Free Tier API is served from us-east-1.'
+    }
+
+    Write-Host "`nAWS Free Tier earning activities:" -ForegroundColor Cyan
+    Invoke-Native aws freetier list-account-activities `
+        --profile $AwsProfile `
+        --region $AwsRegion `
+        --query 'activities[].{Activity:title,Status:status,RewardUSD:reward.credit.amount}' `
+        --output table
+}
+
+function Invoke-BedrockCreditAttempt {
+    param([Parameter(Mandatory)][string]$ModelId)
+
+    # Avoid PowerShell/native-command JSON quoting entirely. AWS CLI document parameters
+    # are supplied through a UTF-8 JSON request file instead of inline JSON arguments.
+    $RequestPath = Join-Path ([System.IO.Path]::GetTempPath()) 'mdp-bedrock-converse.json'
+    $Request = [ordered]@{
+        modelId = $ModelId
+        messages = @(
+            [ordered]@{
+                role = 'user'
+                content = @(
+                    [ordered]@{ text = 'Reply with exactly: AWS activity complete' }
+                )
+            }
+        )
+        inferenceConfig = [ordered]@{
+            maxTokens = 16
+            temperature = 0
+        }
+    }
+
+    $Request | ConvertTo-Json -Depth 10 -Compress | Set-Content -Path $RequestPath -Encoding utf8 -NoNewline
+
+    try {
+        & aws bedrock-runtime converse `
+            --profile $AwsProfile `
+            --region $BedrockRegion `
+            --cli-input-json "file://$RequestPath" `
+            --query 'output.message.content[0].text' `
+            --output text
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning 'Bedrock API invocation failed. The other four activities remain provisioned. Check model access and the authoritative Free Tier status below.'
+            return $false
+        }
+
+        return $true
+    }
+    finally {
+        Remove-Item -Path $RequestPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
+Assert-Command aws
+
+Write-Host "Using dedicated AWS CLI profile '$AwsProfile'; the existing default profile will not be changed." -ForegroundColor Cyan
+Write-Host "Control/state Region: $AwsRegion" -ForegroundColor Cyan
+Write-Host "EC2/RDS/Lambda workload Region: $WorkloadRegion" -ForegroundColor Cyan
+Write-Host "Bedrock activity Region: $BedrockRegion" -ForegroundColor Cyan
+Write-Host 'Verifying AWS authentication...' -ForegroundColor Cyan
+& aws sts get-caller-identity --profile $AwsProfile --output json
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "No active session for '$AwsProfile'. Starting browser-based AWS login with temporary credentials..." -ForegroundColor Yellow
+    Invoke-Native aws configure set region $AwsRegion --profile $AwsProfile
+    & aws login --profile $AwsProfile
+    if ($LASTEXITCODE -ne 0) {
+        throw "AWS browser login failed for profile '$AwsProfile'. Run 'aws login --profile $AwsProfile' directly to inspect the AWS CLI error."
+    }
+    Invoke-Native aws sts get-caller-identity --profile $AwsProfile --output json
+}
+
+$env:AWS_PROFILE = $AwsProfile
+$env:AWS_REGION = $AwsRegion
+$env:AWS_DEFAULT_REGION = $AwsRegion
+
+$ActivityCountRaw = & aws freetier list-account-activities `
+    --profile $AwsProfile `
+    --region $AwsRegion `
+    --query 'length(activities)' `
+    --output text
+if ($LASTEXITCODE -ne 0) {
+    throw 'AWS Free Tier activity API is unavailable. Verify this account supports the new Free Tier experience before provisioning anything.'
+}
+$ActivityCount = [int]$ActivityCountRaw.Trim()
+
+if ($Action -eq 'Status') {
+    Show-FreeTierStatus
+    exit 0
+}
+
+if ($Action -eq 'Apply' -and $ActivityCount -eq 0) {
+    throw 'AWS reports zero earning activities for this account. Refusing to create EC2/RDS resources because additional-credit eligibility is not confirmed.'
+}
+
+if ($Action -eq 'Apply') {
+    if ([string]::IsNullOrWhiteSpace($BudgetEmail)) {
+        throw 'Apply requires -BudgetEmail so the AWS Budgets activity includes an alert subscriber.'
+    }
+    if ($BudgetEmail -match '(?i)YOUR_|PLACEHOLDER|EXAMPLE|PUT_' -or $BudgetEmail -notmatch '^[^\s@]+@[^\s@]+\.[^\s@]+$') {
+        throw "BudgetEmail '$BudgetEmail' is a placeholder or is not a valid-looking email address."
+    }
+    Write-Host "AWS advertises $ActivityCount earning activity/activities for this account. Continuing." -ForegroundColor Green
+    Show-FreeTierStatus
+}
+
+Assert-Command terraform
+
+$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$BootstrapDir = Join-Path $RepoRoot 'infra\bootstrap'
+$CreditsDir = Join-Path $RepoRoot 'infra\credits'
+
+$AccountId = (& aws sts get-caller-identity --profile $AwsProfile --query Account --output text).Trim()
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($AccountId)) {
+    throw 'Could not resolve the current AWS account ID.'
+}
+$StateBucket = "$ProjectName-terraform-state-$AccountId"
+
+if ($Action -eq 'Destroy') {
+    if (-not $ConfirmDestroy) {
+        throw 'Destroy is blocked. Re-run with -Action Destroy -ConfirmDestroy after AWS reports all credit activities COMPLETED.'
+    }
+
+    $Incomplete = (& aws freetier list-account-activities `
+        --profile $AwsProfile `
+        --region $AwsRegion `
+        --query 'length(activities[?status!=`COMPLETED`])' `
+        --output text).Trim()
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Could not verify AWS Free Tier activity completion. Refusing to destroy.'
+    }
+    if ($Incomplete -ne '0') {
+        Show-FreeTierStatus
+        throw "AWS still reports $Incomplete incomplete activity/activities. Refusing to destroy."
+    }
+
+    Write-Host 'Initializing the remote credits state...' -ForegroundColor Cyan
+    Invoke-Native terraform "-chdir=$CreditsDir" init -reconfigure `
+        "-backend-config=bucket=$StateBucket" `
+        '-backend-config=key=credits/terraform.tfstate' `
+        "-backend-config=region=$AwsRegion" `
+        '-backend-config=encrypt=true' `
+        '-backend-config=use_lockfile=true'
+
+    $env:TF_VAR_aws_region = $WorkloadRegion
+    $env:TF_VAR_project_name = $ProjectName
+    $env:TF_VAR_budget_email = $BudgetEmail
+
+    Write-Host "Destroying temporary credit-activity resources from $WorkloadRegion..." -ForegroundColor Yellow
+    Invoke-Native terraform "-chdir=$CreditsDir" destroy -auto-approve
+    exit 0
+}
+
+Write-Host "`n1/6 - Bootstrapping Terraform state + GitHub OIDC + workload Region opt-in..." -ForegroundColor Cyan
+$env:TF_VAR_aws_region = $AwsRegion
+$env:TF_VAR_workload_region = $WorkloadRegion
+$env:TF_VAR_project_name = $ProjectName
+Invoke-Native terraform "-chdir=$BootstrapDir" init
+Invoke-Native terraform "-chdir=$BootstrapDir" validate
+Invoke-Native terraform "-chdir=$BootstrapDir" apply -auto-approve
+
+$StateBucket = (& terraform "-chdir=$BootstrapDir" output -raw terraform_state_bucket).Trim()
+$CreditsRoleArn = (& terraform "-chdir=$BootstrapDir" output -raw github_credits_role_arn).Trim()
+$EnabledWorkloadRegion = (& terraform "-chdir=$BootstrapDir" output -raw workload_region).Trim()
+$WorkloadRegionStatus = (& terraform "-chdir=$BootstrapDir" output -raw workload_region_opt_status).Trim()
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($StateBucket) -or [string]::IsNullOrWhiteSpace($CreditsRoleArn)) {
+    throw 'Bootstrap outputs could not be resolved.'
+}
+Write-Host "Workload Region $EnabledWorkloadRegion status: $WorkloadRegionStatus" -ForegroundColor Green
+
+Write-Host "`n2/6 - Initializing encrypted/versioned remote Terraform state..." -ForegroundColor Cyan
+Invoke-Native terraform "-chdir=$CreditsDir" init -reconfigure `
+    "-backend-config=bucket=$StateBucket" `
+    '-backend-config=key=credits/terraform.tfstate' `
+    "-backend-config=region=$AwsRegion" `
+    '-backend-config=encrypt=true' `
+    '-backend-config=use_lockfile=true'
+
+$env:TF_VAR_aws_region = $WorkloadRegion
+$env:TF_VAR_project_name = $ProjectName
+$env:TF_VAR_budget_email = $BudgetEmail
+Invoke-Native terraform "-chdir=$CreditsDir" validate
+
+Write-Host "`n3/6 - Reconciling Budget, EC2, RDS, and Lambda activities in $WorkloadRegion..." -ForegroundColor Cyan
+$TerraformPlanArgs = @("-chdir=$CreditsDir", 'plan', '-out=credits.tfplan')
+Invoke-Native terraform @TerraformPlanArgs
+$TerraformApplyArgs = @("-chdir=$CreditsDir", 'apply', '-auto-approve', 'credits.tfplan')
+Invoke-Native terraform @TerraformApplyArgs
+
+Write-Host "`n4/6 - Invoking the Lambda web app..." -ForegroundColor Cyan
+$LambdaUrl = (& terraform "-chdir=$CreditsDir" output -raw lambda_function_url).Trim()
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($LambdaUrl)) {
+    throw 'Lambda Function URL was not returned by Terraform.'
+}
+$LambdaResponse = Invoke-RestMethod -Uri $LambdaUrl -Method Get
+$LambdaResponse | ConvertTo-Json -Depth 8
+
+Write-Host "`n5/6 - Invoking Amazon Bedrock in $BedrockRegion using a JSON request file..." -ForegroundColor Cyan
+$BedrockModel = (& terraform "-chdir=$CreditsDir" output -raw bedrock_model_id).Trim()
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($BedrockModel)) {
+    throw 'Bedrock model ID was not returned by Terraform.'
+}
+$BedrockSucceeded = Invoke-BedrockCreditAttempt -ModelId $BedrockModel
+if ($BedrockSucceeded) {
+    Write-Host 'Bedrock API invocation succeeded. AWS Free Tier status will determine whether the Playground-specific activity counts it.' -ForegroundColor Green
+}
+
+if ($ConfigureGitHubVariables) {
+    if (Get-Command gh -ErrorAction SilentlyContinue) {
+        Write-Host "`nConfiguring GitHub repository variables..." -ForegroundColor Cyan
+        & gh auth status *> $null
+        if ($LASTEXITCODE -eq 0) {
+            Invoke-Native gh variable set AWS_CREDITS_ROLE_ARN --body $CreditsRoleArn --repo 'EyadAhmed06/My-Doctor-Professor'
+            Invoke-Native gh variable set AWS_TERRAFORM_STATE_BUCKET --body $StateBucket --repo 'EyadAhmed06/My-Doctor-Professor'
+            Invoke-Native gh variable set AWS_BUDGET_EMAIL --body $BudgetEmail --repo 'EyadAhmed06/My-Doctor-Professor'
+            Invoke-Native gh variable set AWS_WORKLOAD_REGION --body $WorkloadRegion --repo 'EyadAhmed06/My-Doctor-Professor'
+        }
+        else {
+            Write-Warning 'GitHub CLI is installed but is not authenticated; repository variables were not changed.'
+        }
+    }
+    else {
+        Write-Warning 'GitHub CLI was not found; repository variables were not changed.'
+    }
+}
+
+Write-Host "`n6/6 - Reading the authoritative AWS activity status..." -ForegroundColor Cyan
+Start-Sleep -Seconds 60
+Show-FreeTierStatus
+
+Write-Host "`nBootstrap outputs for later GitHub Actions:" -ForegroundColor Green
+Write-Host "AWS_CREDITS_ROLE_ARN=$CreditsRoleArn"
+Write-Host "AWS_TERRAFORM_STATE_BUCKET=$StateBucket"
+Write-Host "AWS_BUDGET_EMAIL=$BudgetEmail"
+Write-Host "AWS_WORKLOAD_REGION=$WorkloadRegion"
+Write-Host "AWS_PROFILE=$AwsProfile"
+Write-Host "`nDo not destroy the temporary resources until AWS reports every intended activity as COMPLETED. Credits may take additional time to appear." -ForegroundColor Yellow

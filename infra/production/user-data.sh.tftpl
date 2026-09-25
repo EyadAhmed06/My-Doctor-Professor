@@ -1,0 +1,220 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update
+apt-get install -y ca-certificates curl unzip docker.io docker-compose-v2 e2fsprogs util-linux
+
+# Ubuntu 24.04 does not consistently expose an installable `awscli` APT
+# package in the enabled repositories used by the EC2 image. Install AWS CLI v2
+# from AWS's official bundled installer so bootstrap is independent of that
+# distro package.
+if ! command -v aws >/dev/null 2>&1; then
+  machine_arch="$(uname -m)"
+  case "$machine_arch" in
+    x86_64) aws_arch="x86_64" ;;
+    aarch64|arm64) aws_arch="aarch64" ;;
+    *)
+      echo "Unsupported architecture for AWS CLI v2: $machine_arch" >&2
+      exit 1
+      ;;
+  esac
+
+  aws_zip="/tmp/awscliv2.zip"
+  aws_dir="/tmp/awscliv2"
+  rm -rf "$aws_zip" "$aws_dir"
+  curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$aws_arch.zip" -o "$aws_zip"
+  mkdir -p "$aws_dir"
+  unzip -q "$aws_zip" -d "$aws_dir"
+  "$aws_dir/aws/install" --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
+  rm -rf "$aws_zip" "$aws_dir"
+fi
+aws --version
+
+systemctl enable --now docker
+systemctl enable --now amazon-ssm-agent 2>/dev/null || true
+snap start amazon-ssm-agent 2>/dev/null || true
+
+# c7i-flex.large provides 4 GiB RAM. Builds happen in GitHub Actions, so runtime
+# memory is the concern; a small swap file gives the host extra headroom for
+# transient Next.js/NestJS/PostgreSQL spikes without adding another AWS resource.
+if [ ! -f /swapfile ]; then
+  fallocate -l 2G /swapfile
+  chmod 0600 /swapfile
+  mkswap /swapfile
+fi
+swapon --show=NAME --noheadings | grep -qx '/swapfile' || swapon /swapfile
+if ! grep -q '^/swapfile ' /etc/fstab; then
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+sysctl -w vm.swappiness=10
+printf 'vm.swappiness=10\n' > /etc/sysctl.d/99-mdp-swap.conf
+
+install -d -m 0750 /opt/mdp /opt/mdp/config
+install -d -m 0700 /opt/mdp/data/uploads /opt/mdp/data/backups /opt/mdp/data/postgres
+install -d -m 0750 /opt/mdp/data/caddy /opt/mdp/config/caddy
+chown -R 1001:1001 /opt/mdp/data/uploads /opt/mdp/data/backups
+
+# The PostgreSQL data directory lives on a separately managed EBS volume. The
+# volume survives EC2 replacement because Terraform protects it from destroy.
+DB_VOLUME_ID='${db_volume_id}'
+normalized_volume_id="$${DB_VOLUME_ID//-/}"
+db_device=""
+for attempt in $(seq 1 90); do
+  db_device="$(lsblk -ndo PATH,SERIAL | awk -v serial="$normalized_volume_id" '$2 == serial {print $1; exit}')"
+  if [ -n "$db_device" ] && [ -b "$db_device" ]; then
+    break
+  fi
+  by_id="/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_$normalized_volume_id"
+  if [ -e "$by_id" ]; then
+    db_device="$(readlink -f "$by_id")"
+    break
+  fi
+  sleep 5
+done
+
+if [ -z "$db_device" ] || [ ! -b "$db_device" ]; then
+  echo "Database EBS volume $DB_VOLUME_ID did not become available" >&2
+  exit 1
+fi
+
+if ! blkid "$db_device" >/dev/null 2>&1; then
+  mkfs.ext4 -F "$db_device"
+fi
+
+db_uuid="$(blkid -s UUID -o value "$db_device")"
+if ! grep -q "UUID=$db_uuid " /etc/fstab; then
+  printf 'UUID=%s /opt/mdp/data/postgres ext4 defaults,nofail 0 2\n' "$db_uuid" >> /etc/fstab
+fi
+mountpoint -q /opt/mdp/data/postgres || mount /opt/mdp/data/postgres
+chown -R 999:999 /opt/mdp/data/postgres
+chmod 0700 /opt/mdp/data/postgres
+
+echo '${compose_b64}' | base64 --decode > /opt/mdp/compose.production.yml
+echo '${caddy_b64}' | base64 --decode > /opt/mdp/Caddyfile
+
+cat > /opt/mdp/deploy.env <<'ENV'
+APP_HOST=${app_host}
+AWS_REGION=${aws_region}
+BACKEND_IMAGE=${backend_image}:latest
+FRONTEND_IMAGE=${frontend_image}:latest
+APP_ENV_PARAMETER=${app_parameter_name}
+DATABASE_ENV_PARAMETER=${database_parameter_name}
+ENV
+chmod 0600 /opt/mdp/deploy.env
+
+cat > /usr/local/bin/mdp-refresh-database-env <<'SCRIPT'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+set -a
+. /opt/mdp/deploy.env
+set +a
+aws ssm get-parameter --region "$AWS_REGION" --with-decryption --name "$DATABASE_ENV_PARAMETER" \
+  --query Parameter.Value --output text > /opt/mdp/database.env
+chmod 0600 /opt/mdp/database.env
+SCRIPT
+chmod 0750 /usr/local/bin/mdp-refresh-database-env
+
+cat > /usr/local/bin/mdp-refresh-env <<'SCRIPT'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+set -a
+. /opt/mdp/deploy.env
+set +a
+aws ssm get-parameter --region "$AWS_REGION" --with-decryption --name "$APP_ENV_PARAMETER" \
+  --query Parameter.Value --output text > /opt/mdp/app.env
+/usr/local/bin/mdp-refresh-database-env
+chmod 0600 /opt/mdp/app.env
+SCRIPT
+chmod 0750 /usr/local/bin/mdp-refresh-env
+
+cat > /usr/local/bin/mdp-deploy <<'SCRIPT'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+cd /opt/mdp
+/usr/local/bin/mdp-refresh-env
+set -a
+. /opt/mdp/deploy.env
+set +a
+registry="$${BACKEND_IMAGE%%/*}"
+aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$registry"
+compose=(docker compose --env-file /opt/mdp/deploy.env --env-file /opt/mdp/app.env --env-file /opt/mdp/database.env -f /opt/mdp/compose.production.yml)
+"$${compose[@]}" pull
+"$${compose[@]}" up -d postgres
+for attempt in $(seq 1 30); do
+  if [ "$(docker inspect --format='{{.State.Health.Status}}' mdp-postgres 2>/dev/null || true)" = "healthy" ]; then
+    break
+  fi
+  sleep 5
+done
+if [ "$(docker inspect --format='{{.State.Health.Status}}' mdp-postgres 2>/dev/null || true)" != "healthy" ]; then
+  "$${compose[@]}" logs --tail=150 postgres
+  exit 1
+fi
+"$${compose[@]}" run --rm backend node node_modules/typeorm/cli.js migration:run -d dist/database/data-source.js
+"$${compose[@]}" up -d --remove-orphans
+for attempt in $(seq 1 30); do
+  if curl --fail --silent --show-error "https://$APP_HOST/api/v1/health/live" >/dev/null; then
+    "$${compose[@]}" ps
+    exit 0
+  fi
+  sleep 10
+done
+"$${compose[@]}" logs --tail=150
+exit 1
+SCRIPT
+chmod 0750 /usr/local/bin/mdp-deploy
+
+cat > /usr/local/bin/mdp-backup <<'SCRIPT'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+/usr/local/bin/mdp-refresh-database-env
+set -a
+. /opt/mdp/database.env
+set +a
+
+if [ "$(docker inspect --format='{{.State.Running}}' mdp-postgres 2>/dev/null || true)" != "true" ]; then
+  echo "PostgreSQL container is not running; skipping logical backup."
+  exit 0
+fi
+
+stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+docker exec \
+  -e PGPASSWORD="$DB_PASSWORD" \
+  mdp-postgres \
+  pg_dump --clean --if-exists --no-owner \
+    -h 127.0.0.1 -p "$DB_PORT" -U "$DB_USERNAME" -d "$DB_NAME" |
+  gzip |
+  aws s3 cp - "s3://${backup_bucket}/database/$stamp.sql.gz" --sse AES256
+
+aws s3 sync /opt/mdp/data/uploads "s3://${backup_bucket}/uploads/" --delete --sse AES256
+SCRIPT
+chmod 0750 /usr/local/bin/mdp-backup
+
+cat > /etc/systemd/system/mdp-backup.service <<'UNIT'
+[Unit]
+Description=My Doctor Professor production logical backup
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/mdp-backup
+UNIT
+
+cat > /etc/systemd/system/mdp-backup.timer <<'UNIT'
+[Unit]
+Description=Daily My Doctor Professor production logical backup
+
+[Timer]
+OnCalendar=*-*-* 02:00:00 UTC
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable --now mdp-backup.timer
