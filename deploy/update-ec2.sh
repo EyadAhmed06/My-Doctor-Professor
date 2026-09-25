@@ -133,9 +133,22 @@ compose up -d --no-deps --force-recreate --pull never frontend
 wait_healthy mdp-frontend
 docker exec -i mdp-frontend node -e "fetch('http://127.0.0.1:3001/').then(r=>{console.log('Frontend HTTP',r.status);if(!r.ok)process.exit(1)}).catch(e=>{console.error(e);process.exit(1)})"
 docker restart mdp-caddy
-curl --fail --silent --show-error --retry 6 --retry-delay 2 "https://$APP_HOST/api/v1/health/ready"
-printf '\n'
-curl --fail --silent --show-error --retry 6 --retry-delay 2 -o /dev/null "https://$APP_HOST/"
+wait_public() {
+  local url="$1" label="$2" response="" i
+  for i in $(seq 1 30); do
+    if response="$(curl --fail --silent --show-error --connect-timeout 3 --max-time 8 "$url" 2>/dev/null)"; then
+      printf '%s HTTP 200 after check %s/30\n' "$label" "$i"
+      [[ $label == API ]] && printf '%s\n' "$response"
+      return 0
+    fi
+    printf '[%s/30] Waiting for public %s after Caddy restart\n' "$i" "$label"
+    sleep 3
+  done
+  docker logs --tail 100 mdp-caddy >&2 || true
+  return 1
+}
+wait_public "https://$APP_HOST/api/v1/health/ready" API
+wait_public "https://$APP_HOST/" HOME
 
 # Only persist image references after the public checks succeed.
 for file in deploy.env local-images.env; do
