@@ -5,14 +5,20 @@ import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
+import { EmailVerificationCodeController } from './email-verification-code.controller';
+import { PasswordResetOtpController } from './password-reset-otp.controller';
 import { AuthRateLimitService } from './auth-rate-limit.service';
 import { AuthService } from './auth.service';
 import { EmailService } from './email.service';
 import { AccountActionToken } from './entities/account-action-token.entity';
 import { AuthRateLimit } from './entities/auth-rate-limit.entity';
 import { EmailOutbox } from './entities/email-outbox.entity';
+import { GoogleAuthService } from './google-auth.service';
+import { GoogleIdentityService } from './google-identity.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { PasswordResetOtpEmailService } from './password-reset-otp-email.service';
+import { PasswordResetOtpService } from './password-reset-otp.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
@@ -28,8 +34,23 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       }),
     }),
   ],
-  providers: [AuthService, AuthRateLimitService, EmailService, JwtStrategy, JwtAuthGuard, RolesGuard],
-  controllers: [AuthController],
-  exports: [AuthService, JwtAuthGuard, RolesGuard],
+  providers: [
+    AuthService,
+    AuthRateLimitService,
+    EmailService,
+    PasswordResetOtpEmailService,
+    PasswordResetOtpService,
+    GoogleIdentityService,
+    GoogleAuthService,
+    JwtStrategy,
+    JwtAuthGuard,
+    RolesGuard,
+  ],
+  controllers: [
+    AuthController,
+    EmailVerificationCodeController,
+    PasswordResetOtpController,
+  ],
+  exports: [AuthService, AuthRateLimitService, JwtAuthGuard, RolesGuard],
 })
 export class AuthModule {}

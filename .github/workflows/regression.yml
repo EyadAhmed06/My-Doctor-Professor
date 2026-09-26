@@ -1,0 +1,112 @@
+name: Browser Regression
+
+on:
+  push:
+    branches:
+      - agent/phase1-interactions
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mcq-four-five-contract:
+    name: MCQ four/five-option contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Reproducible install
+        run: npm ci --ignore-scripts
+
+      - name: Install browser engines
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Build production frontend
+        env:
+          NEXT_PUBLIC_API_URL: /api/v1
+        run: npm run build
+
+      - name: Run MCQ importer responsive choice contract
+        env:
+          CI: true
+          NEXT_PUBLIC_API_URL: /api/v1
+        run: >-
+          npx playwright test tests/browser/question-import.spec.ts
+          --grep "instructor inspects a five-option PDF candidate|removing a populated fifth choice|repair missing or extra answer choices|manual explanation UI enforces 700 characters"
+
+      - name: Run manual four/five-option authoring contract
+        env:
+          CI: true
+          NEXT_PUBLIC_API_URL: /api/v1
+        run: >-
+          npx playwright test tests/browser/four-option-mcq-flow.spec.ts
+          --grep "question bank creates A-D|question bank keeps five choices as the default manual-authoring path"
+
+      - name: Upload focused Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcq-importer-choice-contract-artifacts
+          path: frontend/test-results
+          if-no-files-found: ignore
+          retention-days: 7
+
+  playwright:
+    name: Full browser regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Reproducible install
+        run: npm ci --ignore-scripts
+
+      - name: Install browser engines
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Build production frontend
+        env:
+          NEXT_PUBLIC_API_URL: /api/v1
+        run: npm run build
+
+      - name: Run full browser regression suite
+        env:
+          CI: true
+          NEXT_PUBLIC_API_URL: /api/v1
+        run: npx playwright test
+
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failure-artifacts
+          path: |
+            frontend/test-results
+            frontend/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7

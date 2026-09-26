@@ -14,6 +14,7 @@ import {
 } from 'typeorm';
 import { EssayConfiguration } from '../../common/entities/essay-configuration.entity';
 import { McqOption } from '../../common/entities/mcq-option.entity';
+import { isSupportedMcqOptionCount } from '../../common/mcq-option-policy';
 import {
   Question,
   QuestionType,
@@ -273,6 +274,7 @@ export class QuestionsService {
             manager.create(McqOption, {
               questionId: copy.id,
               optionText: option.optionText,
+              explanation: option.explanation,
               isCorrect: option.isCorrect,
               displayOrder: option.displayOrder,
             }),
@@ -332,13 +334,17 @@ export class QuestionsService {
       throw new ConflictException('Deactivate the question before changing its options');
     }
     const optionCount = await this.options.count({ where: { questionId } });
-    if (optionCount >= 4) {
-      throw new ConflictException('An MCQ cannot contain more than four options');
+    if (optionCount >= 5) {
+      throw new ConflictException('An MCQ cannot contain more than five options');
     }
     await this.assertOptionTextUnique(questionId, dto.option_text);
+    if (dto.is_correct && await this.options.exists({ where: { questionId, isCorrect: true } })) {
+      throw new ConflictException('An MCQ can have only one correct option');
+    }
     const option = this.options.create({
       questionId,
       optionText: dto.option_text.trim(),
+      explanation: dto.explanation?.trim() || null,
       isCorrect: dto.is_correct,
       displayOrder: dto.display_order,
     });
@@ -367,9 +373,18 @@ export class QuestionsService {
     if (option.question.isActive) {
       throw new ConflictException('Deactivate the question before changing its options');
     }
+    if (dto.explanation !== undefined) option.explanation = dto.explanation.trim() || null;
     if (dto.option_text !== undefined) {
       await this.assertOptionTextUnique(option.questionId, dto.option_text, option.id);
       option.optionText = dto.option_text.trim();
+    }
+    if (dto.is_correct) {
+      const existingCorrect = await this.options.createQueryBuilder('option')
+        .where('option.question_id = :questionId', { questionId: option.questionId })
+        .andWhere('option.is_correct = TRUE')
+        .andWhere('option.id <> :optionId', { optionId: option.id })
+        .getExists();
+      if (existingCorrect) throw new ConflictException('An MCQ can have only one correct option');
     }
     if (dto.is_correct !== undefined) option.isCorrect = dto.is_correct;
     if (dto.display_order !== undefined) option.displayOrder = dto.display_order;
@@ -545,11 +560,8 @@ export class QuestionsService {
       const options = await this.options.find({
         where: { questionId: question.id },
       });
-      if (options.length < 2) {
-        throw new ConflictException('An active MCQ requires at least two options');
-      }
-      if (options.length > 4) {
-        throw new ConflictException('An active MCQ cannot contain more than four options');
+      if (!isSupportedMcqOptionCount(options.length)) {
+        throw new ConflictException('An active MCQ requires four or five options');
       }
       if (options.filter((option) => option.isCorrect).length !== 1) {
         throw new ConflictException('An active MCQ requires exactly one correct option');

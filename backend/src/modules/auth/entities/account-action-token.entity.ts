@@ -11,6 +11,7 @@ import { User } from '../../users/entities/user.entity';
 
 export enum AccountActionTokenPurpose {
   EMAIL_VERIFICATION = 'EMAIL_VERIFICATION',
+  PASSWORD_RESET_CODE = 'PASSWORD_RESET_CODE',
   PASSWORD_RESET = 'PASSWORD_RESET',
 }
 

@@ -5,13 +5,16 @@ import {
   IsEnum,
   IsInt,
   IsNotEmpty,
+  IsObject,
   IsOptional,
   IsPhoneNumber,
   IsString,
   Matches,
+  Max,
   MaxLength,
   Min,
   MinLength,
+  IsUUID,
 } from 'class-validator';
 import { Gender, UserRole } from '../../users/entities/user.entity';
 
@@ -26,7 +29,7 @@ export class SignupDto {
   email: string;
 
   @IsString()
-  @MinLength(12)
+  @MinLength(8)
   @MaxLength(128)
   @Matches(/[a-z]/, { message: 'password must contain a lowercase letter' })
   @Matches(/[A-Z]/, { message: 'password must contain an uppercase letter' })
@@ -40,13 +43,9 @@ export class SignupDto {
   @Equals(UserRole.STUDENT)
   role: UserRole.STUDENT;
 
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(30)
-  student_number: string;
-
   @IsInt()
   @Min(1)
+  @Max(6)
   current_semester: number;
 
   @IsOptional()
@@ -56,4 +55,18 @@ export class SignupDto {
   @IsOptional()
   @IsEnum(Gender)
   gender?: Gender;
+
+  @IsUUID('4')
+  device_id: string;
+
+  @IsObject()
+  device_public_key_jwk: Record<string, unknown>;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  device_label?: string;
+
+  @IsString()
+  device_registration_signature: string;
 }

@@ -12,5 +12,5 @@ export class NotebookTag {
  @CreateDateColumn({name:'created_at'}) createdAt:Date;
  @UpdateDateColumn({name:'updated_at'}) updatedAt:Date;
  @ManyToOne(()=>User,{onDelete:'CASCADE'}) @JoinColumn({name:'user_id'}) user:User;
- @ManyToMany(()=>NotebookNote,(note)=>note.tags) notes:NotebookNote[];
+ @ManyToMany(()=>NotebookNote,(note)=>note.tags,{onDelete:'CASCADE'}) notes:NotebookNote[];
 }

@@ -3,21 +3,54 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { FiMoon, FiSun } from "react-icons/fi";
 
-type Theme = "light" | "dark";
-const ThemeContext = createContext<{theme: Theme; setTheme: (theme: Theme) => void; toggleTheme: () => void} | null>(null);
+export type Theme = "light" | "dark";
+export type ThemePreference = Theme | "system";
+type ThemeContextValue = {
+  theme: Theme;
+  preference: ThemePreference;
+  setTheme: (theme: ThemePreference) => void;
+  toggleTheme: () => void;
+};
+const ThemeContext = createContext<ThemeContextValue | null>(null);
+
+function initialPreference(): ThemePreference {
+  if (typeof document === "undefined") return "system";
+  const value = document.documentElement.dataset.themePreference;
+  return value === "light" || value === "dark" || value === "system" ? value : "system";
+}
+
+function initialTheme(): Theme {
+  if (typeof document === "undefined") return "dark";
+  return document.documentElement.dataset.theme === "light" ? "light" : "dark";
+}
 
 export function AppThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [preference, setPreference] = useState<ThemePreference>(initialPreference);
+  const [theme, setResolvedTheme] = useState<Theme>(initialTheme);
+
   useEffect(() => {
     const saved = localStorage.getItem("mdp-theme");
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTheme(saved === "dark" ? "dark" : "light");
+    setPreference(saved === "dark" || saved === "light" || saved === "system" ? saved : initialPreference());
   }, []);
+
+  useEffect(() => {
+    const media = matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => setResolvedTheme(preference === "system" ? (media.matches ? "dark" : "light") : preference);
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, [preference]);
+
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    localStorage.setItem("mdp-theme", theme);
-  }, [theme]);
-  return <ThemeContext.Provider value={{ theme, setTheme, toggleTheme: () => setTheme(value => value === "dark" ? "light" : "dark") }}>{children}</ThemeContext.Provider>;
+    document.documentElement.dataset.themePreference = preference;
+    localStorage.setItem("mdp-theme", preference);
+  }, [preference, theme]);
+
+  const setTheme = (value: ThemePreference) => setPreference(value);
+  const toggleTheme = () => setPreference(theme === "dark" ? "light" : "dark");
+
+  return <ThemeContext.Provider value={{ theme, preference, setTheme, toggleTheme }}>{children}</ThemeContext.Provider>;
 }
 
 export function useAppTheme() {
@@ -26,9 +59,9 @@ export function useAppTheme() {
   return value;
 }
 
-export function ThemeToggle({ compact = false }: { compact?: boolean }) {
+export function ThemeToggle({ compact = false, iconOnly = false }: { compact?: boolean; iconOnly?: boolean }) {
   const { theme, toggleTheme } = useAppTheme();
-  return <button className={`global-theme-toggle ${compact ? "compact" : ""}`} onClick={toggleTheme} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} title={`Use ${theme === "dark" ? "light" : "dark"} theme`}>
-    <FiSun /><span><i /></span><FiMoon />
+  return <button type="button" className={`global-theme-toggle ${compact ? "compact" : ""} ${iconOnly ? "icon-only" : ""}`} onClick={toggleTheme} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} title={`Use ${theme === "dark" ? "light" : "dark"} theme`}>
+    {iconOnly ? (theme === "dark" ? <FiSun /> : <FiMoon />) : <><FiSun /><span><i /></span><FiMoon /></>}
   </button>;
 }
