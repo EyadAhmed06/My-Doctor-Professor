@@ -36,6 +36,12 @@ const years = [
     semesters: [{ en: "Semester 5", ar: "الفصل الدراسي الخامس" }, { en: "Semester 6", ar: "الفصل الدراسي السادس" }],
     topics: [{ en: "Diagnostics", ar: "التشخيص" }, { en: "Clinical skills", ar: "المهارات السريرية" }, { en: "Case practice", ar: "التدرب على الحالات" }],
   },
+  {
+    year: { en: "Year 4", ar: "السنة الرابعة" }, focus: { en: "Advanced clinical study", ar: "الدراسة السريرية المتقدمة" },
+    description: { en: "Explore fourth-year courses and practise by semester.", ar: "استكشف مقررات السنة الرابعة وتدرّب حسب الفصل الدراسي." },
+    semesters: [{ en: "Semester 7", ar: "الفصل الدراسي السابع" }, { en: "Semester 8", ar: "الفصل الدراسي الثامن" }],
+    topics: [{ en: "Courses", ar: "المقررات" }, { en: "Questions", ar: "الأسئلة" }, { en: "Practice", ar: "التدريب" }],
+  },
 ];
 
 const features = [
@@ -72,10 +78,9 @@ export function LandingPage() {
   const academicHref = (stage: number, semesterIndex?: number) => {
     const params = new URLSearchParams({ stage: String(stage) });
     if (semesterIndex !== undefined) {
-      if (stage <= 3) params.set("semester", String((stage - 1) * 2 + semesterIndex + 1));
-      else params.set("track", semesterIndex === 0 ? "clerkships" : "exams");
+      params.set("semester", String((stage - 1) * 2 + semesterIndex + 1));
     }
-    return `/dashboard?${params.toString()}`;
+    return `/bundles?${params.toString()}`;
   };
   const arrow = <FiArrowRight />;
 

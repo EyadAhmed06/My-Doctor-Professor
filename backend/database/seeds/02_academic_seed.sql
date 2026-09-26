@@ -55,6 +55,16 @@ VALUES
     6,
     'Semester 6',
     'Sixth-semester medical curriculum.'
+),
+(
+    7,
+    'Semester 7',
+    'Seventh-semester medical curriculum.'
+),
+(
+    8,
+    'Semester 8',
+    'Eighth-semester medical curriculum.'
 );
 
 -- =====================================================

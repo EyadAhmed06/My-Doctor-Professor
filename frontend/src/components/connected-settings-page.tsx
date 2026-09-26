@@ -150,8 +150,8 @@ export function ConnectedSettingsPage() {
     if (draft.dateOfBirth && new Date(`${draft.dateOfBirth}T00:00:00`) >= new Date()) errors.dateOfBirth = "Date of birth must be in the past.";
     if (user?.role === "STUDENT") {
       const sem = Number(draft.current_semester);
-      if (!Number.isInteger(sem) || sem < 1 || sem > 6) {
-        errors.current_semester = locale === "ar" ? "اختر فصلاً دراسياً صحيحاً من 1 إلى 6." : "Select an academic semester from 1 to 6.";
+      if (!Number.isInteger(sem) || sem < 1 || sem > 8) {
+        errors.current_semester = locale === "ar" ? "اختر فصلاً دراسياً صحيحاً من 1 إلى 8." : "Select an academic semester from 1 to 8.";
       }
     }
     setFieldErrors(errors);
@@ -332,7 +332,7 @@ export function ConnectedSettingsPage() {
                     value={draft.current_semester}
                     onChange={(event) => setField("current_semester", Number(event.target.value))}
                   >
-                    {[1, 2, 3, 4, 5, 6].map((sem) => (
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
                       <option key={sem} value={sem}>
                         {locale === "ar"
                           ? `الفصل الدراسي ${sem} (السنة ${Math.ceil(sem / 2)})`

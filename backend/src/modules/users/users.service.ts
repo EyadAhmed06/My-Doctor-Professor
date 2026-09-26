@@ -660,8 +660,8 @@ export class UsersService {
 
     if (user.role === UserRole.STUDENT && input.currentSemester !== undefined) {
       const semester = Number(input.currentSemester);
-      if (!Number.isInteger(semester) || semester < 1 || semester > 6) {
-        throw new BadRequestException('Current semester must be an integer between 1 and 6');
+      if (!Number.isInteger(semester) || semester < 1 || semester > 8) {
+        throw new BadRequestException('Current semester must be an integer between 1 and 8');
       }
       await this.studentsRepository.update({ userId }, { currentSemester: semester });
     }

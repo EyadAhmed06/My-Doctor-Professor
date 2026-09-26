@@ -9,8 +9,8 @@ export class UpdateUserProfileDto {
  @IsOptional() @IsPhoneNumber() phone_number?:string;
  @IsOptional() @IsDateString() date_of_birth?:string;
  @IsOptional() @IsEnum(Gender) gender?:Gender;
- @IsOptional() @IsInt() @Min(1) @Max(6) current_semester?:number;
- @IsOptional() @IsInt() @Min(1) @Max(6) currentSemester?:number;
+ @IsOptional() @IsInt() @Min(1) @Max(8) current_semester?:number;
+ @IsOptional() @IsInt() @Min(1) @Max(8) currentSemester?:number;
 }
 export class ChangePasswordDto {
  @IsString() @IsNotEmpty() current_password:string;

@@ -361,7 +361,7 @@ export function ConnectedBundlesPage() {
               <label>
                 Semester
                 <select name="semester" defaultValue="3">
-                  {[1, 2, 3, 4, 5, 6].map((semester) => (
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((semester) => (
                     <option key={semester} value={semester}>
                       Semester {semester}
                     </option>

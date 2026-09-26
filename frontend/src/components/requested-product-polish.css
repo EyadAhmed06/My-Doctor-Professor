@@ -6,9 +6,9 @@
   display: none !important;
 }
 
-/* Year-grid: 3 academic years (Years 1, 2, 3) */
+/* Year-grid: four academic years. */
 .public-home .year-grid {
-  grid-template-columns: repeat(3, 1fr) !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
 }
 @media (max-width: 1050px) {
   .public-home .year-grid {
