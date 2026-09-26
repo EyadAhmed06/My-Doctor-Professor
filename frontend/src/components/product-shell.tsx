@@ -33,6 +33,7 @@ import {
 import { StudentProgressControl } from "./student-progress-control";
 import { useUx } from "./ux-provider";
 import { useWorkspaceContinuity } from "./workspace-continuity";
+import "./content-protection.css";
 
 type NavItem = { label: string; href: string };
 type NotificationPreview = {
@@ -315,6 +316,11 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
   const avatar = <span className="avatar-fallback">{profileImage ? <img src={profileImage} alt="" /> : initials}</span>;
 
   return <div className="product-app">
+    {user.role === "STUDENT" && <div className="student-content-watermark" aria-hidden="true">
+      <span>{user.forensic_code || user.id}</span>
+      <span>{user.forensic_code || user.id}</span>
+      <span>{user.forensic_code || user.id}</span>
+    </div>}
     <header className="pp-topbar">
       <BrandLockup className="pp-brand" href={homeFor(user.role)} />
       <button className="pp-menu" onClick={() => setOpen(true)} aria-label={translate("Open menu")} aria-expanded={open} aria-controls="product-navigation"><FiMenu /></button>

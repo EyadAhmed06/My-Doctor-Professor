@@ -1045,7 +1045,8 @@ export class BundlesService {
   private async requireEnrollment(bundleId: string, studentId: string) {
     const item = await this.enrollments.findOne({ where: { bundleId, studentId } });
     if (!item) throw new ForbiddenException('You do not have access to this bundle');
-    if (item.paymentStatus === BundlePaymentStatus.PENDING) {
+    if (item.paymentStatus !== BundlePaymentStatus.PAID
+      && item.paymentStatus !== BundlePaymentStatus.NOT_REQUIRED) {
       throw new ForbiddenException('Payment is required before this bundle becomes accessible');
     }
     const now=new Date();

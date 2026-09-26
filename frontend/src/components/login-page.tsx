@@ -9,6 +9,7 @@ import { GoogleSignInButton } from "./google-sign-in-button";
 import { AuthMotion } from "./auth-motion";
 import { ApiError } from "@/lib/api";
 import { useLocale } from "./locale-provider";
+import "./content-protection.css";
 
 const loginProof=[
   {Icon:FiShield,title:"Trusted by learners",copy:"Join a global community"},
@@ -99,6 +100,7 @@ export function LoginPage(){
         <GoogleSignInButton onCredential={handleGoogleCredential} disabled={authLoading||loading||googleLoading}/>
         {googleLoading&&<p className="google-auth-status" role="status">Verifying your Google account…</p>}
         <p className="switch-copy">New here? <Link href="/register">Create an account</Link></p>
+        <p className="content-protection-notice">{locale === "ar" ? "المحتوى التعليمي مخصص لصاحب الحساب المشترك فقط. يُمنع تصويره أو تسجيله أو مشاركته. قد تُعلّق الإدارة الوصول بعد مراجعة أي بلاغ موثّق، ويمكن التواصل معها لإعادة التفعيل." : "Course content is for the enrolled account holder only. Do not screenshot, record, or share it. Administrators may deactivate access after reviewing a documented misuse report; you can contact them to request reactivation."}</p>
       </div>
     </section>
     <footer className="auth-proof-strip auth-motion-footer">

@@ -12,6 +12,7 @@ import type { GoogleOnboardingResult } from "./auth-provider";
 import { GoogleSignInButton } from "./google-sign-in-button";
 import { AuthMotion } from "./auth-motion";
 import { useLocale } from "./locale-provider";
+import "./content-protection.css";
 import styles from "./register-page.module.css";
 
 const registrationProof=[
@@ -186,6 +187,7 @@ export function RegisterPage() {
             <div className="registration-divider"><span>Academic information</span></div>
             <div className="form-grid academic-grid"><Field label="Current semester" placeholder="1" type="number" min={1} max={6} step={1} value={form.current_semester} onChange={update("current_semester")} required/></div>
             <label className="checkline terms"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/><span>I agree to the <Link href="/terms">Terms of Service</Link> and <Link href="/privacy">Privacy Policy</Link>.</span></label>
+            <p className="content-protection-notice">{locale === "ar" ? "المحتوى التعليمي مخصص لصاحب الحساب المشترك فقط. يُمنع تصويره أو تسجيله أو مشاركته. قد تُعلّق الإدارة الوصول بعد مراجعة أي بلاغ موثّق، ويمكن التواصل معها لإعادة التفعيل." : "Course content is for the enrolled account holder only. Do not screenshot, record, or share it. Administrators may deactivate access after reviewing a documented misuse report; you can contact them to request reactivation."}</p>
           </SubmitForm>
           {googleLoading&&<p className="google-auth-status" role="status">Verifying your Google account…</p>}
           <footer className="registration-proof-strip auth-motion-footer">

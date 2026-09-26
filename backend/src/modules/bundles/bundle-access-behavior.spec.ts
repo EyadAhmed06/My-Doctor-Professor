@@ -105,6 +105,15 @@ describe('BundlesService access behavior (getAccessible / requireEnrollment)', (
       .rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  it('denies cancelled payment even for a free bundle, matching content entitlement checks', async () => {
+    const { service } = createHarness({
+      bundle: { isFree: true },
+      enrollment: { paymentStatus: BundlePaymentStatus.CANCELLED },
+    });
+    await expect(service.getAccessible('33333333-3333-4333-8333-333333333333', actor))
+      .rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('denies access when bundle status is DRAFT with HTTP 403', async () => {
     const { service } = createHarness({
       bundle: { status: BundleStatus.DRAFT },
