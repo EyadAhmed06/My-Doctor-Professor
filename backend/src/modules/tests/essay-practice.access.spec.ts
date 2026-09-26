@@ -1,5 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
 import { UserRole } from '../users/entities/user.entity';
+import { BundleAccessService } from '../bundle-access/bundle-access.service';
 import { EssayPracticeService } from './essay-practice.service';
 
 /**
@@ -23,7 +24,7 @@ describe('EssayPracticeService bundle access', () => {
       {} as never,
       { exists: jest.fn().mockResolvedValue(true) } as never,
       {} as never,
-      {} as never,
+      new BundleAccessService({ query } as never),
       {} as never,
       {} as never,
       {} as never,
@@ -53,8 +54,21 @@ describe('EssayPracticeService bundle access', () => {
 
   it('still requires a live, non-revoked entitlement on a published bundle', async () => {
     const sql = await accessSql();
-    expect(sql).toContain("enrollment.status <> 'REVOKED'");
-    expect(sql).toContain("bundle.status IN ('PUBLISHED', 'ARCHIVED')");
+    expect(sql).toContain("enrollment.status = 'ACTIVE'");
+    expect(sql).toContain("enrollment.payment_status IN ('NOT_REQUIRED', 'PAID')");
+    expect(sql).toContain("bundle.status = 'PUBLISHED'");
+    expect(sql).toContain('enrollment.expires_at > CURRENT_TIMESTAMP');
     expect(sql).toContain('lecture.is_published = TRUE');
+  });
+
+  it('refuses an already-created essay attempt once paid access is lost', async () => {
+    const access = { assertTestAccess: jest.fn().mockRejectedValue(new ForbiddenException('Access revoked')) };
+    const service = new EssayPracticeService(
+      {} as never, {} as never, {} as never,
+      { findOne: jest.fn().mockResolvedValue({ studentId: actor.userId, testId: 'test-id', status: 'IN_PROGRESS' }) } as never,
+      access as never, {} as never, {} as never, {} as never, {} as never,
+    );
+    await expect(service.workspace('attempt-id', actor)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(access.assertTestAccess).toHaveBeenCalledWith('test-id', actor, { throwForbidden: true });
   });
 });

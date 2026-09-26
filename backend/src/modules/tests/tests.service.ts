@@ -728,12 +728,14 @@ export class TestsService implements OnModuleInit {
   private async assertAttemptAccess(attempt: TestAttempt, actor: AuthenticatedUser): Promise<void> {
     if (actor.role === UserRole.STUDENT) {
       if (attempt.studentId !== actor.userId) throw new ForbiddenException('You can access only your attempts');
+      await this.assertStudentTestAccess(attempt.test, actor.userId, false);
     } else this.assertOwner(attempt.test, actor);
   }
 
   private async requireStudentOpenAttempt(id: string, actor: AuthenticatedUser): Promise<TestAttempt> {
     const attempt = await this.requireAttempt(id);
     if (attempt.studentId !== actor.userId) throw new ForbiddenException('You can modify only your attempts');
+    await this.assertStudentTestAccess(attempt.test, actor.userId, true);
     await this.expireIfNeeded(attempt, attempt.test);
     if (attempt.status !== TestAttemptStatus.IN_PROGRESS) {
       throw new ConflictException('Attempt is no longer open');

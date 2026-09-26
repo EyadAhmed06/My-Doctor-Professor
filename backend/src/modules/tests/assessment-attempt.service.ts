@@ -292,6 +292,7 @@ export class AssessmentAttemptService {
     if (attempt.studentId !== actor.userId) throw new ForbiddenException('You can modify only your attempts');
     const test = await manager.getRepository(Test).findOne({ where: { id: attempt.testId } });
     if (!test) throw new NotFoundException('Test not found');
+    await this.assertStudentTestAccess(test, actor.userId);
     attempt.test = test;
     return { attempt, test };
   }

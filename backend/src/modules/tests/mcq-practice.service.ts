@@ -57,10 +57,6 @@ export class McqPracticeService {
 
     const idempotencyKey = this.normalizeIdempotencyKey(rawIdempotencyKey);
     const fingerprint = idempotencyKey ? this.generationFingerprint(dto) : null;
-    if (idempotencyKey && fingerprint) {
-      const replay = await this.findGeneration(actor.userId, idempotencyKey, fingerprint);
-      if (replay) return replay;
-    }
 
     const accessibleLectureIds = await this.bundleAccess.getAccessibleLectureIdsInBundle(
       dto.bundle_id,
@@ -73,6 +69,11 @@ export class McqPracticeService {
     const accessibleIds = new Set(accessibleLectureIds);
     if (uniqueLectureIds.some((lectureId) => !accessibleIds.has(lectureId))) {
       throw new ForbiddenException('One or more lectures are outside this bundle');
+    }
+
+    if (idempotencyKey && fingerprint) {
+      const replay = await this.findGeneration(actor.userId, idempotencyKey, fingerprint);
+      if (replay) return replay;
     }
 
     const lectures = await this.lectures.createQueryBuilder('lecture')

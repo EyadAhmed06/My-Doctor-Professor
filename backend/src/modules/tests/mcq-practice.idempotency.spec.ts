@@ -66,7 +66,7 @@ describe('McqPracticeService idempotency', () => {
   });
 
   it('replays the original generated test and attempt for the same key and payload', async () => {
-    const query = jest.fn();
+    const query = jest.fn().mockResolvedValue([{ lecture_id: dto.lecture_ids[0] }]);
     const attempt = {
       id: '55555555-5555-4555-8555-555555555555',
       studentId: actor.userId,
@@ -104,11 +104,12 @@ describe('McqPracticeService idempotency', () => {
     expect(result.test.id).toBe(test.id);
     expect(result.attempt.id).toBe(attempt.id);
     expect(result.question_count).toBe(40);
-    expect(query).not.toHaveBeenCalled();
+    expect(query).toHaveBeenCalledWith(expect.stringContaining("enrollment.payment_status IN ('NOT_REQUIRED', 'PAID')"),
+      [dto.bundle_id, actor.userId, null]);
   });
 
   it('rejects reusing an idempotency key for a different request fingerprint', async () => {
-    const dataSource = { query: jest.fn(), getRepository: jest.fn() };
+    const dataSource = { query: jest.fn().mockResolvedValue([{ lecture_id: dto.lecture_ids[0] }]), getRepository: jest.fn() };
     const service = createService(
       {} as never,
       {} as never,
@@ -128,6 +129,14 @@ describe('McqPracticeService idempotency', () => {
 
     await expect(service.generate(dto, actor, 'practice-retry-0002'))
       .rejects.toBeInstanceOf(ConflictException);
-    expect(dataSource.query).not.toHaveBeenCalled();
+    expect(dataSource.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not replay a generated attempt after its bundle access is revoked', async () => {
+    const dataSource = { query: jest.fn().mockResolvedValue([]), getRepository: jest.fn() };
+    const service = createService({} as never, {} as never,
+      { exists: jest.fn().mockResolvedValue(true) } as never, dataSource as never);
+    await expect(service.generate(dto, actor, 'practice-retry-0001')).rejects.toThrow('active access');
+    expect(dataSource.getRepository).not.toHaveBeenCalled();
   });
 });

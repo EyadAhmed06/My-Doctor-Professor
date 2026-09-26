@@ -104,6 +104,17 @@ function baseService(options: {
 }
 
 describe('AssessmentAttemptService', () => {
+  it('rejects saving or submitting a prior attempt after payment access is revoked', async () => {
+    const attempt = { studentId: actor.userId, testId: testRecord().id } as TestAttempt;
+    const manager = {
+      getRepository: jest.fn((entity) => ({
+        findOne: jest.fn().mockResolvedValue(entity === TestAttempt ? attempt : testRecord()),
+      })),
+    };
+    const service = baseService({ dataSource: { query: jest.fn().mockResolvedValue([]) } });
+    await expect((service as any).lockAttempt(manager, 'attempt-id', actor))
+      .rejects.toThrow();
+  });
   it('returns the same active attempt for a repeated same-mode start request', async () => {
     const existing = {
       id: '77777777-7777-4777-8777-777777777777',

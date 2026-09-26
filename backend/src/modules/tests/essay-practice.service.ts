@@ -197,41 +197,13 @@ export class EssayPracticeService {
     const attempt = await this.attempts.findOne({ where: { id }, relations: { test: true } });
     if (!attempt) throw new NotFoundException('Practice attempt not found');
     if (attempt.studentId !== actor.userId) throw new ForbiddenException('This practice attempt belongs to another student');
+    await this.bundleAccess.assertTestAccess(attempt.testId, actor, { throwForbidden: true });
     if (attempt.status !== TestAttemptStatus.IN_PROGRESS) throw new ConflictException('This practice attempt is no longer open');
     return attempt;
   }
 
   private accessibleLectures(bundleId: string, studentId: string) {
-    return this.dataSource.query<AccessibleLectureRow[]>(`
-      SELECT lecture.id AS lecture_id, (
-        bundle.status = 'ARCHIVED'
-        OR enrollment.status = 'EXPIRED'
-        OR (enrollment.expires_at IS NOT NULL AND enrollment.expires_at <= CURRENT_TIMESTAMP)
-        OR (bundle.available_until IS NOT NULL AND bundle.available_until <= CURRENT_TIMESTAMP)
-      ) AS read_only
-      FROM bundles bundle
-      INNER JOIN bundle_enrollments enrollment ON enrollment.bundle_id = bundle.id AND enrollment.student_id = $2
-      INNER JOIN bundle_courses bundle_course ON bundle_course.bundle_id = bundle.id
-      INNER JOIN weeks week ON week.course_id = bundle_course.course_id
-      INNER JOIN lectures lecture ON lecture.week_id = week.id
-      WHERE bundle.id = $1
-        AND (
-          EXISTS (
-            SELECT 1 FROM bundle_weeks selected
-            WHERE selected.bundle_id = bundle.id AND selected.week_id = week.id
-          )
-          OR NOT EXISTS (
-            SELECT 1
-            FROM bundle_weeks selected
-            INNER JOIN weeks selected_week ON selected_week.id = selected.week_id
-            WHERE selected.bundle_id = bundle.id
-              AND selected_week.course_id = bundle_course.course_id
-          )
-        )
-        AND enrollment.status <> 'REVOKED'
-        AND bundle.status IN ('PUBLISHED', 'ARCHIVED')
-        AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP)
-        AND lecture.is_published = TRUE
-    `, [bundleId, studentId]);
+    return this.bundleAccess.getAccessibleLectureIdsInBundle(bundleId, studentId)
+      .then((ids): AccessibleLectureRow[] => ids.map((lecture_id) => ({ lecture_id, read_only: false })));
   }
 }

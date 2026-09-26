@@ -81,4 +81,15 @@ describe('TestsService security', () => {
 
     await expect((service as any).assertCanViewTest(test, student)).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it('denies an existing attempt after the bundle entitlement is revoked', async () => {
+    const query = jest.fn().mockResolvedValue([]);
+    const service = createService(query);
+    const attempt = { studentId: 'student-123', test: { id: 'test-123' } } as any;
+    const student = { userId: 'student-123', role: UserRole.STUDENT } as any;
+
+    await expect((service as any).assertAttemptAccess(attempt, student))
+      .rejects.toBeInstanceOf(NotFoundException);
+    expect(String(query.mock.calls[0][0])).toContain("enrollment.payment_status IN ('NOT_REQUIRED', 'PAID')");
+  });
 });
