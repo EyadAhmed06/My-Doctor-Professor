@@ -312,3 +312,20 @@ test('student exam actions remain readable and within a phone viewport', async (
   expect(geometry.height).toBeGreaterThanOrEqual(44);
   expect(geometry.right).toBeLessThanOrEqual(360);
 });
+
+for (const mode of ['TUTOR', 'TIMED'] as const) {
+  test(`mobile ${mode.toLowerCase()} sessions show the question grid and allow direct navigation`, async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 740 });
+    await installAssessmentMock(page, mode, mode === 'TIMED' ? new Date(Date.now() + 20 * 60_000).toISOString() : null);
+    await page.goto(`/mock-exam/session?attempt=${attemptId}&test=${testId}&source=${mode === 'TIMED' ? 'past-exams' : 'rounds'}`);
+
+    const navigator = page.locator('.exam-navigator-card');
+    await expect(navigator).toBeVisible();
+    await expect(navigator.getByRole('button', { name: /^Question 1, unanswered$/ })).toBeVisible();
+    await navigator.getByRole('button', { name: /^Question 2, unanswered$/ }).click();
+    await expect(page.locator('.exam-question-card h1')).toContainText('long-term cardiovascular risk');
+    await expect(navigator.getByRole('button', { name: /^Question 2, unanswered$/ })).toHaveClass(/current/);
+    await navigator.getByRole('button', { name: /^Question 1, unanswered$/ }).click();
+    await expect(page.locator('.exam-question-card h1')).toContainText('exertional chest pressure');
+  });
+}
