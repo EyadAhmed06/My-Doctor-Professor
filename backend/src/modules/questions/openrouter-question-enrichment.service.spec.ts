@@ -50,7 +50,7 @@ describe('OpenRouterQuestionEnrichmentService', () => {
     const result = await new OpenRouterQuestionEnrichmentService().generate(input);
     expect(result.sourceCorrectLabel).toBe('C');
     expect(result.optionExplanations).toHaveLength(5);
-    expect(result.model).toBe('meta/muse-spark-1.3');
+    expect(result.model).toBe('google/gemini-2.5-flash');
     expect(result.promptVersion).toBe('mcq-explanation-v5-evidence-grounded');
   });
 
@@ -63,7 +63,7 @@ describe('OpenRouterQuestionEnrichmentService', () => {
     const request = (global.fetch as jest.Mock).mock.calls[0][1] as RequestInit;
     const body = JSON.parse(String(request.body));
     expect(body).toMatchObject({
-      model: 'meta/muse-spark-1.3',
+      model: 'google/gemini-2.5-flash',
       max_tokens: 1800,
       reasoning: { effort: 'minimal' },
       provider: { require_parameters: true },

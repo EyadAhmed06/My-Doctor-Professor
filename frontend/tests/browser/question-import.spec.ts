@@ -113,7 +113,7 @@ function inspectionBody() {
   };
 }
 
-async function openInspection(page: Page, inspection = inspectionBody()) {
+async function openInspection(page: Page, inspection = inspectionBody(), upload: 'pdf' | 'json' = 'pdf') {
   const user = await authenticatedInstructor(page);
   await routeApi(page, async (path, method) => {
     if (path === '/auth/refresh') return { body: { access_token: 'question-import-test-access', user } };
@@ -127,18 +127,27 @@ async function openInspection(page: Page, inspection = inspectionBody()) {
   });
 
   await page.goto('/instructor/questions/import');
-  await expect(page.getByRole('heading', { name: 'PDF Question Inspector' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Question Inspector' })).toBeVisible();
   await page.getByLabel('Course').selectOption(course.id);
   await page.getByLabel('Destination topic').selectOption('60000000-0000-4000-8000-000000000001');
   await page.locator('input[type="file"]').setInputFiles({
-    name: 'cardiac-questions.pdf',
-    mimeType: 'application/pdf',
-    buffer: Buffer.from('%PDF-1.4\n1 0 obj << /Type /Page >> endobj\n%%EOF'),
+    name: `cardiac-questions.${upload}`,
+    mimeType: upload === 'json' ? 'application/json' : 'application/pdf',
+    buffer: upload === 'json' ? Buffer.from(JSON.stringify({ questions: [{
+      question_text: 'Which chamber receives blood from the pulmonary veins?',
+      options: ['A', 'B', 'C', 'D', 'E'].map((label) => ({ label, option_text: `Option ${label}`, is_correct: label === 'B' })),
+    }] })) : Buffer.from('%PDF-1.4\n1 0 obj << /Type /Page >> endobj\n%%EOF'),
   });
   await page.getByText(/I confirm I have permission/i).click();
-  await page.getByRole('button', { name: /Inspect PDF/i }).click();
+  await page.getByRole('button', { name: /Inspect file/i }).click();
   await expect(page.getByText('Question 1').first()).toBeVisible();
 }
+
+test('instructor uploads JSON and reviews the candidate in the same inspector', async ({ page }) => {
+  await openInspection(page, { ...inspectionBody(), original_filename: 'cardiac-questions.json', extraction_method: 'JSON', page_count: 0 }, 'json');
+  await expect(page.getByText('cardiac-questions.json')).toBeVisible();
+  await expect(page.getByText('Left atrium', { exact: true }).first()).toBeVisible();
+});
 
 test('instructor inspects a five-option PDF candidate and publishes an approved question', async ({ page }) => {
   let publishBody: Record<string, unknown> | null = null;

@@ -60,7 +60,7 @@ export type OpenRouterGenerateOptions = {
 };
 
 const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
-const DEFAULT_MODEL = 'meta/muse-spark-1.3';
+const DEFAULT_MODEL = 'google/gemini-2.5-flash';
 const PROMPT_VERSION = 'mcq-explanation-v5-evidence-grounded';
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_ATTEMPTS = 3;

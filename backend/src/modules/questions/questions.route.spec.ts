@@ -15,6 +15,7 @@ import { StudentQuestionAccessService } from './student-question-access.service'
 describe('QuestionsController route registration', () => {
   let app: INestApplication;
   const inspectPdf = jest.fn().mockResolvedValue({ status: 'OK', candidates: [], issues: [] });
+  const inspectJson = jest.fn().mockResolvedValue({ status: 'JSON_OK', candidates: [], issues: [] });
   const enrichInspection = jest.fn().mockImplementation(async (inspection) => inspection);
 
   beforeAll(async () => {
@@ -25,7 +26,7 @@ describe('QuestionsController route registration', () => {
         { provide: StudentQuestionAccessService, useValue: {} },
         { provide: InstructorQuestionAccessService, useValue: {} },
         { provide: AcademicAccessService, useValue: {} },
-        { provide: QuestionImportService, useValue: { inspectPdf, publish: jest.fn() } },
+        { provide: QuestionImportService, useValue: { inspectPdf, inspectJson, publish: jest.fn() } },
         { provide: QuestionImportAiEnrichmentService, useValue: { enrichInspection } },
         { provide: QuestionExplanationLifecycleService, useValue: { questionIdForOption: jest.fn(), invalidateQuestion: jest.fn() } },
       ],
@@ -52,7 +53,18 @@ describe('QuestionsController route registration', () => {
   });
 
   afterAll(async () => { if (app) await app.close(); });
-  beforeEach(() => { inspectPdf.mockClear(); enrichInspection.mockClear(); });
+  beforeEach(() => { inspectPdf.mockClear(); inspectJson.mockClear(); enrichInspection.mockClear(); });
+
+  it('routes a JSON upload through the inspector', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/questions/imports/inspect')
+      .field('topic_id', '60000000-0000-4000-8000-000000000001')
+      .field('copyright_confirmed', 'true')
+      .attach('file', Buffer.from('[]'), { filename: 'questions.json', contentType: 'application/json' });
+    expect(response.status).toBe(201);
+    expect(inspectJson).toHaveBeenCalledTimes(1);
+    expect(inspectPdf).not.toHaveBeenCalled();
+  });
 
   it('registers POST /api/v1/questions/imports/inspect as multipart without blocking on AI', async () => {
     const response = await request(app.getHttpServer())

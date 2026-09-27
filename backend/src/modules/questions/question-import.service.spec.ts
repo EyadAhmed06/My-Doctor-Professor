@@ -195,6 +195,35 @@ describe('QuestionImportService', () => {
     };
   }
 
+  it('inspects JSON MCQs through the same candidate review and duplicate checks', async () => {
+    const { service } = build();
+    const questions = [{
+      question_text: 'Which chamber receives blood from the pulmonary veins?',
+      source_section: 'Cardiac anatomy',
+      options: ['Right atrium', 'Left atrium', 'Right ventricle', 'Left ventricle', 'Aorta']
+        .map((option_text, index) => ({ label: 'ABCDE'[index], option_text, is_correct: index === 1 })),
+    }];
+    const inspection = await service.inspectJson(
+      { topic_id: topic.id, copyright_confirmed: true },
+      file(Buffer.from(JSON.stringify({ questions })), { originalname: 'questions.json', mimetype: 'application/json' }),
+      actor,
+    );
+    expect(inspection.summary).toMatchObject({ expected: 1, extracted: 1, structurally_complete: true });
+    expect(inspection.candidates[0]).toMatchObject({ answer_key_label: 'B', source_section: 'Cardiac anatomy' });
+    expect(inspection.candidates[0].options[1].is_correct).toBe(true);
+    expect(inspection.extraction_method).toBe('JSON');
+  });
+
+  it('rejects JSON with an ambiguous source answer key', async () => {
+    const { service } = build();
+    const questions = [{ question_text: 'Which chamber receives pulmonary venous blood?',
+      options: ['A', 'B', 'C', 'D'].map((label) => ({ label, option_text: `Option ${label}`, is_correct: label === 'A' || label === 'B' })) }];
+    await expect(service.inspectJson(
+      { topic_id: topic.id, copyright_confirmed: true },
+      file(Buffer.from(JSON.stringify(questions)), { originalname: 'questions.json', mimetype: 'application/json' }), actor,
+    )).rejects.toThrow('exactly one');
+  });
+
   function file(buffer: Buffer, overrides: Partial<UploadedResourceFile> = {}): UploadedResourceFile {
     return {
       originalname: 'questions.pdf',

@@ -166,6 +166,98 @@ export class QuestionImportService {
 
   private readonly logger = new Logger(QuestionImportService.name);
 
+  async inspectJson(dto: InspectQuestionImportDto, file: UploadedResourceFile | undefined, actor: AuthenticatedUser) {
+    if (!dto.copyright_confirmed) throw new BadRequestException('Confirm permission to use the uploaded question material');
+    await this.academicAccess.assertTopicReadable(dto.topic_id, actor);
+    if (!file?.buffer?.length || !/\.json$/i.test(file.originalname || '') || file.size > 2 * 1024 * 1024) {
+      throw new BadRequestException('Select a non-empty .json file no larger than 2 MB');
+    }
+    let payload: unknown;
+    try { payload = JSON.parse(file.buffer.toString('utf8')); }
+    catch { throw new BadRequestException('The file does not contain valid UTF-8 JSON'); }
+    const rows: unknown = Array.isArray(payload) ? payload :
+      payload && typeof payload === 'object' ? (payload as Record<string, unknown>).questions : undefined;
+    if (!Array.isArray(rows) || rows.length < 1 || rows.length > 500) {
+      throw new BadRequestException('JSON must be an array of 1–500 questions or an object with a questions array');
+    }
+    const parsed = rows.map((raw, index): ParsedQuestion => {
+      const row = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
+      const options = row.options;
+      if (typeof row.question_text !== 'string' || row.question_text.length > 12000 ||
+          !Array.isArray(options) || options.length < 4 || options.length > 5) {
+        throw new BadRequestException(`Question ${index + 1} needs question_text and four or five options`);
+      }
+      const labels = ['A', 'B', 'C', 'D', 'E'];
+      const mapped = options.map((rawOption, optionIndex) => {
+        const option = rawOption && typeof rawOption === 'object' && !Array.isArray(rawOption)
+          ? rawOption as Record<string, unknown> : {};
+        if (option.label !== labels[optionIndex] || typeof option.option_text !== 'string' ||
+            !option.option_text.trim() || option.option_text.length > 2000 || typeof option.is_correct !== 'boolean') {
+          throw new BadRequestException(`Question ${index + 1}: options must have sequential A–D/A–E labels, non-empty option_text, and boolean is_correct`);
+        }
+        return { label: labels[optionIndex], text: option.option_text.trim(), correct: option.is_correct,
+          explanation: option.explanation };
+      });
+      if (mapped.filter((option) => option.correct).length !== 1) {
+        throw new BadRequestException(`Question ${index + 1} must mark exactly one option is_correct`);
+      }
+      if (row.source_section != null && (typeof row.source_section !== 'string' || row.source_section.length > 255)) {
+        throw new BadRequestException(`Question ${index + 1} has an invalid source_section`);
+      }
+      if (row.explanation != null && (typeof row.explanation !== 'string' || row.explanation.length > 700)) {
+        throw new BadRequestException(`Question ${index + 1} has an invalid explanation`);
+      }
+      for (const option of mapped) {
+        if (option.explanation != null && (typeof option.explanation !== 'string' || option.explanation.length > 700)) {
+          throw new BadRequestException(`Question ${index + 1} has an invalid option explanation`);
+        }
+      }
+      return {
+        questionNumber: index + 1, sourcePage: null, answerKeyPage: null,
+        sourceSection: typeof row.source_section === 'string' ? row.source_section.trim() || null : null,
+        questionText: row.question_text.trim(),
+        options: mapped.map(({ label, text }) => ({ label, text })),
+        correctLabel: mapped.find((option) => option.correct)!.label,
+        explanation: typeof row.explanation === 'string' ? row.explanation.trim() || null : null,
+      };
+    });
+    const topic = await this.topics.findOne({ where: { id: dto.topic_id }, relations: { lecture: true } });
+    if (!topic) throw new BadRequestException('Selected topic no longer exists');
+    const existing = await this.questions.find({
+      where: { topicId: dto.topic_id },
+      select: { id: true, questionText: true, isActive: true, topicId: true }, take: 1000,
+    });
+    const tokens = new Set(this.tokens([
+      topic.topicName, topic.description || '', topic.lecture?.title || '', topic.lecture?.description || '',
+      ...existing.slice(0, 100).map((question) => question.questionText),
+    ].join(' ')));
+    const fingerprints = this.prepareExistingQuestions(existing);
+    const candidates = parsed.map((question, index) => {
+      const candidate = this.evaluateCandidate(question, index, tokens, fingerprints);
+      const raw = rows[index] as { options: Array<{ explanation?: string }> };
+      return { ...candidate, options: candidate.options.map((option, optionIndex) => ({
+        ...option, explanation: raw.options[optionIndex].explanation?.trim() || null,
+      })) };
+    });
+    const sha256 = createHash('sha256').update(file.buffer).digest('hex');
+    const previouslyPublished = await this.questions.createQueryBuilder('question')
+      .where('question.reference LIKE :reference', { reference: `%${IMPORT_REFERENCE_PREFIX}%sha256=${sha256}%` }).getCount();
+    return {
+      original_filename: this.safeFilename(file.originalname), file_sha256: sha256, file_size: file.size,
+      page_count: 0, extraction_method: 'JSON', extraction_confidence: 1, status: 'REVIEW_REQUIRED',
+      previously_published_from_same_file: previouslyPublished,
+      topic: { id: topic.id, name: topic.topicName },
+      summary: { expected: rows.length, extracted: rows.length, missing: 0, structurally_complete: true,
+        valid: candidates.filter((candidate) => candidate.status === 'VALID').length,
+        needs_review: candidates.filter((candidate) => candidate.status === 'NEEDS_REVIEW').length,
+        invalid: candidates.filter((candidate) => candidate.status === 'INVALID').length,
+        duplicates: candidates.filter((candidate) => candidate.duplicate).length },
+      issues: previouslyPublished ? [{ code: 'FILE_ALREADY_IMPORTED', severity: 'WARNING' as const,
+        message: `${previouslyPublished} question(s) from this exact file already exist in the question bank.` }] : [],
+      candidates,
+    };
+  }
+
   async inspectPdf(
     dto: InspectQuestionImportDto,
     file: UploadedResourceFile | undefined,

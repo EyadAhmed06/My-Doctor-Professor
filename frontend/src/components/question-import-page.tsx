@@ -480,7 +480,7 @@ const CandidateEditor = memo(function CandidateEditor({
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap" }}>
           <div>
             <strong>AI explanation</strong>
-            <div style={{ fontSize: "0.82rem", opacity: 0.76 }}>{candidate.ai_enrichment?.model || "Muse Spark 1.3"} · {currentAiStatus.replaceAll("_", " ")}{candidate.ai_enrichment?.confidence != null ? ` · ${Math.round(candidate.ai_enrichment.confidence * 100)}% confidence` : ""}</div>
+            <div style={{ fontSize: "0.82rem", opacity: 0.76 }}>{candidate.ai_enrichment?.model || "Gemini 2.5 Flash"} · {currentAiStatus.replaceAll("_", " ")}{candidate.ai_enrichment?.confidence != null ? ` · ${Math.round(candidate.ai_enrichment.confidence * 100)}% confidence` : ""}</div>
           </div>
           <button type="button" className="pp-button secondary" disabled={enriching || structurallyBlocked || !isAiEligible(candidate)} onClick={() => void onGenerate([candidate], currentAiStatus !== "NOT_GENERATED" && currentAiStatus !== "DEFERRED_BILLING")}>
             {enriching ? <><FiRefreshCw className="spin" /> Generating…</> : currentAiStatus === "NOT_GENERATED" ? "Generate explanation" : "Regenerate explanation"}
@@ -570,11 +570,12 @@ export function QuestionImportPage() {
   async function inspect(event: FormEvent) {
     event.preventDefault();
     if (!courseId || !topicId || !file || !copyrightConfirmed) {
-      notify({ title: "Complete the import details", description: "Choose course, topic and PDF, then confirm permission to use the material.", tone: "info" });
+      notify({ title: "Complete the import details", description: "Choose course, topic and file, then confirm permission to use the material.", tone: "info" });
       return;
     }
-    if (file.size > 50 * 1024 * 1024 || !/\.pdf$/i.test(file.name)) {
-      notify({ title: "Invalid PDF", description: "Use a .pdf file no larger than 50 MB.", tone: "error" });
+    const json = /\.json$/i.test(file.name);
+    if (!(json || /\.pdf$/i.test(file.name)) || file.size === 0 || file.size > (json ? 2 : 50) * 1024 * 1024) {
+      notify({ title: "Invalid file", description: "Use a non-empty .pdf (max 50 MB) or .json (max 2 MB).", tone: "error" });
       return;
     }
 
@@ -582,7 +583,7 @@ export function QuestionImportPage() {
     setError(null);
     setInspection(null);
     setCandidates([]);
-    notify({ title: "Inspecting PDF", description: "Extracting Unicode text, matching section-scoped answer keys and validating A–D / A–E MCQs.", tone: "info" });
+    notify({ title: `Inspecting ${json ? "JSON" : "PDF"}`, description: json ? "Validating questions and source answer keys." : "Extracting Unicode text, matching section-scoped answer keys and validating A–D / A–E MCQs.", tone: "info" });
     try {
       const body = new FormData();
       body.append("file", file);
@@ -607,14 +608,14 @@ export function QuestionImportPage() {
         allow_four_options: false,
       })));
       notify({
-        title: "PDF inspection complete",
+        title: "File inspection complete",
         description: `${result.candidates.length} MCQ candidate(s) extracted. Generate clinical answer rationales, review, then publish.`,
         tone: "success",
       });
     } catch (cause) {
       const message = inspectionErrorMessage(cause);
       setError(message);
-      notify({ title: "PDF inspection failed", description: message, tone: "error" });
+      notify({ title: "File inspection failed", description: message, tone: "error" });
     } finally {
       setInspecting(false);
     }
@@ -1035,7 +1036,7 @@ export function QuestionImportPage() {
     return <ProductShell><main className="pp-page"><PageSkeleton variant="workspace" label="Loading question importer" /></main></ProductShell>;
   }
   if (!user || user.role === "STUDENT") {
-    return <ProductShell><main className="pp-page"><Panel title="Instructor access required"><p>PDF question inspection is restricted to instructors and system administrators.</p></Panel></main></ProductShell>;
+    return <ProductShell><main className="pp-page"><Panel title="Instructor access required"><p>Question inspection is restricted to instructors and system administrators.</p></Panel></main></ProductShell>;
   }
 
   return (
@@ -1047,8 +1048,8 @@ export function QuestionImportPage() {
               <FiArrowLeft /> Question bank
             </Link>
             <span className="page-eyebrow">INSTRUCTOR · AUTOMATED INGESTION</span>
-            <h1>PDF Question Inspector</h1>
-            <p>Extract A–D or A–E MCQs first, then use Muse Spark 1.3 to generate clinically reasoned, option-by-option answer rationales without changing the source answer key.</p>
+            <h1>Question Inspector</h1>
+            <p>Inspect A–D or A–E MCQs from PDF or JSON, then use Gemini 2.5 Flash to generate clinically reasoned, option-by-option answer rationales without changing the source answer key.</p>
           </div>
           <div className="question-import-trust">
             <FiShield />
@@ -1061,12 +1062,18 @@ export function QuestionImportPage() {
             <div className="question-import-fields">
               <label><span>Course</span><select value={courseId} onChange={(event) => void chooseCourse(event.target.value)}><option value="">Select course…</option>{courses.map((item) => <option value={item.id} key={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label>
               <label><span>Destination topic</span><select value={topicId} disabled={!course} onChange={(event) => { setTopicId(event.target.value); setInspection(null); setCandidates([]); }}><option value="">Select exact topic…</option>{topics.map((topic) => <option value={topic.id} key={`${topic.id}-${topic.path}`}>{topic.path} · {topic.topicName}</option>)}</select></label>
-              <label className="question-import-file"><span>Question PDF</span><input type="file" accept="application/pdf,.pdf" onChange={(event) => { setFile(event.target.files?.[0] || null); setInspection(null); setCandidates([]); }} /><small>PDF · max 50 MB · canonical MCQs may contain A–D or A–E.</small></label>
+              <label className="question-import-file"><span>Question PDF or JSON</span><input type="file" accept="application/pdf,.pdf,application/json,.json" onChange={(event) => { setFile(event.target.files?.[0] || null); setInspection(null); setCandidates([]); }} /><small>PDF · max 50 MB, or JSON · max 2 MB. JSON contains 1–500 MCQs with four or five choices and exactly one correct answer.</small></label>
             </div>
+            <details><summary>JSON format example</summary><pre>{JSON.stringify({ questions: [{ question_text: "Which chamber receives blood from the pulmonary veins?", source_section: "Cardiac anatomy", options: [
+              { label: "A", option_text: "Right atrium", is_correct: false },
+              { label: "B", option_text: "Left atrium", is_correct: true },
+              { label: "C", option_text: "Right ventricle", is_correct: false },
+              { label: "D", option_text: "Left ventricle", is_correct: false },
+            ] }] }, null, 2)}</pre></details>
             <label className="question-import-rights"><input type="checkbox" checked={copyrightConfirmed} onChange={(event) => setCopyrightConfirmed(event.target.checked)} /><span>I confirm I have permission to use and publish this material.</span></label>
             <div className="question-import-upload-actions">
-              <button type="submit" className="pp-button" disabled={inspecting}>{inspecting ? <><FiRefreshCw className="spin" /> Inspecting…</> : <><FiUploadCloud /> Inspect PDF</>}</button>
-              {inspecting && <span role="status">Parsing the PDF and validating source answers. AI generation happens after inspection.</span>}
+              <button type="submit" className="pp-button" disabled={inspecting}>{inspecting ? <><FiRefreshCw className="spin" /> Inspecting…</> : <><FiUploadCloud /> Inspect file</>}</button>
+              {inspecting && <span role="status">Validating questions and source answers. AI generation happens after inspection.</span>}
             </div>
           </form>
         </Panel>
@@ -1076,7 +1083,7 @@ export function QuestionImportPage() {
         {inspection && (
           <>
             <section className="question-import-summary" aria-label="Import summary">
-              <Panel><small>FILE</small><strong>{inspection.original_filename}</strong><span>{inspection.page_count} page(s)</span></Panel>
+              <Panel><small>FILE</small><strong>{inspection.original_filename}</strong><span>{inspection.extraction_method === "JSON" ? "JSON questions" : `${inspection.page_count} page(s)`}</span></Panel>
               <Panel><small>EXTRACTION</small><strong>{percent(inspection.extraction_confidence)}</strong><span>{inspection.extraction_method.replaceAll("_", " ")}{inspection.extraction_breakdown?.ocr_pages ? ` · ${inspection.extraction_breakdown.ocr_pages} OCR page(s)` : ""}</span></Panel>
               <Panel><small>QUESTIONS</small><strong>{expectedQuestions == null ? candidates.length : `${candidates.length} / ${expectedQuestions}`}</strong><span>{inspection.summary?.missing ? `${inspection.summary.missing} missing · ` : ""}{statusCounts.VALID} ready · {statusCounts.NEEDS_REVIEW} review · {statusCounts.INVALID} invalid</span></Panel>
               <Panel><small>AI EXPLANATIONS</small><strong>{aiCounts.generated}</strong><span>{aiCounts.stale} stale · {aiCounts.failed} failed</span></Panel>
