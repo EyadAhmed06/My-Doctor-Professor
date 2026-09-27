@@ -573,9 +573,9 @@ export function QuestionImportPage() {
       notify({ title: "Complete the import details", description: "Choose course, topic and file, then confirm permission to use the material.", tone: "info" });
       return;
     }
-    const json = /\.json$/i.test(file.name);
+    const json = /\.(json|txt)$/i.test(file.name);
     if (!(json || /\.pdf$/i.test(file.name)) || file.size === 0 || file.size > (json ? 2 : 50) * 1024 * 1024) {
-      notify({ title: "Invalid file", description: "Use a non-empty .pdf (max 50 MB) or .json (max 2 MB).", tone: "error" });
+      notify({ title: "Invalid file", description: "Use a non-empty .pdf (max 50 MB), .json or .txt (max 2 MB). Text files must contain valid JSON.", tone: "error" });
       return;
     }
 
@@ -1049,7 +1049,7 @@ export function QuestionImportPage() {
             </Link>
             <span className="page-eyebrow">INSTRUCTOR · AUTOMATED INGESTION</span>
             <h1>Question Inspector</h1>
-            <p>Inspect A–D or A–E MCQs from PDF or JSON, then use Gemini 2.5 Flash to generate clinically reasoned, option-by-option answer rationales without changing the source answer key.</p>
+            <p>Inspect A–D or A–E MCQs from PDF, JSON, or a text file containing JSON, then use Gemini 2.5 Flash to generate clinically reasoned, option-by-option answer rationales without changing the source answer key.</p>
           </div>
           <div className="question-import-trust">
             <FiShield />
@@ -1062,7 +1062,7 @@ export function QuestionImportPage() {
             <div className="question-import-fields">
               <label><span>Course</span><select value={courseId} onChange={(event) => void chooseCourse(event.target.value)}><option value="">Select course…</option>{courses.map((item) => <option value={item.id} key={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label>
               <label><span>Destination topic</span><select value={topicId} disabled={!course} onChange={(event) => { setTopicId(event.target.value); setInspection(null); setCandidates([]); }}><option value="">Select exact topic…</option>{topics.map((topic) => <option value={topic.id} key={`${topic.id}-${topic.path}`}>{topic.path} · {topic.topicName}</option>)}</select></label>
-              <label className="question-import-file"><span>Question PDF or JSON</span><input type="file" accept="application/pdf,.pdf,application/json,.json" onChange={(event) => { setFile(event.target.files?.[0] || null); setInspection(null); setCandidates([]); }} /><small>PDF · max 50 MB, or JSON · max 2 MB. JSON contains 1–500 MCQs with four or five choices and exactly one correct answer.</small></label>
+              <label className="question-import-file"><span>Question PDF, JSON, or TXT</span><input type="file" accept="application/pdf,.pdf,application/json,.json,text/plain,.txt" onChange={(event) => { setFile(event.target.files?.[0] || null); setInspection(null); setCandidates([]); }} /><small>PDF · max 50 MB. JSON or TXT containing valid JSON · max 2 MB; 1–500 MCQs with four or five choices and exactly one correct answer.</small></label>
             </div>
             <details><summary>JSON format example</summary><pre>{JSON.stringify({ questions: [{ question_text: "Which chamber receives blood from the pulmonary veins?", source_section: "Cardiac anatomy", options: [
               { label: "A", option_text: "Right atrium", is_correct: false },

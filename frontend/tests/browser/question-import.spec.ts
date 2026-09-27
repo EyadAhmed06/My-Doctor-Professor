@@ -113,7 +113,7 @@ function inspectionBody() {
   };
 }
 
-async function openInspection(page: Page, inspection = inspectionBody(), upload: 'pdf' | 'json' = 'pdf') {
+async function openInspection(page: Page, inspection = inspectionBody(), upload: 'pdf' | 'json' | 'txt' = 'pdf') {
   const user = await authenticatedInstructor(page);
   await routeApi(page, async (path, method) => {
     if (path === '/auth/refresh') return { body: { access_token: 'question-import-test-access', user } };
@@ -132,8 +132,8 @@ async function openInspection(page: Page, inspection = inspectionBody(), upload:
   await page.getByLabel('Destination topic').selectOption('60000000-0000-4000-8000-000000000001');
   await page.locator('input[type="file"]').setInputFiles({
     name: `cardiac-questions.${upload}`,
-    mimeType: upload === 'json' ? 'application/json' : 'application/pdf',
-    buffer: upload === 'json' ? Buffer.from(JSON.stringify({ questions: [{
+    mimeType: upload === 'txt' ? 'text/plain' : upload === 'json' ? 'application/json' : 'application/pdf',
+    buffer: upload !== 'pdf' ? Buffer.from(JSON.stringify({ questions: [{
       question_text: 'Which chamber receives blood from the pulmonary veins?',
       options: ['A', 'B', 'C', 'D', 'E'].map((label) => ({ label, option_text: `Option ${label}`, is_correct: label === 'B' })),
     }] })) : Buffer.from('%PDF-1.4\n1 0 obj << /Type /Page >> endobj\n%%EOF'),
@@ -146,6 +146,12 @@ async function openInspection(page: Page, inspection = inspectionBody(), upload:
 test('instructor uploads JSON and reviews the candidate in the same inspector', async ({ page }) => {
   await openInspection(page, { ...inspectionBody(), original_filename: 'cardiac-questions.json', extraction_method: 'JSON', page_count: 0 }, 'json');
   await expect(page.getByText('cardiac-questions.json')).toBeVisible();
+  await expect(page.getByText('Left atrium', { exact: true }).first()).toBeVisible();
+});
+
+test('instructor uploads a text file containing JSON', async ({ page }) => {
+  await openInspection(page, { ...inspectionBody(), original_filename: 'cardiac-questions.txt', extraction_method: 'JSON', page_count: 0 }, 'txt');
+  await expect(page.getByText('cardiac-questions.txt')).toBeVisible();
   await expect(page.getByText('Left atrium', { exact: true }).first()).toBeVisible();
 });
 

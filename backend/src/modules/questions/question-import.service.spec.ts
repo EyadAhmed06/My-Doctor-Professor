@@ -224,6 +224,18 @@ describe('QuestionImportService', () => {
     )).rejects.toThrow('exactly one');
   });
 
+  it('accepts a plain text file when its contents are valid JSON MCQs', async () => {
+    const { service } = build();
+    const questions = [{ question_text: 'Which chamber receives pulmonary venous blood?',
+      options: ['A', 'B', 'C', 'D'].map((label) => ({ label, option_text: `Option ${label}`, is_correct: label === 'B' })) }];
+    const inspection = await service.inspectJson(
+      { topic_id: topic.id, copyright_confirmed: true },
+      file(Buffer.from(JSON.stringify(questions)), { originalname: 'questions.txt', mimetype: 'text/plain' }), actor,
+    );
+    expect(inspection.candidates[0].answer_key_label).toBe('B');
+    expect(inspection.summary.structurally_complete).toBe(true);
+  });
+
   function file(buffer: Buffer, overrides: Partial<UploadedResourceFile> = {}): UploadedResourceFile {
     return {
       originalname: 'questions.pdf',

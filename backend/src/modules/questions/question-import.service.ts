@@ -169,8 +169,8 @@ export class QuestionImportService {
   async inspectJson(dto: InspectQuestionImportDto, file: UploadedResourceFile | undefined, actor: AuthenticatedUser) {
     if (!dto.copyright_confirmed) throw new BadRequestException('Confirm permission to use the uploaded question material');
     await this.academicAccess.assertTopicReadable(dto.topic_id, actor);
-    if (!file?.buffer?.length || !/\.json$/i.test(file.originalname || '') || file.size > 2 * 1024 * 1024) {
-      throw new BadRequestException('Select a non-empty .json file no larger than 2 MB');
+    if (!file?.buffer?.length || !/\.(json|txt)$/i.test(file.originalname || '') || file.size > 2 * 1024 * 1024) {
+      throw new BadRequestException('Select a non-empty .json or .txt file no larger than 2 MB');
     }
     let payload: unknown;
     try { payload = JSON.parse(file.buffer.toString('utf8')); }

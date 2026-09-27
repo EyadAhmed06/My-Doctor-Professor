@@ -100,7 +100,7 @@ export class QuestionsController {
     @UploadedFile() file: UploadedResourceFile | undefined,
     @CurrentUser() actor: AuthenticatedUser,
   ) {
-    const inspection = /\.json$/i.test(file?.originalname || '')
+    const inspection = /\.(json|txt)$/i.test(file?.originalname || '')
       ? await this.imports.inspectJson(dto, file, actor)
       : await this.imports.inspectPdf(dto, file, actor);
     const candidates = inspection.candidates.map((candidate) => ({

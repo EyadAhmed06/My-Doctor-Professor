@@ -66,6 +66,17 @@ describe('QuestionsController route registration', () => {
     expect(inspectPdf).not.toHaveBeenCalled();
   });
 
+  it('routes a text file containing JSON through the same inspector', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/questions/imports/inspect')
+      .field('topic_id', '60000000-0000-4000-8000-000000000001')
+      .field('copyright_confirmed', 'true')
+      .attach('file', Buffer.from('[]'), { filename: 'questions.txt', contentType: 'text/plain' });
+    expect(response.status).toBe(201);
+    expect(inspectJson).toHaveBeenCalledTimes(1);
+    expect(inspectPdf).not.toHaveBeenCalled();
+  });
+
   it('registers POST /api/v1/questions/imports/inspect as multipart without blocking on AI', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/v1/questions/imports/inspect')
