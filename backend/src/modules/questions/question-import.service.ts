@@ -21,6 +21,7 @@ import {
   QuestionType,
 } from '../../common/entities/question.entity';
 import { Topic } from '../../common/entities/topic.entity';
+import { Lecture } from '../../common/entities/lecture.entity';
 import { AcademicAccessService } from '../academic/academic-access.service';
 import type { UploadedResourceFile } from '../academic/resource-storage.service';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
@@ -675,6 +676,12 @@ export class QuestionImportService {
     const sectionNames = [...new Set(selected.map((candidate) => candidate.source_section?.trim()).filter((name): name is string => Boolean(name)))];
     const siblingTopics = sectionNames.length ? await this.topics.find({ where: { lectureId: topic.lectureId } }) : [];
     const sectionTopics = new Map(siblingTopics.map((item) => [item.topicName.toLocaleLowerCase(), item]));
+    const numberedSections = sectionNames.map((name) => this.numberedLectureHeading(name)).filter((item): item is { number: number; title: string } => item !== null);
+    if (numberedSections.length && numberedSections.length !== sectionNames.length) {
+      throw new BadRequestException('This import mixes numbered lectures and topic sections. Publish them separately to avoid incorrect placement.');
+    }
+    const weekId = topic.lecture?.weekId;
+    if (numberedSections.length && !weekId) throw new BadRequestException('The selected topic must belong to a week to import numbered lectures');
 
     const existing = await this.questions.find({
       where: { topicId: topic.id },
@@ -703,6 +710,13 @@ export class QuestionImportService {
         );
       }
       if (candidate.reuse_question_id) {
+        if (candidate.source_section?.trim() && (
+          numberedSections.length
+            ? this.numberedLectureHeading(candidate.source_section)!.number !== topic.lecture?.lectureNumber
+            : candidate.source_section.trim().toLocaleLowerCase() !== topic.topicName.toLocaleLowerCase()
+        )) {
+          throw new BadRequestException(`Question ${index + 1} reuses a question in the selected topic but is assigned to another section. Create a separate copy or correct its section.`);
+        }
         const reusable = existing.find(
           (question) => question.id === candidate.reuse_question_id && question.isActive,
         );
@@ -725,6 +739,36 @@ export class QuestionImportService {
     }
 
     const result = await this.dataSource.transaction(async (manager) => {
+      const lectureDestinations = new Map<number, string>();
+      if (numberedSections.length) {
+        const existingLectures = await manager.find(Lecture, { where: { weekId } });
+        const byNumber = new Map(existingLectures.map((lecture) => [lecture.lectureNumber, lecture]));
+        for (const heading of numberedSections) {
+          let lecture = byNumber.get(heading.number);
+          if (lecture && lecture.title.trim().toLocaleLowerCase() !== heading.title.toLocaleLowerCase()) {
+            throw new ConflictException(`Lecture ${heading.number} already exists in this week with a different title. Review its destination before publishing.`);
+          }
+          if (!lecture) {
+            lecture = await manager.save(Lecture, manager.create(Lecture, {
+              weekId, lectureNumber: heading.number, title: heading.title,
+              description: null, estimatedDurationMinutes: null, isPublished: true,
+              displayOrder: heading.number,
+            }));
+            byNumber.set(heading.number, lecture);
+          }
+          if (lecture.id === topic.lectureId) {
+            lectureDestinations.set(heading.number, topic.id);
+            continue;
+          }
+          const existingDestination = await manager.findOne(Topic, {
+            where: { lectureId: lecture.id, topicName: 'Imported MCQs' },
+          });
+          const destination = existingDestination || await manager.save(Topic, manager.create(Topic, {
+            lectureId: lecture.id, topicName: 'Imported MCQs', description: null, displayOrder: 1,
+          }));
+          lectureDestinations.set(heading.number, destination.id);
+        }
+      }
       const published: Array<{
         question_id: string;
         action: 'CREATED' | 'REUSED';
@@ -743,7 +787,9 @@ export class QuestionImportService {
 
         const sectionName = candidate.source_section?.trim();
         let destinationTopicId = topic.id;
-        if (sectionName) {
+        if (sectionName && numberedSections.length) {
+          destinationTopicId = lectureDestinations.get(this.numberedLectureHeading(sectionName)!.number)!;
+        } else if (sectionName) {
           const key = sectionName.toLocaleLowerCase();
           let destination = sectionTopics.get(key);
           if (!destination) {
@@ -809,6 +855,14 @@ export class QuestionImportService {
       skipped: dto.candidates.length - selected.length,
       questions: result,
     };
+  }
+
+  private numberedLectureHeading(value: string): { number: number; title: string } | null {
+    const match = /^Lecture\s+(\d+)\s*:\s*(.+)$/i.exec(value.trim());
+    if (!match) return null;
+    const number = Number(match[1]);
+    const title = match[2].trim();
+    return number > 0 && number <= 100 && title.length <= 200 ? { number, title } : null;
   }
 
   private validatePdfFile(file: UploadedResourceFile | undefined): asserts file is UploadedResourceFile {

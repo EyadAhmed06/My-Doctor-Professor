@@ -429,6 +429,10 @@ const CandidateEditor = memo(function CandidateEditor({
         <span>Question stem</span>
         <textarea value={candidate.question_text} onChange={(event) => onEditSource(candidate.candidate_id, (current) => ({ ...current, question_text: event.target.value, reuse_question_id: undefined }))} />
       </label>
+      <label className="question-import-section-field">
+        <span>Section / destination</span>
+        <input type="text" maxLength={150} value={candidate.source_section || ""} placeholder="Unassigned: selected topic" onChange={(event) => onUpdate(candidate.candidate_id, (current) => ({ ...current, source_section: event.target.value, approved: false }))} />
+      </label>
 
       <div className="question-import-options">
         <div className="question-import-options-header">
@@ -535,6 +539,7 @@ export function QuestionImportPage() {
   const [error, setError] = useState<string | null>(null);
   const [candidateSearch, setCandidateSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | Candidate["status"]>("ALL");
+  const [sectionFilter, setSectionFilter] = useState("ALL");
   const isMobileReview = useMobileQuestionReview();
   const [mobileCandidateId, setMobileCandidateId] = useState<string | null>(null);
 
@@ -1001,13 +1006,25 @@ export function QuestionImportPage() {
   const visibleCandidates = useMemo(() => searchableCandidates
     .filter(({ candidate, searchText }) => {
       if (statusFilter !== "ALL" && candidate.status !== statusFilter) return false;
+      if (sectionFilter !== "ALL" && (candidate.source_section?.trim() || "Unassigned") !== sectionFilter) return false;
       return !deferredCandidateSearch || searchText.includes(deferredCandidateSearch);
     })
     .map(({ candidate, index }) => ({ candidate, index })), [
       deferredCandidateSearch,
       searchableCandidates,
+      sectionFilter,
       statusFilter,
     ]);
+  const sectionGroups = useMemo(() => {
+    const groups = new Map<string, typeof visibleCandidates>();
+    for (const item of visibleCandidates) {
+      const title = item.candidate.source_section?.trim() || "Unassigned";
+      if (!groups.has(title)) groups.set(title, []);
+      groups.get(title)!.push(item);
+    }
+    return [...groups.entries()].map(([title, items]) => ({ title, items }));
+  }, [visibleCandidates]);
+  const sectionTitles = useMemo(() => [...new Set(candidates.map((candidate) => candidate.source_section?.trim() || "Unassigned"))], [candidates]);
 
   useEffect(() => {
     if (!isMobileReview) return;
@@ -1173,15 +1190,21 @@ export function QuestionImportPage() {
 
                 <div className="question-import-filterbar">
                   <label className="question-import-search"><FiSearch /><input type="search" value={candidateSearch} onChange={(event) => setCandidateSearch(event.target.value)} placeholder="Search question, option, explanation…" /></label>
+                  <label>Section <select aria-label="Filter section" value={sectionFilter} onChange={(event) => setSectionFilter(event.target.value)}><option value="ALL">All sections</option>{sectionTitles.map((title) => <option key={title} value={title}>{title}</option>)}</select></label>
                   <div className="question-import-status-filters">{([ ["ALL", "All"], ["VALID", "Ready"], ["NEEDS_REVIEW", "Needs review"], ["INVALID", "Invalid"] ] as const).map(([value, label]) => <button type="button" key={value} className={statusFilter === value ? "active" : ""} onClick={() => setStatusFilter(value)}>{label} <span>{statusCounts[value]}</span></button>)}</div>
                 </div>
+
+                <div className="question-import-section-index" aria-label="Sections to review">{sectionTitles.map((title) => {
+                  const items = candidates.filter((candidate) => (candidate.source_section?.trim() || "Unassigned") === title);
+                  return <button type="button" key={title} className={sectionFilter === title ? "active" : ""} onClick={() => setSectionFilter(sectionFilter === title ? "ALL" : title)}><strong>{title}</strong><span>{items.length} questions · {items.filter((candidate) => candidate.status !== "VALID").length} need review</span></button>;
+                })}</div>
 
                 <div className="question-import-add-question-bar"><button type="button" className="question-import-add-question-btn" onClick={addManualCandidate}><FiPlus /> Add MCQ manually</button></div>
 
                 {isMobileReview ? (
                   <div className="question-import-mobile-review">
                     <div className="question-import-mobile-list" role="list" aria-label="Inspected questions">
-                      {visibleCandidates.map(({ candidate, index }) => {
+                      {sectionGroups.flatMap(({ title, items }) => [<strong className="question-import-section-heading" key={`heading-${title}`}>{title} · {items.length}</strong>, ...items.map(({ candidate, index }) => {
                         const active = candidate.candidate_id === mobileCandidateId;
                         return (
                           <button
@@ -1200,7 +1223,7 @@ export function QuestionImportPage() {
                             <span className="question-import-mobile-chevron" aria-hidden="true">›</span>
                           </button>
                         );
-                      })}
+                      })])}
                     </div>
 
                     {mobileCandidate ? (
@@ -1235,7 +1258,7 @@ export function QuestionImportPage() {
                     )}
                   </div>
                 ) : (
-                  visibleCandidates.map(({ candidate, index }) => (
+                  sectionGroups.map(({ title, items }) => <div className="question-import-section-group" key={title}><h3>{title} <small>{items.length} questions · {items.filter(({ candidate }) => candidate.status !== "VALID").length} need review</small></h3>{items.map(({ candidate, index }) => (
                     <CandidateEditor
                       key={candidate.candidate_id}
                       candidate={candidate}
@@ -1250,7 +1273,7 @@ export function QuestionImportPage() {
                       onRemove={removeCandidate}
                       onGenerate={generateExplanations}
                     />
-                  ))
+                  ))}</div>)
                 )}
 
                 <div className="question-import-publish-bar">

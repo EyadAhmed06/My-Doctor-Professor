@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { Question } from '../../common/entities/question.entity';
+import { Lecture } from '../../common/entities/lecture.entity';
 import { Topic } from '../../common/entities/topic.entity';
 import { AcademicAccessService } from '../academic/academic-access.service';
 import type { UploadedResourceFile } from '../academic/resource-storage.service';
@@ -170,6 +171,40 @@ describe('QuestionImportService', () => {
     expect(saved).toHaveLength(2);
     expect(saved[0].topicId).not.toBe(saved[1].topicId);
     expect(topics.find).toHaveBeenCalledWith({ where: { lectureId } });
+  });
+
+  it('creates numbered PDF lecture destinations in the selected week and routes their questions', async () => {
+    const weekId = '88888888-8888-4888-8888-888888888888';
+    const selected = { ...topic, lectureId: '77777777-7777-4777-8777-777777777777',
+      lecture: { ...topic.lecture, weekId } };
+    const topics = { findOne: jest.fn().mockResolvedValue(selected), find: jest.fn().mockResolvedValue([selected]) };
+    const questions = { find: jest.fn().mockResolvedValue([]) };
+    const savedQuestions: Array<{ topicId: string }> = [];
+    const savedLectures: Array<{ weekId: string; lectureNumber: number; isPublished: boolean }> = [];
+    let nextId = 1;
+    const manager = {
+      find: jest.fn().mockResolvedValue([]), findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn((_entity, value) => value),
+      save: jest.fn(async (entity, value) => {
+        if (entity === Lecture) savedLectures.push(value);
+        if (entity === Question) savedQuestions.push(value);
+        return Array.isArray(value) ? value : { ...value, id: `created-${nextId++}` };
+      }),
+    };
+    const service = new QuestionImportService(questions as never, topics as never, {
+      transaction: jest.fn(async (callback) => callback(manager)),
+    } as never, { assertTopicReadable: jest.fn() } as never);
+    const candidate = (source_section: string) => ({ approved: true, source_section,
+      question_text: 'A clinical question with sufficient medical detail for the student to answer.',
+      difficulty: 'MEDIUM', marks: 1, allow_topic_override: true,
+      options: ['A', 'B', 'C', 'D', 'E'].map((label, index) => ({ option_text: `${label} choice`, is_correct: index === 0 })),
+    });
+    await service.publish({ topic_id: topic.id, original_filename: 'Week One.pdf', file_sha256: 'b'.repeat(64),
+      copyright_confirmed: true, candidates: [candidate('Lecture 1: Biochemistry'), candidate('Lecture 2: Physiology')] } as never, actor);
+    expect(savedLectures.map((lecture) => [lecture.weekId, lecture.lectureNumber, lecture.isPublished]))
+      .toEqual([[weekId, 1, true], [weekId, 2, true]]);
+    expect(savedQuestions).toHaveLength(2);
+    expect(savedQuestions[0].topicId).not.toBe(savedQuestions[1].topicId);
   });
 
   function build() {

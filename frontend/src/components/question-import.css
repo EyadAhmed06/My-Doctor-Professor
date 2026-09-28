@@ -366,6 +366,14 @@
   content-visibility: auto;
   contain-intrinsic-size: 900px;
 }
+.question-import-section-index { display: flex; flex-wrap: wrap; gap: .5rem; margin: .75rem 0; }
+.question-import-section-index button { display: grid; gap: .15rem; text-align: left; padding: .55rem .8rem; border: 1px solid var(--border, #d9e0e8); border-radius: .65rem; background: transparent; color: inherit; cursor: pointer; }
+.question-import-section-index button.active { border-color: var(--pp-primary, #6d56d6); background: color-mix(in srgb, var(--pp-primary, #6d56d6) 12%, transparent); }
+.question-import-section-index span, .question-import-section-group h3 small { font-size: .75rem; opacity: .75; font-weight: normal; }
+.question-import-section-group h3 { display: flex; align-items: baseline; flex-wrap: wrap; gap: .6rem; margin: 1.2rem 0 .65rem; }
+.question-import-section-heading { padding: .5rem .75rem; }
+.question-import-section-field { display: grid; gap: .35rem; margin: .6rem 0; }
+.question-import-section-field input { width: 100%; padding: .55rem .7rem; border: 1px solid var(--border, #d9e0e8); border-radius: .5rem; background: transparent; color: inherit; }
 
 @media (max-width: 720px) {
   .question-import-candidate {
