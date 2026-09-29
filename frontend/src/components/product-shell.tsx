@@ -319,7 +319,6 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
     {user.role === "STUDENT" && <div className="student-content-watermark" aria-hidden="true">
       <span>{user.forensic_code || user.id}</span>
       <span>{user.forensic_code || user.id}</span>
-      <span>{user.forensic_code || user.id}</span>
     </div>}
     <header className="pp-topbar">
       <BrandLockup className="pp-brand" href={homeFor(user.role)} />
