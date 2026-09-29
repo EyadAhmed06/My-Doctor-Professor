@@ -230,9 +230,9 @@ export class TestsService implements OnModuleInit {
     if (![40, 200].includes(dto.question_count)) {
       throw new BadRequestException('Practice exams must contain either 40 or 200 MCQs');
     }
-    if (dto.test_mode === TestMode.TIMED && dto.duration_minutes !== dto.question_count) {
+    if (dto.test_mode === TestMode.TIMED && dto.duration_minutes !== Math.ceil(dto.question_count * 1.5)) {
       throw new BadRequestException(
-        `A timed ${dto.question_count}-MCQ exam must last exactly ${dto.question_count} minutes`,
+        `A timed ${dto.question_count}-MCQ exam must last exactly ${Math.ceil(dto.question_count * 1.5)} minutes (90 seconds per question)`,
       );
     }
     await this.requireBundleLectureAccess(

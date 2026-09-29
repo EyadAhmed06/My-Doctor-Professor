@@ -42,9 +42,9 @@ export class McqPracticeService {
     if (![TestMode.TUTOR, TestMode.TIMED].includes(dto.test_mode)) {
       throw new BadRequestException('Lecture practice is available in Tutor or Timed mode');
     }
-    if (dto.test_mode === TestMode.TIMED && dto.duration_minutes !== dto.question_count) {
+    if (dto.test_mode === TestMode.TIMED && dto.duration_minutes !== Math.ceil(dto.question_count * 1.5)) {
       throw new BadRequestException(
-        `A timed ${dto.question_count}-MCQ exam must last exactly ${dto.question_count} minutes`,
+        `A timed ${dto.question_count}-MCQ exam must last exactly ${Math.ceil(dto.question_count * 1.5)} minutes (90 seconds per question)`,
       );
     }
     const uniqueLectureIds = [...new Set(dto.lecture_ids)];
