@@ -1,6 +1,8 @@
 import { generateKeyPairSync, randomBytes, sign, webcrypto } from 'crypto';
 import { randomUUID } from 'crypto';
 import { UsersService } from './users.service';
+import { ForbiddenException } from '@nestjs/common';
+import { UserRole } from './entities/user.entity';
 
 function buildService() {
   return new UsersService(
@@ -28,6 +30,41 @@ function registrationMessage(deviceId: string, publicKeyJwk: Record<string, any>
 }
 
 describe('Trusted student device cryptography', () => {
+  it('denies a second browser key and records a pending device request', async () => {
+    const first = await webcrypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']);
+    const second = await webcrypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']);
+    const firstKey = await webcrypto.subtle.exportKey('jwk', first.publicKey);
+    const secondKey = await webcrypto.subtle.exportKey('jwk', second.publicKey);
+    const firstId = randomUUID();
+    const secondId = randomUUID();
+    const secondSignature = Buffer.from(await webcrypto.subtle.sign(
+      { name: 'ECDSA', hash: 'SHA-256' }, second.privateKey,
+      registrationMessage(secondId, secondKey),
+    )).toString('base64url');
+    const statements: string[] = [];
+    const db = {
+      query: jest.fn(async (sql: string) => {
+        statements.push(sql);
+        if (sql.includes('FROM trusted_devices')) return [{ id: randomUUID(), client_device_id: firstId, public_key_jwk: firstKey }];
+        if (sql.includes('FROM device_access_requests')) return [];
+        if (sql.includes('INSERT INTO device_access_requests')) return [{ id: randomUUID() }];
+        return [];
+      }),
+      transaction: jest.fn(async (callback: (manager: { query: (sql: string) => Promise<unknown> }) => Promise<unknown>) => callback(db)),
+    };
+    const service = new UsersService({} as never, {} as never, {} as never, {} as never, {} as never, db as never);
+    const user = { id: randomUUID(), email: 'student@example.test', role: UserRole.STUDENT } as never;
+    await expect(service.authorizeStudentDevice(user, {
+      clientDeviceId: secondId, publicKeyJwk: secondKey,
+      registrationSignature: secondSignature,
+    }, '192.0.2.10', 'Phone browser')).rejects.toMatchObject({
+      constructor: ForbiddenException,
+      response: expect.objectContaining({ error: 'DEVICE_NOT_AUTHORIZED' }),
+    });
+    expect(statements.some((sql) => sql.includes('INSERT INTO device_access_requests'))).toBe(true);
+    expect(statements.some((sql) => sql.includes('UPDATE trusted_devices SET status='))).toBe(false);
+  });
+
   it('verifies a P-256 device signature over the issued challenge bytes', () => {
     const service = buildService();
     const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
