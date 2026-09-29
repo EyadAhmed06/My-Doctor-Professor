@@ -36,6 +36,7 @@ import {
   PublishQuestionImportDto,
   QuestionQueryDto,
   SearchQuestionsDto,
+  SaveMcqExplanationsDto,
   UpdateMcqOptionDto,
   UpdateQuestionDto,
 } from './dtos/questions.dto';
@@ -201,6 +202,12 @@ export class QuestionsController {
   async getOne(@Param('questionId', uuid) id: string, @CurrentUser() actor: AuthenticatedUser) {
     await this.assertQuestionRead(id, actor);
     return this.questions.getOne(id, actor);
+  }
+
+  @Put(':questionId/explanations')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  saveExplanations(@Param('questionId', uuid) id: string, @Body() dto: SaveMcqExplanationsDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.questions.saveMcqExplanations(id, dto, actor);
   }
 
   @Put(':questionId')

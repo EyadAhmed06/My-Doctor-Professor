@@ -56,6 +56,8 @@ export class UpdateQuestionDto {
 }
 
 export class QuestionQueryDto {
+  @IsOptional() @IsUUID() course_id?: string;
+  @IsOptional() @IsUUID() lecture_id?: string;
   @IsOptional() @IsUUID() topic_id?: string;
   @IsOptional() @IsEnum(QuestionType) question_type?: QuestionType;
   @IsOptional() @IsEnum(QuestionDifficulty) difficulty?: QuestionDifficulty;
@@ -191,4 +193,17 @@ export class PublishQuestionImportDto {
   @ValidateNested({ each: true })
   @Type(() => PublishImportedQuestionDto)
   candidates: PublishImportedQuestionDto[];
+}
+
+export class SaveMcqExplanationOptionDto {
+  @IsUUID() id: string;
+  @IsString() @IsNotEmpty() option_text: string;
+  @IsBoolean() is_correct: boolean;
+  @IsString() @IsNotEmpty() @MaxLength(EXPLANATION_MAX_LENGTH) @IsExplanationWithinPolicy() explanation: string;
+}
+export class SaveMcqExplanationsDto {
+  @IsString() @IsNotEmpty() question_text: string;
+  @IsString() @IsNotEmpty() @MaxLength(EXPLANATION_MAX_LENGTH) @IsExplanationWithinPolicy() explanation: string;
+  @IsArray() @ArrayMinSize(4) @ArrayMaxSize(5) @ValidateNested({ each: true }) @Type(() => SaveMcqExplanationOptionDto)
+  options: SaveMcqExplanationOptionDto[];
 }

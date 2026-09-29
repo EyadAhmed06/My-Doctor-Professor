@@ -31,6 +31,7 @@ import {
   EssayConfigurationDto,
   QuestionQueryDto,
   SearchQuestionsDto,
+  SaveMcqExplanationsDto,
   UpdateMcqOptionDto,
   UpdateQuestionDto,
 } from './dtos/questions.dto';
@@ -110,6 +111,8 @@ export class QuestionsService {
         active: query.is_active,
       });
     }
+    if (query.course_id) builder.andWhere('course.id = :courseId', { courseId: query.course_id });
+    if (query.lecture_id) builder.andWhere('lecture.id = :lectureId', { lectureId: query.lecture_id });
     if (query.topic_id) {
       builder.andWhere('question.topic_id = :topicId', {
         topicId: query.topic_id,
@@ -221,6 +224,23 @@ export class QuestionsService {
     }
     question.version += 1;
     return this.questions.save(question);
+  }
+
+  async saveMcqExplanations(id: string, dto: SaveMcqExplanationsDto, actor: AuthenticatedUser) {
+    await this.requireMutableQuestion(id, actor);
+    await this.dataSource.transaction(async manager => {
+      const rows = await manager.query('SELECT question_text, question_type, created_by FROM questions WHERE id = $1 FOR UPDATE', [id]);
+      const question = rows[0];
+      if (!question) throw new NotFoundException('Question not found');
+      if (actor.role === UserRole.INSTRUCTOR && question.created_by !== actor.userId) throw new ForbiddenException('Instructors may modify only their own questions');
+      const options = await manager.query('SELECT id, option_text, is_correct FROM mcq_options WHERE question_id = $1 ORDER BY id FOR UPDATE', [id]);
+      if (question.question_type !== 'MCQ' || question.question_text !== dto.question_text || options.length !== dto.options.length || new Set(dto.options.map(option => option.id)).size !== options.length || options.some(option => !dto.options.some(expected => expected.id === option.id && expected.option_text === option.option_text && expected.is_correct === option.is_correct))) {
+        throw new ConflictException('Question or choices changed during generation. Generate explanations again.');
+      }
+      await manager.query('UPDATE questions SET explanation = $2, version = version + 1, updated_at = NOW() WHERE id = $1', [id, dto.explanation.trim()]);
+      for (const option of dto.options) await manager.query('UPDATE mcq_options SET explanation = $2 WHERE id = $1 AND question_id = $3', [option.id, option.explanation.trim(), id]);
+    });
+    return { saved: true };
   }
 
   async remove(id: string, actor: AuthenticatedUser): Promise<void> {
