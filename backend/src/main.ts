@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { json } from 'express';
 import { AppModule } from './app.module';
 import { DatabaseExceptionFilter } from './common/filters/database-exception.filter';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
@@ -9,6 +10,9 @@ import { assertSecureRuntimeConfiguration } from './config/runtime-security';
 async function bootstrap() {
   assertSecureRuntimeConfiguration();
   const app = await NestFactory.create(AppModule);
+  // Approved MCQ batches contain question text and option rationales. Keep the
+  // larger limit scoped to publication rather than widening every JSON route.
+  app.use('/api/v1/questions/imports/publish', json({ limit: '8mb' }));
   const requestContext = new RequestContextMiddleware();
   app.use(requestContext.use.bind(requestContext));
 

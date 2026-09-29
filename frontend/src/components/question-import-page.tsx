@@ -935,7 +935,7 @@ export function QuestionImportPage() {
           original_filename: inspection.original_filename,
           file_sha256: inspection.file_sha256,
           copyright_confirmed: copyrightConfirmed,
-          candidates: candidates.map((candidate) => ({
+          candidates: approved.map((candidate) => ({
             approved: Boolean(candidate.approved),
             question_text: candidate.question_text.trim(),
             explanation: candidate.explanation?.trim() || undefined,
