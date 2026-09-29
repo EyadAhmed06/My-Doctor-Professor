@@ -36,6 +36,7 @@ import {
   GrantBundleDto,
   GrantPlanDto,
   SetPlanWeeksDto,
+  SetPlannedWeeksDto,
   UpdateBundleDto,
   UpdateBundlePlansDto,
 } from './dtos/bundle.dto';
@@ -363,11 +364,11 @@ export class BundlesService {
         WHERE bundle_course.bundle_id = $1
           AND (
             EXISTS (SELECT 1 FROM bundle_weeks selected WHERE selected.bundle_id=$1 AND selected.week_id=week.id)
-            OR NOT EXISTS (
+            OR (bundle_course.planned_week_count IS NULL AND NOT EXISTS (
               SELECT 1 FROM bundle_weeks selected
               JOIN weeks selected_week ON selected_week.id=selected.week_id
               WHERE selected.bundle_id=$1 AND selected_week.course_id=course.id
-            )
+            ))
           )
         GROUP BY lecture.id`, [id]),
     ]);
@@ -382,19 +383,26 @@ export class BundlesService {
     const courses = courseLinks.map((link) => {
       const explicitlyLinked = weekLinks.filter((item) => item.week.courseId === link.courseId);
       const hasSelectedWeeks = weekLinksAll.some((item) => item.week.courseId === link.courseId);
-      const effectiveWeeks = hasSelectedWeeks
+      const scoped = hasSelectedWeeks || link.plannedWeekCount != null;
+      const effectiveWeeks = scoped
         ? explicitlyLinked
         : (link.course.weeks || [])
             .filter((week) => !visibleWeekIds || visibleWeekIds.has(week.id))
             .map((week) => ({ weekId: week.id, week }));
       const accessibleWeekIds = new Set(effectiveWeeks.map((item) => item.weekId));
+      const realWeeks = link.course.weeks || [];
+      const lockedNumbers = new Set<number>(actor.role === UserRole.STUDENT && (scoped || visibleWeekIds)
+        ? realWeeks.filter((week) => !accessibleWeekIds.has(week.id)).map((week) => week.weekNumber)
+        : []);
+      if (actor.role === UserRole.STUDENT && link.plannedWeekCount != null) {
+        const accessibleNumbers = new Set(effectiveWeeks.map((item) => item.week.weekNumber));
+        for (let number = 1; number <= link.plannedWeekCount; number++) {
+          if (!accessibleNumbers.has(number)) lockedNumbers.add(number);
+        }
+      }
       return ({
       ...link.course,
-      locked_weeks: actor.role === UserRole.STUDENT && (hasSelectedWeeks || visibleWeekIds)
-        ? (link.course.weeks || [])
-            .filter((week) => !accessibleWeekIds.has(week.id))
-            .map((week) => ({ week_number: week.weekNumber }))
-        : [],
+      locked_weeks: [...lockedNumbers].sort((a, b) => a - b).map((week_number) => ({ week_number })),
       weeks: effectiveWeeks
         .map((item) => {
           const essayVisible = !essayWeekIds || essayWeekIds.has(item.weekId);
@@ -519,6 +527,7 @@ export class BundlesService {
         semester_number: course.semester?.semesterNumber,
         semesterTitle: course.semester?.title,
         linked: linkedCourseIds.has(course.id),
+        plannedWeekCount: courseLinks.find((link) => link.courseId === course.id)?.plannedWeekCount ?? null,
         weeks: [...(course.weeks ?? [])]
           .sort((left, right) => left.displayOrder - right.displayOrder)
           .map((week) => ({
@@ -639,6 +648,24 @@ export class BundlesService {
       () => this.bundleCourses.save(this.bundleCourses.create({ bundleId: id, courseId })),
       'Course already belongs to this bundle',
     );
+  }
+
+  async setPlannedWeeks(id: string, courseId: string, actor: AuthenticatedUser, dto: SetPlannedWeeksDto) {
+    await this.assertManager(id, actor);
+    const link = await this.bundleCourses.findOne({ where: { bundleId: id, courseId } });
+    if (!link) throw new NotFoundException('Course is not in this bundle');
+    const count = dto.planned_week_count ?? null;
+    return this.dataSource.transaction(async (manager) => {
+      if (count !== null && link.plannedWeekCount == null) {
+        const selected = await manager.find(BundleWeek, { where: { bundleId: id } });
+        const courseWeeks = await manager.find(Week, { where: { courseId }, select: { id: true } });
+        if (!courseWeeks.some((week) => selected.some((item) => item.weekId === week.id))) {
+          await manager.save(BundleWeek, courseWeeks.map((week) => manager.create(BundleWeek, { bundleId: id, weekId: week.id })));
+        }
+      }
+      link.plannedWeekCount = count;
+      return manager.save(BundleCourse, link);
+    });
   }
 
   async removeCourse(id: string, actor: AuthenticatedUser, courseId: string) {

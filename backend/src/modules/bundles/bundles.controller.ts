@@ -33,6 +33,7 @@ import {
   GrantBundleDto,
   GrantPlanDto,
   SetPlanWeeksDto,
+  SetPlannedWeeksDto,
   UpdateBundleDto,
   UpdateBundlePlansDto,
 } from './dtos/bundle.dto';
@@ -123,6 +124,17 @@ export class BundlesController {
     @CurrentUser() actor: AuthenticatedUser,
   ) {
     return this.bundles.getContent(id, actor);
+  }
+
+  @Put(':bundleId/courses/:courseId/planned-weeks')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  setPlannedWeeks(
+    @Param('bundleId', uuid) id: string,
+    @Param('courseId', uuid) courseId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+    @Body() dto: SetPlannedWeeksDto,
+  ) {
+    return this.bundles.setPlannedWeeks(id, courseId, actor, dto);
   }
 
   @Put(':bundleId')

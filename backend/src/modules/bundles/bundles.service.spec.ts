@@ -265,8 +265,10 @@ describe('BundlesService locked weeks', () => {
       { id: 'week-1', weekNumber: 1, lectures: [] },
       { id: 'week-2', weekNumber: 2, title: 'Unreleased title', lectures: [{ id: 'secret-lecture' }] },
     ] };
-    const courseLinks = repo<BundleCourse>({ find: jest.fn().mockResolvedValue([{ courseId: course.id, course }]) });
-    const weekLinks = repo<BundleWeek>({ find: jest.fn().mockResolvedValue([{ weekId: 'week-1', week: { ...course.weeks[0], courseId: course.id } }]) });
+    const findCourses = jest.fn().mockResolvedValue([{ courseId: course.id, course }]);
+    const findWeeks = jest.fn().mockResolvedValue([{ weekId: 'week-1', week: { ...course.weeks[0], courseId: course.id } }]);
+    const courseLinks = repo<BundleCourse>({ find: findCourses });
+    const weekLinks = repo<BundleWeek>({ find: findWeeks });
     const service = new BundlesService(
       repo<Bundle>(), courseLinks, weekLinks, repo<BundleTest>({ find: jest.fn().mockResolvedValue([]) }), repo<BundleInstructor>(),
       repo<BundleEnrollment>(), repo<BundlePlanWeek>(), repo<BundlePlanGrant>(),
@@ -284,5 +286,12 @@ describe('BundlesService locked weeks', () => {
     const selected = await service.getContent('bundle-1', { role: UserRole.STUDENT } as never);
     expect(selected.courses[0].weeks.map((week) => week.id)).toEqual(['week-1']);
     expect(selected.courses[0].locked_weeks).toEqual([{ week_number: 2 }]);
+    findCourses.mockResolvedValue([{ courseId: course.id, course, plannedWeekCount: 4 }]);
+    const planned = await service.getContent('bundle-1', { role: UserRole.STUDENT } as never);
+    expect(planned.courses[0].locked_weeks).toEqual([{ week_number: 2 }, { week_number: 3 }, { week_number: 4 }]);
+    findWeeks.mockResolvedValue([]);
+    const unopened = await service.getContent('bundle-1', { role: UserRole.STUDENT } as never);
+    expect(unopened.courses[0].weeks).toEqual([]);
+    expect(unopened.courses[0].locked_weeks).toEqual([{ week_number: 1 }, { week_number: 2 }, { week_number: 3 }, { week_number: 4 }]);
   });
 });

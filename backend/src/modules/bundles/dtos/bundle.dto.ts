@@ -39,6 +39,7 @@ export class BundleCatalogQueryDto {
  @IsOptional() @Type(()=>Number) @IsInt() @Min(1) @Max(12) semester_number?:number;
 }
 export class BundleResourceDto { @IsUUID('4') resource_id:string; }
+export class SetPlannedWeeksDto { @IsOptional() @Type(()=>Number) @IsInt() @Min(1) @Max(52) planned_week_count?:number|null; }
 export class GrantBundleDto {
  @IsUUID('4') student_id:string;
  @IsOptional() @IsDateString() expires_at?:string;

@@ -48,10 +48,11 @@ describe('Bundle Access Canonical Predicate (Spec-Driven)', () => {
       expect(sql).toContain('(bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP)');
     });
 
-    it('enforces two-way week fallback: explicit selection OR empty selection grants whole course', () => {
+    it('grants selected weeks, with whole-course fallback only without a planned scope', () => {
       const sql = buildBundleWeekFallbackSql('bundle', 'week.id', 'course.id');
       expect(sql).toContain('EXISTS ( SELECT 1 FROM bundle_weeks selected WHERE selected.bundle_id = bundle.id AND selected.week_id = week.id)');
-      expect(sql).toContain('OR NOT EXISTS ( SELECT 1 FROM bundle_weeks selected JOIN weeks selected_week ON selected_week.id = selected.week_id WHERE selected.bundle_id = bundle.id AND selected_week.course_id = course.id)');
+      expect(sql).toContain('planned_scope.planned_week_count IS NULL');
+      expect(sql).toContain('AND NOT EXISTS ( SELECT 1 FROM bundle_weeks selected JOIN weeks selected_week ON selected_week.id = selected.week_id WHERE selected.bundle_id = bundle.id AND selected_week.course_id = course.id)');
     });
   });
 

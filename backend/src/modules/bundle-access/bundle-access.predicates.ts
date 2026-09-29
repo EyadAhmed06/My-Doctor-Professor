@@ -31,11 +31,12 @@ export function buildBundleWeekFallbackSql(
   if (!ALLOWED_BUNDLE_ALIASES.has(bundleAlias)) throw new Error(`Disallowed bundle alias: ${bundleAlias}`);
   return `(`
     + `EXISTS ( SELECT 1 FROM bundle_weeks selected WHERE selected.bundle_id = ${bundleAlias}.id AND selected.week_id = ${weekIdRef})`
-    + ` OR NOT EXISTS (`
+    + ` OR (EXISTS ( SELECT 1 FROM bundle_courses planned_scope WHERE planned_scope.bundle_id = ${bundleAlias}.id AND planned_scope.course_id = ${courseIdRef} AND planned_scope.planned_week_count IS NULL)`
+    + ` AND NOT EXISTS (`
     + ` SELECT 1 FROM bundle_weeks selected`
     + ` JOIN weeks selected_week ON selected_week.id = selected.week_id`
     + ` WHERE selected.bundle_id = ${bundleAlias}.id AND selected_week.course_id = ${courseIdRef}`
-    + `)`
+    + `))`
     + `)`;
 }
 
@@ -44,7 +45,7 @@ export function buildFullCourseBundleSql(
   courseIdRef: string = 'course.id',
 ): string {
   if (!ALLOWED_BUNDLE_ALIASES.has(bundleAlias)) throw new Error(`Disallowed bundle alias: ${bundleAlias}`);
-  return `NOT EXISTS (`
+  return `EXISTS ( SELECT 1 FROM bundle_courses planned_scope WHERE planned_scope.bundle_id = ${bundleAlias}.id AND planned_scope.course_id = ${courseIdRef} AND planned_scope.planned_week_count IS NULL) AND NOT EXISTS (`
     + ` SELECT 1 FROM bundle_weeks selected`
     + ` JOIN weeks selected_week ON selected_week.id = selected.week_id`
     + ` WHERE selected.bundle_id = ${bundleAlias}.id AND selected_week.course_id = ${courseIdRef}`

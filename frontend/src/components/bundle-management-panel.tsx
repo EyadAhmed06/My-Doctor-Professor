@@ -34,6 +34,7 @@ type ManagedCourse = {
   courseCode: string;
   courseName: string;
   linked: boolean;
+  plannedWeekCount?: number | null;
   semesterNumber?: number | null;
   semester_number?: number | null;
   semester?: { semesterNumber?: number };
@@ -303,6 +304,17 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
                   {course.linked ? <><FiTrash2 /> Remove</> : <><FiPlus /> Add</>}
                 </button>
               </header>
+              {course.linked && <form className="bundle-planned-weeks-form" key={`${course.id}-${course.plannedWeekCount ?? "auto"}`} onSubmit={(event) => {
+                event.preventDefault();
+                const value = new FormData(event.currentTarget).get("planned_week_count");
+                void mutate(`/bundles/${bundleId}/courses/${course.id}/planned-weeks`, "PUT", {
+                  planned_week_count: value ? Number(value) : null,
+                }, "Planned weeks saved");
+              }}>
+                <label>Planned weeks (optional)<input name="planned_week_count" type="number" min="1" max="52" defaultValue={course.plannedWeekCount ?? ""} placeholder="Use existing weeks" aria-label={`Planned week count for ${course.courseName}`} /></label>
+                <button type="submit" disabled={busy}>Save week plan</button>
+                <small>Missing weeks appear as locked placeholders. Select a real week below to unlock it; new weeks start locked while a plan is set.</small>
+              </form>}
               {course.linked && <div className="bundle-week-composer">
                 {course.weeks.map((week) =>
                   <button
