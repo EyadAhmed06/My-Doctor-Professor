@@ -56,6 +56,7 @@ export class UpdateQuestionDto {
 }
 
 export class QuestionQueryDto {
+  @IsOptional() @BooleanQuery() @IsBoolean() has_explanation?: boolean;
   @IsOptional() @IsUUID() course_id?: string;
   @IsOptional() @IsUUID() lecture_id?: string;
   @IsOptional() @IsUUID() topic_id?: string;
