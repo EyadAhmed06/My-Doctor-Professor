@@ -21,6 +21,7 @@ import { courseRouteKey, lectureRouteKey, weekRouteKey } from "@/lib/routes";
 import { useAuth } from "./auth-provider";
 import { useLocale } from "./locale-provider";
 import { BundleManagementPanel } from "./bundle-management-panel";
+import "./topic-practice-selection.css";
 import { EmptyState, ErrorState, PageSkeleton } from "./async-state";
 import { Panel, ProductShell } from "./product-shell";
 import { useUx } from "./ux-provider";
@@ -79,6 +80,7 @@ type Lecture = {
   mcq_count: number;
   flashcard_deck_count: number;
   resource_count: number;
+  topics: Array<{ id: string; topicName: string; mcq_count: number }>;
 };
 
 type Week = { id: string; weekNumber: number; title: string | null; lectures: Lecture[] };
@@ -453,26 +455,35 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
     setQuestionTarget("practice");
   }, [content.bundle.id]);
 
-  const selectedLectures = courses.flatMap((course) => course.weeks.flatMap((week) => week.lectures)).filter((lecture) => selectedIds.includes(lecture.id));
-  const selectedCourseCount = courses.filter((course) => course.weeks.some((week) => week.lectures.some((lecture) => selectedIds.includes(lecture.id)))).length;
-  const pool = selectedLectures.reduce((sum, lecture) => sum + Number(lecture.mcq_count || 0), 0);
+  const selectedLectures = content.courses.flatMap((course) => course.weeks.flatMap((week) => week.lectures)).filter((lecture) => lecture.topics?.some((topic) => selectedIds.includes(topic.id)));
+  const selectedCourseCount = content.courses.filter((course) => course.weeks.some((week) => week.lectures.some((lecture) => selectedLectures.includes(lecture)))).length;
+  const pool = selectedLectures.flatMap((lecture) => lecture.topics || []).filter((topic) => selectedIds.includes(topic.id)).reduce((sum, topic) => sum + Number(topic.mcq_count || 0), 0);
   const required = questionTarget === "final" ? 200 : Math.min(pool, 200);
   const ready = selectedIds.length > 0 && required > 0 && pool >= required && (questionTarget !== "final" || selectedCourseCount === 5) && !content.bundle.read_only;
 
   function toggleLecture(course: Course, lecture: Lecture) {
+    const ids = (lecture.topics || []).filter((topic) => topic.mcq_count > 0).map((topic) => topic.id);
     if (questionTarget === "practice" && selectedCourseId && selectedCourseId !== course.id) {
       setSelectedCourseId(course.id);
-      setSelectedIds([lecture.id]);
+      setSelectedIds(ids);
       return;
     }
     setSelectedCourseId(course.id);
-    setSelectedIds((current) => current.includes(lecture.id)
-      ? current.filter((id) => id !== lecture.id)
-      : [...current, lecture.id]);
+    setSelectedIds((current) => ids.every((id) => current.includes(id))
+      ? current.filter((id) => !ids.includes(id))
+      : [...new Set([...current, ...ids])]);
+  }
+
+  function toggleTopic(course: Course, topicId: string) {
+    setSelectedCourseId(course.id);
+    setSelectedIds((current) => {
+      const scoped = questionTarget === "practice" && selectedCourseId && selectedCourseId !== course.id ? [] : current;
+      return scoped.includes(topicId) ? scoped.filter((id) => id !== topicId) : [...scoped, topicId];
+    });
   }
 
   function toggleWeek(course: Course, week: Week) {
-    const eligible = week.lectures.filter((lecture) => Number(lecture.mcq_count || 0) > 0).map((lecture) => lecture.id);
+    const eligible = week.lectures.flatMap((lecture) => lecture.topics || []).filter((topic) => topic.mcq_count > 0).map((topic) => topic.id);
     if (questionTarget === "practice" && selectedCourseId && selectedCourseId !== course.id) {
       setSelectedCourseId(course.id);
       setSelectedIds(eligible);
@@ -492,7 +503,8 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
         method: "POST",
         body: {
           bundle_id: content.bundle.id,
-          lecture_ids: selectedIds,
+          lecture_ids: selectedLectures.map((lecture) => lecture.id),
+          topic_ids: selectedIds,
           question_count: required,
           test_mode: mode,
           ...(mode === "TIMED" ? { duration_minutes: required } : {}),
@@ -501,7 +513,7 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
       const attemptId = generated?.attempt?.id;
       const testId = generated?.test?.id;
       if (!attemptId || !testId) throw new Error("Quiz was generated without a valid session reference");
-      const href = `/mock-exam/session?attempt=${encodeURIComponent(attemptId)}&test=${encodeURIComponent(testId)}&mode=${mode}&source=question-bank&bundle=${encodeURIComponent(content.bundle.id)}&lectures=${encodeURIComponent(selectedIds.join(","))}`;
+      const href = `/mock-exam/session?attempt=${encodeURIComponent(attemptId)}&test=${encodeURIComponent(testId)}&mode=${mode}&source=question-bank&bundle=${encodeURIComponent(content.bundle.id)}&lectures=${encodeURIComponent(selectedLectures.map((lecture) => lecture.id).join(","))}`;
       try {
         sessionStorage.setItem("mdp:active-assessment-session", JSON.stringify({ attemptId, testId, source: "question-bank" }));
       } catch { /* best-effort session recovery */ }
@@ -530,18 +542,19 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
         <small>{questionTarget === "final" ? "Full exam · 200 minutes in Timed mode" : "Practice · one minute per question in Timed mode"}</small>
       </div>
       <div className="question-builder-intro">
-        <div><FiFileText /><span><b>Select lectures from the curriculum</b><small>Practice includes available eligible MCQs from your selection, up to 200.</small></span></div>
+        <div><FiFileText /><span><b>Select topics or whole lectures</b><small>Practice includes eligible MCQs only from your selected topics, up to 200.</small></span></div>
         <strong className={ready ? "ready" : ""}>{pool} / {required} eligible MCQs</strong>
       </div>
       <div className="question-curriculum">
         {courses.map((course) => {
           const courseSelected = questionTarget === "final"
-            ? course.weeks.some((week) => week.lectures.some((lecture) => selectedIds.includes(lecture.id)))
+            ? course.weeks.some((week) => week.lectures.some((lecture) => selectedLectures.includes(lecture)))
             : selectedCourseId === course.id;
           return <section className={`question-course ${courseSelected ? "selected" : ""}`} key={course.id}>
             {course.weeks.map((week) => {
               const eligible = week.lectures.filter((lecture) => Number(lecture.mcq_count || 0) > 0);
-              const allSelected = eligible.length > 0 && courseSelected && eligible.every((lecture) => selectedIds.includes(lecture.id));
+              const eligibleTopics = eligible.flatMap((lecture) => lecture.topics || []).filter((topic) => topic.mcq_count > 0);
+              const allSelected = eligibleTopics.length > 0 && courseSelected && eligibleTopics.every((topic) => selectedIds.includes(topic.id));
               return <fieldset key={week.id}>
                 <legend>
                   <label>
@@ -552,12 +565,13 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
                 <div>
                   {week.lectures.map((lecture) => {
                     const count = Number(lecture.mcq_count || 0);
-                    const checked = courseSelected && selectedIds.includes(lecture.id);
-                    return <label className={checked ? "checked" : ""} key={lecture.id}>
+                    const topics = (lecture.topics || []).filter((topic) => topic.mcq_count > 0);
+                    const checked = topics.length > 0 && courseSelected && topics.every((topic) => selectedIds.includes(topic.id));
+                    return <div className="question-lecture-topics" key={lecture.id}><label className={checked ? "checked" : ""}>
                       <input type="checkbox" checked={checked} disabled={count <= 0} onChange={() => toggleLecture(course, lecture)} />
                       <FiBookOpen />
                       <span><b>{lecture.lectureNumber}. {lecture.title}</b><small>{count > 0 ? `${count} eligible MCQs` : "No published question-bank MCQs"}</small></span>
-                    </label>;
+                    </label><div className="question-topic-options">{(lecture.topics || []).map((topic) => <label key={topic.id} className={selectedIds.includes(topic.id) ? "checked" : ""}><input type="checkbox" checked={courseSelected && selectedIds.includes(topic.id)} disabled={topic.mcq_count <= 0} onChange={() => toggleTopic(course, topic.id)} /><span><b>{topic.topicName}</b><small>{topic.mcq_count} eligible MCQs</small></span></label>)}</div></div>;
                   })}
                 </div>
               </fieldset>;
@@ -567,8 +581,8 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
       </div>
       <div className={`question-quiz-launch ${ready ? "ready" : ""}`}>
         <div>
-          <b>{ready ? `Your ${required}-question ${questionTarget === "final" ? "final" : "practice quiz"} is ready` : questionTarget === "final" ? `Select lectures containing ${Math.max(0, required - pool)} more MCQs across five courses` : "Select a lecture with eligible MCQs"}</b>
-          <small>{selectedIds.length} lecture{selectedIds.length === 1 ? "" : "s"} selected. Questions will not be duplicated.</small>
+          <b>{ready ? `Your ${required}-question ${questionTarget === "final" ? "final" : "practice quiz"} is ready` : questionTarget === "final" ? `Select topics containing ${Math.max(0, required - pool)} more MCQs across five courses` : "Select a topic with eligible MCQs"}</b>
+          <small>{selectedIds.length} topics across {selectedLectures.length} lectures selected. Questions will not be duplicated.</small>
         </div>
         <span>
           <button className="pp-button secondary" type="button" disabled={!ready || Boolean(startingMode)} onClick={() => void start("TUTOR")}><FiPlayCircle />{startingMode === "TUTOR" ? "Building…" : "Start Tutor"}</button>
@@ -740,7 +754,7 @@ function BundleWorkspaceTab({ content, tab, courses, lectures, openWeeks, setOpe
 
   if (tab === "curriculum" && !courses.length) return <EmptyState title="No courses in this semester" description="This bundle does not currently contain courses for the selected semester." />;
 
-  if (tab === "curriculum") return <section className="bundle-accordion-stack"><div className="bundle-expand-actions"><Link className="pp-button secondary" href={`/rounds?bundle=${encodeURIComponent(content.bundle.id)}`}>Select lectures for practice</Link><button type="button" onClick={() => setOpenWeeks(new Set(courses.flatMap((course) => course.weeks.map((week) => week.id))))}>Expand all</button><button type="button" onClick={() => setOpenWeeks(new Set())}>Collapse all</button></div>{courses.map((course) => <Panel key={course.id} title={`${course.courseCode} · ${course.courseName}`} className="bundle-course">{[...course.weeks.map((week) => ({ week, number: week.weekNumber })), ...(course.locked_weeks || []).map((locked) => ({ week: null, number: locked.week_number }))].sort((a, b) => a.number - b.number).map(({ week, number }) => {
+  if (tab === "curriculum") return <section className="bundle-accordion-stack"><div className="bundle-expand-actions"><Link className="pp-button secondary" href={`/rounds?bundle=${encodeURIComponent(content.bundle.id)}`}>Select topics for practice</Link><button type="button" onClick={() => setOpenWeeks(new Set(courses.flatMap((course) => course.weeks.map((week) => week.id))))}>Expand all</button><button type="button" onClick={() => setOpenWeeks(new Set())}>Collapse all</button></div>{courses.map((course) => <Panel key={course.id} title={`${course.courseCode} · ${course.courseName}`} className="bundle-course">{[...course.weeks.map((week) => ({ week, number: week.weekNumber })), ...(course.locked_weeks || []).map((locked) => ({ week: null, number: locked.week_number }))].sort((a, b) => a.number - b.number).map(({ week, number }) => {
     if (!week) return <section className="advanced-bundle-week locked" key={`locked-${number}`} aria-label={`Week ${number} locked`}><div className="locked-week-label"><span><b>Week {number}</b><small>Content locked</small></span><FiLock aria-hidden="true" /></div></section>;
     const questions = week.lectures.reduce((sum, lecture) => sum + lecture.question_count, 0);
     const decks = week.lectures.reduce((sum, lecture) => sum + lecture.flashcard_deck_count, 0);

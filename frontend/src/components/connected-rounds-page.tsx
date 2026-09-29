@@ -17,9 +17,10 @@ import { useAuth } from "./auth-provider";
 import { Panel, ProductShell, Progress } from "./product-shell";
 import "./product-pages.css";
 import "./practice-builder.css";
+import "./topic-practice-selection.css";
 
 type Bundle = { id: string; title: string; read_only?: boolean };
-type Lecture = { id: string; title: string; description: string | null; lectureNumber: number; question_count: number; mcq_count: number; flashcard_deck_count: number; resource_count: number };
+type Lecture = { id: string; title: string; description: string | null; lectureNumber: number; question_count: number; mcq_count: number; flashcard_deck_count: number; resource_count: number; topics: Array<{ id: string; topicName: string; mcq_count: number }> };
 type Week = { id: string; weekNumber: number; title: string | null; description: string | null; lectures: Lecture[] };
 type Course = { id: string; courseName: string; courseCode: string; description: string | null; weeks: Week[] };
 type Content = { bundle: Bundle; courses: Course[] };
@@ -35,7 +36,7 @@ function numericCount(value: unknown) {
 
 function defaultPracticeLectures(lectures: Lecture[]) {
   const first = lectures.find((lecture) => numericCount(lecture.mcq_count) > 0);
-  return first ? [first.id] : [];
+  return first ? (first.topics || []).filter((topic) => topic.mcq_count > 0).map((topic) => topic.id) : [];
 }
 
 function sessionHref(generated: Generated, bundleId: string, lectureIds: string[], mode: PracticeMode) {
@@ -125,8 +126,8 @@ export function ConnectedRoundsPage() {
     [lectureRows],
   );
   const currentBundle = bundles.find((item) => item.id === bundleId);
-  const selectedLectures = lectureRows.filter(({ lecture }) => selectedIds.includes(lecture.id));
-  const selectedQuestionPool = selectedLectures.reduce((sum, item) => sum + numericCount(item.lecture.mcq_count), 0);
+  const selectedLectures = lectureRows.filter(({ lecture }) => lecture.topics?.some((topic) => selectedIds.includes(topic.id)));
+  const selectedQuestionPool = selectedLectures.flatMap(({ lecture }) => lecture.topics || []).filter((topic) => selectedIds.includes(topic.id)).reduce((sum, topic) => sum + numericCount(topic.mcq_count), 0);
   const questionCount = Math.min(selectedQuestionPool, MAX_PRACTICE_QUESTION_COUNT);
   const ready = selectedIds.length > 0 && questionCount > 0 && !currentBundle?.read_only;
 
@@ -139,12 +140,12 @@ export function ConnectedRoundsPage() {
     const allLectures = weeks.flatMap((item) => item.lectures);
     const requested = requestedLectures.filter((id) => allLectures.some((lecture) => lecture.id === id));
     if (!requested.length && requestedLecture && allLectures.some((lecture) => lecture.id === requestedLecture)) requested.push(requestedLecture);
-    const initial = requested.length ? requested : defaultPracticeLectures(allLectures);
+    const initial = requested.length ? allLectures.filter((lecture) => requested.includes(lecture.id)).flatMap((lecture) => (lecture.topics || []).filter((topic) => topic.mcq_count > 0).map((topic) => topic.id)) : defaultPracticeLectures(allLectures);
     setSelectedIds(initial);
-    const first = allLectures.find((lecture) => lecture.id === initial[0]) || allLectures[0] || null;
+    const first = allLectures.find((lecture) => lecture.topics?.some((topic) => topic.id === initial[0])) || allLectures[0] || null;
     setActiveLecture(first);
     const initialSet = new Set(initial);
-    const selectedWeeks = weeks.filter((item) => item.lectures.some((lecture) => initialSet.has(lecture.id))).map((item) => item.id);
+    const selectedWeeks = weeks.filter((item) => item.lectures.some((lecture) => lecture.topics?.some((topic) => initialSet.has(topic.id)))).map((item) => item.id);
     const firstWeek = first ? weeks.find((item) => item.lectures.some((lecture) => lecture.id === first.id)) : undefined;
     setOpenWeeks(selectedWeeks.length ? selectedWeeks : firstWeek ? [firstWeek.id] : []);
   }, [courseId, requestedLecture, requestedLectures, weeks]);
@@ -155,11 +156,12 @@ export function ConnectedRoundsPage() {
 
   function toggleLecture(lecture: Lecture) {
     setActiveLecture(lecture);
-    setSelectedIds((current) => current.includes(lecture.id) ? current.filter((id) => id !== lecture.id) : [...current, lecture.id]);
+    const ids = (lecture.topics || []).filter((topic) => topic.mcq_count > 0).map((topic) => topic.id);
+    setSelectedIds((current) => ids.every((id) => current.includes(id)) ? current.filter((id) => !ids.includes(id)) : [...new Set([...current, ...ids])]);
   }
 
   function toggleWholeWeek(week: Week) {
-    const ids = week.lectures.map((lecture) => lecture.id);
+    const ids = week.lectures.flatMap((lecture) => lecture.topics || []).filter((topic) => topic.mcq_count > 0).map((topic) => topic.id);
     const allSelected = ids.every((id) => selectedIds.includes(id));
     setSelectedIds((current) => allSelected ? current.filter((id) => !ids.includes(id)) : [...new Set([...current, ...ids])]);
   }
@@ -173,13 +175,14 @@ export function ConnectedRoundsPage() {
         method: "POST",
         body: {
           bundle_id: bundleId,
-          lecture_ids: selectedIds,
+          lecture_ids: selectedLectures.map(({ lecture }) => lecture.id),
+          topic_ids: selectedIds,
           question_count: questionCount,
           test_mode: mode,
           duration_minutes: mode === "TIMED" ? questionCount : undefined,
         },
       });
-      window.location.assign(sessionHref(generated, bundleId, selectedIds, mode));
+      window.location.assign(sessionHref(generated, bundleId, selectedLectures.map(({ lecture }) => lecture.id), mode));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to build this quiz.");
       setStarting(false);
@@ -193,7 +196,7 @@ export function ConnectedRoundsPage() {
           <div>
             <span className="page-eyebrow">CURRICULUM QUIZ BUILDER</span>
             <h1>{course?.courseName || "Lecture Questions"}</h1>
-            <p>Select any lecture with eligible MCQs. Practice uses its available questions, up to 200, in Tutor or Timed mode.</p>
+            <p>Select individual topics or whole lectures. Practice uses only your selected topics, up to 200 MCQs, in Tutor or Timed mode.</p>
           </div>
           <div className="rounds-reference-selectors">
             <label>Bundle<select value={bundleId} onChange={(event) => setBundleId(event.target.value)}>{bundles.map((item) => <option key={item.id} value={item.id}>{item.title}{item.read_only ? " · read-only" : ""}</option>)}</select></label>
@@ -207,11 +210,12 @@ export function ConnectedRoundsPage() {
           !course ? <Panel title="No course available"><p>The selected bundle does not contain a visible course.</p></Panel> :
           <div className="rounds-reference-layout">
             <aside className="rounds-week-nav practice-lecture-picker">
-              <div className="rounds-nav-title"><span>SELECT LECTURE(S)</span><b>{course.courseCode}</b></div>
+              <div className="rounds-nav-title"><span>SELECT TOPICS</span><b>{course.courseCode}</b></div>
               {weeks.map((week) => {
                 const isOpen = openWeeks.includes(week.id);
                 const weekMcqs = week.lectures.reduce((sum, item) => sum + numericCount(item.mcq_count), 0);
-                const allSelected = week.lectures.length > 0 && week.lectures.every((lecture) => selectedIds.includes(lecture.id));
+                const weekTopics = week.lectures.flatMap((lecture) => lecture.topics || []).filter((topic) => topic.mcq_count > 0);
+                const allSelected = weekTopics.length > 0 && weekTopics.every((topic) => selectedIds.includes(topic.id));
                 return (
                   <section key={week.id}>
                     <div className="practice-week-heading">
@@ -223,13 +227,14 @@ export function ConnectedRoundsPage() {
                     {isOpen && (
                       <div className="rounds-lecture-list">
                         {week.lectures.map((lecture) => {
-                          const checked = selectedIds.includes(lecture.id);
+                          const eligibleTopics = (lecture.topics || []).filter((topic) => topic.mcq_count > 0);
+                          const checked = eligibleTopics.length > 0 && eligibleTopics.every((topic) => selectedIds.includes(topic.id));
                           return (
-                            <button key={lecture.id} type="button" className={`${activeLecture?.id === lecture.id ? "active" : ""} ${checked ? "selected-for-practice" : ""}`} onClick={() => toggleLecture(lecture)}>
+                            <div key={lecture.id}><button type="button" className={`${activeLecture?.id === lecture.id ? "active" : ""} ${checked ? "selected-for-practice" : ""}`} onClick={() => toggleLecture(lecture)}>
                               <span className={`practice-check ${checked ? "checked" : ""}`}>{checked ? <FiCheck /> : ""}</span>
                               <span><b>{lecture.title}</b><small>{numericCount(lecture.mcq_count)} eligible MCQs · {numericCount(lecture.flashcard_deck_count)} decks</small></span>
                               <small>{checked ? "Selected" : "Select"}</small>
-                            </button>
+                            </button><div className="practice-topic-options">{(lecture.topics || []).map((topic) => <label key={topic.id}><input type="checkbox" checked={selectedIds.includes(topic.id)} disabled={topic.mcq_count <= 0} onChange={() => { setActiveLecture(lecture); setSelectedIds((current) => current.includes(topic.id) ? current.filter((id) => id !== topic.id) : [...current, topic.id]); }} /><span>{topic.topicName}<small>{topic.mcq_count} eligible MCQs</small></span></label>)}</div></div>
                           );
                         })}
                       </div>
@@ -248,14 +253,14 @@ export function ConnectedRoundsPage() {
                   </div>
                   <div className="rounds-action-grid">
                     <article><FiFileText /><div><b>{questionCount}</b><span>Quiz size</span><small>All available eligible MCQs, up to 200.</small></div></article>
-                    <article><FiLayers /><div><b>{selectedIds.length}</b><span>Lectures selected</span><small>Select a single lecture or combine lectures.</small></div></article>
+                    <article><FiLayers /><div><b>{selectedIds.length}</b><span>Topics selected</span><small>Select one topic or mix several topics.</small></div></article>
                     <article><FiBookOpen /><div><b>{selectedQuestionPool}</b><span>Eligible MCQ pool</span><small>Active question-bank MCQs in your selection.</small></div></article>
                   </div>
                   <div className={`rounds-primary-action practice-launch ${ready ? "ready" : "needs-questions"}`}>
                     <div>
                       <small>{ready ? "READY" : "QUESTION POOL"}</small>
-                      <h3>{ready ? `Start a ${questionCount}-MCQ ${mode === "TIMED" ? "Timed" : "Tutor"} quiz` : "Select a lecture with eligible MCQs"}</h3>
-                      <p>{ready ? "Questions are sampled from exactly the lectures you selected and answers are saved to the backend." : "Select additional lectures or ask the instructor to publish more active question-bank MCQs. The app will not silently duplicate questions."}</p>
+                      <h3>{ready ? `Start a ${questionCount}-MCQ ${mode === "TIMED" ? "Timed" : "Tutor"} quiz` : "Select a topic with eligible MCQs"}</h3>
+                      <p>{ready ? "Questions are sampled from exactly the topics you selected and answers are saved to the backend." : "Select additional topics or ask the instructor to publish more active question-bank MCQs. The app will not silently duplicate questions."}</p>
                     </div>
                     <div className="practice-launch-controls"><label>Mode<select aria-label="Quiz mode" value={mode} disabled={starting} onChange={(event) => setMode(event.target.value as PracticeMode)}><option value="TUTOR">Tutor · explanation after each answer</option><option value="TIMED">Timed · {questionCount} minutes</option></select></label><button className="pp-button" type="button" disabled={!ready || starting} onClick={() => void startPractice()}><FiPlayCircle />{starting ? "Building quiz…" : `Start ${questionCount} questions`}<FiArrowRight /></button></div>
                   </div>
@@ -265,7 +270,7 @@ export function ConnectedRoundsPage() {
             </section>
 
             <aside className="rounds-context-rail">
-              <Panel title="Selection"><div className="rounds-coverage-number">{selectedIds.length}<small> lectures</small></div><Progress value={ready ? 100 : 0} />
+              <Panel title="Selection"><div className="rounds-coverage-number">{selectedIds.length}<small> topics</small></div><Progress value={ready ? 100 : 0} />
                 <dl><div><dt>Quiz MCQs</dt><dd>{questionCount}</dd></div><div><dt>Eligible MCQ pool</dt><dd>{selectedQuestionPool}</dd></div><div><dt>Course eligible MCQs</dt><dd>{totals.mcqs}</dd></div></dl>
               </Panel>
               <Panel title={currentBundle?.read_only ? "Read-only access" : "Quiz rule"}><p>{currentBundle?.read_only ? "You may review existing content, but cannot start a new attempt from this bundle." : "Practice uses the eligible questions in your selection, up to 200. Tutor is untimed; Timed allows one minute per question."}</p></Panel>

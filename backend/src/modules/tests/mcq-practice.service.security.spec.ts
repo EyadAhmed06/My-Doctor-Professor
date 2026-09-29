@@ -22,6 +22,19 @@ describe('McqPracticeService security', () => {
     return new McqPracticeService(questions, lectures, students, dataSource, bundleAccess);
   };
 
+  it.each([true, false])('enforces selected topic ownership and filtering (authorized: %s)', async (authorized) => {
+    const lectureId = '22222222-2222-4222-8222-222222222222';
+    const topicId = '66666666-6666-4666-8666-666666666666';
+    const lectures = { leftJoinAndSelect: jest.fn().mockReturnThis(), where: jest.fn().mockReturnThis(), getMany: jest.fn().mockResolvedValue([{ id: lectureId, week: { courseId: 'course-1' } }]) };
+    const questions = { innerJoinAndSelect: jest.fn().mockReturnThis(), leftJoinAndSelect: jest.fn().mockReturnThis(), where: jest.fn().mockReturnThis(), andWhere: jest.fn().mockReturnThis(), getMany: jest.fn().mockResolvedValue([]) };
+    const query = jest.fn().mockResolvedValueOnce([{ lecture_id: lectureId }]).mockResolvedValueOnce(authorized ? [{ id: topicId }] : []);
+    const service = createService({ createQueryBuilder: () => questions } as never, { createQueryBuilder: () => lectures } as never, undefined, { query } as never);
+    await expect(service.generate({ bundle_id: '11111111-1111-4111-8111-111111111111', lecture_ids: [lectureId], topic_ids: [topicId], question_count: 1, test_mode: TestMode.TUTOR }, actor))
+      .rejects.toThrow(authorized ? 'Only 0 eligible MCQs' : 'outside the selected lectures');
+    if (authorized) expect(questions.andWhere).toHaveBeenCalledWith('question.topic_id IN (:...topicIds)', { topicIds: [topicId] });
+    else expect(questions.getMany).not.toHaveBeenCalled();
+  });
+
   it('allows short quiz counts to pass validation and checks bundle access', async () => {
     const service = createService({} as never, {} as never, { exists: jest.fn().mockResolvedValue(true) } as never, { query: jest.fn().mockResolvedValue([]) } as never);
 

@@ -316,7 +316,7 @@ export class BundlesService {
     const access = await this.getAccessible(id, actor);
     const visibleWeekIds = access.visible_week_ids ? new Set(access.visible_week_ids) : null;
     const essayWeekIds = access.essay_week_ids ? new Set(access.essay_week_ids) : null;
-    const [courseLinks, weekLinksAll, testLinks, lectureStats] = await Promise.all([
+    const [courseLinks, weekLinksAll, testLinks, lectureStats, topicStats] = await Promise.all([
       this.bundleCourses.find({
         where: { bundleId: id },
         relations: { course: { semester: true, weeks: { lectures: true } } },
@@ -338,7 +338,7 @@ export class BundlesService {
           COUNT(DISTINCT question.id) FILTER (
             WHERE question.question_type = 'MCQ'
               AND question.is_question_bank = TRUE
-              AND (SELECT COUNT(*) FROM mcq_options option WHERE option.question_id = question.id) = 5
+              AND (SELECT COUNT(*) FROM mcq_options option WHERE option.question_id = question.id) IN (4, 5)
               AND (SELECT COUNT(*) FROM mcq_options option WHERE option.question_id = question.id AND option.is_correct = TRUE) = 1
           )::int AS mcq_count,
           COUNT(DISTINCT deck.id)::int AS flashcard_deck_count,
@@ -371,6 +371,21 @@ export class BundlesService {
             ))
           )
         GROUP BY lecture.id`, [id]),
+      this.dataSource.query(`
+        SELECT topic.id, topic.lecture_id, topic.topic_name,
+          COUNT(question.id) FILTER (
+            WHERE question.is_active = TRUE AND question.is_question_bank = TRUE
+              AND question.question_type = 'MCQ'
+              AND (SELECT COUNT(*) FROM mcq_options option WHERE option.question_id = question.id) IN (4, 5)
+              AND (SELECT COUNT(*) FROM mcq_options option WHERE option.question_id = question.id AND option.is_correct = TRUE) = 1
+          )::int AS mcq_count
+        FROM topics topic
+        JOIN lectures lecture ON lecture.id = topic.lecture_id
+        JOIN weeks week ON week.id = lecture.week_id
+        JOIN bundle_courses link ON link.course_id = week.course_id AND link.bundle_id = $1
+        LEFT JOIN questions question ON question.topic_id = topic.id
+        GROUP BY topic.id
+        ORDER BY topic.display_order, topic.topic_name`, [id]),
     ]);
     const weekLinks = visibleWeekIds ? weekLinksAll.filter((item) => visibleWeekIds.has(item.weekId)) : weekLinksAll;
     const stats = new Map((lectureStats as Array<{
@@ -380,6 +395,12 @@ export class BundlesService {
       flashcard_deck_count: number;
       resource_count: number;
     }>).map((row) => [row.id, row]));
+    const topicsByLecture = new Map<string, Array<{ id: string; topicName: string; mcq_count: number }>>();
+    for (const row of topicStats as Array<{ id: string; lecture_id: string; topic_name: string; mcq_count: number }>) {
+      const topics = topicsByLecture.get(row.lecture_id) || [];
+      topics.push({ id: row.id, topicName: row.topic_name, mcq_count: Number(row.mcq_count) });
+      topicsByLecture.set(row.lecture_id, topics);
+    }
     const courses = courseLinks.map((link) => {
       const explicitlyLinked = weekLinks.filter((item) => item.week.courseId === link.courseId);
       const hasSelectedWeeks = weekLinksAll.some((item) => item.week.courseId === link.courseId);
@@ -420,6 +441,7 @@ export class BundlesService {
                 return {
                   ...lecture,
                   ...raw,
+                  topics: topicsByLecture.get(lecture.id) || [],
                   question_count: essayVisible ? raw.question_count : raw.mcq_count,
                 };
               }),

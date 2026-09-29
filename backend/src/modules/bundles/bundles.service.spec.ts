@@ -262,7 +262,7 @@ describe('BundlesService payment entitlement', () => {
 describe('BundlesService locked weeks', () => {
   it('shows only week numbers for excluded weeks and never falls back when selected weeks are filtered out', async () => {
     const course = { id: 'course-1', weeks: [
-      { id: 'week-1', weekNumber: 1, lectures: [] },
+      { id: 'week-1', weekNumber: 1, lectures: [{ id: 'lecture-1', isPublished: true }] },
       { id: 'week-2', weekNumber: 2, title: 'Unreleased title', lectures: [{ id: 'secret-lecture' }] },
     ] };
     const findCourses = jest.fn().mockResolvedValue([{ courseId: course.id, course }]);
@@ -273,7 +273,10 @@ describe('BundlesService locked weeks', () => {
       repo<Bundle>(), courseLinks, weekLinks, repo<BundleTest>({ find: jest.fn().mockResolvedValue([]) }), repo<BundleInstructor>(),
       repo<BundleEnrollment>(), repo<BundlePlanWeek>(), repo<BundlePlanGrant>(),
       repo<Course>(), repo<Week>(), repo<Test>(), repo<User>(),
-      { query: jest.fn().mockResolvedValue([]) } as unknown as DataSource,
+      { query: jest.fn().mockImplementation(async (sql: string) => sql.includes('SELECT topic.id') ? [
+        { id: 'topic-1', lecture_id: 'lecture-1', topic_name: 'Diabetes', mcq_count: 12 },
+        { id: 'secret-topic', lecture_id: 'secret-lecture', topic_name: 'Hidden section', mcq_count: 20 },
+      ] : []) } as unknown as DataSource,
       {} as NotificationsService,
     );
     const access = jest.spyOn(service, 'getAccessible').mockResolvedValue({ visible_week_ids: [] } as never);
@@ -286,6 +289,8 @@ describe('BundlesService locked weeks', () => {
     const selected = await service.getContent('bundle-1', { role: UserRole.STUDENT } as never);
     expect(selected.courses[0].weeks.map((week) => week.id)).toEqual(['week-1']);
     expect(selected.courses[0].locked_weeks).toEqual([{ week_number: 2 }]);
+    expect(selected.courses[0].weeks[0].lectures[0].topics).toEqual([{ id: 'topic-1', topicName: 'Diabetes', mcq_count: 12 }]);
+    expect(JSON.stringify(selected.courses)).not.toContain('Hidden section');
     findCourses.mockResolvedValue([{ courseId: course.id, course, plannedWeekCount: 4 }]);
     const planned = await service.getContent('bundle-1', { role: UserRole.STUDENT } as never);
     expect(planned.courses[0].locked_weeks).toEqual([{ week_number: 2 }, { week_number: 3 }, { week_number: 4 }]);
