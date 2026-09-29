@@ -428,7 +428,7 @@ export function AdvancedBundlesPage() {
           {selected.bundle.read_only && <section className="bundle-read-only-reason"><FiLock /><div><b>Browsing remains available</b><p>This enrollment is read-only. You can inspect curriculum and resources, but actions that submit or modify learning work are disabled by the server.</p></div></section>}
           <nav className="bundle-tabs" aria-label="Bundle sections">{tabs.map((value) => {
             const count = tabCounts?.[value];
-            return <button key={value} className={tab === value ? "active" : ""} aria-current={tab === value ? "page" : undefined} onClick={() => changeTab(value)}>{value === "questions" ? "Question Bank" : value === "exams" ? "Past Exams" : value[0].toUpperCase() + value.slice(1)}{count !== null && count !== undefined ? <small>{count}</small> : null}</button>;
+            return <button key={value} className={tab === value ? "active" : ""} aria-current={tab === value ? "page" : undefined} onClick={() => changeTab(value)}>{value === "questions" ? "Question Bank" : value === "exams" ? "End-of-round & Exams" : value[0].toUpperCase() + value.slice(1)}{count !== null && count !== undefined ? <small>{count}</small> : null}</button>;
           })}</nav>
           <div className="bundle-content-search"><FiSearch /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filter courses, weeks, or lectures" /></div>
           {bundleLoading && <div className="bundle-content-overlay"><PageSkeleton variant="cards" label="Loading selected bundle" /></div>}
@@ -507,7 +507,7 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
           topic_ids: selectedIds,
           question_count: required,
           test_mode: mode,
-          ...(mode === "TIMED" ? { duration_minutes: required } : {}),
+          ...(mode === "TIMED" ? { duration_minutes: Math.ceil(required * 1.5) } : {}),
         },
       });
       const attemptId = generated?.attempt?.id;
@@ -539,7 +539,7 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
       <div className="question-count-selector" role="group" aria-label="Exam question count">
         <button type="button" className={questionTarget === "practice" ? "active" : ""} onClick={() => { setQuestionTarget("practice"); setSelectedCourseId(""); setSelectedIds([]); }}>Practice · available MCQs</button>
         <button type="button" className={questionTarget === "final" ? "active" : ""} onClick={() => { setQuestionTarget("final"); setSelectedCourseId(""); setSelectedIds([]); }}>200-MCQ final</button>
-        <small>{questionTarget === "final" ? "Full exam · 200 minutes in Timed mode" : "Practice · one minute per question in Timed mode"}</small>
+        <small>{questionTarget === "final" ? "Full exam · 300 minutes in Timed mode" : "Practice · 90 seconds per question in Timed mode"}</small>
       </div>
       <div className="question-builder-intro">
         <div><FiFileText /><span><b>Select topics or whole lectures</b><small>Practice includes eligible MCQs only from your selected topics, up to 200.</small></span></div>
@@ -586,7 +586,7 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
         </div>
         <span>
           <button className="pp-button secondary" type="button" disabled={!ready || Boolean(startingMode)} onClick={() => void start("TUTOR")}><FiPlayCircle />{startingMode === "TUTOR" ? "Building…" : "Start Tutor"}</button>
-          <button className="pp-button" type="button" disabled={!ready || Boolean(startingMode)} onClick={() => void start("TIMED")}><FiClock />{startingMode === "TIMED" ? "Building…" : `Start Timed · ${required} min`}</button>
+          <button className="pp-button" type="button" disabled={!ready || Boolean(startingMode)} onClick={() => void start("TIMED")}><FiClock />{startingMode === "TIMED" ? "Building…" : `Start Timed · ${Math.ceil(required * 1.5)} min`}</button>
         </span>
       </div>
     </Panel>
@@ -750,7 +750,7 @@ function BundleWorkspaceTab({ content, tab, courses, lectures, openWeeks, setOpe
   setOpenWeeks: React.Dispatch<React.SetStateAction<Set<string>>>;
   setUrl: (bundleId: string | null, tab: Tab, week?: string | null, replace?: boolean) => void;
 }) {
-  if (tab === "overview") return <><section className="bundle-summary-grid">{Object.entries(content.totals).map(([label, value]) => <Panel key={label}><b>{value}</b><small>{label.replaceAll("_", " ")}</small></Panel>)}</section><Panel title="Continue your curriculum">{lectures.slice(0, 5).map(({ course, week, lecture }) => <Link className="bundle-row" key={lecture.id} href={guideHref(course, lecture)}><FiBookOpen /><span><b>{lecture.title}</b><small>Week {week.weekNumber} · {lecture.question_count} questions · {lecture.flashcard_deck_count} decks</small></span></Link>)}</Panel></>;
+  if (tab === "overview") return <><Panel title="End-of-round & Bundle Exams"><button className="pp-button" type="button" onClick={() => setUrl(content.bundle.id, "exams")}>Open bundle exams · {content.past_exams.length}</button></Panel><section className="bundle-summary-grid">{Object.entries(content.totals).map(([label, value]) => <Panel key={label}><b>{value}</b><small>{label.replaceAll("_", " ")}</small></Panel>)}</section><Panel title="Continue your curriculum">{lectures.slice(0, 5).map(({ course, week, lecture }) => <Link className="bundle-row" key={lecture.id} href={guideHref(course, lecture)}><FiBookOpen /><span><b>{lecture.title}</b><small>Week {week.weekNumber} · {lecture.question_count} questions · {lecture.flashcard_deck_count} decks</small></span></Link>)}</Panel></>;
 
   if (tab === "curriculum" && !courses.length) return <EmptyState title="No courses in this semester" description="This bundle does not currently contain courses for the selected semester." />;
 
@@ -773,7 +773,7 @@ function BundleWorkspaceTab({ content, tab, courses, lectures, openWeeks, setOpe
 
   if (tab === "questions") return <BundleQuestionBank content={content} courses={courses} />;
 
-  if (tab === "exams") return <Panel title="Bundle Past Exams">{content.past_exams.length ? content.past_exams.map((exam) => <Link className="bundle-row" href={`/past-exams?bundle=${encodeURIComponent(content.bundle.id)}&test=${encodeURIComponent(exam.id)}`} key={exam.id}><FiClock /><span><b>{exam.title}</b><small>{exam.durationMinutes ? `${exam.durationMinutes} minute instructor timer · choose Tutor or Timed` : "Tutor mode available · no timed duration configured"}</small></span><strong>Open →</strong></Link>) : <EmptyState title="No past exams" description="No past exams are assigned to this bundle." />}</Panel>;
+  if (tab === "exams") return <Panel title="End-of-round & Bundle Exams">{content.past_exams.length ? content.past_exams.map((exam) => <Link className="bundle-row" href={`/past-exams?bundle=${encodeURIComponent(content.bundle.id)}&test=${encodeURIComponent(exam.id)}`} key={exam.id}><FiClock /><span><b>{exam.title}</b><small>{exam.durationMinutes ? `${exam.durationMinutes} minute instructor timer · choose Tutor or Timed` : "Tutor mode available · no timed duration configured"}</small></span><strong>Open →</strong></Link>) : <EmptyState title="No exams assigned" description="The instructor must publish and attach the end-of-round exam to this bundle before it appears here." />}</Panel>;
 
   if (tab === "flashcards") { const available = lectures.filter((item) => item.lecture.flashcard_deck_count); return <Panel title="Bundle Flashcards">{available.length ? available.map(({ course, week, lecture }) => <Link className="bundle-row" href={`/flashcards?bundle=${encodeURIComponent(content.bundle.id)}&course=${encodeURIComponent(course.id)}&lecture=${encodeURIComponent(lecture.id)}`} key={lecture.id}><FiLayers /><span><b>{lecture.title}</b><small>Week {week.weekNumber} · open your enrolled review queue</small></span><strong>{lecture.flashcard_deck_count} decks</strong></Link>) : <EmptyState title="No published flashcards in this bundle" description="The curriculum is connected, but no published flashcard deck is currently available in its courses." />}</Panel>; }
 
