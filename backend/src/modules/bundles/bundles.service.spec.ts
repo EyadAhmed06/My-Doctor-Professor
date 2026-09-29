@@ -258,3 +258,31 @@ describe('BundlesService payment entitlement', () => {
     await expect(service.enrollPublic('bundle-s4', studentId)).rejects.toThrow('You can only enroll in bundles for your current semester');
   });
 });
+
+describe('BundlesService locked weeks', () => {
+  it('shows only week numbers for excluded weeks and never falls back when selected weeks are filtered out', async () => {
+    const course = { id: 'course-1', weeks: [
+      { id: 'week-1', weekNumber: 1, lectures: [] },
+      { id: 'week-2', weekNumber: 2, title: 'Unreleased title', lectures: [{ id: 'secret-lecture' }] },
+    ] };
+    const courseLinks = repo<BundleCourse>({ find: jest.fn().mockResolvedValue([{ courseId: course.id, course }]) });
+    const weekLinks = repo<BundleWeek>({ find: jest.fn().mockResolvedValue([{ weekId: 'week-1', week: { ...course.weeks[0], courseId: course.id } }]) });
+    const service = new BundlesService(
+      repo<Bundle>(), courseLinks, weekLinks, repo<BundleTest>({ find: jest.fn().mockResolvedValue([]) }), repo<BundleInstructor>(),
+      repo<BundleEnrollment>(), repo<BundlePlanWeek>(), repo<BundlePlanGrant>(),
+      repo<Course>(), repo<Week>(), repo<Test>(), repo<User>(),
+      { query: jest.fn().mockResolvedValue([]) } as unknown as DataSource,
+      {} as NotificationsService,
+    );
+    const access = jest.spyOn(service, 'getAccessible').mockResolvedValue({ visible_week_ids: [] } as never);
+    const result = await service.getContent('bundle-1', { role: UserRole.STUDENT } as never);
+    expect(result.courses[0].weeks).toEqual([]);
+    expect(result.courses[0].locked_weeks).toEqual([{ week_number: 1 }, { week_number: 2 }]);
+    expect(JSON.stringify(result.courses)).not.toContain('Unreleased title');
+    expect(JSON.stringify(result.courses)).not.toContain('secret-lecture');
+    access.mockResolvedValue({ visible_week_ids: null } as never);
+    const selected = await service.getContent('bundle-1', { role: UserRole.STUDENT } as never);
+    expect(selected.courses[0].weeks.map((week) => week.id)).toEqual(['week-1']);
+    expect(selected.courses[0].locked_weeks).toEqual([{ week_number: 2 }]);
+  });
+});

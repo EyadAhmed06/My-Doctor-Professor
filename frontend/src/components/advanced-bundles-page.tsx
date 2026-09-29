@@ -88,6 +88,7 @@ type Course = {
   courseName: string;
   semester?: { semesterNumber: number; title?: string | null } | null;
   weeks: Week[];
+  locked_weeks?: Array<{ week_number: number }>;
 };
 type Exam = { id: string; title: string; durationMinutes: number | null };
 type Content = {
@@ -389,7 +390,8 @@ export function AdvancedBundlesPage() {
     return scopedCourses.map((course) => ({
       ...course,
       weeks: course.weeks.map((week) => ({ ...week, lectures: week.lectures.filter((lecture) => `${course.courseName} ${week.title || ""} ${lecture.title}`.toLowerCase().includes(needle)) })).filter((week) => week.lectures.length),
-    })).filter((course) => course.weeks.length);
+      locked_weeks: course.locked_weeks?.filter((week) => `${course.courseName} week ${week.week_number}`.toLowerCase().includes(needle)),
+    })).filter((course) => course.weeks.length || course.locked_weeks?.length);
   }, [needle, scopedCourses]);
   const tabCounts = selected ? { overview: null, curriculum: selected.totals.weeks, questions: selected.totals.questions, exams: selected.totals.past_exams, flashcards: selected.totals.flashcard_decks, resources: selected.totals.resources } satisfies Record<Tab, number | null> : null;
 
@@ -738,7 +740,8 @@ function BundleWorkspaceTab({ content, tab, courses, lectures, openWeeks, setOpe
 
   if (tab === "curriculum" && !courses.length) return <EmptyState title="No courses in this semester" description="This bundle does not currently contain courses for the selected semester." />;
 
-  if (tab === "curriculum") return <section className="bundle-accordion-stack"><div className="bundle-expand-actions"><Link className="pp-button secondary" href={`/rounds?bundle=${encodeURIComponent(content.bundle.id)}`}>Select lectures for practice</Link><button type="button" onClick={() => setOpenWeeks(new Set(courses.flatMap((course) => course.weeks.map((week) => week.id))))}>Expand all</button><button type="button" onClick={() => setOpenWeeks(new Set())}>Collapse all</button></div>{courses.map((course) => <Panel key={course.id} title={`${course.courseCode} · ${course.courseName}`} className="bundle-course">{course.weeks.map((week) => {
+  if (tab === "curriculum") return <section className="bundle-accordion-stack"><div className="bundle-expand-actions"><Link className="pp-button secondary" href={`/rounds?bundle=${encodeURIComponent(content.bundle.id)}`}>Select lectures for practice</Link><button type="button" onClick={() => setOpenWeeks(new Set(courses.flatMap((course) => course.weeks.map((week) => week.id))))}>Expand all</button><button type="button" onClick={() => setOpenWeeks(new Set())}>Collapse all</button></div>{courses.map((course) => <Panel key={course.id} title={`${course.courseCode} · ${course.courseName}`} className="bundle-course">{[...course.weeks.map((week) => ({ week, number: week.weekNumber })), ...(course.locked_weeks || []).map((locked) => ({ week: null, number: locked.week_number }))].sort((a, b) => a.number - b.number).map(({ week, number }) => {
+    if (!week) return <section className="advanced-bundle-week locked" key={`locked-${number}`} aria-label={`Week ${number} locked`}><div className="locked-week-label"><span><b>Week {number}</b><small>Content locked</small></span><FiLock aria-hidden="true" /></div></section>;
     const questions = week.lectures.reduce((sum, lecture) => sum + lecture.question_count, 0);
     const decks = week.lectures.reduce((sum, lecture) => sum + lecture.flashcard_deck_count, 0);
     const resources = week.lectures.reduce((sum, lecture) => sum + lecture.resource_count, 0);

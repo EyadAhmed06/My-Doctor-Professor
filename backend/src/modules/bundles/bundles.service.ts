@@ -381,13 +381,20 @@ export class BundlesService {
     }>).map((row) => [row.id, row]));
     const courses = courseLinks.map((link) => {
       const explicitlyLinked = weekLinks.filter((item) => item.week.courseId === link.courseId);
-      const effectiveWeeks = explicitlyLinked.length
+      const hasSelectedWeeks = weekLinksAll.some((item) => item.week.courseId === link.courseId);
+      const effectiveWeeks = hasSelectedWeeks
         ? explicitlyLinked
         : (link.course.weeks || [])
             .filter((week) => !visibleWeekIds || visibleWeekIds.has(week.id))
             .map((week) => ({ weekId: week.id, week }));
+      const accessibleWeekIds = new Set(effectiveWeeks.map((item) => item.weekId));
       return ({
       ...link.course,
+      locked_weeks: actor.role === UserRole.STUDENT && (hasSelectedWeeks || visibleWeekIds)
+        ? (link.course.weeks || [])
+            .filter((week) => !accessibleWeekIds.has(week.id))
+            .map((week) => ({ week_number: week.weekNumber }))
+        : [],
       weeks: effectiveWeeks
         .map((item) => {
           const essayVisible = !essayWeekIds || essayWeekIds.has(item.weekId);
