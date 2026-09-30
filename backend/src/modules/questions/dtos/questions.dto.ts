@@ -23,7 +23,10 @@ import {
 import { EXPLANATION_MAX_LENGTH, IsExplanationWithinPolicy } from '../explanation-policy';
 
 const BooleanQuery = () =>
-  Transform(({ value }) => {
+  Transform(({ obj, key }) => {
+    // Implicit conversion treats every nonempty string (including "false")
+    // as true before transforms run. Parse the original request value instead.
+    const value = obj[key];
     if (value === true || value === 'true') return true;
     if (value === false || value === 'false') return false;
     return value;

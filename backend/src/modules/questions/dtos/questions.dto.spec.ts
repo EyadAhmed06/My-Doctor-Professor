@@ -1,7 +1,7 @@
 import { plainToInstance } from 'class-transformer';
 import { validate, ValidationError } from 'class-validator';
 import { QuestionDifficulty } from '../../../common/entities/question.entity';
-import { EnrichQuestionImportDto, PublishQuestionImportDto } from './questions.dto';
+import { EnrichQuestionImportDto, PublishQuestionImportDto, QuestionQueryDto } from './questions.dto';
 
 function payloadWithExplanation(explanation: string) {
   return {
@@ -125,5 +125,28 @@ describe('EnrichQuestionImportDto option-count policy', () => {
 
     expect(await validate(tooFew)).not.toHaveLength(0);
     expect(await validate(tooMany)).not.toHaveLength(0);
+  });
+});
+
+
+describe('QuestionQueryDto HTTP boolean filters', () => {
+  it.each(['has_explanation', 'is_active'])('preserves false for %s with production implicit conversion', async (key) => {
+    const dto = plainToInstance(QuestionQueryDto, { [key]: 'false' }, { enableImplicitConversion: true });
+    expect(dto[key]).toBe(false);
+    expect(await validate(dto)).toHaveLength(0);
+  });
+  it.each(['has_explanation', 'is_active'])('preserves true for %s with production implicit conversion', async (key) => {
+    const dto = plainToInstance(QuestionQueryDto, { [key]: 'true' }, { enableImplicitConversion: true });
+    expect(dto[key]).toBe(true);
+    expect(await validate(dto)).toHaveLength(0);
+  });
+  it.each(['', 'yes', '0'])('rejects invalid boolean query value %p', async (value) => {
+    const dto = plainToInstance(QuestionQueryDto, { has_explanation: value }, { enableImplicitConversion: true });
+    expect(await validate(dto)).not.toHaveLength(0);
+  });
+  it('leaves omitted filters unset', () => {
+    const dto = plainToInstance(QuestionQueryDto, {}, { enableImplicitConversion: true });
+    expect(dto.has_explanation).toBeUndefined();
+    expect(dto.is_active).toBeUndefined();
   });
 });
