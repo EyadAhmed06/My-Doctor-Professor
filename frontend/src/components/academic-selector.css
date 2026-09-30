@@ -1,0 +1,24 @@
+
+.assessment-reference-page .academic-filter{min-width:0}
+.assessment-reference-page .academic-selection-tree{display:grid;gap:10px;padding-top:12px}
+.assessment-reference-page .academic-selection-tree .academic-week{border:1px solid var(--line);border-radius:12px;overflow:hidden;padding:0}
+.assessment-reference-page .academic-week summary{display:flex;align-items:center;gap:10px;padding:14px 12px;cursor:pointer;list-style:none;background:var(--surface-soft,rgba(255,255,255,.035))}
+.assessment-reference-page .academic-week summary::-webkit-details-marker{display:none}
+.assessment-reference-page .academic-week summary::before{content:'›';font-size:22px;transition:transform .15s}
+.assessment-reference-page .academic-week[open] summary::before{transform:rotate(90deg)}
+.assessment-reference-page .academic-week summary>span{flex:1;min-width:0;display:grid;gap:4px}
+.assessment-reference-page .academic-week summary b{font-size:14px}
+.assessment-reference-page .academic-week summary small{font-size:12px;opacity:.7;line-height:1.4}
+.assessment-reference-page .academic-week summary em{flex:none;font-size:11px;font-style:normal;white-space:nowrap;border:1px solid var(--line);padding:4px 7px;border-radius:20px}
+.assessment-reference-page .academic-selection-tree label.academic-select-all,.assessment-reference-page .academic-selection-tree label.academic-choice{display:grid;grid-template-columns:18px minmax(0,1fr);align-items:start;gap:10px;padding:12px;margin:0;cursor:pointer;font-size:13px}
+.assessment-reference-page .academic-selection-tree input[type=checkbox]{width:16px;height:16px;min-width:16px;margin:2px 0 0;accent-color:#52c5d3}
+.assessment-reference-page .academic-selection-tree .academic-choice>span{display:grid;gap:5px;min-width:0;text-align:left}
+.assessment-reference-page .academic-selection-tree .academic-choice b{font-size:13px;line-height:1.5;font-weight:500;overflow-wrap:anywhere}
+.assessment-reference-page .academic-selection-tree .academic-choice small{font-size:11px;opacity:.7}
+.assessment-reference-page .academic-lecture{border-top:1px solid var(--line)}
+.assessment-reference-page .academic-lecture-choice{background:rgba(255,255,255,.025)}
+.assessment-reference-page .academic-lecture-choice b{font-weight:700!important}
+.assessment-reference-page .academic-topics{padding:0 6px 6px 16px}
+.assessment-reference-page .academic-choice:has(input:checked){background:rgba(82,197,211,.1);border-radius:8px}
+.assessment-reference-page .academic-choice:hover{background:rgba(82,197,211,.06)}
+.assessment-reference-page .academic-empty{opacity:.5}
