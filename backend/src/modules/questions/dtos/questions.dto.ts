@@ -208,3 +208,20 @@ export class SaveMcqExplanationsDto {
   @IsArray() @ArrayMinSize(4) @ArrayMaxSize(5) @ValidateNested({ each: true }) @Type(() => SaveMcqExplanationOptionDto)
   options: SaveMcqExplanationOptionDto[];
 }
+
+export class EditMcqOptionDto {
+  @IsOptional() @IsUUID() id?: string;
+  @IsString() @IsNotEmpty() option_text: string;
+  @IsBoolean() is_correct: boolean;
+  @IsOptional() @IsString() explanation?: string;
+}
+export class EditMcqDto {
+  @IsOptional() @IsInt() @Min(1) expected_version?: number;
+  @IsOptional() @IsString() @MaxLength(200) title?: string;
+  @IsString() @IsNotEmpty() question_text: string;
+  @IsString() explanation: string;
+  @IsEnum(QuestionDifficulty) difficulty: QuestionDifficulty;
+  @IsNumber({ maxDecimalPlaces: 2 }) @Min(0.01) @Max(999.99) marks: number;
+  @IsArray() @ArrayMinSize(4) @ArrayMaxSize(5) @ValidateNested({ each: true }) @Type(() => EditMcqOptionDto)
+  options: EditMcqOptionDto[];
+}

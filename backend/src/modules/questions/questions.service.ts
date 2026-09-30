@@ -32,6 +32,7 @@ import {
   QuestionQueryDto,
   SearchQuestionsDto,
   SaveMcqExplanationsDto,
+  EditMcqDto,
   UpdateMcqOptionDto,
   UpdateQuestionDto,
 } from './dtos/questions.dto';
@@ -233,6 +234,38 @@ export class QuestionsService {
     }
     question.version += 1;
     return this.questions.save(question);
+  }
+
+  async editMcq(id: string, dto: EditMcqDto, actor: AuthenticatedUser) {
+    await this.requireMutableQuestion(id, actor);
+    if (![4, 5].includes(dto.options.length) || dto.options.filter(option => option.is_correct).length !== 1 || dto.options.some(option => !option.option_text.trim()) || new Set(dto.options.map(option => option.option_text.trim().toLowerCase())).size !== dto.options.length) {
+      throw new BadRequestException('An MCQ requires four or five distinct choices and exactly one correct answer');
+    }
+    await this.dataSource.transaction(async manager => {
+      await manager.query('SET CONSTRAINTS ALL DEFERRED');
+      const rows = await manager.query('SELECT * FROM questions WHERE id = $1 FOR UPDATE', [id]);
+      const question = rows[0];
+      if (!question) throw new NotFoundException('Question not found');
+      if (actor.role === UserRole.INSTRUCTOR && question.created_by !== actor.userId) throw new ForbiddenException('Instructors may modify only their own questions');
+      if (question.question_type !== 'MCQ') throw new BadRequestException('This editor requires an MCQ');
+      if (dto.expected_version !== undefined && dto.expected_version !== question.version) throw new ConflictException('Question changed since you opened it. Reopen the editor before saving.');
+      const existing = await manager.query('SELECT id, display_order FROM mcq_options WHERE question_id = $1 ORDER BY id FOR UPDATE', [id]);
+      const suppliedIds = dto.options.flatMap(option => option.id ? [option.id] : []);
+      if (new Set(suppliedIds).size !== suppliedIds.length || suppliedIds.some(optionId => !existing.some(option => option.id === optionId))) throw new BadRequestException('A choice does not belong to this question');
+      await manager.query('UPDATE questions SET is_active = FALSE WHERE id = $1', [id]);
+      // Temporary unique texts permit swapping two choices without violating
+      // per-question text uniqueness. All intermediate states remain private.
+      const temporaryOrder = Math.max(0, ...existing.map(option => option.display_order)) + 10;
+      for (const [index, option] of existing.entries()) await manager.query("UPDATE mcq_options SET is_correct = FALSE, option_text = '__mcq_edit_' || id::text, display_order = $2 WHERE id = $1", [option.id, temporaryOrder + index]);
+      for (const option of existing.filter(option => !suppliedIds.includes(option.id))) await manager.query('DELETE FROM mcq_options WHERE id = $1', [option.id]);
+      for (const [index, option] of dto.options.entries()) {
+        if (option.id) await manager.query('UPDATE mcq_options SET option_text=$2, explanation=$3, is_correct=$4, display_order=$5 WHERE id=$1 AND question_id=$6', [option.id, option.option_text.trim(), option.explanation?.trim() || null, option.is_correct, index + 1, id]);
+        else await manager.query('INSERT INTO mcq_options (question_id, option_text, explanation, is_correct, display_order) VALUES ($1,$2,$3,$4,$5)', [id, option.option_text.trim(), option.explanation?.trim() || null, option.is_correct, index + 1]);
+      }
+      await manager.query('UPDATE questions SET title=$2, question_text=$3, explanation=$4, difficulty=$5, marks=$6, is_active=$7, version=version+1, updated_at=NOW() WHERE id=$1', [id, dto.title?.trim() || null, dto.question_text.trim(), dto.explanation.trim() || null, dto.difficulty, dto.marks.toFixed(2), question.is_active]);
+      await manager.query('SET CONSTRAINTS ALL IMMEDIATE');
+    });
+    return { saved: true };
   }
 
   async saveMcqExplanations(id: string, dto: SaveMcqExplanationsDto, actor: AuthenticatedUser) {

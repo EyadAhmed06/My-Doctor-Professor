@@ -29,6 +29,7 @@ type Week = { id: string; weekNumber: number; title: string | null; lectures?: L
 type Lecture = { id: string; lectureNumber: number; title: string; topics?: Topic[] };
 type Topic = { id: string; topicName: string };
 type Question = {
+  version?: number;
   id: string;
   topicId: string;
   questionType: "MCQ" | "ESSAY";
@@ -383,30 +384,18 @@ export function QuestionBankPage({ admin = false }: { admin?: boolean }) {
     }
     setSaving(true);
     try {
-      if (editingQuestion.isActive) await request(`/questions/${editingQuestion.id}`, { method: "PUT", body: { is_active: false } });
-      await request(`/questions/${editingQuestion.id}`, { method: "PUT", body: { title: editQuestionForm.title.trim() || undefined, question_text: editQuestionForm.question_text.trim(), explanation: editQuestionForm.explanation.trim(), difficulty: editQuestionForm.difficulty, marks: Number(editQuestionForm.marks) } });
       if (editingQuestion.questionType === "MCQ") {
-        const correctIndex = editOptions.findIndex(option => option.isCorrect);
-        for (const optionId of removedEditOptionIds) {
-          await request(`/questions/options/${optionId}`, { method: "DELETE" });
-        }
-        for (const [index, option] of editOptions.entries()) {
-          if (!option.id) continue;
-          await request(`/questions/options/${option.id}`, { method: "PUT", body: { option_text: option.optionText.trim(), explanation: option.explanation?.trim() || "", is_correct: false, display_order: index + 1 } });
-        }
-        for (const [index, option] of editOptions.entries()) {
-          if (option.id) continue;
-          await request(`/questions/${editingQuestion.id}/options`, { method: "POST", body: { option_text: option.optionText.trim(), explanation: option.explanation?.trim() || "", is_correct: false, display_order: index + 1 } });
-        }
-        const correct = editOptions[correctIndex];
-        const refreshed = await request<Question>(`/questions/${editingQuestion.id}`);
-        const persistedCorrect = [...(refreshed.options || [])].sort((a, b) => a.displayOrder - b.displayOrder)[correctIndex];
-        if (!persistedCorrect?.id) throw new Error("The correct option could not be saved.");
-        await request(`/questions/options/${persistedCorrect.id}`, { method: "PUT", body: { option_text: correct.optionText.trim(), explanation: correct.explanation?.trim() || "", is_correct: true, display_order: correctIndex + 1 } });
+        await request(`/questions/${editingQuestion.id}/mcq`, { method: "PUT", body: {
+          expected_version: editingQuestion.version,
+          title: editQuestionForm.title.trim(), question_text: editQuestionForm.question_text.trim(), explanation: editQuestionForm.explanation.trim(), difficulty: editQuestionForm.difficulty, marks: Number(editQuestionForm.marks),
+          options: editOptions.map(option => ({ id: option.id, option_text: option.optionText.trim(), explanation: option.explanation?.trim() || "", is_correct: option.isCorrect })),
+        } });
       } else {
+        if (editingQuestion.isActive) await request(`/questions/${editingQuestion.id}`, { method: "PUT", body: { is_active: false } });
+        await request(`/questions/${editingQuestion.id}`, { method: "PUT", body: { title: editQuestionForm.title.trim() || undefined, question_text: editQuestionForm.question_text.trim(), explanation: editQuestionForm.explanation.trim(), difficulty: editQuestionForm.difficulty, marks: Number(editQuestionForm.marks) } });
         await request(`/questions/${editingQuestion.id}/essay-configuration`, { method: "POST", body: { model_answer: editQuestionForm.model_answer.trim(), grading_rubric: editQuestionForm.grading_rubric.trim() } });
+        if (editingQuestion.isActive) await request(`/questions/${editingQuestion.id}`, { method: "PUT", body: { is_active: true } });
       }
-      if (editingQuestion.isActive) await request(`/questions/${editingQuestion.id}`, { method: "PUT", body: { is_active: true } });
       notify({ title: "Question updated", description: "Content and answer configuration were saved together.", tone: "success" });
       setEditingQuestion(null); setRemovedEditOptionIds([]); await load();
     } catch (cause) { notify({ title: "Could not edit question", description: cause instanceof Error ? cause.message : undefined, tone: "error" }); }
