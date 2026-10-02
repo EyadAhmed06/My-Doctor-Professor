@@ -174,6 +174,9 @@ export class BundleAccessService {
           + ` JOIN bundle_enrollments enrollment ON enrollment.bundle_id = bundle.id AND enrollment.student_id = :studentId`
           + ` WHERE bundle_course.course_id = deck.course_id`
           + ` AND ${buildActiveEnrollmentSql('enrollment', 'bundle')}`
+          + ` AND NOT EXISTS (SELECT 1 FROM weeks locked_week WHERE locked_week.id = COALESCE(deck.week_id, lecture.week_id) AND locked_week.is_locked = TRUE)`
+          + ` AND (lecture.id IS NULL OR lecture.is_locked = FALSE)`
+          + ` AND NOT EXISTS (SELECT 1 FROM topics locked_topic WHERE locked_topic.id = deck.topic_id AND locked_topic.is_locked = TRUE)`
           + ` AND ${buildDeckDistributionSql('deck','bundle')}`
           + ` AND (`
           + `   ((deck.week_id IS NOT NULL OR deck.lecture_id IS NOT NULL)`
