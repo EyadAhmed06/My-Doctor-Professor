@@ -7,6 +7,8 @@ RUN npm ci
 FROM dependencies AS builder
 ARG NEXT_PUBLIC_API_URL=/api/v1
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID=
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
 # Origin serving the anatomy .glb models and posters, read at build time by
 # src/components/anatomy/asset-base.ts. Empty keeps the same-origin /anatomy/* default,
 # which only resolves if the models are present in public/ when Next builds.

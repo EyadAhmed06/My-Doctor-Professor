@@ -1,0 +1,189 @@
+name: AWS Free Tier credit activities
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Apply activities, check AWS activity status, or destroy activity resources
+        required: true
+        default: apply
+        type: choice
+        options:
+          - apply
+          - status
+          - destroy
+      confirm_destroy:
+        description: Type DESTROY when action=destroy
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: aws-free-tier-credit-activities
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+jobs:
+  credits:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate repository configuration
+        shell: bash
+        env:
+          ACTION: ${{ inputs.action }}
+          ROLE_ARN: ${{ vars.AWS_CREDITS_ROLE_ARN }}
+          STATE_BUCKET: ${{ vars.AWS_TERRAFORM_STATE_BUCKET }}
+          BUDGET_EMAIL: ${{ vars.AWS_BUDGET_EMAIL }}
+        run: |
+          set -euo pipefail
+          test -n "$ROLE_ARN" || { echo "Missing repository variable AWS_CREDITS_ROLE_ARN"; exit 1; }
+          test -n "$STATE_BUCKET" || { echo "Missing repository variable AWS_TERRAFORM_STATE_BUCKET"; exit 1; }
+          if [ "$ACTION" = "apply" ]; then
+            test -n "$BUDGET_EMAIL" || { echo "Missing repository variable AWS_BUDGET_EMAIL"; exit 1; }
+          fi
+
+      - name: Configure AWS credentials through GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_CREDITS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify Free Tier earning eligibility before provisioning
+        shell: bash
+        env:
+          ACTION: ${{ inputs.action }}
+        run: |
+          set -euo pipefail
+          aws sts get-caller-identity
+          aws freetier get-account-plan-state --region "$AWS_REGION" || true
+          ACTIVITY_COUNT="$(aws freetier list-account-activities \
+            --region "$AWS_REGION" \
+            --query 'length(activities)' \
+            --output text)"
+          aws freetier list-account-activities \
+            --region "$AWS_REGION" \
+            --query 'activities[].{Activity:title,Status:status,RewardUSD:reward.credit.amount}' \
+            --output table
+          if [ "$ACTION" = "apply" ] && [ "$ACTIVITY_COUNT" = "0" ]; then
+            echo "AWS reports zero earning activities. Refusing to provision EC2/RDS because additional-credit eligibility is not confirmed."
+            exit 1
+          fi
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.1
+          terraform_wrapper: false
+
+      - name: Terraform init
+        shell: bash
+        env:
+          STATE_BUCKET: ${{ vars.AWS_TERRAFORM_STATE_BUCKET }}
+        run: |
+          set -euo pipefail
+          terraform -chdir=infra/credits init \
+            -reconfigure \
+            -backend-config="bucket=$STATE_BUCKET" \
+            -backend-config="key=credits/terraform.tfstate" \
+            -backend-config="region=$AWS_REGION" \
+            -backend-config="encrypt=true" \
+            -backend-config="use_lockfile=true"
+
+      - name: Terraform validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir=infra/credits validate
+
+      - name: Apply EC2, RDS, Budgets, and Lambda activities
+        if: ${{ inputs.action == 'apply' }}
+        shell: bash
+        env:
+          TF_VAR_budget_email: ${{ vars.AWS_BUDGET_EMAIL }}
+        run: |
+          set -euo pipefail
+          terraform -chdir=infra/credits plan -out=credits.tfplan
+          terraform -chdir=infra/credits apply -auto-approve credits.tfplan
+
+      - name: Invoke Lambda web app activity
+        if: ${{ inputs.action == 'apply' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          FUNCTION_URL="$(terraform -chdir=infra/credits output -raw lambda_function_url)"
+          echo "Invoking Lambda function URL: $FUNCTION_URL"
+          curl --fail --silent --show-error --retry 5 --retry-all-errors "$FUNCTION_URL"
+          echo
+
+      - name: Invoke Amazon Bedrock activity
+        if: ${{ inputs.action == 'apply' }}
+        shell: bash
+        run: |
+          set -u
+          MODEL_ID="$(terraform -chdir=infra/credits output -raw bedrock_model_id)"
+          echo "Invoking Bedrock model $MODEL_ID"
+          if ! aws bedrock-runtime converse \
+            --region "$AWS_REGION" \
+            --model-id "$MODEL_ID" \
+            --messages '[{"role":"user","content":[{"text":"Reply with exactly: AWS activity complete"}]}]' \
+            --inference-config '{"maxTokens":16,"temperature":0}' \
+            --query 'output.message.content[0].text' \
+            --output text; then
+            echo "::warning::Bedrock API invocation failed. The other four credit activities remain valid; check model access and the Free Tier activity status."
+          fi
+
+      - name: Wait briefly for AWS activity detection
+        if: ${{ inputs.action == 'apply' }}
+        shell: bash
+        run: sleep 60
+
+      - name: Show AWS Free Tier activity status
+        if: ${{ inputs.action != 'destroy' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws freetier list-account-activities \
+            --region "$AWS_REGION" \
+            --query 'activities[].{Activity:title,Status:status,RewardUSD:reward.credit.amount}' \
+            --output table
+          echo "AWS documents that earned credits can take time to appear. Re-run this workflow with action=status if any activity is still processing."
+
+      - name: Guard activity-resource destruction
+        if: ${{ inputs.action == 'destroy' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ inputs.confirm_destroy }}" = "DESTROY" || {
+            echo "Refusing to destroy: confirm_destroy must be exactly DESTROY."
+            exit 1
+          }
+
+          INCOMPLETE="$(aws freetier list-account-activities \
+            --region "$AWS_REGION" \
+            --query 'length(activities[?status!=`COMPLETED`])' \
+            --output text)"
+          if [ "$INCOMPLETE" != "0" ]; then
+            echo "Refusing to destroy while AWS reports $INCOMPLETE incomplete credit activity/activities."
+            aws freetier list-account-activities \
+              --region "$AWS_REGION" \
+              --query 'activities[].{Activity:title,Status:status,RewardUSD:reward.credit.amount}' \
+              --output table
+            exit 1
+          fi
+
+      - name: Destroy temporary credit resources
+        if: ${{ inputs.action == 'destroy' && inputs.confirm_destroy == 'DESTROY' }}
+        shell: bash
+        env:
+          TF_VAR_budget_email: ${{ vars.AWS_BUDGET_EMAIL }}
+        run: terraform -chdir=infra/credits destroy -auto-approve
