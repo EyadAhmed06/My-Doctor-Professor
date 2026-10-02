@@ -29,6 +29,21 @@ export class InstructorQuestionAccessService {
       .take(limit);
 
     if (query.is_active !== undefined) builder.andWhere('question.is_active = :active', { active: query.is_active });
+    if (query.has_explanation !== undefined) {
+      const complete = `(NULLIF(BTRIM(question.explanation), '') IS NOT NULL AND (
+        question.question_type <> 'MCQ' OR (
+          EXISTS (SELECT 1 FROM mcq_options explained_option WHERE explained_option.question_id = question.id)
+          AND NOT EXISTS (
+            SELECT 1 FROM mcq_options missing_option
+            WHERE missing_option.question_id = question.id
+              AND NULLIF(BTRIM(missing_option.explanation), '') IS NULL
+          )
+        )
+      ))`;
+      builder.andWhere(query.has_explanation ? complete : `NOT ${complete}`);
+    }
+    if (query.course_id) builder.andWhere('course.id = :courseId', { courseId: query.course_id });
+    if (query.lecture_id) builder.andWhere('lecture.id = :lectureId', { lectureId: query.lecture_id });
     if (query.topic_id) builder.andWhere('question.topic_id = :topicId', { topicId: query.topic_id });
     if (query.question_type) builder.andWhere('question.question_type = :type', { type: query.question_type });
     if (query.difficulty) builder.andWhere('question.difficulty = :difficulty', { difficulty: query.difficulty });
