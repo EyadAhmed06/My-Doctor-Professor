@@ -28,6 +28,9 @@ export class Topic {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
+  @Column({ type: 'boolean', default: false, name: 'is_locked' })
+  isLocked: boolean;
+
   @Column({ type: 'int', nullable: false, default: 1, name: 'display_order' })
   displayOrder: number;
 
