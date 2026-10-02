@@ -236,10 +236,20 @@ export class AcademicService {
       throw new NotFoundException('Course not found');
     }
     if (role === UserRole.STUDENT) {
-      const visibleWeekIds=new Set(await this.accessibleWeekIds(studentId||'',id));
-      course.weeks=course.weeks.filter((week)=>visibleWeekIds.has(week.id));
+      const visibleWeekIds = new Set(await this.accessibleWeekIds(studentId || '', id));
+      course.weeks = course.weeks.filter((week) => visibleWeekIds.has(week.id));
       for (const week of course.weeks) {
+        if (week.isLocked) {
+          week.lectures = [];
+          continue;
+        }
         week.lectures = week.lectures.filter((lecture) => lecture.isPublished);
+        for (const lecture of week.lectures) {
+          if (lecture.isLocked) {
+            lecture.topics = [];
+            lecture.resources = [];
+          }
+        }
       }
     }
     return course;
@@ -316,9 +326,13 @@ export class AcademicService {
       },
     });
     if (role === UserRole.STUDENT) {
-      const visibleWeekIds=new Set(await this.accessibleWeekIds(studentId||'',courseId));
-      const visible=weeks.filter((week)=>visibleWeekIds.has(week.id));
-      for (const week of visible) week.lectures=week.lectures.filter((lecture)=>lecture.isPublished);
+      const visibleWeekIds = new Set(await this.accessibleWeekIds(studentId || '', courseId));
+      const visible = weeks.filter((week) => visibleWeekIds.has(week.id));
+      for (const week of visible) {
+        week.lectures = week.isLocked
+          ? []
+          : week.lectures.filter((lecture) => lecture.isPublished);
+      }
       return visible;
     }
     return weeks;
@@ -340,12 +354,18 @@ export class AcademicService {
     });
     if (
       !week ||
-      (role === UserRole.STUDENT && !week.course.isActive)
+      (role === UserRole.STUDENT && (!week.course.isActive || week.isLocked))
     ) {
       throw new NotFoundException('Week not found');
     }
     if (role === UserRole.STUDENT) {
       week.lectures = week.lectures.filter((lecture) => lecture.isPublished);
+      for (const lecture of week.lectures) {
+        if (lecture.isLocked) {
+          lecture.topics = [];
+          lecture.resources = [];
+        }
+      }
     }
     return week;
   }
@@ -355,6 +375,7 @@ export class AcademicService {
     const week = await this.requireWeek(id);
     if (dto.title !== undefined) week.title = dto.title.trim() || null;
     if (dto.description !== undefined) week.description = dto.description.trim() || null;
+    if (dto.is_locked !== undefined) week.isLocked = dto.is_locked;
     if (dto.display_order !== undefined) week.displayOrder = dto.display_order;
     const saved=await this.weeks.save(week);
     await this.notifications.notifyWeekStudents(saved.id,{
@@ -404,7 +425,7 @@ export class AcademicService {
     if (!week || (role === UserRole.STUDENT && !week.course.isActive)) {
       throw new NotFoundException('Week not found');
     }
-    return this.lectures.find({
+    const lectures = await this.lectures.find({
       where: {
         weekId,
         ...(role === UserRole.STUDENT ? { isPublished: true } : {}),
@@ -415,6 +436,15 @@ export class AcademicService {
         topics: { displayOrder: 'ASC' },
       },
     });
+    if (role === UserRole.STUDENT) {
+      for (const lecture of lectures) {
+        if (lecture.isLocked) {
+          lecture.topics = [];
+          lecture.resources = [];
+        }
+      }
+    }
+    return lectures;
   }
 
   async getLecture(id: string, role: UserRole): Promise<Lecture> {
@@ -430,7 +460,10 @@ export class AcademicService {
     if (
       !lecture ||
       (role === UserRole.STUDENT &&
-        (!lecture.isPublished || !lecture.week.course.isActive))
+        (!lecture.isPublished ||
+          lecture.isLocked ||
+          lecture.week.isLocked ||
+          !lecture.week.course.isActive))
     ) {
       throw new NotFoundException('Lecture not found');
     }
@@ -445,6 +478,7 @@ export class AcademicService {
     if (dto.description !== undefined) lecture.description = dto.description.trim() || null;
     if (dto.estimated_duration_minutes !== undefined) lecture.estimatedDurationMinutes = dto.estimated_duration_minutes;
     if (dto.display_order !== undefined) lecture.displayOrder = dto.display_order;
+    if (dto.is_locked !== undefined) lecture.isLocked = dto.is_locked;
     if (dto.is_published !== undefined) {
       if (dto.is_published) {
         const [topicCount, resourceCount] = await Promise.all([
@@ -507,10 +541,16 @@ export class AcademicService {
 
   async listTopics(lectureId: string, role: UserRole): Promise<Topic[]> {
     await this.getLecture(lectureId, role);
-    return this.topics.find({
+    const topics = await this.topics.find({
       where: { lectureId },
       order: { displayOrder: 'ASC', topicName: 'ASC' },
     });
+    if (role === UserRole.STUDENT) {
+      for (const topic of topics) {
+        if (topic.isLocked) topic.description = null;
+      }
+    }
+    return topics;
   }
 
   async getTopic(id: string, role: UserRole): Promise<Topic> {
@@ -521,7 +561,11 @@ export class AcademicService {
     if (
       !topic ||
       (role === UserRole.STUDENT &&
-        (!topic.lecture.isPublished || !topic.lecture.week.course.isActive))
+        (topic.isLocked ||
+          topic.lecture.isLocked ||
+          topic.lecture.week.isLocked ||
+          !topic.lecture.isPublished ||
+          !topic.lecture.week.course.isActive))
     ) {
       throw new NotFoundException('Topic not found');
     }
@@ -535,13 +579,15 @@ export class AcademicService {
       relations: { lecture: true },
     });
     if (!topic) throw new NotFoundException('Topic not found');
-    if (topic.lecture.isPublished) {
+    const changesPublishedContent = Object.keys(dto).some((key) => key !== 'is_locked');
+    if (topic.lecture.isPublished && changesPublishedContent) {
       throw new ConflictException('Unpublish the lecture before changing its topics');
     }
     if (dto.topic_name !== undefined) topic.topicName = dto.topic_name.trim();
     if (dto.description !== undefined) {
       topic.description = dto.description.trim() || null;
     }
+    if (dto.is_locked !== undefined) topic.isLocked = dto.is_locked;
     if (dto.display_order !== undefined) topic.displayOrder = dto.display_order;
     return this.topics.save(topic);
   }

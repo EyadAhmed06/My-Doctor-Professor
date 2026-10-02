@@ -25,10 +25,12 @@ export class AcademicAccessService {
 
   async assertTopicReadable(topicId: string, actor: AuthenticatedUser): Promise<void> {
     const rows = await this.dataSource.query(
-      `SELECT lecture_id FROM topics WHERE id = $1 LIMIT 1`,
+      `SELECT lecture_id, is_locked FROM topics WHERE id = $1 LIMIT 1`,
       [topicId],
-    ) as Array<{ lecture_id: string }>;
-    if (!rows[0]) throw new NotFoundException('Topic not found');
+    ) as Array<{ lecture_id: string; is_locked: boolean }>;
+    if (!rows[0] || (actor.role === UserRole.STUDENT && rows[0].is_locked)) {
+      throw new NotFoundException('Topic not found');
+    }
     await this.assertLectureReadable(rows[0].lecture_id, actor);
   }
 

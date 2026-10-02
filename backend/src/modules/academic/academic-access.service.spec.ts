@@ -40,7 +40,7 @@ describe('AcademicAccessService', () => {
   it('walks question access through topic and lecture ownership', async () => {
     const { service, query } = setup([
       [{ topic_id: 'topic-1' }],
-      [{ lecture_id: 'lecture-1' }],
+      [{ lecture_id: 'lecture-1', is_locked: false }],
       [{ allowed: 1 }],
     ]);
     await expect(service.assertQuestionReadable('question-1', student)).resolves.toBeUndefined();
@@ -48,8 +48,14 @@ describe('AcademicAccessService', () => {
   });
 
   it('does not reveal whether an inaccessible question exists', async () => {
-    const { service } = setup([[{ topic_id: 'topic-1' }], [{ lecture_id: 'lecture-1' }], []]);
+    const { service } = setup([[{ topic_id: 'topic-1' }], [{ lecture_id: 'lecture-1', is_locked: false }], []]);
     await expect(service.assertQuestionReadable('question-1', student)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('blocks a student from reading a locked topic before checking its lecture entitlement', async () => {
+    const { service, query } = setup([[{ lecture_id: 'lecture-1', is_locked: true }]]);
+    await expect(service.assertTopicReadable('topic-1', student)).rejects.toBeInstanceOf(NotFoundException);
+    expect(query).toHaveBeenCalledTimes(1);
   });
 
   it('lets system administrators bypass academic read scoping', async () => {

@@ -186,6 +186,35 @@ async function installQuestionBankMock(page: Page) {
       }
     }
 
+    const atomicMcqEdit = target.match(/^\/questions\/([^/]+)\/mcq$/);
+    if (atomicMcqEdit && request.method() === 'PUT') {
+      const question = questions.find((item) => item.id === atomicMcqEdit[1]);
+      if (!question) return respond({ message: 'Question not found' }, 404);
+      const body = request.postDataJSON() as Record<string, unknown>;
+      const incoming = Array.isArray(body.options) ? body.options as Array<Record<string, unknown>> : [];
+      if (![4, 5].includes(incoming.length)) return respond({ message: 'Invalid option count' }, 400);
+
+      const existingById = new Map(question.options.map((option) => [option.id, option]));
+      question.options = incoming.map((item, index) => {
+        const requestedId = typeof item.id === 'string' ? item.id : undefined;
+        const existing = requestedId ? existingById.get(requestedId) : undefined;
+        if (!existing) optionSequence += 1;
+        return {
+          id: existing?.id || `option-${optionSequence}`,
+          optionText: String(item.option_text),
+          explanation: item.explanation == null ? null : String(item.explanation),
+          isCorrect: Boolean(item.is_correct),
+          displayOrder: index + 1,
+        };
+      });
+      if (Object.prototype.hasOwnProperty.call(body, 'title')) question.title = body.title ? String(body.title) : null;
+      if (Object.prototype.hasOwnProperty.call(body, 'question_text')) question.questionText = String(body.question_text);
+      if (Object.prototype.hasOwnProperty.call(body, 'explanation')) question.explanation = body.explanation ? String(body.explanation) : null;
+      if (Object.prototype.hasOwnProperty.call(body, 'difficulty')) question.difficulty = String(body.difficulty) as StoredQuestion['difficulty'];
+      if (Object.prototype.hasOwnProperty.call(body, 'marks')) question.marks = String(body.marks);
+      return respond({ saved: true });
+    }
+
     const questionDetail = target.match(/^\/questions\/([^/]+)$/);
     if (questionDetail) {
       const question = questions.find((item) => item.id === questionDetail[1]);
@@ -278,7 +307,7 @@ test('question bank creates A-D, edits A-D to A-E, edits back to A-D, and preser
   await expect.poll(() => state.questions[0].isActive).toBe(true);
   expect(state.questions[0].options.filter((option) => option.isCorrect)).toHaveLength(1);
   expect(state.questions[0].options.find((option) => option.isCorrect)?.optionText).toBe('Left atrium');
-  expect(state.activationTransitions.slice(-2)).toEqual([false, true]);
+  expect(state.activationTransitions).toEqual([true]);
 
   await card.getByRole('button', { name: /Edit/i }).click();
   edit = page.getByRole('dialog', { name: 'Edit MCQ' });
@@ -291,7 +320,7 @@ test('question bank creates A-D, edits A-D to A-E, edits back to A-D, and preser
   await expect.poll(() => state.questions[0].isActive).toBe(true);
   expect(state.questions[0].options.map((option) => option.displayOrder)).toEqual([1, 2, 3, 4]);
   expect(state.questions[0].options.filter((option) => option.isCorrect)).toHaveLength(1);
-  expect(state.activationTransitions.slice(-2)).toEqual([false, true]);
+  expect(state.activationTransitions).toEqual([true]);
 });
 
 test('question bank keeps five choices as the default manual-authoring path', async ({ page }) => {

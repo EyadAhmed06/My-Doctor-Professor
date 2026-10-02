@@ -15,6 +15,7 @@ export class Lecture {
   @Column({ type: 'text', nullable: true }) description: string | null;
   @Column({ type: 'int', nullable: true, name: 'estimated_duration_minutes' }) estimatedDurationMinutes: number | null;
   @Column({ type: 'boolean', default: false, name: 'is_published' }) isPublished: boolean;
+  @Column({ type: 'boolean', default: false, name: 'is_locked' }) isLocked: boolean;
   @Column({ type: 'int', default: 1, name: 'display_order' }) displayOrder: number;
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;
