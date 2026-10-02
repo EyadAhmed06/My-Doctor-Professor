@@ -4,6 +4,8 @@ import {
   buildActiveEnrollmentSql,
   buildBundleWeekFallbackSql,
   buildCourseAccessExistsSql,
+  buildLectureAccessExistsSql,
+  buildWeekAccessExistsSql,
 } from './bundle-access.predicates';
 import { BundleAccessService } from './bundle-access.service';
 
@@ -54,6 +56,13 @@ describe('Bundle Access Canonical Predicate (Spec-Driven)', () => {
       expect(sql).toContain('planned_scope.planned_week_count IS NULL');
       expect(sql).toContain('AND NOT EXISTS ( SELECT 1 FROM bundle_weeks selected JOIN weeks selected_week ON selected_week.id = selected.week_id WHERE selected.bundle_id = bundle.id AND selected_week.course_id = course.id)');
     });
+
+    it('treats academic locks as independent access gates for weeks and lectures', () => {
+      expect(buildWeekAccessExistsSql('$1', '$2')).toContain('week.is_locked = FALSE');
+      const lectureSql = buildLectureAccessExistsSql('$1', '$2');
+      expect(lectureSql).toContain('week.is_locked = FALSE');
+      expect(lectureSql).toContain('lecture.is_locked = FALSE');
+    });
   });
 
   describe('Service Invocations & SQL Emission Invariants', () => {
@@ -77,6 +86,7 @@ describe('Bundle Access Canonical Predicate (Spec-Driven)', () => {
 
       const executedSql = String(queryMock.mock.calls[0][0]);
       expect(executedSql).toContain('selected.week_id = week.id');
+      expect(executedSql).toContain('week.is_locked = FALSE');
       expect(executedSql).toContain('NOT EXISTS');
 
       queryMock.mockResolvedValueOnce([]);
