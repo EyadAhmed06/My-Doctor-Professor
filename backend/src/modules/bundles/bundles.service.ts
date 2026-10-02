@@ -348,7 +348,7 @@ export class BundlesService {
         JOIN weeks week ON week.course_id = course.id
         JOIN lectures lecture ON lecture.week_id = week.id
         LEFT JOIN topics topic ON topic.lecture_id = lecture.id
-        LEFT JOIN questions question ON question.topic_id = topic.id AND question.is_active = TRUE
+        LEFT JOIN questions question ON question.topic_id = topic.id AND question.is_active = TRUE AND topic.is_locked = FALSE
         LEFT JOIN flashcard_decks deck ON deck.course_id = course.id AND deck.is_published = TRUE
           AND (
             deck.lecture_id = lecture.id
@@ -372,7 +372,7 @@ export class BundlesService {
           )
         GROUP BY lecture.id`, [id]),
       this.dataSource.query(`
-        SELECT topic.id, topic.lecture_id, topic.topic_name,
+        SELECT topic.id, topic.lecture_id, topic.topic_name, topic.is_locked,
           COUNT(question.id) FILTER (
             WHERE question.is_active = TRUE AND question.is_question_bank = TRUE
               AND question.question_type = 'MCQ'
@@ -395,21 +395,25 @@ export class BundlesService {
       flashcard_deck_count: number;
       resource_count: number;
     }>).map((row) => [row.id, row]));
-    const topicsByLecture = new Map<string, Array<{ id: string; topicName: string; mcq_count: number }>>();
-    for (const row of topicStats as Array<{ id: string; lecture_id: string; topic_name: string; mcq_count: number }>) {
+    const topicsByLecture = new Map<string, Array<{ id: string; topicName: string; mcq_count: number; isLocked: boolean }>>();
+    for (const row of topicStats as Array<{ id: string; lecture_id: string; topic_name: string; mcq_count: number; is_locked: boolean }>) {
+      if (actor.role === UserRole.STUDENT && row.is_locked) continue;
       const topics = topicsByLecture.get(row.lecture_id) || [];
-      topics.push({ id: row.id, topicName: row.topic_name, mcq_count: Number(row.mcq_count) });
+      topics.push({ id: row.id, topicName: row.topic_name, mcq_count: Number(row.mcq_count), isLocked: row.is_locked });
       topicsByLecture.set(row.lecture_id, topics);
     }
     const courses = courseLinks.map((link) => {
       const explicitlyLinked = weekLinks.filter((item) => item.week.courseId === link.courseId);
       const hasSelectedWeeks = weekLinksAll.some((item) => item.week.courseId === link.courseId);
       const scoped = hasSelectedWeeks || link.plannedWeekCount != null;
-      const effectiveWeeks = scoped
+      const entitledWeeks = scoped
         ? explicitlyLinked
         : (link.course.weeks || [])
             .filter((week) => !visibleWeekIds || visibleWeekIds.has(week.id))
             .map((week) => ({ weekId: week.id, week }));
+      const effectiveWeeks = actor.role === UserRole.STUDENT
+        ? entitledWeeks.filter((item) => !item.week.isLocked)
+        : entitledWeeks;
       const accessibleWeekIds = new Set(effectiveWeeks.map((item) => item.weekId));
       const realWeeks = link.course.weeks || [];
       const lockedNumbers = new Set<number>(actor.role === UserRole.STUDENT && (scoped || visibleWeekIds)
@@ -430,7 +434,7 @@ export class BundlesService {
           return {
             ...item.week,
             lectures: item.week.lectures
-              .filter((lecture) => actor.role !== UserRole.STUDENT || lecture.isPublished)
+              .filter((lecture) => actor.role !== UserRole.STUDENT || (lecture.isPublished && !lecture.isLocked))
               .map((lecture) => {
                 const raw = stats.get(lecture.id) ?? {
                   question_count: 0,
