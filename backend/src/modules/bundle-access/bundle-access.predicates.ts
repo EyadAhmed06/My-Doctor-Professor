@@ -98,6 +98,7 @@ export function buildWeekAccessExistsSql(
     + ` JOIN bundles bundle ON bundle.id = bundle_course.bundle_id`
     + ` JOIN bundle_enrollments enrollment ON enrollment.bundle_id = bundle.id AND enrollment.student_id = ${studentIdParam}`
     + ` WHERE ${weekTableAlias}.id = ${weekIdParam}`
+    + ` AND ${weekTableAlias}.is_locked = FALSE`
     + ` AND ${buildActiveEnrollmentSql('enrollment', 'bundle')}`
     + ` AND ${courseTableAlias}.is_active = TRUE`
     + ` AND ${buildBundleWeekFallbackSql('bundle', `${weekTableAlias}.id`, `${courseTableAlias}.id`)}`
@@ -116,7 +117,9 @@ export function buildLectureAccessExistsSql(
     + ` JOIN bundles bundle ON bundle.id = bundle_course.bundle_id`
     + ` JOIN bundle_enrollments enrollment ON enrollment.bundle_id = bundle.id AND enrollment.student_id = ${studentIdParam}`
     + ` WHERE lecture.id = ${lectureIdParam}`
+    + ` AND week.is_locked = FALSE`
     + ` AND lecture.is_published = TRUE`
+    + ` AND lecture.is_locked = FALSE`
     + ` AND course.is_active = TRUE`
     + ` AND ${buildActiveEnrollmentSql('enrollment', 'bundle')}`
     + ` AND ${buildBundleWeekFallbackSql('bundle', 'week.id', 'course.id')}`
