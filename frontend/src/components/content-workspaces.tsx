@@ -210,51 +210,201 @@ export function QuestionBankPage({ admin = false }: { admin?: boolean }) {
     return () => { current = false; };
   }, [filterCourse, request]);
 
-  async function runBulk(action: "activate" | "deactivate" | "delete" | "explain") {
+  async function runBulk(action: "activate" | "deactivate" | "delete" | "explain" | "explain_missing") {
     if (bulkBusy) return;
-    const scope = selectedQuestionIds.length ? `${selectedQuestionIds.length} selected questions` : `all ${total} questions matching the current filters`;
-    if (!window.confirm(`${action === "explain" ? "Generate and save AI explanations for MCQs in" : action.toUpperCase()} ${scope}?${action === "delete" ? " This permanently deletes questions where allowed; questions used in assessments may be protected." : action === "explain" ? " Existing explanations will be replaced. AI usage is billed by your configured provider." : ""}`)) return;
-    setBulkBusy(true); bulkStop.current = false;
-    let completed = 0, failed = 0, skipped = 0;
+
+    const explanationAction = action === "explain" || action === "explain_missing";
+    const fillMissingOnly = action === "explain_missing";
+    const scope = selectedQuestionIds.length
+      ? `${selectedQuestionIds.length} selected questions`
+      : fillMissingOnly
+        ? "all missing / incomplete MCQs matching the other current filters"
+        : `all ${total} questions matching the current filters`;
+    const prompt = action === "delete"
+      ? `DELETE ${scope}? This permanently deletes questions where allowed; questions used in assessments may be protected.`
+      : action === "explain"
+        ? `Regenerate and save AI explanations for MCQs in ${scope}? Existing explanations will be replaced. AI usage is billed by your configured provider.`
+        : action === "explain_missing"
+          ? `Fill missing AI explanations for ${scope}? Existing non-empty explanations will be preserved, and you can rerun this action later to resume anything that did not finish.`
+          : `${action.toUpperCase()} ${scope}?`;
+    if (!window.confirm(prompt)) return;
+
+    setBulkBusy(true);
+    bulkStop.current = false;
+    let completed = 0;
+    let failed = 0;
+    let skipped = 0;
     let firstError = "";
+
+    const rememberError = (cause: unknown) => {
+      failed += 1;
+      if (!firstError) firstError = cause instanceof Error ? cause.message : "Request failed";
+    };
+    const explanationComplete = (question: Question) => {
+      if (!question.explanation?.trim()) return false;
+      if (question.questionType !== "MCQ") return true;
+      const options = question.options || [];
+      return [4, 5].includes(options.length) && options.every(option => Boolean(option.explanation?.trim()));
+    };
+
     try {
       const targets: Question[] = [];
       if (selectedQuestionIds.length) {
-        for (const id of selectedQuestionIds) targets.push(await request<Question>(`/questions/${id}`));
+        for (const id of selectedQuestionIds) {
+          if (bulkStop.current) break;
+          targets.push(await request<Question>(`/questions/${id}`));
+        }
       } else {
         for (let currentPage = 1; ; currentPage++) {
           setBulkProgress(`Collecting matching questions · page ${currentPage}`);
-          const result = await request<PageResponse<Question>>(`/questions?${questionQuery(currentPage)}`);
+          const query = questionQuery(currentPage);
+          if (fillMissingOnly) {
+            query.set("has_explanation", "false");
+            query.set("question_type", "MCQ");
+          }
+          const result = await request<PageResponse<Question>>(`/questions?${query}`);
           targets.push(...result.data);
           if (!result.data.length || currentPage >= (result.total_pages || Math.ceil((result.total || 0) / 100))) break;
           if (bulkStop.current) break;
         }
       }
+
       const uniqueTargets = [...new Map(targets.map(question => [question.id, question])).values()];
-      for (const [index, question] of uniqueTargets.entries()) {
-        if (bulkStop.current) break;
-        setBulkProgress(`${action} · ${index + 1} / ${uniqueTargets.length}`);
-        try {
-          if (action === "explain") {
-            if (question.questionType !== "MCQ") { skipped++; continue; }
-            const detail = await request<Question>(`/questions/${question.id}`);
+
+      if (explanationAction) {
+        const eligible: Array<{ detail: Question; options: McqOption[] }> = [];
+        for (const [index, question] of uniqueTargets.entries()) {
+          if (bulkStop.current) break;
+          setBulkProgress(`Preparing MCQs · ${index + 1} / ${uniqueTargets.length}`);
+          try {
+            const detail = question.options ? question : await request<Question>(`/questions/${question.id}`);
+            if (detail.questionType !== "MCQ") { skipped += 1; continue; }
+            if (fillMissingOnly && explanationComplete(detail)) { skipped += 1; continue; }
             const options = [...(detail.options || [])].sort((a, b) => a.displayOrder - b.displayOrder);
-            if (![4, 5].includes(options.length) || options.filter(option => option.isCorrect).length !== 1 || options.some(option => !option.optionText.trim())) { skipped++; continue; }
-            const result = await request<{ candidates: Array<{ explanation: string; options: Array<{ label: string; explanation: string }>; ai_enrichment?: { status?: string }; issues?: Array<{ message: string }> }> }>("/questions/imports/enrich", { method: "POST", body: { force: true, candidates: [{ candidate_id: detail.id, question_text: detail.questionText, difficulty: detail.difficulty, allow_four_options: options.length === 4, options: options.map((option, optionIndex) => ({ label: String.fromCharCode(65 + optionIndex), option_text: option.optionText, is_correct: option.isCorrect })) }] }, signal: AbortSignal.timeout(240_000) });
-            const generated = result.candidates[0];
-            if (!generated || !["GENERATED", "CACHED"].includes(generated.ai_enrichment?.status || "") || !generated.explanation || options.some((_, optionIndex) => !generated.options.find(option => option.label === String.fromCharCode(65 + optionIndex))?.explanation)) throw new Error(generated?.issues?.map(issue => issue.message).join(" ") || "AI did not return complete explanations.");
-            await request(`/questions/${detail.id}/explanations`, { method: "PUT", body: { question_text: detail.questionText, explanation: generated.explanation, options: options.map((option, optionIndex) => ({ id: option.id, option_text: option.optionText, is_correct: option.isCorrect, explanation: generated.options.find(value => value.label === String.fromCharCode(65 + optionIndex))!.explanation })) } });
-          } else if (action === "delete") {
-            if (question.isActive) await request(`/questions/${question.id}`, { method: "PUT", body: { is_active: false } });
-            try { await request(`/questions/${question.id}`, { method: "DELETE" }); }
-            catch (cause) { if (question.isActive) await request(`/questions/${question.id}`, { method: "PUT", body: { is_active: true } }); throw cause; }
-          } else await request(`/questions/${question.id}`, { method: "PUT", body: { is_active: action === "activate" } });
-          completed++;
-        } catch (cause) { failed++; if (!firstError) firstError = cause instanceof Error ? cause.message : "Request failed"; }
+            if (
+              ![4, 5].includes(options.length) ||
+              options.filter(option => option.isCorrect).length !== 1 ||
+              options.some(option => !option.id || !option.optionText.trim())
+            ) {
+              skipped += 1;
+              continue;
+            }
+            eligible.push({ detail, options });
+          } catch (cause) {
+            rememberError(cause);
+          }
+        }
+
+        const batchSize = 10;
+        for (let offset = 0; offset < eligible.length; offset += batchSize) {
+          if (bulkStop.current) break;
+          const batch = eligible.slice(offset, offset + batchSize);
+          setBulkProgress(`${fillMissingOnly ? "Filling missing explanations" : "Regenerating explanations"} · ${offset + 1}–${offset + batch.length} / ${eligible.length}`);
+          try {
+            const result = await request<{
+              candidates: Array<{
+                candidate_id: string;
+                explanation: string | null;
+                options: Array<{ label: string; explanation: string | null }>;
+                ai_enrichment?: { status?: string };
+                issues?: Array<{ message: string }>;
+              }>;
+            }>("/questions/imports/enrich", {
+              method: "POST",
+              body: {
+                force: !fillMissingOnly,
+                candidates: batch.map(({ detail, options }) => ({
+                  candidate_id: detail.id,
+                  question_text: detail.questionText,
+                  explanation: detail.explanation?.trim() || undefined,
+                  difficulty: detail.difficulty,
+                  allow_four_options: options.length === 4,
+                  options: options.map((option, optionIndex) => ({
+                    label: String.fromCharCode(65 + optionIndex),
+                    option_text: option.optionText,
+                    is_correct: option.isCorrect,
+                    explanation: option.explanation?.trim() || undefined,
+                  })),
+                })),
+              },
+              signal: AbortSignal.timeout(240_000),
+            });
+
+            const generatedById = new Map(result.candidates.map(candidate => [candidate.candidate_id, candidate]));
+            for (const { detail, options } of batch) {
+              const generated = generatedById.get(detail.id);
+              try {
+                if (!generated || !["GENERATED", "CACHED"].includes(generated.ai_enrichment?.status || "")) {
+                  throw new Error(generated?.issues?.map(issue => issue.message).join(" ") || "AI did not return explanations for this question.");
+                }
+                const questionExplanation = fillMissingOnly
+                  ? detail.explanation?.trim() || generated.explanation?.trim()
+                  : generated.explanation?.trim();
+                const optionPayload = options.map((option, optionIndex) => {
+                  const generatedExplanation = generated.options.find(value => value.label === String.fromCharCode(65 + optionIndex))?.explanation?.trim();
+                  return {
+                    id: option.id!,
+                    option_text: option.optionText,
+                    is_correct: option.isCorrect,
+                    explanation: fillMissingOnly ? option.explanation?.trim() || generatedExplanation : generatedExplanation,
+                  };
+                });
+                if (!questionExplanation || optionPayload.some(option => !option.explanation)) {
+                  throw new Error("AI did not return every missing explanation.");
+                }
+                await request(`/questions/${detail.id}/explanations`, {
+                  method: "PUT",
+                  body: {
+                    question_text: detail.questionText,
+                    explanation: questionExplanation,
+                    options: optionPayload,
+                  },
+                });
+                completed += 1;
+              } catch (cause) {
+                rememberError(cause);
+              }
+            }
+          } catch (cause) {
+            for (let index = 0; index < batch.length; index += 1) rememberError(cause);
+          }
+        }
+      } else {
+        for (const [index, question] of uniqueTargets.entries()) {
+          if (bulkStop.current) break;
+          setBulkProgress(`${action} · ${index + 1} / ${uniqueTargets.length}`);
+          try {
+            if (action === "delete") {
+              if (question.isActive) await request(`/questions/${question.id}`, { method: "PUT", body: { is_active: false } });
+              try {
+                await request(`/questions/${question.id}`, { method: "DELETE" });
+              } catch (cause) {
+                if (question.isActive) await request(`/questions/${question.id}`, { method: "PUT", body: { is_active: true } });
+                throw cause;
+              }
+            } else {
+              await request(`/questions/${question.id}`, { method: "PUT", body: { is_active: action === "activate" } });
+            }
+            completed += 1;
+          } catch (cause) {
+            rememberError(cause);
+          }
+        }
       }
-      notify({ title: bulkStop.current ? "Bulk operation stopped" : "Bulk operation finished", description: `${completed} completed · ${failed} failed · ${skipped} skipped.${firstError ? ` First error: ${firstError}` : ""}`, tone: failed ? "error" : "success" });
-    } catch (cause) { notify({ title: "Bulk operation failed", description: cause instanceof Error ? cause.message : "Unable to load matching questions.", tone: "error" }); }
-    finally { setBulkBusy(false); setBulkProgress(""); setSelectedQuestionIds([]); await load(); }
+
+      notify({
+        title: bulkStop.current ? "Bulk operation stopped" : "Bulk operation finished",
+        description: `${completed} completed · ${failed} failed · ${skipped} skipped.${fillMissingOnly && !failed ? " Run Fill missing explanations again any time; completed questions will be excluded automatically." : ""}${firstError ? ` First error: ${firstError}` : ""}`,
+        tone: failed ? "error" : "success",
+      });
+    } catch (cause) {
+      notify({ title: "Bulk operation failed", description: cause instanceof Error ? cause.message : "Unable to load matching questions.", tone: "error" });
+    } finally {
+      setBulkBusy(false);
+      setBulkProgress("");
+      setSelectedQuestionIds([]);
+      await load();
+    }
   }
 
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
@@ -455,7 +605,7 @@ export function QuestionBankPage({ admin = false }: { admin?: boolean }) {
   const topics = flattenTopics(courseDetail);
   return <RoleBoundary><ProductShell search="Search questions and topics"><main className="pp-page role-workspace"><Heading eyebrow={admin ? "ADMIN · CONTENT CONTROL" : "INSTRUCTOR · QUESTION BANK"} title="Question bank" description="Create complete MCQ and essay records, reuse existing questions, and control whether each item is available for assessment building." actions={<><button className="pp-button secondary" onClick={() => void load()} type="button"><FiRefreshCw /> Refresh</button><button className="pp-button" onClick={() => setCreateOpen(true)} type="button"><FiPlus /> New question</button></>} />
     <Panel className="role-filter-panel"><div className="role-filters"><label>Course<select disabled={bulkBusy} value={filterCourse} onChange={event => { setFilterCourse(event.target.value); setFilterLecture(""); setFilterTopic(""); }}><option value="">All courses</option>{courses.map(course => <option key={course.id} value={course.id}>{course.courseCode} · {course.courseName}</option>)}</select></label><label>Lecture<select disabled={bulkBusy || !filterCourse} value={filterLecture} onChange={event => { setFilterLecture(event.target.value); setFilterTopic(""); }}><option value="">All lectures</option>{filterLectures.map(lecture => <option key={lecture.id} value={lecture.id}>{lecture.title}</option>)}</select></label><label>Topic<select disabled={bulkBusy || !filterCourse} value={filterTopic} onChange={event => setFilterTopic(event.target.value)}><option value="">All topics</option>{filterTopics.map(topic => <option key={topic.id} value={topic.id}>{topic.topicName}</option>)}</select></label><label>Explanations<select disabled={bulkBusy} value={filterExplanation} onChange={event => setFilterExplanation(event.target.value)}><option value="">All questions</option><option value="true">Complete explanations</option><option value="false">Missing / incomplete explanations</option></select></label><label>Status<select disabled={bulkBusy} value={filterActive} onChange={event => setFilterActive(event.target.value)}><option value="">Active & inactive</option><option value="true">Active</option><option value="false">Inactive</option></select></label><label><span>Search</span><div className="role-search"><FiSearch /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Question text or title" /></div></label><label><span>Type</span><select value={type} onChange={event => setType(event.target.value)}><option value="">All types</option><option value="MCQ">MCQ</option><option value="ESSAY">Essay</option></select></label><label><span>Difficulty</span><select value={difficulty} onChange={event => setDifficulty(event.target.value)}><option value="">All levels</option><option value="EASY">Easy</option><option value="MEDIUM">Medium</option><option value="HARD">Hard</option></select></label></div></Panel>
-    <Panel title="Bulk question actions"><p>{total} matching questions · {selectedQuestionIds.length} selected. Actions apply to selected questions, or all filtered results when none are selected.</p><div className="role-hero-actions"><button type="button" disabled={bulkBusy || loading || !questions.length} className="pp-button secondary" onClick={() => setSelectedQuestionIds(current => questions.every(question => current.includes(question.id)) ? current.filter(id => !questions.some(question => question.id === id)) : [...new Set([...current, ...questions.map(question => question.id)])])}>Select / deselect this page</button>{(["activate", "deactivate", "delete", "explain"] as const).map(action => <button key={action} type="button" className="pp-button secondary" disabled={bulkBusy || loading || !total} onClick={() => void runBulk(action)}>{action === "explain" ? "Generate explanations" : action[0].toUpperCase() + action.slice(1)} {selectedQuestionIds.length ? "selected" : "all filtered"}</button>)}{bulkBusy && <button type="button" className="pp-button secondary" onClick={() => { bulkStop.current = true; }}>Stop after current question</button>}</div>{bulkProgress && <p role="status">{bulkProgress}</p>}<div className="role-hero-actions"><button type="button" disabled={bulkBusy || loading || page <= 1} onClick={() => setPage(value => value - 1)}>Previous</button><span>Page {page} / {Math.max(1, Math.ceil(total / 100))}</span><button type="button" disabled={bulkBusy || loading || page * 100 >= total} onClick={() => setPage(value => value + 1)}>Next</button></div></Panel>
+    <Panel title="Bulk question actions"><p>{total} matching questions · {selectedQuestionIds.length} selected. Actions apply to selected questions, or all filtered results when none are selected.</p><div className="role-hero-actions"><button type="button" disabled={bulkBusy || loading || !questions.length} className="pp-button secondary" onClick={() => setSelectedQuestionIds(current => questions.every(question => current.includes(question.id)) ? current.filter(id => !questions.some(question => question.id === id)) : [...new Set([...current, ...questions.map(question => question.id)])])}>Select / deselect this page</button>{(["activate", "deactivate", "delete"] as const).map(action => <button key={action} type="button" className="pp-button secondary" disabled={bulkBusy || loading || !total} onClick={() => void runBulk(action)}>{action[0].toUpperCase() + action.slice(1)} {selectedQuestionIds.length ? "selected" : "all filtered"}</button>)}<button type="button" className="pp-button secondary" disabled={bulkBusy || loading || !total} onClick={() => void runBulk("explain_missing")}>Fill missing explanations {selectedQuestionIds.length ? "in selected" : "automatically"}</button><button type="button" className="pp-button secondary" disabled={bulkBusy || loading || !total} onClick={() => void runBulk("explain")}>Regenerate explanations {selectedQuestionIds.length ? "for selected" : "for all filtered"}</button>{bulkBusy && <button type="button" className="pp-button secondary" onClick={() => { bulkStop.current = true; }}>Stop after current batch</button>}</div>{bulkProgress && <p role="status">{bulkProgress}</p>}<div className="role-hero-actions"><button type="button" disabled={bulkBusy || loading || page <= 1} onClick={() => setPage(value => value - 1)}>Previous</button><span>Page {page} / {Math.max(1, Math.ceil(total / 100))}</span><button type="button" disabled={bulkBusy || loading || page * 100 >= total} onClick={() => setPage(value => value + 1)}>Next</button></div></Panel>
     {error && <p className="form-error" role="alert">{error}</p>}
     {loading ? <Panel><PageSkeleton variant="list" label="Loading questions" /></Panel> : questions.length ? <div className="role-content-grid">{questions.map(question => <Panel className="role-content-card" key={question.id}><label><input type="checkbox" disabled={bulkBusy} checked={selectedQuestionIds.includes(question.id)} onChange={() => setSelectedQuestionIds(current => current.includes(question.id) ? current.filter(id => id !== question.id) : [...current, question.id])} /> Select question</label><header><div><Status value={question.questionType} /><Status value={question.difficulty} /></div><Status value={question.isActive ? "ACTIVE" : "INACTIVE"} /></header><h2>{question.title || question.questionText.slice(0, 90)}</h2><p>{question.questionText}</p><dl><div><dt>Topic</dt><dd>{question.topic?.topicName || question.topicId}</dd></div><div><dt>Marks</dt><dd>{question.marks}</dd></div><div><dt>Creator</dt><dd>{question.creator?.fullName || "Current instructor"}</dd></div></dl><footer><button type="button" onClick={() => void editQuestion(question)}><FiEdit3 /> Edit</button><button type="button" onClick={() => void duplicateQuestion(question)}><FiCopy /> Duplicate</button><button type="button" onClick={() => void toggleQuestion(question)}><FiCheck /> {question.isActive ? "Deactivate" : "Activate"}</button><button className="danger" type="button" onClick={() => void removeQuestion(question)}><FiTrash2 /> Delete</button></footer></Panel>)}</div> : <Empty title="No questions found" description="Create a question or adjust the current filters." action={<button className="pp-button" type="button" onClick={() => setCreateOpen(true)}><FiPlus /> New question</button>} />}
     <Modal title="Create question" open={createOpen} onClose={() => setCreateOpen(false)} wide><form className="role-form" onSubmit={createQuestion}><div className="role-form-grid"><label>Course<select required value={form.course_id} onChange={event => void chooseCourse(event.target.value)}><option value="">Select course…</option>{courses.map(course => <option value={course.id} key={course.id}>{course.courseCode} · {course.courseName}</option>)}</select></label><label>Topic<select required value={form.topic_id} disabled={!courseDetail} onChange={event => setForm(current => ({ ...current, topic_id: event.target.value }))}><option value="">Select topic…</option>{topics.map(topic => <option value={topic.id} key={topic.id}>{topic.path} · {topic.topicName}</option>)}</select></label><label>Question type<select value={form.question_type} onChange={event => setForm(current => ({ ...current, question_type: event.target.value as "MCQ" | "ESSAY" }))}><option value="MCQ">MCQ</option><option value="ESSAY">Essay</option></select></label><label>Difficulty<select value={form.difficulty} onChange={event => setForm(current => ({ ...current, difficulty: event.target.value as "EASY" | "MEDIUM" | "HARD" }))}><option value="EASY">Easy</option><option value="MEDIUM">Medium</option><option value="HARD">Hard</option></select></label><label>Title<input value={form.title} onChange={event => setForm(current => ({ ...current, title: event.target.value }))} /></label><label>Marks<input required type="number" min="0.01" step="0.01" value={form.marks} onChange={event => setForm(current => ({ ...current, marks: Number(event.target.value) }))} /></label><label className="wide">Question text<textarea required rows={4} value={form.question_text} onChange={event => setForm(current => ({ ...current, question_text: event.target.value }))} /></label><label className="wide">Explanation<textarea rows={3} value={form.explanation} onChange={event => setForm(current => ({ ...current, explanation: event.target.value }))} /></label>{form.question_type === "MCQ" ? <><label>Answer choices<select value={form.option_count} onChange={event => setForm(current => { const option_count = Number(event.target.value) as 4 | 5; return { ...current, option_count, correct_option: Number(current.correct_option) >= option_count ? "0" : current.correct_option }; })}><option value={5}>5 choices (A-E)</option><option value={4}>4 choices (A-D)</option></select></label><label>Option A<input required value={form.option_a} onChange={event => setForm(current => ({ ...current, option_a: event.target.value }))} /><textarea required placeholder="Why option A is correct or incorrect" value={form.explanation_a} onChange={event => setForm(current => ({ ...current, explanation_a: event.target.value }))} /></label><label>Option B<input required value={form.option_b} onChange={event => setForm(current => ({ ...current, option_b: event.target.value }))} /><textarea required placeholder="Why option B is correct or incorrect" value={form.explanation_b} onChange={event => setForm(current => ({ ...current, explanation_b: event.target.value }))} /></label><label>Option C<input required value={form.option_c} onChange={event => setForm(current => ({ ...current, option_c: event.target.value }))} /><textarea required placeholder="Why option C is correct or incorrect" value={form.explanation_c} onChange={event => setForm(current => ({ ...current, explanation_c: event.target.value }))} /></label><label>Option D<input required value={form.option_d} onChange={event => setForm(current => ({ ...current, option_d: event.target.value }))} /><textarea required placeholder="Why option D is correct or incorrect" value={form.explanation_d} onChange={event => setForm(current => ({ ...current, explanation_d: event.target.value }))} /></label>{form.option_count === 5 && <label>Option E<input required value={form.option_e} onChange={event => setForm(current => ({ ...current, option_e: event.target.value }))} /><textarea required placeholder="Why option E is correct or incorrect" value={form.explanation_e} onChange={event => setForm(current => ({ ...current, explanation_e: event.target.value }))} /></label>}<label>Correct option<select value={form.correct_option} onChange={event => setForm(current => ({ ...current, correct_option: event.target.value }))}><option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option>{form.option_count === 5 && <option value="4">E</option>}</select></label></> : <><label className="wide">Model answer<textarea rows={4} value={form.model_answer} onChange={event => setForm(current => ({ ...current, model_answer: event.target.value }))} /></label><label className="wide">Grading rubric<textarea rows={4} value={form.grading_rubric} onChange={event => setForm(current => ({ ...current, grading_rubric: event.target.value }))} /></label></>}</div><footer><button className="pp-button secondary" type="button" onClick={() => setCreateOpen(false)}>Cancel</button><button className="pp-button" disabled={saving} type="submit">{saving ? "Saving…" : "Create question"}</button></footer></form></Modal>
