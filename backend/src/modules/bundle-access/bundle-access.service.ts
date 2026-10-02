@@ -136,7 +136,9 @@ export class BundleAccessService {
         AND ($3::uuid IS NULL OR bundle_course.course_id = $3::uuid)
         AND ${buildActiveEnrollmentSql('enrollment', 'bundle')}
         AND ${buildBundleWeekFallbackSql('bundle', 'week.id', 'bundle_course.course_id')}
+        AND week.is_locked = FALSE
         AND lecture.is_published = TRUE
+        AND lecture.is_locked = FALSE
     `, [bundleId, studentId, courseId ?? null]);
     return rows.map((row) => row.lecture_id);
   }
