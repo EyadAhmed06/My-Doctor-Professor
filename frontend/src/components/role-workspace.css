@@ -82,6 +82,65 @@
   transform: translateY(-1px);
 }
 
+.role-week-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.role-lock-control {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--p-line) 72%, var(--p-violet));
+  border-radius: 9px;
+  padding: 0 12px;
+  background: var(--p-panel);
+  color: var(--p-text);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.role-week.is-locked,
+.role-lecture-card.is-locked {
+  border-color: color-mix(in srgb, var(--p-line) 70%, var(--p-violet));
+}
+
+.role-week.is-locked > header,
+.role-lecture-card.is-locked {
+  background: linear-gradient(120deg, color-mix(in srgb, var(--p-violet) 7%, var(--p-panel2)), var(--p-panel2));
+}
+
+.role-topic-list .role-topic-lock {
+  cursor: pointer;
+}
+
+.role-topic-list .role-topic-lock.locked {
+  border-color: color-mix(in srgb, var(--p-violet) 40%, var(--p-line));
+  background: color-mix(in srgb, var(--p-violet) 9%, var(--p-panel));
+  color: var(--p-text);
+}
+
+.role-topic-list .role-topic-lock:hover,
+.role-lock-control:hover {
+  border-color: var(--p-teal);
+  background: color-mix(in srgb, var(--p-teal) 8%, var(--p-panel));
+}
+
+@media (max-width: 720px) {
+  .role-week-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .role-week > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 .role-lecture-list {
   display: grid;
   min-width: 0;
