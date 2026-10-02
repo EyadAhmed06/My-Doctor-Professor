@@ -4,6 +4,7 @@ import {
   buildActiveEnrollmentSql,
   buildBundleWeekFallbackSql,
   buildCourseAccessExistsSql,
+  buildDeckAccessExistsSql,
   buildLectureAccessExistsSql,
   buildWeekAccessExistsSql,
 } from './bundle-access.predicates';
@@ -62,6 +63,11 @@ describe('Bundle Access Canonical Predicate (Spec-Driven)', () => {
       const lectureSql = buildLectureAccessExistsSql('$1', '$2');
       expect(lectureSql).toContain('week.is_locked = FALSE');
       expect(lectureSql).toContain('lecture.is_locked = FALSE');
+
+      const deckSql = buildDeckAccessExistsSql('$1', '$2');
+      expect(deckSql).toContain('scoped_week.is_locked = FALSE');
+      expect(deckSql).toContain('lecture.is_locked = FALSE');
+      expect(deckSql).toContain('topic.is_locked = FALSE');
     });
   });
 
