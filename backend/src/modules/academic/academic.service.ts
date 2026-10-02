@@ -541,10 +541,16 @@ export class AcademicService {
 
   async listTopics(lectureId: string, role: UserRole): Promise<Topic[]> {
     await this.getLecture(lectureId, role);
-    return this.topics.find({
+    const topics = await this.topics.find({
       where: { lectureId },
       order: { displayOrder: 'ASC', topicName: 'ASC' },
     });
+    if (role === UserRole.STUDENT) {
+      for (const topic of topics) {
+        if (topic.isLocked) topic.description = null;
+      }
+    }
+    return topics;
   }
 
   async getTopic(id: string, role: UserRole): Promise<Topic> {
