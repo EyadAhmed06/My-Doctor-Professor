@@ -90,6 +90,7 @@ type DeviceAccessRequestRecord = {
   reviewed_by: string | null;
 };
 type DeviceAccessOverview = {
+  max_active_devices?: number;
   devices: TrustedDeviceRecord[];
   requests: DeviceAccessRequestRecord[];
 };
@@ -329,20 +330,20 @@ export function AdvancedAdminUsersPage() {
     }
   }
 
-  async function approveDeviceRequest(requestId: string) {
+  async function approveDeviceRequest(requestId: string, addSecondDevice = false) {
     if (!deviceUser || busy) return;
     const accepted = await confirm({
-      title: "Approve replacement device?",
-      description: `This will make the requested device the only trusted device for ${deviceUser.full_name}. The current trusted device and all active sessions will be revoked immediately.`,
-      confirmLabel: "Approve & replace",
+      title: addSecondDevice ? "Approve second device?" : "Approve replacement device?",
+      description: addSecondDevice ? `Allow ${deviceUser.full_name} to use two approved devices simultaneously. The existing device stays signed in.` : `This will make the requested device the only trusted device for ${deviceUser.full_name}. The current trusted device and all active sessions will be revoked immediately.`,
+      confirmLabel: addSecondDevice ? "Approve second device" : "Approve & replace",
       cancelLabel: "Cancel",
       tone: "danger",
     });
     if (!accepted) return;
     setBusy(true);
     try {
-      await request(`/admin/users/${deviceUser.id}/device-requests/${requestId}/approve`, { method: "POST" });
-      notify({ title: "Device access approved", description: "The requested device is now trusted. Previous student sessions were revoked.", tone: "success" });
+      await request(`/admin/users/${deviceUser.id}/device-requests/${requestId}/${addSecondDevice ? "approve-second" : "approve"}`, { method: "POST" });
+      notify({ title: "Device access approved", description: addSecondDevice ? "Both approved devices can stay signed in together." : "The requested device is now trusted. Previous student sessions were revoked.", tone: "success" });
       await refreshDeviceAccess();
     } catch (cause) {
       notify({ title: "Could not approve device", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
@@ -451,8 +452,8 @@ export function AdvancedAdminUsersPage() {
           <section className="admin-import-summary">
             <FiSmartphone />
             <div>
-              <h3>One approved student device</h3>
-              <p>Approving a replacement revokes the current device and every active student session. The student must then sign in again from the approved browser.</p>
+              <h3>{deviceAccess.max_active_devices === 2 ? "Two approved student devices" : "One approved student device"}</h3>
+              <p>Approve as second device to allow two devices signed in together. Approve & replace returns the account to one device and signs out its previous devices.</p>
             </div>
           </section>
           <div className="role-form-grid">
@@ -476,7 +477,7 @@ export function AdvancedAdminUsersPage() {
                 <p><b>User agent:</b> {item.user_agent || "Not recorded"}</p>
                 <footer>
                   <button className="pp-button secondary" type="button" disabled={busy} onClick={() => void rejectDeviceRequest(item.id)}>Reject</button>
-                  <button className="pp-button" type="button" disabled={busy} onClick={() => void approveDeviceRequest(item.id)}>Approve & replace device</button>
+                  <button className="pp-button" type="button" disabled={busy || deviceAccess.devices.filter(device => device.status === "ACTIVE").length >= 2} onClick={() => void approveDeviceRequest(item.id, true)}>Approve as second device</button><button className="pp-button secondary" type="button" disabled={busy} onClick={() => void approveDeviceRequest(item.id)}>Approve & replace device</button>
                 </footer>
               </div>) : <p>No pending device change request.</p>}
             </section>
