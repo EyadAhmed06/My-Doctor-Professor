@@ -1,3 +1,4 @@
+import { buildInstructorCourseAccessSql } from '../bundle-access/instructor-course-access';
 import {
   ConflictException,
   ForbiddenException,
@@ -181,11 +182,7 @@ export class AcademicService {
       builder.andWhere('course.is_active = TRUE');
       this.bundleAccess.applyStudentAccessScope(builder, 'course', actor.userId);
     } else if (actor.role === UserRole.INSTRUCTOR) {
-      builder.andWhere(`EXISTS (
-        SELECT 1 FROM course_instructors assignment
-        WHERE assignment.course_id = course.id
-          AND assignment.instructor_id = :actorId
-      )`, { actorId: actor.userId });
+      builder.andWhere(buildInstructorCourseAccessSql('course.id', ':actorId'), { actorId: actor.userId });
       if (query.is_active !== undefined) {
         builder.andWhere('course.is_active = :isActive', { isActive: query.is_active });
       }
@@ -751,7 +748,7 @@ export class AcademicService {
     if (actor.role === UserRole.SYSTEM_ADMIN) return;
     if (
       actor.role === UserRole.INSTRUCTOR &&
-      await this.courseInstructors.exists({ where: { courseId, instructorId: actor.userId } })
+      (await this.dataSource.query(`SELECT 1 FROM courses course WHERE course.id = $1 AND ${buildInstructorCourseAccessSql('course.id', '$2')}`, [courseId, actor.userId])).length > 0
     ) return;
     throw new ForbiddenException('You are not assigned to manage this course');
   }
