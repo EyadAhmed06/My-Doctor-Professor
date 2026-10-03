@@ -72,7 +72,7 @@ export function resolveBundleSemester(bundle: {
   }
   return 1;
 }
-type Lecture = {
+type Lecture = { isLocked?: boolean;
   id: string;
   title: string;
   lectureNumber: number;
@@ -83,7 +83,7 @@ type Lecture = {
   topics: Array<{ id: string; topicName: string; mcq_count: number }>;
 };
 
-type Week = { id: string; weekNumber: number; title: string | null; lectures: Lecture[] };
+type Week = { isLocked?: boolean; id: string; weekNumber: number; title: string | null; lectures: Lecture[] };
 type Course = {
   id: string;
   courseCode: string;
@@ -559,7 +559,7 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
                 <legend>
                   <label>
                     <input type="checkbox" checked={allSelected} disabled={!eligible.length} onChange={() => toggleWeek(course, week)} />
-                    <span><b>Week {week.weekNumber}: {week.title || "Untitled week"}</b><small>{eligible.reduce((sum, lecture) => sum + Number(lecture.mcq_count || 0), 0)} eligible MCQs</small></span>
+                    <span><b>Week {week.weekNumber}: {week.title || "Untitled week"}</b><small>{week.isLocked ? "🔒 Locked" : `${eligible.reduce((sum, lecture) => sum + Number(lecture.mcq_count || 0), 0)} eligible MCQs`}</small></span>
                   </label>
                 </legend>
                 <div>
@@ -570,7 +570,7 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
                     return <div className="question-lecture-topics" key={lecture.id}><label className={checked ? "checked" : ""}>
                       <input type="checkbox" checked={checked} disabled={count <= 0} onChange={() => toggleLecture(course, lecture)} />
                       <FiBookOpen />
-                      <span><b>{lecture.lectureNumber}. {lecture.title}</b><small>{count > 0 ? `${count} eligible MCQs` : "No published question-bank MCQs"}</small></span>
+                      <span><b>{lecture.lectureNumber}. {lecture.title}</b><small>{lecture.isLocked ? "🔒 Locked" : count > 0 ? `${count} eligible MCQs` : "No published question-bank MCQs"}</small></span>
                     </label><div className="question-topic-options">{(lecture.topics || []).map((topic) => <label key={topic.id} className={selectedIds.includes(topic.id) ? "checked" : ""}><input type="checkbox" checked={courseSelected && selectedIds.includes(topic.id)} disabled={topic.mcq_count <= 0} onChange={() => toggleTopic(course, topic.id)} /><span><b>{topic.topicName}</b><small>{topic.mcq_count} eligible MCQs</small></span></label>)}</div></div>;
                   })}
                 </div>
