@@ -174,13 +174,54 @@ export class QuestionImportService {
       throw new BadRequestException('Select a non-empty .json or .txt file no larger than 2 MB');
     }
     let payload: unknown;
-    try { payload = JSON.parse(file.buffer.toString('utf8')); }
+    try { payload = JSON.parse(file.buffer.toString('utf8').replace(/^\uFEFF/, '')); }
     catch { throw new BadRequestException('The file does not contain valid UTF-8 JSON'); }
-    const rows: unknown = Array.isArray(payload) ? payload :
-      payload && typeof payload === 'object' ? (payload as Record<string, unknown>).questions : undefined;
-    if (!Array.isArray(rows) || rows.length < 1 || rows.length > 500) {
-      throw new BadRequestException('JSON must be an array of 1–500 questions or an object with a questions array');
+    const root = payload && typeof payload === 'object' && !Array.isArray(payload)
+      ? payload as Record<string, unknown> : undefined;
+    let inputRows: unknown = Array.isArray(payload) ? payload : root?.questions;
+    if (root?.modules !== undefined) {
+      if (root.questions !== undefined || !Array.isArray(root.modules) || !root.modules.length) {
+        throw new BadRequestException('JSON must provide either questions or a non-empty modules array');
+      }
+      inputRows = root.modules.flatMap((rawModule, index) => {
+        const module = rawModule && typeof rawModule === 'object' && !Array.isArray(rawModule)
+          ? rawModule as Record<string, unknown> : undefined;
+        if (!module || typeof module.title !== 'string' || !module.title.trim() ||
+            !Array.isArray(module.questions) || !module.questions.length) {
+          throw new BadRequestException(`Module ${index + 1} needs a title and a non-empty questions array`);
+        }
+        return module.questions.map(raw => {
+          if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw;
+          const row = raw as Record<string, unknown>;
+          return { ...row, source_section: row.source_section ?? row.source_lecture ?? module.title };
+        });
+      });
     }
+    if (!Array.isArray(inputRows) || inputRows.length < 1 || inputRows.length > 500) {
+      throw new BadRequestException('JSON must contain 1–500 questions in an array, questions array, or modules');
+    }
+    // Normalize known export field names before the existing strict validation.
+    const rows = inputRows.map((raw, index) => {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw;
+      const row = raw as Record<string, unknown>;
+      const options = Array.isArray(row.options) ? row.options.map(rawOption => {
+        if (!rawOption || typeof rawOption !== 'object' || Array.isArray(rawOption)) return rawOption;
+        const option = rawOption as Record<string, unknown>;
+        if (option.is_correct !== undefined && option.isCorrect !== undefined && option.is_correct !== option.isCorrect) {
+          throw new BadRequestException(`Question ${index + 1} has conflicting option answer flags`);
+        }
+        return { ...option, label: option.label ?? option.key ?? option.id,
+          option_text: option.option_text ?? option.text, is_correct: option.is_correct ?? option.isCorrect };
+      }) : row.options;
+      if (row.correctAnswer !== undefined && Array.isArray(options)) {
+        const correct = options.filter(option => option && typeof option === 'object' && option.is_correct === true);
+        if (typeof row.correctAnswer !== 'string' || correct.length !== 1 || correct[0].label !== row.correctAnswer) {
+          throw new BadRequestException(`Question ${index + 1} has conflicting correctAnswer and option answer flags`);
+        }
+      }
+      return { ...row, question_text: row.question_text ?? row.question,
+        source_section: row.source_section ?? row.source_lecture, options };
+    });
     const parsed = rows.map((raw, index): ParsedQuestion => {
       const row = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
       const options = row.options;
