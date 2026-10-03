@@ -1,1 +1,5 @@
-import { ConnectedInstructorPage } from "@/components/connected-instructor-page"; export default function Page(){return <ConnectedInstructorPage/>}
+import { AssessmentsPage } from "@/components/content-workspaces";
+
+export default function Page() {
+  return <AssessmentsPage />;
+}

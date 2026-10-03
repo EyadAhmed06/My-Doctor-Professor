@@ -1,0 +1,52 @@
+/* Registration CTA owns one predictable geometry across themes and viewports. */
+.registration-page .registration-form > .primary-button{
+  width:auto!important;
+  min-width:180px!important;
+  min-height:48px!important;
+  height:48px!important;
+  padding:0 22px!important;
+  margin-top:18px!important;
+  border:0!important;
+  border-radius:10px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:10px!important;
+  overflow:hidden!important;
+  white-space:nowrap!important;
+  font-size:15px!important;
+  font-weight:800!important;
+  line-height:1!important;
+  letter-spacing:0!important;
+  background:linear-gradient(120deg,#178f8c 0%,#6d35f3 100%)!important;
+  color:#fff!important;
+  box-shadow:0 10px 24px rgba(81,54,214,.18)!important;
+}
+.registration-page .registration-form > .primary-button span{
+  display:block!important;
+  line-height:1!important;
+  margin:0!important;
+  padding:0!important;
+  transform:none!important;
+}
+.registration-page .registration-form > .primary-button svg{
+  position:static!important;
+  inset:auto!important;
+  width:17px!important;
+  height:17px!important;
+  flex:0 0 17px!important;
+  margin:0!important;
+}
+.registration-page .registration-form > .primary-button::before,
+.registration-page .registration-form > .primary-button::after,
+.registration-page .registration-form > .primary-button span::before,
+.registration-page .registration-form > .primary-button span::after{
+  content:none!important;
+  display:none!important;
+}
+.registration-page .registration-form > .primary-button:hover:not(:disabled){
+  transform:translateY(-1px)!important;
+  box-shadow:0 13px 28px rgba(81,54,214,.24)!important;
+}
+.registration-page .registration-form > .primary-button:disabled{opacity:.62!important;cursor:not-allowed!important}
+@media(max-width:640px){.registration-page .registration-form > .primary-button{width:100%!important;min-width:0!important}}

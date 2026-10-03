@@ -75,6 +75,8 @@ CREATE TABLE mcq_options (
 
     option_text TEXT NOT NULL,
 
+    explanation TEXT,
+
     is_correct BOOLEAN NOT NULL DEFAULT FALSE,
 
     display_order INTEGER NOT NULL,

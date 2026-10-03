@@ -1,0 +1,383 @@
+/*
+ * Metallic silver -> light-purple refinement for the supplied reference theme.
+ * LIGHT MODE ONLY. No dark-theme selector or non-visual behavior is changed.
+ */
+
+html[data-theme="light"] {
+  --metal-pearl: #f8f9fc;
+  --metal-silver: #e5e8ef;
+  --metal-silver-mid: #d7dce6;
+  --metal-silver-deep: #cbd1de;
+  --metal-lilac: #eee9f8;
+  --metal-purple: #ded2f5;
+  --metal-purple-soft: #f3eefb;
+  --metal-highlight: rgba(255, 255, 255, .88);
+  --metal-shadow: rgba(102, 111, 137, .12);
+}
+
+/* Metallic silver-to-light-purple ambient page wash. The multiple bands and
+   highlights create a satin/metal reflection rather than a flat gradient. */
+html[data-theme="light"],
+html[data-theme="light"] body {
+  background-color: var(--metal-silver) !important;
+}
+
+html[data-theme="light"] body {
+  background-image:
+    radial-gradient(ellipse at 7% 3%, rgba(255,255,255,.92) 0%, rgba(255,255,255,.42) 16%, transparent 34%),
+    radial-gradient(ellipse at 78% -8%, rgba(255,255,255,.62) 0%, rgba(238,233,248,.34) 25%, transparent 48%),
+    linear-gradient(118deg,
+      #f7f8fb 0%,
+      #e8ebf1 15%,
+      #d8dde7 28%,
+      #f4f5f8 40%,
+      #eceaf3 53%,
+      #e6dff3 67%,
+      #ded2f5 82%,
+      #eee7f8 100%),
+    repeating-linear-gradient(126deg,
+      rgba(255,255,255,.18) 0px,
+      rgba(255,255,255,.18) 1px,
+      rgba(142,151,173,.035) 1px,
+      rgba(142,151,173,.035) 4px) !important;
+  background-size: 145% 145%, 145% 145%, 190% 190%, auto !important;
+  background-attachment: fixed !important;
+  background-blend-mode: screen, soft-light, normal, soft-light !important;
+  animation: mdp-metallic-silver-lilac 28s ease-in-out infinite alternate !important;
+}
+
+@keyframes mdp-metallic-silver-lilac {
+  0% {
+    background-position: 0% 0%, 78% 0%, 0% 48%, 0 0;
+  }
+  50% {
+    background-position: 7% 3%, 71% 3%, 52% 52%, 0 0;
+  }
+  100% {
+    background-position: 12% 5%, 66% 6%, 100% 48%, 0 0;
+  }
+}
+
+/* Let the metallic wash remain visible behind every major application route. */
+html[data-theme="light"] .public-home,
+html[data-theme="light"] .registration-page,
+html[data-theme="light"] .auth-page,
+html[data-theme="light"] .landing-page,
+html[data-theme="light"] .login-page,
+html[data-theme="light"] .product-app,
+html[data-theme="light"] .dashboard-shell,
+html[data-theme="light"] .dashboard-embedded,
+html[data-theme="light"] .phase5-workspace-main,
+html[data-theme="light"] .pp-page,
+html[data-theme="light"] .role-workspace {
+  background-color: transparent !important;
+}
+
+/* Pearl-metal chrome and large surfaces: silver first, lilac reflection second. */
+html[data-theme="light"] .public-nav,
+html[data-theme="light"] .pp-topbar,
+html[data-theme="light"] .dashboard-topbar,
+html[data-theme="light"] .header-popover,
+html[data-theme="light"] .profile-menu,
+html[data-theme="light"] .notification-preview,
+html[data-theme="light"] .pp-search,
+html[data-theme="light"] .pp-search-command {
+  background:
+    linear-gradient(118deg,
+      rgba(255,255,255,.92) 0%,
+      rgba(229,232,239,.90) 44%,
+      rgba(243,238,251,.91) 100%) !important;
+  border-color: rgba(182, 190, 209, .58) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.82),
+    0 9px 26px rgba(65,74,104,.065) !important;
+}
+
+html[data-theme="light"] .panel,
+html[data-theme="light"] .login-card,
+html[data-theme="light"] .signup-card,
+html[data-theme="light"] .registration-card,
+html[data-theme="light"] .year-card,
+html[data-theme="light"] .feature-grid article,
+html[data-theme="light"] .why-grid article,
+html[data-theme="light"] .pp-panel,
+html[data-theme="light"] .dash-card,
+html[data-theme="light"] .role-modal,
+html[data-theme="light"] .role-master-list,
+html[data-theme="light"] .role-course-list,
+html[data-theme="light"] .role-detail,
+html[data-theme="light"] .role-command-card,
+html[data-theme="light"] .role-week,
+html[data-theme="light"] .role-content-card,
+html[data-theme="light"] .role-answer,
+html[data-theme="light"] .role-flashcard,
+html[data-theme="light"] .role-audit-card,
+html[data-theme="light"] .phase5-drawer,
+html[data-theme="light"] .phase5-confirm,
+html[data-theme="light"] .resource-preview-drawer,
+html[data-theme="light"] .guide-progress-panel,
+html[data-theme="light"] .guide-resource-card,
+html[data-theme="light"] .guide-course-nav,
+html[data-theme="light"] .guide-content,
+html[data-theme="light"] .app-state-card,
+html[data-theme="light"] .bundle-content,
+html[data-theme="light"] .bundle-list,
+html[data-theme="light"] .advanced-bundle-week,
+html[data-theme="light"] .notebook-library,
+html[data-theme="light"] .note-library-card,
+html[data-theme="light"] .note-inspector,
+html[data-theme="light"] .flashcard-stage,
+html[data-theme="light"] .analytics-range-bar,
+html[data-theme="light"] .analytics-comparison,
+html[data-theme="light"] .study-plan-calendar,
+html[data-theme="light"] .settings-section,
+html[data-theme="light"] .settings-section-nav,
+html[data-theme="light"] .resource-upload-panel {
+  background:
+    linear-gradient(142deg,
+      rgba(255,255,255,.94) 0%,
+      rgba(244,245,248,.92) 38%,
+      rgba(230,233,240,.82) 68%,
+      rgba(239,233,248,.78) 100%) !important;
+  border-color: rgba(191, 198, 215, .54) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.72),
+    0 8px 24px rgba(64,74,104,.06) !important;
+}
+
+/* Inset/supporting surfaces stay cooler and slightly more silver so elevated
+   cards remain distinguishable from the page background. */
+html[data-theme="light"] .pp-metric,
+html[data-theme="light"] .metric-card,
+html[data-theme="light"] .dashboard-metric,
+html[data-theme="light"] .study-plan-day,
+html[data-theme="light"] .settings-subsection,
+html[data-theme="light"] .settings-security-summary > div,
+html[data-theme="light"] .settings-preference-grid > section,
+html[data-theme="light"] .resource-upload-dropzone,
+html[data-theme="light"] .resource-dropzone,
+html[data-theme="light"] .role-steps li,
+html[data-theme="light"] .role-coverage > div,
+html[data-theme="light"] .role-lecture-list > article,
+html[data-theme="light"] .role-stack-row,
+html[data-theme="light"] .role-flashcard > div,
+html[data-theme="light"] .day-hours span,
+html[data-theme="light"] .calendar-grid article.rest,
+html[data-theme="light"] .benefit-icon,
+html[data-theme="light"] .institution {
+  background:
+    linear-gradient(135deg,
+      rgba(249,250,252,.96),
+      rgba(229,232,239,.88) 64%,
+      rgba(238,233,248,.70)) !important;
+  border-color: rgba(190, 198, 216, .50) !important;
+}
+
+/* Preserve the reference's full text-color family across every page. Main
+   reading text remains navy; hierarchy and category labels carry blue, violet,
+   teal and rose accents just like the reference's navigation/topic mastery. */
+html[data-theme="light"] .hero-copy h1,
+html[data-theme="light"] .story-copy h1,
+html[data-theme="light"] .plan-area > h1,
+html[data-theme="light"] .panel h2,
+html[data-theme="light"] .section-heading h2,
+html[data-theme="light"] .public-goal h2,
+html[data-theme="light"] .workflow-copy h2,
+html[data-theme="light"] .public-cta h2,
+html[data-theme="light"] .pp-page h1,
+html[data-theme="light"] .role-workspace h1,
+html[data-theme="light"] .dashboard-shell h1 {
+  color: var(--img-navy) !important;
+}
+
+html[data-theme="light"] a:not(.public-button):not(.pp-button),
+html[data-theme="light"] .public-eyebrow,
+html[data-theme="light"] .page-eyebrow,
+html[data-theme="light"] .pp-eyebrow,
+html[data-theme="light"] .section-kicker,
+html[data-theme="light"] .workspace-heading .page-eyebrow,
+html[data-theme="light"] .role-heading .page-eyebrow,
+html[data-theme="light"] .year-open,
+html[data-theme="light"] .pp-topbar nav a.active {
+  color: var(--img-blue) !important;
+}
+
+html[data-theme="light"] .hero-copy h1 em,
+html[data-theme="light"] .story-copy h1 em,
+html[data-theme="light"] .plan-area > h1 em,
+html[data-theme="light"] .pp-tabs b {
+  color: var(--img-violet) !important;
+  text-shadow:
+    0 0 10px rgba(104,80,228,.16),
+    0 0 20px rgba(146,151,233,.16) !important;
+}
+
+/* Card/metric text alternates through the same reference colors. */
+html[data-theme="light"] .pp-metrics > :nth-child(4n + 1) b,
+html[data-theme="light"] .role-metric-grid > :nth-child(4n + 1) b,
+html[data-theme="light"] .analytics-metrics > :nth-child(4n + 1) b,
+html[data-theme="light"] .feature-grid > :nth-child(4n + 1) h3,
+html[data-theme="light"] .why-grid > :nth-child(4n + 1) h3,
+html[data-theme="light"] .shortcut-group-grid > :nth-child(4n + 1) h2,
+html[data-theme="light"] .role-command-grid > :nth-child(4n + 1) h2 {
+  color: var(--img-blue) !important;
+  text-shadow: 0 0 14px rgba(58,112,245,.12);
+}
+
+html[data-theme="light"] .pp-metrics > :nth-child(4n + 2) b,
+html[data-theme="light"] .role-metric-grid > :nth-child(4n + 2) b,
+html[data-theme="light"] .analytics-metrics > :nth-child(4n + 2) b,
+html[data-theme="light"] .feature-grid > :nth-child(4n + 2) h3,
+html[data-theme="light"] .why-grid > :nth-child(4n + 2) h3,
+html[data-theme="light"] .shortcut-group-grid > :nth-child(4n + 2) h2,
+html[data-theme="light"] .role-command-grid > :nth-child(4n + 2) h2 {
+  color: var(--img-violet) !important;
+  text-shadow: 0 0 14px rgba(104,80,228,.12);
+}
+
+html[data-theme="light"] .pp-metrics > :nth-child(4n + 3) b,
+html[data-theme="light"] .role-metric-grid > :nth-child(4n + 3) b,
+html[data-theme="light"] .analytics-metrics > :nth-child(4n + 3) b,
+html[data-theme="light"] .feature-grid > :nth-child(4n + 3) h3,
+html[data-theme="light"] .why-grid > :nth-child(4n + 3) h3,
+html[data-theme="light"] .shortcut-group-grid > :nth-child(4n + 3) h2,
+html[data-theme="light"] .role-command-grid > :nth-child(4n + 3) h2 {
+  color: var(--img-teal) !important;
+  text-shadow: 0 0 14px rgba(13,178,135,.10);
+}
+
+html[data-theme="light"] .pp-metrics > :nth-child(4n + 4) b,
+html[data-theme="light"] .role-metric-grid > :nth-child(4n + 4) b,
+html[data-theme="light"] .analytics-metrics > :nth-child(4n + 4) b,
+html[data-theme="light"] .feature-grid > :nth-child(4n + 4) h3,
+html[data-theme="light"] .why-grid > :nth-child(4n + 4) h3,
+html[data-theme="light"] .shortcut-group-grid > :nth-child(4n + 4) h2,
+html[data-theme="light"] .role-command-grid > :nth-child(4n + 4) h2 {
+  color: var(--img-rose) !important;
+  text-shadow: 0 0 14px rgba(205,110,123,.10);
+}
+
+/* Alternate section-card headings too, so pages without metric grids still use
+   the same varied reference typography rather than a single accent color. */
+html[data-theme="light"] .pp-page .pp-panel:nth-of-type(4n + 1) > header h2,
+html[data-theme="light"] .role-workspace .pp-panel:nth-of-type(4n + 1) > header h2,
+html[data-theme="light"] .dashboard-embedded .dash-card:nth-of-type(4n + 1) h3 {
+  color: var(--img-blue) !important;
+}
+
+html[data-theme="light"] .pp-page .pp-panel:nth-of-type(4n + 2) > header h2,
+html[data-theme="light"] .role-workspace .pp-panel:nth-of-type(4n + 2) > header h2,
+html[data-theme="light"] .dashboard-embedded .dash-card:nth-of-type(4n + 2) h3 {
+  color: var(--img-violet) !important;
+}
+
+html[data-theme="light"] .pp-page .pp-panel:nth-of-type(4n + 3) > header h2,
+html[data-theme="light"] .role-workspace .pp-panel:nth-of-type(4n + 3) > header h2,
+html[data-theme="light"] .dashboard-embedded .dash-card:nth-of-type(4n + 3) h3 {
+  color: var(--img-teal) !important;
+}
+
+html[data-theme="light"] .pp-page .pp-panel:nth-of-type(4n + 4) > header h2,
+html[data-theme="light"] .role-workspace .pp-panel:nth-of-type(4n + 4) > header h2,
+html[data-theme="light"] .dashboard-embedded .dash-card:nth-of-type(4n + 4) h3 {
+  color: var(--img-rose) !important;
+}
+
+/* Secondary labels mirror the reference's category colors while descriptions
+   and paragraphs stay muted navy for accessibility/readability. */
+html[data-theme="light"] .pp-chip,
+html[data-theme="light"] .metric-icon,
+html[data-theme="light"] .guide-hero-icon,
+html[data-theme="light"] .workspace-resume-icon,
+html[data-theme="light"] .feature-icon {
+  color: var(--img-blue) !important;
+}
+
+html[data-theme="light"] .pp-chip.violet,
+html[data-theme="light"] .role-command-card.violet > span {
+  color: var(--img-violet) !important;
+}
+
+html[data-theme="light"] .success,
+html[data-theme="light"] .correct,
+html[data-theme="light"] .completed,
+html[data-theme="light"] [data-tone="success"],
+html[data-theme="light"] .form-success,
+html[data-theme="light"] .role-status.good {
+  color: var(--img-teal) !important;
+}
+
+html[data-theme="light"] .pp-chip.red,
+html[data-theme="light"] .role-status.bad,
+html[data-theme="light"] .field-error {
+  color: var(--img-rose) !important;
+}
+
+html[data-theme="light"] .pp-chip.orange,
+html[data-theme="light"] .role-status.pending {
+  color: #aa6957 !important;
+}
+
+/* Keep body-level copy and form labels in the reference's navy/muted family. */
+html[data-theme="light"] .product-app p,
+html[data-theme="light"] .product-app small,
+html[data-theme="light"] .role-workspace p,
+html[data-theme="light"] .role-workspace small,
+html[data-theme="light"] .dashboard-shell p,
+html[data-theme="light"] .dashboard-shell small,
+html[data-theme="light"] .public-home p,
+html[data-theme="light"] .registration-page p,
+html[data-theme="light"] .lead,
+html[data-theme="light"] .subhead,
+html[data-theme="light"] .switch-copy,
+html[data-theme="light"] .secure-note {
+  color: var(--img-muted) !important;
+}
+
+/* Primary buttons retain the screenshot's blue -> violet identity against the
+   new silver/lilac environment. */
+html[data-theme="light"] .public-button,
+html[data-theme="light"] .primary-button,
+html[data-theme="light"] .registration-form > .primary-button,
+html[data-theme="light"] .pp-button:not(.secondary),
+html[data-theme="light"] .role-primary-button,
+html[data-theme="light"] .primary-action {
+  background: linear-gradient(108deg, var(--img-blue) 0%, #6575e8 52%, var(--img-violet) 100%) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  box-shadow:
+    0 9px 24px rgba(58,112,245,.18),
+    0 5px 16px rgba(104,80,228,.12) !important;
+}
+
+/* Silver-lilac controls harmonize with the metallic background. */
+html[data-theme="light"] .input-shell,
+html[data-theme="light"] .product-app input,
+html[data-theme="light"] .product-app select,
+html[data-theme="light"] .product-app textarea,
+html[data-theme="light"] .role-form input,
+html[data-theme="light"] .role-form select,
+html[data-theme="light"] .role-form textarea,
+html[data-theme="light"] .guide-global-search,
+html[data-theme="light"] .study-guide-course-select select,
+html[data-theme="light"] .notebook-search,
+html[data-theme="light"] .bundle-content-search,
+html[data-theme="light"] .input-with-icon,
+html[data-theme="light"] .password-input,
+html[data-theme="light"] .public-button.ghost,
+html[data-theme="light"] .pp-button.secondary {
+  background:
+    linear-gradient(135deg, rgba(252,253,254,.94), rgba(228,232,239,.84), rgba(239,233,248,.72)) !important;
+  border-color: rgba(185,193,212,.58) !important;
+}
+
+/* Reduced-motion preferences also disable the metallic ambient movement. */
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="light"] body {
+    animation: none !important;
+  }
+}
+
+html[data-theme="light"][data-reduced-motion="true"] body {
+  animation: none !important;
+}

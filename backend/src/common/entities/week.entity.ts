@@ -11,6 +11,7 @@ export class Week {
   @Column({ type: 'int', name: 'week_number' }) weekNumber: number;
   @Column({ type: 'varchar', length: 150, nullable: true }) title: string | null;
   @Column({ type: 'text', nullable: true }) description: string | null;
+  @Column({ type: 'boolean', default: false, name: 'is_locked' }) isLocked: boolean;
   @Column({ type: 'int', default: 1, name: 'display_order' }) displayOrder: number;
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date;

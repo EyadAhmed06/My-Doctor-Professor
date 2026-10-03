@@ -1,0 +1,136 @@
+/* Final landing hero composition.
+   Keep the chosen Doctor/Professor artwork, but make it read as part of the page
+   rather than as a small image card. */
+
+.public-hero {
+  grid-template-columns: minmax(0, 1.02fr) minmax(520px, .98fr);
+  gap: 44px;
+}
+
+.hero-duo {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 520px;
+  margin: 0;
+  overflow: visible;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.hero-duo img {
+  display: block;
+  width: min(790px, 52vw) !important;
+  max-width: none !important;
+  height: auto !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+/* The light artwork has a white canvas. Multiplying it into the page removes
+   the visible rectangular card while preserving the navy/teal illustration. */
+html[data-theme="light"] .hero-duo-light {
+  display: block !important;
+  width: min(800px, 53vw) !important;
+  max-width: none !important;
+  mix-blend-mode: multiply !important;
+  filter: contrast(1.045) saturate(1.035) !important;
+  transform: scale(1.09) translateY(5px) !important;
+  transform-origin: center center !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+html[data-theme="light"] .hero-duo-dark {
+  display: none !important;
+}
+
+/* Give the dark artwork an explicit size as well. Previously it relied on its
+   intrinsic dimensions and could collapse/appear absent in the hero grid. */
+html[data-theme="dark"] .hero-duo-dark {
+  display: block !important;
+  width: min(800px, 53vw) !important;
+  max-width: none !important;
+  mix-blend-mode: normal !important;
+  filter: drop-shadow(0 24px 48px rgba(0, 0, 0, .28)) !important;
+  transform: scale(1.06) translateY(5px) !important;
+  transform-origin: center center !important;
+}
+
+html[data-theme="dark"] .hero-duo-light {
+  display: none !important;
+}
+
+/* The artwork already contains its own ellipse and title plate. Do not add a
+   second decorative layer around it. */
+.hero-duo::before,
+.hero-duo::after {
+  content: none !important;
+  display: none !important;
+}
+
+@media (max-width: 1180px) {
+  .public-hero {
+    grid-template-columns: minmax(0, 1fr) minmax(440px, .9fr);
+    gap: 30px;
+  }
+
+  .hero-duo img,
+  html[data-theme="light"] .hero-duo-light,
+  html[data-theme="dark"] .hero-duo-dark {
+    width: min(680px, 50vw) !important;
+  }
+}
+
+@media (max-width: 1050px) {
+  .public-hero {
+    grid-template-columns: 1fr;
+    gap: 36px;
+  }
+
+  .hero-duo {
+    min-height: 0;
+  }
+
+  .hero-duo img,
+  html[data-theme="light"] .hero-duo-light,
+  html[data-theme="dark"] .hero-duo-dark {
+    width: min(760px, 92vw) !important;
+    max-width: 100% !important;
+    transform: none !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .public-hero {
+    gap: 28px;
+  }
+
+  .hero-duo {
+    width: calc(100% + 16px);
+    margin-inline: -8px;
+  }
+
+  .hero-duo img,
+  html[data-theme="light"] .hero-duo-light,
+  html[data-theme="dark"] .hero-duo-dark {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-duo img,
+  html[data-theme="light"] .hero-duo-light,
+  html[data-theme="dark"] .hero-duo-dark {
+    transform: none !important;
+  }
+}

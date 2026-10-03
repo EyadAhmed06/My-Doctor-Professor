@@ -1,0 +1,81 @@
+/* Final release-regression corrections discovered during live validation. */
+
+/* Lecture progress: only allow the explicit completion action in the UI.
+   Intermediate 25/50/75 buttons were a legacy manual-percentage control and
+   contradict the activity-based progress model. */
+.guide-progress-actions button:not(:last-child) {
+  display: none !important;
+}
+
+.guide-progress-actions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+}
+
+.guide-progress-actions button:last-child {
+  min-width: 132px !important;
+  min-height: 42px !important;
+  padding-inline: 18px !important;
+  border-radius: 11px !important;
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--border)) !important;
+  background: color-mix(in srgb, var(--accent) 11%, var(--surface)) !important;
+  color: var(--accent) !important;
+  font-weight: 800 !important;
+}
+
+.guide-progress-panel {
+  min-height: 118px !important;
+  padding: 20px 22px !important;
+}
+
+.guide-progress-panel > div:first-child {
+  align-content: center !important;
+}
+
+.guide-progress-panel .pp-eyebrow {
+  font-size: 10px !important;
+  letter-spacing: .12em !important;
+  line-height: 1.2 !important;
+}
+
+.guide-progress-panel h2 {
+  font-size: 22px !important;
+  line-height: 1.15 !important;
+  white-space: nowrap !important;
+}
+
+.guide-progress-panel .pp-progress {
+  width: 100% !important;
+  height: 8px !important;
+  margin-top: 3px !important;
+}
+
+/* The Question Bank tab previously displayed totals.questions (all active
+   question types), while the builder only accepts eligible five-option MCQs.
+   Hide the stale/misleading badge until the API contract returns the eligible
+   MCQ total; the content panel remains the source of truth. */
+.bundle-tabs > button:nth-child(3) > small {
+  display: none !important;
+}
+
+@media (max-width: 820px) {
+  .guide-progress-panel {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .guide-progress-actions {
+    justify-content: flex-start !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .guide-progress-actions {
+    display: flex !important;
+  }
+
+  .guide-progress-actions button:last-child {
+    width: 100% !important;
+  }
+}

@@ -15,6 +15,10 @@ export class AuthRateLimitService {
     );
   }
 
+  async enforceProvider(ip: string, provider: string): Promise<void> {
+    await this.consume(`ip:provider:${provider}:${ip}`, 30, 15 * 60);
+  }
+
   async enforce(ip: string, email: string, action: string): Promise<void> {
     await this.consume(`ip:${action}:${ip}`, 10, 15 * 60);
     await this.consume(
@@ -22,6 +26,20 @@ export class AuthRateLimitService {
       3,
       60 * 60,
     );
+  }
+
+  async enforceEmailVerificationCode(ip: string, email: string): Promise<void> {
+    const normalizedEmail = email.trim().toLowerCase();
+    await this.consume(`ip:verify-email-confirm:${ip}`, 30, 15 * 60);
+    await this.consume(
+      `account:verify-email-confirm:${normalizedEmail}`,
+      8,
+      15 * 60,
+    );
+  }
+
+  async enforceBudget(rawKey: string, maximum: number, windowSeconds: number): Promise<void> {
+    return this.consume(rawKey, maximum, windowSeconds);
   }
 
   private async consume(rawKey: string, maximum: number, windowSeconds: number): Promise<void> {

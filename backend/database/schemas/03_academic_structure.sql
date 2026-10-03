@@ -85,6 +85,8 @@ CREATE TABLE weeks (
 
     description TEXT,
 
+    is_locked BOOLEAN NOT NULL DEFAULT FALSE,
+
     display_order INTEGER NOT NULL DEFAULT 1,
 
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -119,6 +121,8 @@ CREATE TABLE lectures (
 
     is_published BOOLEAN NOT NULL DEFAULT FALSE,
 
+    is_locked BOOLEAN NOT NULL DEFAULT FALSE,
+
     display_order INTEGER NOT NULL DEFAULT 1,
 
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -152,6 +156,8 @@ CREATE TABLE topics (
     topic_name VARCHAR(150) NOT NULL,
 
     description TEXT,
+
+    is_locked BOOLEAN NOT NULL DEFAULT FALSE,
 
     display_order INTEGER NOT NULL DEFAULT 1,
 

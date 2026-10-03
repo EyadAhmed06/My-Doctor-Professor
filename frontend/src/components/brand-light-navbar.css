@@ -1,0 +1,19 @@
+/* Unified brand treatment requested for LIGHT MODE ONLY.
+   Source artwork and every dark-mode presentation remain unchanged. */
+html[data-theme="light"] .brand-emblem {
+  /* Exact reference violet: #6850e4. */
+  filter:
+    brightness(0)
+    saturate(100%)
+    invert(33.303%)
+    sepia(96.618%)
+    saturate(869.789%)
+    hue-rotate(222.94deg)
+    brightness(88.897%)
+    contrast(105.218%) !important;
+}
+
+html[data-theme="light"] .brand-lockup .brand-words strong,
+html[data-theme="light"] .public-eyebrow {
+  color: #050505 !important;
+}

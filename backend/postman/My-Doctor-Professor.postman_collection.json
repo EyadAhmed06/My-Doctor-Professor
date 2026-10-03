@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "ca9ca204-f27b-4f72-bd94-34f22512fce0",
     "name": "My Doctor Professor - Complete Backend API",
-    "description": "Generated from NestJS controllers. 162 unique controller routes are included. Run folders in numeric order; provide seeded role credentials first. Email confirmation/reset tokens and upload file path are manual inputs. Cleanup is destructive and intentionally last.",
+    "description": "Generated from NestJS controllers. 179 unique controller routes are included. Run folders in numeric order; provide seeded role credentials first. Email confirmation/reset tokens and upload file path are manual inputs. Cleanup is destructive and intentionally last.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -227,7 +227,7 @@
               }
             ],
             "url": "{{baseUrl}}/",
-            "description": "Controller source: src/app.controller.ts#getHello"
+            "description": "Controller source: src\\app.controller.ts#getHello"
           },
           "event": [
             {
@@ -258,7 +258,7 @@
               }
             ],
             "url": "{{baseUrl}}/health/live",
-            "description": "Controller source: src/modules/health/health.controller.ts#live"
+            "description": "Controller source: src\\modules\\health\\health.controller.ts#live"
           },
           "event": [
             {
@@ -284,7 +284,7 @@
               }
             ],
             "url": "{{baseUrl}}/health/ready",
-            "description": "Controller source: src/modules/health/health.controller.ts#ready"
+            "description": "Controller source: src\\modules\\health\\health.controller.ts#ready"
           },
           "event": [
             {
@@ -323,7 +323,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/bootstrap/accounts",
-            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#bootstrapAccounts",
+            "description": "Controller source: src\\modules\\admin\\admin-bootstrap.controller.ts#bootstrapAccounts",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"admin\": {\n    \"full_name\": \"Postman Super Admin\",\n    \"email\": \"{{adminEmail}}\",\n    \"password\": \"{{adminPassword}}\",\n    \"phone_number\": \"+201000000010\",\n    \"employee_number\": \"PM-ADMIN-001\"\n  },\n  \"instructor\": {\n    \"full_name\": \"Postman Instructor\",\n    \"email\": \"{{instructorEmail}}\",\n    \"password\": \"{{instructorPassword}}\",\n    \"phone_number\": \"+201000000011\",\n    \"specialization\": \"Medicine\",\n    \"office_location\": \"Postman Lab\"\n  },\n  \"student\": {\n    \"full_name\": \"Postman Student\",\n    \"email\": \"{{studentEmail}}\",\n    \"password\": \"{{studentPassword}}\",\n    \"phone_number\": \"+201000000012\",\n    \"student_number\": \"PM-STUDENT-001\",\n    \"current_semester\": 1\n  }\n}",
@@ -409,7 +409,7 @@
               }
             ],
             "url": "{{baseUrl}}/auth/login",
-            "description": "Controller source: src/modules/auth/auth.controller.ts#login\nDuplicate this request as Login Admin/Instructor/Student by changing credential variables; dedicated login requests are prepended.",
+            "description": "Controller source: src\\modules\\auth\\auth.controller.ts#login\nDuplicate this request as Login Admin/Instructor/Student by changing credential variables; dedicated login requests are prepended.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
@@ -448,7 +448,7 @@
               }
             ],
             "url": "{{baseUrl}}/auth/signup",
-            "description": "Controller source: src/modules/auth/auth.controller.ts#signup",
+            "description": "Controller source: src\\modules\\auth\\auth.controller.ts#signup",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"full_name\": \"Postman Student\",\n  \"email\": \"{{$randomEmail}}\",\n  \"password\": \"PostmanPass123\",\n  \"phone_number\": \"+201000000001\",\n  \"role\": \"STUDENT\",\n  \"student_number\": \"PM-{{$timestamp}}\",\n  \"current_semester\": 1\n}",
@@ -487,7 +487,7 @@
               }
             ],
             "url": "{{baseUrl}}/auth/email-verification/request",
-            "description": "Controller source: src/modules/auth/auth.controller.ts#requestEmailVerification",
+            "description": "Controller source: src\\modules\\auth\\auth.controller.ts#requestEmailVerification",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{adminEmail}}\"\n}",
@@ -526,7 +526,7 @@
               }
             ],
             "url": "{{baseUrl}}/auth/email-verification/confirm",
-            "description": "Controller source: src/modules/auth/auth.controller.ts#confirmEmailVerification",
+            "description": "Controller source: src\\modules\\auth\\auth.controller.ts#confirmEmailVerification",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"token\": \"{{verificationToken}}\"\n}",
@@ -565,7 +565,7 @@
               }
             ],
             "url": "{{baseUrl}}/auth/password/forgot",
-            "description": "Controller source: src/modules/auth/auth.controller.ts#forgotPassword",
+            "description": "Controller source: src\\modules\\auth\\auth.controller.ts#forgotPassword",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{adminEmail}}\"\n}",
@@ -604,7 +604,7 @@
               }
             ],
             "url": "{{baseUrl}}/auth/password/reset",
-            "description": "Controller source: src/modules/auth/auth.controller.ts#resetPassword",
+            "description": "Controller source: src\\modules\\auth\\auth.controller.ts#resetPassword",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"token\": \"{{passwordResetToken}}\",\n  \"new_password\": \"{{studentNewPassword}}\",\n  \"confirm_password\": \"{{studentNewPassword}}\"\n}",
@@ -643,7 +643,7 @@
               }
             ],
             "url": "{{baseUrl}}/auth/refresh",
-            "description": "Controller source: src/modules/auth/auth.controller.ts#refreshToken",
+            "description": "Controller source: src\\modules\\auth\\auth.controller.ts#refreshToken",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"refresh_token\": \"{{adminRefreshToken}}\"\n}",
@@ -678,7 +678,7 @@
               }
             ],
             "url": "{{baseUrl}}/auth/me",
-            "description": "Controller source: src/modules/auth/auth.controller.ts#getCurrentUser",
+            "description": "Controller source: src\\modules\\auth\\auth.controller.ts#getCurrentUser",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -723,7 +723,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/users",
-            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#createUser",
+            "description": "Controller source: src\\modules\\admin\\admin-bootstrap.controller.ts#createUser",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -860,7 +860,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/users/import",
-            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#importUsers",
+            "description": "Controller source: src\\modules\\admin\\admin-bootstrap.controller.ts#importUsers",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -905,7 +905,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/users?page=1&limit=20",
-            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#listUsers",
+            "description": "Controller source: src\\modules\\admin\\admin-bootstrap.controller.ts#listUsers",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -941,7 +941,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/users/{{managedUserId}}",
-            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#getUser",
+            "description": "Controller source: src\\modules\\admin\\admin-bootstrap.controller.ts#getUser",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -982,7 +982,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/users/{{managedUserId}}",
-            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#updateUser",
+            "description": "Controller source: src\\modules\\admin\\admin-bootstrap.controller.ts#updateUser",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1032,7 +1032,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/users/{{managedUserId}}/status",
-            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#updateStatus",
+            "description": "Controller source: src\\modules\\admin\\admin-bootstrap.controller.ts#updateStatus",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1078,7 +1078,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/users/{{managedUserId}}/reset-password",
-            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#resetPassword",
+            "description": "Controller source: src\\modules\\admin\\admin-bootstrap.controller.ts#resetPassword",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1115,7 +1115,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/statistics",
-            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#statistics",
+            "description": "Controller source: src\\modules\\admin\\admin-bootstrap.controller.ts#statistics",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1160,7 +1160,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/semesters",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#createSemester",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#createSemester",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1211,7 +1211,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/semesters",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#listSemesters",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#listSemesters",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1247,7 +1247,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/semesters/{{semesterId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#getSemester",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#getSemester",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1288,7 +1288,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/semesters/{{semesterId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#updateSemester",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#updateSemester",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1338,7 +1338,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/semesters/{{semesterId}}/courses",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#createCourse",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#createCourse",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1390,7 +1390,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/courses/{{courseId}}/instructors/{{instructorId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#assignCourseInstructor",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#assignCourseInstructor",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1428,7 +1428,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/courses?page=1&limit=20&semester_id={{semesterId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#listCourses",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#listCourses",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1465,7 +1465,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/courses/{{courseId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#getCourse",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#getCourse",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1502,7 +1502,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/courses/{{courseId}}/instructors",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#listCourseInstructors",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#listCourseInstructors",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1543,7 +1543,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/courses/{{courseId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#updateCourse",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#updateCourse",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1593,7 +1593,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/courses/{{courseId}}/weeks",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#createWeek",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#createWeek",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1645,7 +1645,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/courses/{{courseId}}/weeks",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#listWeeks",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#listWeeks",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1682,7 +1682,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/weeks/{{weekId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#getWeek",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#getWeek",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1723,7 +1723,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/weeks/{{weekId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#updateWeek",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#updateWeek",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1773,7 +1773,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/weeks/{{weekId}}/lectures",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#createLecture",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#createLecture",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1829,7 +1829,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/lectures/{{lectureId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#updateLecture",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#updateLecture",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1875,7 +1875,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/weeks/{{weekId}}/lectures",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#listLectures",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#listLectures",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1912,7 +1912,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/lectures/{{lectureId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#getLecture",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#getLecture",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1953,7 +1953,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/lectures/{{lectureId}}/topics",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#createTopic",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#createTopic",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2005,7 +2005,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/lectures/{{lectureId}}/topics",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#listTopics",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#listTopics",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2042,7 +2042,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/topics/{{topicId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#getTopic",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#getTopic",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2083,7 +2083,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/topics/{{topicId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#updateTopic",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#updateTopic",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2133,7 +2133,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/lectures/{{lectureId}}/resources",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#createResource",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#createResource",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2185,7 +2185,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/lectures/{{lectureId}}/resources/upload",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#Roles",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#r",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2253,7 +2253,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/resources/{{uploadedResourceId}}/file",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#downloadResource",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#downloadResource",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2290,7 +2290,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/lectures/{{lectureId}}/resources",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#listResources",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#listResources",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2336,7 +2336,7 @@
               }
             ],
             "url": "{{baseUrl}}/questions",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#create",
+            "description": "Controller source: src\\modules\\questions\\questions.controller.ts#create",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2445,7 +2445,7 @@
               }
             ],
             "url": "{{baseUrl}}/questions/tags",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#createTag",
+            "description": "Controller source: src\\modules\\questions\\questions.controller.ts#createTag",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2500,7 +2500,7 @@
               }
             ],
             "url": "{{baseUrl}}/questions/{{questionId}}/options",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#addOption",
+            "description": "Controller source: src\\modules\\questions\\questions.controller.ts#addOption",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2600,7 +2600,7 @@
               }
             ],
             "url": "{{baseUrl}}/questions/{{questionId}}/options",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#getOptions",
+            "description": "Controller source: src\\modules\\questions\\questions.controller.ts#getOptions",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2641,7 +2641,7 @@
               }
             ],
             "url": "{{baseUrl}}/questions/options/{{optionId}}",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#updateOption",
+            "description": "Controller source: src\\modules\\questions\\questions.controller.ts#updateOption",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2687,7 +2687,7 @@
               }
             ],
             "url": "{{baseUrl}}/questions?page=1&limit=20&topic_id={{topicId}}",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#list",
+            "description": "Controller source: src\\modules\\questions\\questions.controller.ts#list",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2724,7 +2724,7 @@
               }
             ],
             "url": "{{baseUrl}}/questions/search?q=Postman&limit=20",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#search",
+            "description": "Controller source: src\\modules\\questions\\questions.controller.ts#search",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2760,7 +2760,7 @@
               }
             ],
             "url": "{{baseUrl}}/questions/tags/all",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#listTags",
+            "description": "Controller source: src\\modules\\questions\\questions.controller.ts#listTags",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2796,7 +2796,7 @@
               }
             ],
             "url": "{{baseUrl}}/questions/{{questionId}}",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#getOne",
+            "description": "Controller source: src\\modules\\questions\\questions.controller.ts#getOne",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2837,7 +2837,7 @@
               }
             ],
             "url": "{{baseUrl}}/questions/{{questionId}}",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#update",
+            "description": "Controller source: src\\modules\\questions\\questions.controller.ts#update",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2883,7 +2883,7 @@
               }
             ],
             "url": "{{baseUrl}}/questions/{{questionId}}/duplicate",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#duplicate",
+            "description": "Controller source: src\\modules\\questions\\questions.controller.ts#duplicate",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2924,7 +2924,7 @@
               }
             ],
             "url": "{{baseUrl}}/questions/{{essayQuestionId}}/essay-configuration",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#setEssayConfiguration",
+            "description": "Controller source: src\\modules\\questions\\questions.controller.ts#setEssayConfiguration",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3018,7 +3018,7 @@
               }
             ],
             "url": "{{baseUrl}}/questions/{{essayQuestionId}}/essay-configuration",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#getEssayConfiguration",
+            "description": "Controller source: src\\modules\\questions\\questions.controller.ts#getEssayConfiguration",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3055,7 +3055,7 @@
               }
             ],
             "url": "{{baseUrl}}/questions/{{questionId}}/tags/{{tagId}}",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#addTag",
+            "description": "Controller source: src\\modules\\questions\\questions.controller.ts#addTag",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3150,7 +3150,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#create",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#create",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3205,7 +3205,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/{{testId}}/questions",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#addQuestion",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#addQuestion",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3299,7 +3299,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/{{testId}}/questions",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#listQuestions",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#listQuestions",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3340,7 +3340,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/{{testId}}",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#update",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#update",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3386,7 +3386,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests?page=1&limit=20&course_id={{courseId}}",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#list",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#list",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3423,7 +3423,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/{{testId}}",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#getOne",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#getOne",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3464,7 +3464,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/{{testId}}/attempts",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#startAttempt",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#startAttempt",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3516,7 +3516,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/attempts/{{attemptId}}",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#getAttempt",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#getAttempt",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3553,7 +3553,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/attempts/{{attemptId}}/flags/{{questionId}}",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#flag",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#flag",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3595,7 +3595,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/attempts/{{attemptId}}/notes/{{questionId}}",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#addNote",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#addNote",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3646,7 +3646,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/attempts/{{attemptId}}/notes/{{questionId}}",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#updateNote",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#updateNote",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3697,7 +3697,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/attempts/{{attemptId}}/answers/{{questionId}}",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#saveAnswer",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#saveAnswer",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3804,7 +3804,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/attempts/{{attemptId}}/answers",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#getAnswers",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#getAnswers",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3841,7 +3841,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/attempts/{{attemptId}}/submit",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#submit",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#submit",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3882,7 +3882,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/attempts/{{attemptId}}/answers/{{essayAnswerId}}/grade",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#gradeEssay",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#gradeEssay",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3929,7 +3929,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/attempts/{{attemptId}}/review",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#getReview",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#getReview",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -3966,7 +3966,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/{{testId}}/attempts",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#listAttempts",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#listAttempts",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4003,7 +4003,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/practice/catalog?course_id={{courseId}}",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#practiceCatalog",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#practiceCatalog",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4044,7 +4044,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/practice/generate",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#generatePractice",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#generatePractice",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4077,6 +4077,43 @@
               }
             }
           ]
+        },
+        {
+          "name": "GET /tests/attempts/:attemptId/workspace-state",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tests/attempts/{{attemptId}}/workspace-state",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#getWorkspaceState",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable attemptId is populated', () => pm.expect(pm.variables.get('attemptId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -4098,7 +4135,7 @@
               }
             ],
             "url": "{{baseUrl}}/flashcards/decks",
-            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#createDeck",
+            "description": "Controller source: src\\modules\\flashcards\\flashcards.controller.ts#createDeck",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4153,7 +4190,7 @@
               }
             ],
             "url": "{{baseUrl}}/flashcards/decks/{{deckId}}/cards",
-            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#addCard",
+            "description": "Controller source: src\\modules\\flashcards\\flashcards.controller.ts#addCard",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4209,7 +4246,7 @@
               }
             ],
             "url": "{{baseUrl}}/flashcards/cards/{{cardId}}",
-            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#updateCard",
+            "description": "Controller source: src\\modules\\flashcards\\flashcards.controller.ts#updateCard",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4259,7 +4296,7 @@
               }
             ],
             "url": "{{baseUrl}}/flashcards/decks/{{deckId}}",
-            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#updateDeck",
+            "description": "Controller source: src\\modules\\flashcards\\flashcards.controller.ts#updateDeck",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4305,7 +4342,7 @@
               }
             ],
             "url": "{{baseUrl}}/flashcards/decks?page=1&limit=20&course_id={{courseId}}",
-            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#listDecks",
+            "description": "Controller source: src\\modules\\flashcards\\flashcards.controller.ts#listDecks",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4342,7 +4379,7 @@
               }
             ],
             "url": "{{baseUrl}}/flashcards/decks/{{deckId}}",
-            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#getDeck",
+            "description": "Controller source: src\\modules\\flashcards\\flashcards.controller.ts#getDeck",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4379,7 +4416,7 @@
               }
             ],
             "url": "{{baseUrl}}/flashcards/decks/{{deckId}}/cards?page=1&limit=20",
-            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#listCards",
+            "description": "Controller source: src\\modules\\flashcards\\flashcards.controller.ts#listCards",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4416,7 +4453,7 @@
               }
             ],
             "url": "{{baseUrl}}/flashcards/cards/due?page=1&limit=20",
-            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#listDue",
+            "description": "Controller source: src\\modules\\flashcards\\flashcards.controller.ts#listDue",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4452,7 +4489,7 @@
               }
             ],
             "url": "{{baseUrl}}/flashcards/cards/{{cardId}}/progress",
-            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#getProgress",
+            "description": "Controller source: src\\modules\\flashcards\\flashcards.controller.ts#getProgress",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4493,7 +4530,7 @@
               }
             ],
             "url": "{{baseUrl}}/flashcards/cards/{{cardId}}/review",
-            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#review",
+            "description": "Controller source: src\\modules\\flashcards\\flashcards.controller.ts#review",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4544,7 +4581,7 @@
               }
             ],
             "url": "{{baseUrl}}/progress/courses",
-            "description": "Controller source: src/modules/progress/progress.controller.ts#listCourseProgress",
+            "description": "Controller source: src\\modules\\progress\\progress.controller.ts#listCourseProgress",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4580,7 +4617,7 @@
               }
             ],
             "url": "{{baseUrl}}/progress/courses/{{courseId}}",
-            "description": "Controller source: src/modules/progress/progress.controller.ts#getCourseProgress",
+            "description": "Controller source: src\\modules\\progress\\progress.controller.ts#getCourseProgress",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4617,7 +4654,7 @@
               }
             ],
             "url": "{{baseUrl}}/progress/lectures/{{lectureId}}",
-            "description": "Controller source: src/modules/progress/progress.controller.ts#getLectureProgress",
+            "description": "Controller source: src\\modules\\progress\\progress.controller.ts#getLectureProgress",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4658,7 +4695,7 @@
               }
             ],
             "url": "{{baseUrl}}/progress/lectures/{{lectureId}}",
-            "description": "Controller source: src/modules/progress/progress.controller.ts#updateLectureProgress",
+            "description": "Controller source: src\\modules\\progress\\progress.controller.ts#updateLectureProgress",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4704,7 +4741,7 @@
               }
             ],
             "url": "{{baseUrl}}/progress/topics/{{topicId}}",
-            "description": "Controller source: src/modules/progress/progress.controller.ts#getTopicProgress",
+            "description": "Controller source: src\\modules\\progress\\progress.controller.ts#getTopicProgress",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4741,7 +4778,7 @@
               }
             ],
             "url": "{{baseUrl}}/progress/questions/{{questionId}}",
-            "description": "Controller source: src/modules/progress/progress.controller.ts#getQuestionProgress",
+            "description": "Controller source: src\\modules\\progress\\progress.controller.ts#getQuestionProgress",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4782,7 +4819,7 @@
               }
             ],
             "url": "{{baseUrl}}/progress/questions/{{questionId}}/bookmark",
-            "description": "Controller source: src/modules/progress/progress.controller.ts#bookmarkQuestion",
+            "description": "Controller source: src\\modules\\progress\\progress.controller.ts#bookmarkQuestion",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4828,7 +4865,7 @@
               }
             ],
             "url": "{{baseUrl}}/dashboard/student",
-            "description": "Controller source: src/modules/progress/progress.controller.ts#studentDashboard",
+            "description": "Controller source: src\\modules\\progress\\progress.controller.ts#studentDashboard",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4864,7 +4901,7 @@
               }
             ],
             "url": "{{baseUrl}}/dashboard/instructor?course_id={{courseId}}",
-            "description": "Controller source: src/modules/progress/progress.controller.ts#instructorDashboard",
+            "description": "Controller source: src\\modules\\progress\\progress.controller.ts#instructorDashboard",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4901,7 +4938,7 @@
               }
             ],
             "url": "{{baseUrl}}/dashboard/admin",
-            "description": "Controller source: src/modules/progress/progress.controller.ts#adminDashboard",
+            "description": "Controller source: src\\modules\\progress\\progress.controller.ts#adminDashboard",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4937,7 +4974,7 @@
               }
             ],
             "url": "{{baseUrl}}/analytics/questions?page=1&limit=20&course_id={{courseId}}",
-            "description": "Controller source: src/modules/progress/progress.controller.ts#questionAnalytics",
+            "description": "Controller source: src\\modules\\progress\\progress.controller.ts#questionAnalytics",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -4974,7 +5011,7 @@
               }
             ],
             "url": "{{baseUrl}}/analytics/tests?page=1&limit=20&test_id={{testId}}",
-            "description": "Controller source: src/modules/progress/progress.controller.ts#testAnalytics",
+            "description": "Controller source: src\\modules\\progress\\progress.controller.ts#testAnalytics",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -5011,7 +5048,7 @@
               }
             ],
             "url": "{{baseUrl}}/analytics/performance?page=1&limit=20&course_id={{courseId}}",
-            "description": "Controller source: src/modules/progress/progress.controller.ts#performanceAnalytics",
+            "description": "Controller source: src\\modules\\progress\\progress.controller.ts#performanceAnalytics",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -5030,6 +5067,42 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Route variable courseId is populated', () => pm.expect(pm.variables.get('courseId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /analytics/student",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/analytics/student",
+            "description": "Controller source: src\\modules\\progress\\progress.controller.ts#studentAnalytics",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -5057,7 +5130,7 @@
               }
             ],
             "url": "{{baseUrl}}/notifications",
-            "description": "Controller source: src/modules/notifications/notifications.controller.ts#create",
+            "description": "Controller source: src\\modules\\notifications\\notifications.controller.ts#create",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -5108,7 +5181,7 @@
               }
             ],
             "url": "{{baseUrl}}/notifications?page=1&limit=20",
-            "description": "Controller source: src/modules/notifications/notifications.controller.ts#list",
+            "description": "Controller source: src\\modules\\notifications\\notifications.controller.ts#list",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -5144,7 +5217,7 @@
               }
             ],
             "url": "{{baseUrl}}/notifications/unread/count",
-            "description": "Controller source: src/modules/notifications/notifications.controller.ts#unreadCount",
+            "description": "Controller source: src\\modules\\notifications\\notifications.controller.ts#unreadCount",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -5180,7 +5253,7 @@
               }
             ],
             "url": "{{baseUrl}}/notifications/{{notificationId}}",
-            "description": "Controller source: src/modules/notifications/notifications.controller.ts#markRead",
+            "description": "Controller source: src\\modules\\notifications\\notifications.controller.ts#markRead",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -5217,7 +5290,7 @@
               }
             ],
             "url": "{{baseUrl}}/notifications/mark-read",
-            "description": "Controller source: src/modules/notifications/notifications.controller.ts#markAllRead",
+            "description": "Controller source: src\\modules\\notifications\\notifications.controller.ts#markAllRead",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -5258,7 +5331,7 @@
               }
             ],
             "url": "{{baseUrl}}/users/{{studentUserId}}",
-            "description": "Controller source: src/modules/users/users.controller.ts#getOne",
+            "description": "Controller source: src\\modules\\users\\users.controller.ts#getOne",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -5299,7 +5372,7 @@
               }
             ],
             "url": "{{baseUrl}}/users/{{studentUserId}}",
-            "description": "Controller source: src/modules/users/users.controller.ts#update",
+            "description": "Controller source: src\\modules\\users\\users.controller.ts#update",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -5349,7 +5422,7 @@
               }
             ],
             "url": "{{baseUrl}}/users/{{studentUserId}}/change-password",
-            "description": "Controller source: src/modules/users/users.controller.ts#changePassword",
+            "description": "Controller source: src\\modules\\users\\users.controller.ts#changePassword",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -5441,7 +5514,7 @@
               }
             ],
             "url": "{{baseUrl}}/audit-logs?page=1&limit=20",
-            "description": "Controller source: src/modules/audit/audit.controller.ts#list",
+            "description": "Controller source: src\\modules\\audit\\audit.controller.ts#list",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -5478,7 +5551,7 @@
               }
             ],
             "url": "{{baseUrl}}/audit-logs/export/file?date_from={{$isoTimestamp}}&date_until={{$isoTimestamp}}",
-            "description": "Controller source: src/modules/audit/audit.controller.ts#export",
+            "description": "Controller source: src\\modules\\audit\\audit.controller.ts#export",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -5514,7 +5587,7 @@
               }
             ],
             "url": "{{baseUrl}}/audit-logs/{{auditId}}",
-            "description": "Controller source: src/modules/audit/audit.controller.ts#getOne",
+            "description": "Controller source: src\\modules\\audit\\audit.controller.ts#getOne",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -5543,562 +5616,7 @@
       ]
     },
     {
-      "name": "bundles",
-      "item": [
-        {
-          "name": "GET /catalog/bundles",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/catalog/bundles",
-            "description": "Controller source: src/modules/bundles/bundles.controller.ts#catalog",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "POST /catalog/bundles",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/catalog/bundles",
-            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "GET /catalog/bundles/mine",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/catalog/bundles/mine",
-            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "GET /catalog/bundles/managed",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/catalog/bundles/managed",
-            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "POST /catalog/bundles/enroll",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/catalog/bundles/enroll",
-            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "POST /catalog/bundles/:bundleId/enroll",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/enroll",
-            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "GET /catalog/bundles/:bundleId",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}",
-            "description": "Controller source: src/modules/bundles/bundles.controller.ts#get",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "GET /catalog/bundles/:bundleId/content",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/content",
-            "description": "Controller source: src/modules/bundles/bundles.controller.ts#getContent",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "PUT /catalog/bundles/:bundleId",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}",
-            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "PUT /catalog/bundles/:bundleId/status",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/status",
-            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "POST /catalog/bundles/:bundleId/courses",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/courses",
-            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "POST /catalog/bundles/:bundleId/weeks",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/weeks",
-            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "POST /catalog/bundles/:bundleId/tests",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/tests",
-            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "POST /catalog/bundles/:bundleId/instructors",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/instructors",
-            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "POST /catalog/bundles/:bundleId/enrollments",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/enrollments",
-            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{adminAccessToken}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
-                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
-                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "workspace",
+      "name": "12 - Student workspace",
       "item": [
         {
           "name": "POST /notebook/notes",
@@ -6115,7 +5633,7 @@
               }
             ],
             "url": "{{baseUrl}}/notebook/notes",
-            "description": "Controller source: src/modules/workspace/workspace.controller.ts#createNote",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#createNote",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6166,7 +5684,7 @@
               }
             ],
             "url": "{{baseUrl}}/notebook/notes",
-            "description": "Controller source: src/modules/workspace/workspace.controller.ts#listNotes",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#listNotes",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6206,7 +5724,7 @@
               }
             ],
             "url": "{{baseUrl}}/notebook/notes/{{noteId}}",
-            "description": "Controller source: src/modules/workspace/workspace.controller.ts#updateNote",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#updateNote",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6252,7 +5770,7 @@
               }
             ],
             "url": "{{baseUrl}}/study-plan",
-            "description": "Controller source: src/modules/workspace/workspace.controller.ts#Roles",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#g",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6292,7 +5810,7 @@
               }
             ],
             "url": "{{baseUrl}}/study-plan",
-            "description": "Controller source: src/modules/workspace/workspace.controller.ts#Roles",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#g",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6341,7 +5859,7 @@
               }
             ],
             "url": "{{baseUrl}}/drug-references",
-            "description": "Controller source: src/modules/workspace/workspace.controller.ts#Roles",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#g",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6392,7 +5910,7 @@
               }
             ],
             "url": "{{baseUrl}}/drug-references",
-            "description": "Controller source: src/modules/workspace/workspace.controller.ts#listDrugs",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#listDrugs",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6428,7 +5946,7 @@
               }
             ],
             "url": "{{baseUrl}}/drug-references/{{drugSlug}}",
-            "description": "Controller source: src/modules/workspace/workspace.controller.ts#getDrug",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#getDrug",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6469,7 +5987,7 @@
               }
             ],
             "url": "{{baseUrl}}/drug-references/{{drugId}}",
-            "description": "Controller source: src/modules/workspace/workspace.controller.ts#Roles",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#g",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6503,6 +6021,1111 @@
               }
             }
           ]
+        },
+        {
+          "name": "GET /notebook/notes/:noteId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/notebook/notes/{{noteId}}",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#getNote",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable noteId is populated', () => pm.expect(pm.variables.get('noteId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /notebook/notes/:noteId/attachments",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/notebook/notes/{{noteId}}/attachments",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#addAttachment",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable noteId is populated', () => pm.expect(pm.variables.get('noteId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /notebook/notes/:noteId/flashcard",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/notebook/notes/{{noteId}}/flashcard",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#g",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable noteId is populated', () => pm.expect(pm.variables.get('noteId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /notebook/collections",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/notebook/collections",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#listCollections",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /notebook/collections",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/notebook/collections",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#createCollection",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /notebook/collections/:collectionId",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/notebook/collections/{{collectionId}}",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#updateCollection",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable collectionId is populated', () => pm.expect(pm.variables.get('collectionId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /notebook/tags",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/notebook/tags",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#listTags",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /notebook/tags",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/notebook/tags",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#createTag",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /study-plan/generate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/study-plan/generate",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#g",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /study-plan/calendar",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/study-plan/calendar",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#g",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /study-plan/readiness",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/study-plan/readiness",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#g",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /study-plan/items/:itemId",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/study-plan/items/{{itemId}}",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#g",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable itemId is populated', () => pm.expect(pm.variables.get('itemId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "13 - Bundles",
+      "item": [
+        {
+          "name": "GET /catalog/bundles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/catalog/bundles?academic_year=1",
+            "description": "Controller source: src\\modules\\bundles\\bundles.controller.ts#catalog"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /bundles",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/bundles",
+            "description": "Controller source: src\\modules\\bundles\\bundles.controller.ts#e",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman Bundle\",\n  \"slug\": \"postman-bundle-{{$timestamp}}\",\n  \"description\": \"Bundle created by the complete HTTP collection.\",\n  \"academic_year\": 1,\n  \"access_mode\": \"PUBLIC\",\n  \"is_free\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));",
+                  "if (pm.response.code >= 200 && pm.response.code < 300 && pm.response.text()) {",
+                  "  const json = pm.response.json();",
+                  "  const value = json.id ?? json.data?.id ?? json.result?.id;",
+                  "  if (value) pm.collectionVariables.set('bundleId', value);",
+                  "  if (json.slug) pm.collectionVariables.set('drugSlug', json.slug);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /bundles/mine",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/bundles/mine",
+            "description": "Controller source: src\\modules\\bundles\\bundles.controller.ts#e",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /bundles/managed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/bundles/managed",
+            "description": "Controller source: src\\modules\\bundles\\bundles.controller.ts#e",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /bundles/enroll",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/bundles/enroll",
+            "description": "Controller source: src\\modules\\bundles\\bundles.controller.ts#e",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"postman-code\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /bundles/:bundleId/enroll",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/bundles/{{bundleId}}/enroll",
+            "description": "Controller source: src\\modules\\bundles\\bundles.controller.ts#e",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /bundles/:bundleId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/bundles/{{bundleId}}",
+            "description": "Controller source: src\\modules\\bundles\\bundles.controller.ts#get",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /bundles/:bundleId/content",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/bundles/{{bundleId}}/content",
+            "description": "Controller source: src\\modules\\bundles\\bundles.controller.ts#getContent",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /bundles/:bundleId",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/bundles/{{bundleId}}",
+            "description": "Controller source: src\\modules\\bundles\\bundles.controller.ts#e",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman Bundle Updated\",\n  \"description\": \"Updated by the complete HTTP collection.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /bundles/:bundleId/status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/bundles/{{bundleId}}/status",
+            "description": "Controller source: src\\modules\\bundles\\bundles.controller.ts#e",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"PUBLISHED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /bundles/:bundleId/courses",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/bundles/{{bundleId}}/courses",
+            "description": "Controller source: src\\modules\\bundles\\bundles.controller.ts#e",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resource_id\": \"{{courseId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /bundles/:bundleId/weeks",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/bundles/{{bundleId}}/weeks",
+            "description": "Controller source: src\\modules\\bundles\\bundles.controller.ts#e",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resource_id\": \"{{weekId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /bundles/:bundleId/tests",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/bundles/{{bundleId}}/tests",
+            "description": "Controller source: src\\modules\\bundles\\bundles.controller.ts#e",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resource_id\": \"{{testId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /bundles/:bundleId/instructors",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/bundles/{{bundleId}}/instructors",
+            "description": "Controller source: src\\modules\\bundles\\bundles.controller.ts#e",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"instructor_id\": \"{{instructorId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /bundles/:bundleId/enrollments",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/bundles/{{bundleId}}/enrollments",
+            "description": "Controller source: src\\modules\\bundles\\bundles.controller.ts#e",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{instructorAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"student_id\": \"{{studentUserId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -6521,7 +7144,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/attempts/{{attemptId}}/notes/{{questionId}}",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#removeNote",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#removeNote",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6559,7 +7182,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/attempts/{{attemptId}}/flags/{{questionId}}",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#unflag",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#unflag",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6597,7 +7220,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/{{testId}}/questions/{{questionId}}",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#removeQuestion",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#removeQuestion",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6635,7 +7258,7 @@
               }
             ],
             "url": "{{baseUrl}}/tests/{{testId}}",
-            "description": "Controller source: src/modules/tests/tests.controller.ts#remove",
+            "description": "Controller source: src\\modules\\tests\\tests.controller.ts#remove",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6672,7 +7295,7 @@
               }
             ],
             "url": "{{baseUrl}}/questions/{{questionId}}/tags/{{tagId}}",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#removeQuestionTag",
+            "description": "Controller source: src\\modules\\questions\\questions.controller.ts#removeQuestionTag",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6710,7 +7333,7 @@
               }
             ],
             "url": "{{baseUrl}}/questions/options/{{optionId}}",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#removeOption",
+            "description": "Controller source: src\\modules\\questions\\questions.controller.ts#removeOption",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6747,7 +7370,7 @@
               }
             ],
             "url": "{{baseUrl}}/questions/{{questionId}}",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#remove",
+            "description": "Controller source: src\\modules\\questions\\questions.controller.ts#remove",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6784,7 +7407,7 @@
               }
             ],
             "url": "{{baseUrl}}/questions/tags/{{tagId}}",
-            "description": "Controller source: src/modules/questions/questions.controller.ts#removeTag",
+            "description": "Controller source: src\\modules\\questions\\questions.controller.ts#removeTag",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6821,7 +7444,7 @@
               }
             ],
             "url": "{{baseUrl}}/notifications/{{notificationId}}",
-            "description": "Controller source: src/modules/notifications/notifications.controller.ts#remove",
+            "description": "Controller source: src\\modules\\notifications\\notifications.controller.ts#remove",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6858,7 +7481,7 @@
               }
             ],
             "url": "{{baseUrl}}/flashcards/cards/{{cardId}}",
-            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#removeCard",
+            "description": "Controller source: src\\modules\\flashcards\\flashcards.controller.ts#removeCard",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6895,7 +7518,7 @@
               }
             ],
             "url": "{{baseUrl}}/flashcards/decks/{{deckId}}",
-            "description": "Controller source: src/modules/flashcards/flashcards.controller.ts#removeDeck",
+            "description": "Controller source: src\\modules\\flashcards\\flashcards.controller.ts#removeDeck",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6932,7 +7555,7 @@
               }
             ],
             "url": "{{baseUrl}}/admin/users/{{managedUserId}}",
-            "description": "Controller source: src/modules/admin/admin-bootstrap.controller.ts#removeUser",
+            "description": "Controller source: src\\modules\\admin\\admin-bootstrap.controller.ts#removeUser",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -6969,7 +7592,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/resources/{{resourceId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#deleteResource",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#deleteResource",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -7006,7 +7629,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/topics/{{topicId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#deleteTopic",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#deleteTopic",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -7043,7 +7666,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/lectures/{{lectureId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#deleteLecture",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#deleteLecture",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -7080,7 +7703,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/weeks/{{weekId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#deleteWeek",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#deleteWeek",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -7117,7 +7740,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/courses/{{courseId}}/instructors/{{instructorId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#removeCourseInstructor",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#removeCourseInstructor",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -7155,7 +7778,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/courses/{{courseId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#deleteCourse",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#deleteCourse",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -7192,7 +7815,7 @@
               }
             ],
             "url": "{{baseUrl}}/academic/semesters/{{semesterId}}",
-            "description": "Controller source: src/modules/academic/academic.controller.ts#deleteSemester",
+            "description": "Controller source: src\\modules\\academic\\academic.controller.ts#deleteSemester",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -7219,7 +7842,7 @@
           ]
         },
         {
-          "name": "DELETE /catalog/bundles/:bundleId/courses/:courseId",
+          "name": "DELETE /bundles/:bundleId/courses/:courseId",
           "request": {
             "method": "DELETE",
             "header": [
@@ -7228,14 +7851,14 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/courses/{{courseId}}",
-            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "url": "{{baseUrl}}/bundles/{{bundleId}}/courses/{{courseId}}",
+            "description": "Controller source: src\\modules\\bundles\\bundles.controller.ts#e",
             "auth": {
               "type": "bearer",
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminAccessToken}}",
+                  "value": "{{instructorAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -7257,7 +7880,7 @@
           ]
         },
         {
-          "name": "DELETE /catalog/bundles/:bundleId/weeks/:weekId",
+          "name": "DELETE /bundles/:bundleId/weeks/:weekId",
           "request": {
             "method": "DELETE",
             "header": [
@@ -7266,14 +7889,14 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/weeks/{{weekId}}",
-            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "url": "{{baseUrl}}/bundles/{{bundleId}}/weeks/{{weekId}}",
+            "description": "Controller source: src\\modules\\bundles\\bundles.controller.ts#e",
             "auth": {
               "type": "bearer",
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminAccessToken}}",
+                  "value": "{{instructorAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -7295,7 +7918,7 @@
           ]
         },
         {
-          "name": "DELETE /catalog/bundles/:bundleId/tests/:testId",
+          "name": "DELETE /bundles/:bundleId/tests/:testId",
           "request": {
             "method": "DELETE",
             "header": [
@@ -7304,14 +7927,14 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/tests/{{testId}}",
-            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "url": "{{baseUrl}}/bundles/{{bundleId}}/tests/{{testId}}",
+            "description": "Controller source: src\\modules\\bundles\\bundles.controller.ts#e",
             "auth": {
               "type": "bearer",
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminAccessToken}}",
+                  "value": "{{instructorAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -7333,7 +7956,7 @@
           ]
         },
         {
-          "name": "DELETE /catalog/bundles/:bundleId/enrollments/:studentId",
+          "name": "DELETE /bundles/:bundleId/enrollments/:studentId",
           "request": {
             "method": "DELETE",
             "header": [
@@ -7342,14 +7965,14 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{baseUrl}}/catalog/bundles/{{bundleId}}/enrollments/{{studentId}}",
-            "description": "Controller source: src/modules/bundles/bundles.controller.ts#Roles",
+            "url": "{{baseUrl}}/bundles/{{bundleId}}/enrollments/{{studentUserId}}",
+            "description": "Controller source: src\\modules\\bundles\\bundles.controller.ts#e",
             "auth": {
               "type": "bearer",
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{adminAccessToken}}",
+                  "value": "{{instructorAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -7362,7 +7985,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Route variable bundleId is populated', () => pm.expect(pm.variables.get('bundleId')).to.be.a('string').and.not.empty);",
-                  "pm.test('Route variable studentId is populated', () => pm.expect(pm.variables.get('studentId')).to.be.a('string').and.not.empty);",
+                  "pm.test('Route variable studentUserId is populated', () => pm.expect(pm.variables.get('studentUserId')).to.be.a('string').and.not.empty);",
                   "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
                   "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
                 ]
@@ -7381,7 +8004,7 @@
               }
             ],
             "url": "{{baseUrl}}/notebook/notes/{{noteId}}",
-            "description": "Controller source: src/modules/workspace/workspace.controller.ts#HttpCode",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#g",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -7408,6 +8031,118 @@
           ]
         },
         {
+          "name": "DELETE /notebook/notes/:noteId/attachments/:attachmentId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/notebook/notes/{{noteId}}/attachments/{{attachmentId}}",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#g",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable noteId is populated', () => pm.expect(pm.variables.get('noteId')).to.be.a('string').and.not.empty);",
+                  "pm.test('Route variable attachmentId is populated', () => pm.expect(pm.variables.get('attachmentId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /notebook/collections/:collectionId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/notebook/collections/{{collectionId}}",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#g",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable collectionId is populated', () => pm.expect(pm.variables.get('collectionId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /notebook/tags/:tagId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/notebook/tags/{{tagId}}",
+            "description": "Controller source: src\\modules\\workspace\\workspace.controller.ts#g",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Route variable tagId is populated', () => pm.expect(pm.variables.get('tagId')).to.be.a('string').and.not.empty);",
+                  "pm.test('No unexpected server error', () => pm.expect(pm.response.code).to.be.below(500));",
+                  "pm.test('Response time under 5 seconds', () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "POST /auth/logout",
           "request": {
             "method": "POST",
@@ -7418,7 +8153,7 @@
               }
             ],
             "url": "{{baseUrl}}/auth/logout",
-            "description": "Controller source: src/modules/auth/auth.controller.ts#logout",
+            "description": "Controller source: src\\modules\\auth\\auth.controller.ts#logout",
             "auth": {
               "type": "bearer",
               "bearer": [

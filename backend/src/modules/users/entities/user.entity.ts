@@ -77,6 +77,9 @@ export class User {
   @Column({ type: 'timestamp', nullable: true, name: 'last_login_at' })
   lastLoginAt: Date | null;
 
+  @Column({ type: 'varchar', length: 6, nullable: false, unique: true, name: 'forensic_code' })
+  forensicCode: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

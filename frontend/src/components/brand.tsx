@@ -9,16 +9,20 @@ export function BrandLockup({
   href = "/",
   className = "",
   showTagline = false,
+  tagline = BRAND_TAGLINE,
+  ariaLabel = `${BRAND_NAME} home`,
 }: {
   href?: string;
   className?: string;
   showTagline?: boolean;
+  tagline?: string;
+  ariaLabel?: string;
 }) {
-  return <Link href={href} className={`brand-lockup ${className}`.trim()} aria-label={`${BRAND_NAME} home`}>
+  return <Link href={href} className={`brand-lockup ${className}`.trim()} aria-label={ariaLabel}>
     <Image className="brand-emblem" src={BRAND_EMBLEM} alt="" width={256} height={256} priority unoptimized />
     <span className="brand-words">
       <strong aria-hidden="true"><span>My Doctor &amp;</span><span>The Professor</span></strong>
-      {showTagline && <small>{BRAND_TAGLINE}</small>}
+      {showTagline && <small>{tagline}</small>}
     </span>
   </Link>;
 }

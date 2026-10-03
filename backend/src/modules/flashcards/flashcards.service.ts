@@ -14,6 +14,7 @@ import { Flashcard } from '../../common/entities/flashcard.entity';
 import { Lecture } from '../../common/entities/lecture.entity';
 import { StudentFlashcardProgress } from '../../common/entities/student-flashcard-progress.entity';
 import { Topic } from '../../common/entities/topic.entity';
+import { Week } from '../../common/entities/week.entity';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { Student } from '../users/entities/student.entity';
 import { UserRole } from '../users/entities/user.entity';
@@ -36,6 +37,7 @@ export class FlashcardsService {
     @InjectRepository(StudentFlashcardProgress) private readonly progress: Repository<StudentFlashcardProgress>,
     @InjectRepository(Course) private readonly courses: Repository<Course>,
     @InjectRepository(CourseInstructor) private readonly courseInstructors: Repository<CourseInstructor>,
+    @InjectRepository(Week) private readonly weeks: Repository<Week>,
     @InjectRepository(Lecture) private readonly lectures: Repository<Lecture>,
     @InjectRepository(Topic) private readonly topics: Repository<Topic>,
     @InjectRepository(Student) private readonly students: Repository<Student>,
@@ -43,7 +45,7 @@ export class FlashcardsService {
   ) {}
 
   async createDeck(dto: CreateDeckDto, actor: AuthenticatedUser) {
-    const scope = await this.resolveScope(dto.course_id, dto.lecture_id, dto.topic_id);
+    const scope = await this.resolveScope(dto.course_id, dto.week_id, dto.lecture_id, dto.topic_id);
     if (actor.role === UserRole.INSTRUCTOR) {
       const assigned = await this.courseInstructors.exists({
         where: { courseId: scope.courseId, instructorId: actor.userId },
@@ -65,6 +67,7 @@ export class FlashcardsService {
     const limit = query.limit ?? 20;
     const builder = this.decks.createQueryBuilder('deck')
       .leftJoinAndSelect('deck.course', 'course')
+      .leftJoinAndSelect('deck.week', 'week')
       .leftJoinAndSelect('deck.lecture', 'lecture')
       .leftJoinAndSelect('deck.topic', 'topic')
       .orderBy('deck.display_order', 'ASC')
@@ -78,6 +81,7 @@ export class FlashcardsService {
       builder.andWhere('deck.created_by = :actorId', { actorId: actor.userId });
     }
     if (query.course_id) builder.andWhere('deck.course_id = :courseId', { courseId: query.course_id });
+    if (query.week_id) builder.andWhere('deck.week_id = :weekId', { weekId: query.week_id });
     if (query.lecture_id) builder.andWhere('deck.lecture_id = :lectureId', { lectureId: query.lecture_id });
     if (query.topic_id) builder.andWhere('deck.topic_id = :topicId', { topicId: query.topic_id });
     if (query.is_published !== undefined && actor.role !== UserRole.STUDENT) {
@@ -114,13 +118,34 @@ export class FlashcardsService {
   async updateDeck(id:string,dto:UpdateDeckDto,actor:AuthenticatedUser) {
     const deck = await this.requireOwnedDeck(id,actor);
     if (!Object.keys(dto).length) throw new BadRequestException('At least one deck field must be provided');
-    const definitionChange = Object.keys(dto).some((key)=>key!=='is_published');
-    if (deck.isPublished && definitionChange && dto.is_published !== false) {
-      throw new ConflictException('Unpublish the deck before changing its definition');
+    const scopeFields = ['course_id','week_id','lecture_id','topic_id'] as const;
+    const scopeChange = scopeFields.some((key)=>Object.prototype.hasOwnProperty.call(dto,key));
+    if (deck.isPublished && scopeChange && dto.is_published !== false) {
+      throw new ConflictException('Return the deck to Draft before changing its academic scope');
     }
     if (dto.title!==undefined) deck.title=dto.title.trim();
     if (dto.description!==undefined) deck.description=dto.description.trim()||null;
     if (dto.display_order!==undefined) deck.displayOrder=dto.display_order;
+    if (scopeChange) {
+      const scope=await this.resolveScope(
+        dto.course_id===null?undefined:(dto.course_id??deck.courseId??undefined),
+        dto.week_id===null?undefined:(dto.week_id??deck.weekId??undefined),
+        dto.lecture_id===null?undefined:(dto.lecture_id??deck.lectureId??undefined),
+        dto.topic_id===null?undefined:(dto.topic_id??deck.topicId??undefined),
+      );
+      if(actor.role===UserRole.INSTRUCTOR) {
+        const assigned=await this.courseInstructors.exists({where:{courseId:scope.courseId,instructorId:actor.userId}});
+        if(!assigned) throw new ForbiddenException('You are not assigned to manage this course');
+      }
+      deck.courseId=scope.courseId;
+      deck.weekId=scope.weekId;
+      deck.lectureId=scope.lectureId;
+      deck.topicId=scope.topicId;
+      deck.course=await this.courses.findOne({where:{id:scope.courseId}});
+      deck.week=scope.weekId?await this.weeks.findOne({where:{id:scope.weekId}}):null;
+      deck.lecture=scope.lectureId?await this.lectures.findOne({where:{id:scope.lectureId}}):null;
+      deck.topic=scope.topicId?await this.topics.findOne({where:{id:scope.topicId}}):null;
+    }
     if (dto.is_published!==undefined) {
       if (dto.is_published) await this.assertPublishable(deck);
       deck.isPublished=dto.is_published;
@@ -291,29 +316,34 @@ export class FlashcardsService {
       [ReviewRating.GOOD]:4,[ReviewRating.EASY]:5}[rating];
   }
 
-  private async resolveScope(courseId?:string,lectureId?:string,topicId?:string) {
-    if(!courseId&&!lectureId&&!topicId) throw new BadRequestException('A deck requires a course, lecture, or topic');
-    let course:Course|null=null,lecture:Lecture|null=null,topic:Topic|null=null;
+  private async resolveScope(courseId?:string,weekId?:string,lectureId?:string,topicId?:string) {
+    if(!courseId&&!weekId&&!lectureId&&!topicId) throw new BadRequestException('A deck requires a course, week, lecture, or topic');
+    let course:Course|null=null,week:Week|null=null,lecture:Lecture|null=null,topic:Topic|null=null;
     if(topicId) {
       topic=await this.topics.findOne({where:{id:topicId},relations:{lecture:{week:{course:true}}}});
       if(!topic) throw new NotFoundException('Topic not found');
-      lecture=topic.lecture;course=topic.lecture.week.course;
+      lecture=topic.lecture;week=topic.lecture.week;course=week.course;
     } else if(lectureId) {
       lecture=await this.lectures.findOne({where:{id:lectureId},relations:{week:{course:true}}});
       if(!lecture) throw new NotFoundException('Lecture not found');
-      course=lecture.week.course;
+      week=lecture.week;course=week.course;
+    } else if(weekId) {
+      week=await this.weeks.findOne({where:{id:weekId},relations:{course:true}});
+      if(!week) throw new NotFoundException('Week not found');
+      course=week.course;
     } else {
       course=await this.courses.findOne({where:{id:courseId!}});
       if(!course) throw new NotFoundException('Course not found');
     }
     if(courseId&&course.id!==courseId) throw new BadRequestException('Course does not match the selected hierarchy');
+    if(weekId&&week?.id!==weekId) throw new BadRequestException('Week does not match the selected hierarchy');
     if(lectureId&&lecture?.id!==lectureId) throw new BadRequestException('Lecture does not match the selected topic');
-    return {courseId:course.id,lectureId:lecture?.id??null,topicId:topic?.id??null};
+    return {courseId:course.id,weekId:week?.id??null,lectureId:lecture?.id??null,topicId:topic?.id??null};
   }
 
   private async requireDeck(id:string):Promise<FlashcardDeck> {
     const deck=await this.decks.findOne({
-      where:{id},relations:{course:true,lecture:true,topic:true,cards:true},
+      where:{id},relations:{course:true,week:true,lecture:true,topic:true,cards:true},
       order:{cards:{displayOrder:'ASC'}},
     });
     if(!deck) throw new NotFoundException('Flashcard deck not found');

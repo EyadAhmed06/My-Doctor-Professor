@@ -11,6 +11,7 @@ export enum TestType { LECTURE='LECTURE', WEEK='WEEK', COURSE='COURSE', CUSTOM='
 @Entity('tests')
 @Index('idx_tests_course', ['courseId'])
 @Index('idx_tests_type', ['testType'])
+@Index('uq_tests_creator_generation_key', ['createdBy', 'generationKey'], { unique: true, where: '"generation_key" IS NOT NULL' })
 export class Test {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column({ type:'varchar', length:200 }) title: string;
@@ -25,6 +26,8 @@ export class Test {
   @Column({type:'boolean',default:false,name:'is_published'}) isPublished:boolean;
   @Column({type:'timestamp',name:'available_from',nullable:true}) availableFrom:Date|null;
   @Column({type:'timestamp',name:'available_until',nullable:true}) availableUntil:Date|null;
+  @Column({type:'varchar',length:128,name:'generation_key',nullable:true,select:false}) generationKey:string|null;
+  @Column({type:'varchar',length:64,name:'generation_fingerprint',nullable:true,select:false}) generationFingerprint:string|null;
   @Column('uuid',{name:'created_by'}) createdBy:string;
   @CreateDateColumn({name:'created_at'}) createdAt:Date;
   @UpdateDateColumn({name:'updated_at'}) updatedAt:Date;

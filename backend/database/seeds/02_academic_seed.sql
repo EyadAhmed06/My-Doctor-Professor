@@ -29,12 +29,42 @@ VALUES
 (
     1,
     'Semester 1',
-    'Foundation medical sciences.'
+    'First-semester medical curriculum.'
 ),
 (
     2,
     'Semester 2',
-    'Pre-clinical medical sciences.'
+    'Second-semester medical curriculum.'
+),
+(
+    3,
+    'Semester 3',
+    'Third-semester medical curriculum.'
+),
+(
+    4,
+    'Semester 4',
+    'Fourth-semester medical curriculum.'
+),
+(
+    5,
+    'Semester 5',
+    'Fifth-semester medical curriculum.'
+),
+(
+    6,
+    'Semester 6',
+    'Sixth-semester medical curriculum.'
+),
+(
+    7,
+    'Semester 7',
+    'Seventh-semester medical curriculum.'
+),
+(
+    8,
+    'Semester 8',
+    'Eighth-semester medical curriculum.'
 );
 
 -- =====================================================

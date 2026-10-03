@@ -96,6 +96,7 @@ export class CreateWeekDto {
 export class UpdateWeekDto {
   @IsOptional() @IsString() @MaxLength(150) title?: string;
   @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsBoolean() is_locked?: boolean;
   @IsOptional() @IsInt() @Min(1) display_order?: number;
 }
 
@@ -114,6 +115,7 @@ export class UpdateLectureDto {
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsInt() @Min(1) estimated_duration_minutes?: number;
   @IsOptional() @IsBoolean() is_published?: boolean;
+  @IsOptional() @IsBoolean() is_locked?: boolean;
   @IsOptional() @IsInt() @Min(1) display_order?: number;
 }
 
@@ -128,6 +130,7 @@ export class UpdateTopicDto {
   topic_name?: string;
 
   @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsBoolean() is_locked?: boolean;
   @IsOptional() @IsInt() @Min(1) display_order?: number;
 }
 

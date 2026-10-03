@@ -1,0 +1,48 @@
+/* Final landing hero artwork contract.
+   Do not rely on legacy img sources or content:url() replacement. */
+.public-home .public-hero .hero-duo {
+  display: block !important;
+  width: min(100%, 760px) !important;
+  min-width: 0 !important;
+  height: clamp(430px, 42vw, 650px) !important;
+  min-height: 430px !important;
+  margin: 0 !important;
+  align-self: center !important;
+  justify-self: stretch !important;
+  background-image: url('/media/hero-doctor-professor-v2-dark.svg') !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+  background-size: contain !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+.public-home .public-hero .hero-duo > img {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+[data-theme='light'] .public-home .public-hero .hero-duo,
+html.light .public-home .public-hero .hero-duo {
+  background-image: url('/media/hero-doctor-professor-v2-light.svg') !important;
+}
+
+@media (max-width: 1100px) {
+  .public-home .public-hero .hero-duo {
+    width: min(100%, 640px) !important;
+    height: clamp(390px, 55vw, 560px) !important;
+    min-height: 390px !important;
+    justify-self: center !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .public-home .public-hero .hero-duo {
+    width: 100% !important;
+    height: min(86vw, 520px) !important;
+    min-height: 300px !important;
+    margin-top: 18px !important;
+    background-position: center top !important;
+  }
+}

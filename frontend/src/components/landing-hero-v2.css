@@ -1,0 +1,40 @@
+.hero-duo-dark {
+  content: url('/media/hero-doctor-professor-v2-dark.svg') !important;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+}
+
+.hero-duo-light {
+  content: url('/media/hero-doctor-professor-v2-light.svg') !important;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+}
+
+html[data-theme="dark"] .hero-duo-dark {
+  display: block !important;
+}
+
+html[data-theme="dark"] .hero-duo-light {
+  display: none !important;
+}
+
+html[data-theme="light"] .hero-duo-dark {
+  display: none !important;
+}
+
+html[data-theme="light"] .hero-duo-light {
+  display: block !important;
+}
+
+@media (max-width: 900px) {
+  .hero-duo-dark,
+  .hero-duo-light {
+    max-height: min(58dvh, 560px) !important;
+  }
+}

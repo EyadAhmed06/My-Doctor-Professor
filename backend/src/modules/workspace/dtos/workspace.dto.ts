@@ -64,7 +64,7 @@ export class ConvertNoteToFlashcardDto {
  @IsString() @MinLength(1) @MaxLength(20000) back_content:string;
 }
 export class UpdateStudyPlanDto {
- @IsOptional() @IsString() @MaxLength(100) target_exam?:string;
+ @IsOptional() @IsString() @MaxLength(100) target_exam?:string|null;
  @IsOptional() @IsDateString() exam_date?:string;
  @IsOptional() @IsInt() @Min(1) @Max(500) daily_question_target?:number;
  @IsOptional() @IsInt() @Min(1) @Max(168) weekly_hours_target?:number;
@@ -76,7 +76,10 @@ export class StudyPlanCalendarQueryDto {
  @IsOptional() @IsDateString() to?:string;
 }
 export class UpdateStudyPlanItemDto {
- @IsIn(['COMPLETED','SKIPPED','PLANNED']) status:string;
+ @IsOptional() @IsIn(['COMPLETED','SKIPPED','PLANNED']) status?:string;
+ @IsOptional() @IsDateString() scheduled_date?:string;
+ @IsOptional() @Transform(({value})=>Number(value)) @IsInt() @Min(5) @Max(1440) duration_minutes?:number;
+ @IsOptional() @IsBoolean() is_locked?:boolean;
 }
 export class DrugReferenceQueryDto {
  @IsOptional() @IsString() @MaxLength(100) search?:string;

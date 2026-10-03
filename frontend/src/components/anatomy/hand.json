@@ -1,0 +1,1157 @@
+{
+  "region": "hand",
+  "label": "Hand & wrist",
+  "generated": "by scripts/anatomy/prepare-model.mjs - do not edit by hand",
+  "nonCommercialTexturesRemoved": [
+    "Muscle tiles",
+    "Muscle tiles plain",
+    "Tendon only"
+  ],
+  "systems": [
+    {
+      "key": "nerve",
+      "label": "Nerves"
+    },
+    {
+      "key": "artery",
+      "label": "Arteries"
+    },
+    {
+      "key": "vein",
+      "label": "Veins"
+    },
+    {
+      "key": "muscle",
+      "label": "Muscles"
+    },
+    {
+      "key": "bone",
+      "label": "Bones"
+    },
+    {
+      "key": "connective",
+      "label": "Ligaments & joints"
+    },
+    {
+      "key": "other",
+      "label": "Other"
+    }
+  ],
+  "structures": [
+    {
+      "id": "1st metacarpal bone",
+      "name": "1st metacarpal bone",
+      "system": "bone"
+    },
+    {
+      "id": "2nd metacarpal bone",
+      "name": "2nd metacarpal bone",
+      "system": "bone"
+    },
+    {
+      "id": "3rd metacarpal bone",
+      "name": "3rd metacarpal bone",
+      "system": "bone"
+    },
+    {
+      "id": "4th metacarpal bone",
+      "name": "4th metacarpal bone",
+      "system": "bone"
+    },
+    {
+      "id": "5th metacarpal bone",
+      "name": "5th metacarpal bone",
+      "system": "bone"
+    },
+    {
+      "id": "Capitate",
+      "name": "Capitate",
+      "system": "bone"
+    },
+    {
+      "id": "Distal phalanx of 1st finger",
+      "name": "Distal phalanx of 1st finger",
+      "system": "bone"
+    },
+    {
+      "id": "Distal phalanx of 2d finger",
+      "name": "Distal phalanx of 2d finger",
+      "system": "bone"
+    },
+    {
+      "id": "Distal phalanx of 3d finger",
+      "name": "Distal phalanx of 3d finger",
+      "system": "bone"
+    },
+    {
+      "id": "Distal phalanx of 4th finger",
+      "name": "Distal phalanx of 4th finger",
+      "system": "bone"
+    },
+    {
+      "id": "Distal phalanx of 5th finger",
+      "name": "Distal phalanx of 5th finger",
+      "system": "bone"
+    },
+    {
+      "id": "Hamate",
+      "name": "Hamate",
+      "system": "bone"
+    },
+    {
+      "id": "Lunate bone",
+      "name": "Lunate bone",
+      "system": "bone"
+    },
+    {
+      "id": "Middle phalanx of 2d finger",
+      "name": "Middle phalanx of 2d finger",
+      "system": "bone"
+    },
+    {
+      "id": "Middle phalanx of 3rd finger",
+      "name": "Middle phalanx of 3rd finger",
+      "system": "bone"
+    },
+    {
+      "id": "Middle phalanx of 4th finger",
+      "name": "Middle phalanx of 4th finger",
+      "system": "bone"
+    },
+    {
+      "id": "Middle phalanx of 5th finger",
+      "name": "Middle phalanx of 5th finger",
+      "system": "bone"
+    },
+    {
+      "id": "Pisiform",
+      "name": "Pisiform",
+      "system": "bone"
+    },
+    {
+      "id": "Proximal phalanx of 1st finger",
+      "name": "Proximal phalanx of 1st finger",
+      "system": "bone"
+    },
+    {
+      "id": "Proximal phalanx of 2d finger",
+      "name": "Proximal phalanx of 2d finger",
+      "system": "bone"
+    },
+    {
+      "id": "Proximal phalanx of 3rd finger",
+      "name": "Proximal phalanx of 3rd finger",
+      "system": "bone"
+    },
+    {
+      "id": "Proximal phalanx of 4th finger",
+      "name": "Proximal phalanx of 4th finger",
+      "system": "bone"
+    },
+    {
+      "id": "Proximal phalanx of 5th finger",
+      "name": "Proximal phalanx of 5th finger",
+      "system": "bone"
+    },
+    {
+      "id": "Radius",
+      "name": "Radius",
+      "system": "bone"
+    },
+    {
+      "id": "Scaphoid",
+      "name": "Scaphoid",
+      "system": "bone"
+    },
+    {
+      "id": "Sesamoid bones",
+      "name": "Sesamoid bones",
+      "system": "bone"
+    },
+    {
+      "id": "Trapezium",
+      "name": "Trapezium",
+      "system": "bone"
+    },
+    {
+      "id": "Trapezoid",
+      "name": "Trapezoid",
+      "system": "bone"
+    },
+    {
+      "id": "Triquetrum",
+      "name": "Triquetrum",
+      "system": "bone"
+    },
+    {
+      "id": "Ulna",
+      "name": "Ulna",
+      "system": "bone"
+    },
+    {
+      "id": "Synovial sheaths of fingers",
+      "name": "Synovial sheaths of fingers",
+      "system": "connective"
+    },
+    {
+      "id": "1st dorsal interosseus of hand",
+      "name": "1st dorsal interosseus of hand",
+      "system": "other"
+    },
+    {
+      "id": "1st lumbrical of hand",
+      "name": "1st lumbrical of hand",
+      "system": "muscle"
+    },
+    {
+      "id": "1st palmar interosseus of hand",
+      "name": "1st palmar interosseus of hand",
+      "system": "other"
+    },
+    {
+      "id": "2nd dorsal interosseus of hand",
+      "name": "2nd dorsal interosseus of hand",
+      "system": "other"
+    },
+    {
+      "id": "2nd lumbrical of hand",
+      "name": "2nd lumbrical of hand",
+      "system": "muscle"
+    },
+    {
+      "id": "2nd palmar interosseus of hand",
+      "name": "2nd palmar interosseus of hand",
+      "system": "other"
+    },
+    {
+      "id": "3rd dorsal interosseus of hand",
+      "name": "3rd dorsal interosseus of hand",
+      "system": "other"
+    },
+    {
+      "id": "3rd lumbrical of hand",
+      "name": "3rd lumbrical of hand",
+      "system": "muscle"
+    },
+    {
+      "id": "3rd palmar interosseus of hand",
+      "name": "3rd palmar interosseus of hand",
+      "system": "other"
+    },
+    {
+      "id": "4th dorsal interosseus of hand",
+      "name": "4th dorsal interosseus of hand",
+      "system": "other"
+    },
+    {
+      "id": "4th lumbrical of hand",
+      "name": "4th lumbrical of hand",
+      "system": "muscle"
+    },
+    {
+      "id": "Abductor digiti minimi",
+      "name": "Abductor digiti minimi",
+      "system": "muscle"
+    },
+    {
+      "id": "Abductor pollicis brevis",
+      "name": "Abductor pollicis brevis",
+      "system": "muscle"
+    },
+    {
+      "id": "Abductor pollicis longus",
+      "name": "Abductor pollicis longus",
+      "system": "muscle"
+    },
+    {
+      "id": "Abductor pollicis longus tendon sheath",
+      "name": "Abductor pollicis longus tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Adductor pollicis",
+      "name": "Adductor pollicis",
+      "system": "muscle"
+    },
+    {
+      "id": "Aponeurosis palmaris",
+      "name": "Aponeurosis palmaris",
+      "system": "muscle"
+    },
+    {
+      "id": "Articular capsules of metacarpophalangeal joints",
+      "name": "Articular capsules of metacarpophalangeal joints",
+      "system": "bone"
+    },
+    {
+      "id": "Brachioradialis muscle",
+      "name": "Brachioradialis muscle",
+      "system": "muscle"
+    },
+    {
+      "id": "Common flexor tendon sheath",
+      "name": "Common flexor tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Common tendon of extensor carpi ulnaris",
+      "name": "Common tendon of extensor carpi ulnaris",
+      "system": "muscle"
+    },
+    {
+      "id": "Common tendon of flexor carpi ulnaris",
+      "name": "Common tendon of flexor carpi ulnaris",
+      "system": "muscle"
+    },
+    {
+      "id": "Deep head of flexor pollicis brevis",
+      "name": "Deep head of flexor pollicis brevis",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor carpi radialis brevis",
+      "name": "Extensor carpi radialis brevis",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor carpi radialis brevis tendon sheath",
+      "name": "Extensor carpi radialis brevis tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor carpi radialis longus",
+      "name": "Extensor carpi radialis longus",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor carpi radialis longus tendon sheath",
+      "name": "Extensor carpi radialis longus tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor carpi ulnaris tendon sheath",
+      "name": "Extensor carpi ulnaris tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor digiti minimi",
+      "name": "Extensor digiti minimi",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor digiti minimi tendon sheath",
+      "name": "Extensor digiti minimi tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor digitorum",
+      "name": "Extensor digitorum",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor digitorum - Extensor indicis tendon sheath",
+      "name": "Extensor digitorum - Extensor indicis tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor indicis",
+      "name": "Extensor indicis",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor pollicis brevis",
+      "name": "Extensor pollicis brevis",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor pollicis brevis tendon sheath",
+      "name": "Extensor pollicis brevis tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor pollicis longus",
+      "name": "Extensor pollicis longus",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor pollicis longus tendon sheath",
+      "name": "Extensor pollicis longus tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor carpi radialis",
+      "name": "Flexor carpi radialis",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor carpi radialis tendon sheath",
+      "name": "Flexor carpi radialis tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor digiti minimi brevis of hand",
+      "name": "Flexor digiti minimi brevis of hand",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor digitorum profundus",
+      "name": "Flexor digitorum profundus",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor digitorum superficialis humeral head",
+      "name": "Flexor digitorum superficialis humeral head",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor pollicis longus",
+      "name": "Flexor pollicis longus",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor pollicis longus tendon sheath",
+      "name": "Flexor pollicis longus tendon sheath",
+      "system": "muscle"
+    },
+    {
+      "id": "Opponens digiti minimi muscle of hand",
+      "name": "Opponens digiti minimi muscle of hand",
+      "system": "muscle"
+    },
+    {
+      "id": "Opponens pollicis muscle",
+      "name": "Opponens pollicis muscle",
+      "system": "muscle"
+    },
+    {
+      "id": "Palmaris brevis muscle",
+      "name": "Palmaris brevis muscle",
+      "system": "muscle"
+    },
+    {
+      "id": "Palmaris longus muscle",
+      "name": "Palmaris longus muscle",
+      "system": "muscle"
+    },
+    {
+      "id": "Pronator quadratus",
+      "name": "Pronator quadratus",
+      "system": "muscle"
+    },
+    {
+      "id": "Superficial head of flexor pollicis brevis",
+      "name": "Superficial head of flexor pollicis brevis",
+      "system": "muscle"
+    },
+    {
+      "id": "Superficial transverse metacarpal ligament",
+      "name": "Superficial transverse metacarpal ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Antebrachial fascia",
+      "name": "Antebrachial fascia",
+      "system": "connective"
+    },
+    {
+      "id": "Extensor retinaculum of wrist",
+      "name": "Extensor retinaculum of wrist",
+      "system": "muscle"
+    },
+    {
+      "id": "Flexor retinaculum of wrist",
+      "name": "Flexor retinaculum of wrist",
+      "system": "muscle"
+    },
+    {
+      "id": "Annular ligament(A1) of 1st finger",
+      "name": "Annular ligament(A1) of 1st finger",
+      "system": "connective"
+    },
+    {
+      "id": "Annular ligament(A2) of 1st finger",
+      "name": "Annular ligament(A2) of 1st finger",
+      "system": "connective"
+    },
+    {
+      "id": "Annular ligaments of 2nd finger A1-A5",
+      "name": "Annular ligaments of 2nd finger A1-A5",
+      "system": "connective"
+    },
+    {
+      "id": "Annular ligaments of 3rd finger A1-A5",
+      "name": "Annular ligaments of 3rd finger A1-A5",
+      "system": "connective"
+    },
+    {
+      "id": "Annular ligaments of 4th finger A1-A5",
+      "name": "Annular ligaments of 4th finger A1-A5",
+      "system": "connective"
+    },
+    {
+      "id": "Annular ligaments of 5th finger A1-A5",
+      "name": "Annular ligaments of 5th finger A1-A5",
+      "system": "connective"
+    },
+    {
+      "id": "Collateral ligaments of distal phalangeal joints",
+      "name": "Collateral ligaments of distal phalangeal joints",
+      "system": "connective"
+    },
+    {
+      "id": "Collateral ligaments of interphalangeal joint",
+      "name": "Collateral ligaments of interphalangeal joint",
+      "system": "connective"
+    },
+    {
+      "id": "Collateral ligaments of metacarpal joints",
+      "name": "Collateral ligaments of metacarpal joints",
+      "system": "bone"
+    },
+    {
+      "id": "Cruciform ligaments of 2nd finger",
+      "name": "Cruciform ligaments of 2nd finger",
+      "system": "connective"
+    },
+    {
+      "id": "Cruciform ligaments or 3rd finger",
+      "name": "Cruciform ligaments or 3rd finger",
+      "system": "connective"
+    },
+    {
+      "id": "Cruciform ligaments or 4th finger",
+      "name": "Cruciform ligaments or 4th finger",
+      "system": "connective"
+    },
+    {
+      "id": "Cruciform ligaments or 5th finger",
+      "name": "Cruciform ligaments or 5th finger",
+      "system": "connective"
+    },
+    {
+      "id": "Dorsal intercarpal ligaments",
+      "name": "Dorsal intercarpal ligaments",
+      "system": "bone"
+    },
+    {
+      "id": "Dorsal radiocarpal ligament",
+      "name": "Dorsal radiocarpal ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Oblique head of adductor pollicis",
+      "name": "Oblique head of adductor pollicis",
+      "system": "muscle"
+    },
+    {
+      "id": "Oblique ligament of 1st finger",
+      "name": "Oblique ligament of 1st finger",
+      "system": "connective"
+    },
+    {
+      "id": "Palmar ligaments of distal phalangeal joints",
+      "name": "Palmar ligaments of distal phalangeal joints",
+      "system": "connective"
+    },
+    {
+      "id": "Palmar ligaments of interphalangeal joints",
+      "name": "Palmar ligaments of interphalangeal joints",
+      "system": "connective"
+    },
+    {
+      "id": "Palmar ligaments of metacarpophalangeal joints",
+      "name": "Palmar ligaments of metacarpophalangeal joints",
+      "system": "bone"
+    },
+    {
+      "id": "Palmar radiocarpal ligament",
+      "name": "Palmar radiocarpal ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Palmar ulnocarpal ligament",
+      "name": "Palmar ulnocarpal ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Pisometacarpal ligament",
+      "name": "Pisometacarpal ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Radial collateral ligament",
+      "name": "Radial collateral ligament",
+      "system": "connective"
+    },
+    {
+      "id": "Transverse head of adductor pollicis",
+      "name": "Transverse head of adductor pollicis",
+      "system": "muscle"
+    },
+    {
+      "id": "Ulnar collateral ligament",
+      "name": "Ulnar collateral ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartiage of ulna distal end",
+      "name": "Articular cartiage of ulna distal end",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartilage of capitate bone​",
+      "name": "Articular cartilage of capitate bone​",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartilage of hamate bone​",
+      "name": "Articular cartilage of hamate bone​",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartilage of lunate bone",
+      "name": "Articular cartilage of lunate bone",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartilage of pisiform bone ​",
+      "name": "Articular cartilage of pisiform bone ​",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartilage of radius distal end​",
+      "name": "Articular cartilage of radius distal end​",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartilage of scaphoid bone​",
+      "name": "Articular cartilage of scaphoid bone​",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartilage of trapezium bone​",
+      "name": "Articular cartilage of trapezium bone​",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartilage of trapezoid bone​",
+      "name": "Articular cartilage of trapezoid bone​",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartilage of triquetrum bone",
+      "name": "Articular cartilage of triquetrum bone",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartilages of distal phalanges",
+      "name": "Articular cartilages of distal phalanges",
+      "system": "connective"
+    },
+    {
+      "id": "Articular cartilages of metacarpal bones",
+      "name": "Articular cartilages of metacarpal bones",
+      "system": "bone"
+    },
+    {
+      "id": "Articular cartilages of middle phalanges",
+      "name": "Articular cartilages of middle phalanges",
+      "system": "connective"
+    },
+    {
+      "id": "Articular cartilages of proximal phalanges",
+      "name": "Articular cartilages of proximal phalanges",
+      "system": "connective"
+    },
+    {
+      "id": "Triangular fibro cartilage disc",
+      "name": "Triangular fibro cartilage disc",
+      "system": "connective"
+    },
+    {
+      "id": "Articular capsule of radiocarpal joint",
+      "name": "Articular capsule of radiocarpal joint",
+      "system": "bone"
+    },
+    {
+      "id": "Articular capsules of distal interphalangeal joints",
+      "name": "Articular capsules of distal interphalangeal joints",
+      "system": "connective"
+    },
+    {
+      "id": "Articular capsules of proximal interphalangeal joints",
+      "name": "Articular capsules of proximal interphalangeal joints",
+      "system": "connective"
+    },
+    {
+      "id": "Capitohamate interosseus ligament",
+      "name": "Capitohamate interosseus ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Deep transverse metacarpal ligament",
+      "name": "Deep transverse metacarpal ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Dorsal carpometacarpal ligaments",
+      "name": "Dorsal carpometacarpal ligaments",
+      "system": "bone"
+    },
+    {
+      "id": "Dorsal intercarpal ligaments.001",
+      "name": "Dorsal intercarpal ligaments.001",
+      "system": "bone"
+    },
+    {
+      "id": "Dorsal metacarpal ligaments",
+      "name": "Dorsal metacarpal ligaments",
+      "system": "bone"
+    },
+    {
+      "id": "Dorsal radio-ulnar ligament",
+      "name": "Dorsal radio-ulnar ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Dorsal scaphotriquetral ligament",
+      "name": "Dorsal scaphotriquetral ligament",
+      "system": "connective"
+    },
+    {
+      "id": "Dorsal ulnocarpal ligament",
+      "name": "Dorsal ulnocarpal ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Extensor hood of 2nd finger",
+      "name": "Extensor hood of 2nd finger",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor hood of 3rd finger",
+      "name": "Extensor hood of 3rd finger",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor hood of 4th finger",
+      "name": "Extensor hood of 4th finger",
+      "system": "muscle"
+    },
+    {
+      "id": "Extensor hood of 5th finger",
+      "name": "Extensor hood of 5th finger",
+      "system": "muscle"
+    },
+    {
+      "id": "Fibrous sheath of digits of hand",
+      "name": "Fibrous sheath of digits of hand",
+      "system": "connective"
+    },
+    {
+      "id": "Fibrous sheath of digits of hand thumb",
+      "name": "Fibrous sheath of digits of hand thumb",
+      "system": "connective"
+    },
+    {
+      "id": "Interosseous metacarpal ligaments",
+      "name": "Interosseous metacarpal ligaments",
+      "system": "bone"
+    },
+    {
+      "id": "Intertendinous connections of extensor digitorum",
+      "name": "Intertendinous connections of extensor digitorum",
+      "system": "muscle"
+    },
+    {
+      "id": "Lateral band of 2nd finger",
+      "name": "Lateral band of 2nd finger",
+      "system": "other"
+    },
+    {
+      "id": "Lateral band of 3rd finger",
+      "name": "Lateral band of 3rd finger",
+      "system": "other"
+    },
+    {
+      "id": "Lateral band of 4th finger",
+      "name": "Lateral band of 4th finger",
+      "system": "other"
+    },
+    {
+      "id": "Lateral band of 5th finger",
+      "name": "Lateral band of 5th finger",
+      "system": "other"
+    },
+    {
+      "id": "Lunotriquetral interosseous ligament",
+      "name": "Lunotriquetral interosseous ligament",
+      "system": "connective"
+    },
+    {
+      "id": "Palmar capitohamate ligament",
+      "name": "Palmar capitohamate ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Palmar carpometacarpal ligaments",
+      "name": "Palmar carpometacarpal ligaments",
+      "system": "bone"
+    },
+    {
+      "id": "Palmar lunotriquetral ligament",
+      "name": "Palmar lunotriquetral ligament",
+      "system": "connective"
+    },
+    {
+      "id": "Palmar metacarpal ligaments",
+      "name": "Palmar metacarpal ligaments",
+      "system": "bone"
+    },
+    {
+      "id": "Palmar radio-ulnar ligament",
+      "name": "Palmar radio-ulnar ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Palmar scaphotriquetral ligament",
+      "name": "Palmar scaphotriquetral ligament",
+      "system": "connective"
+    },
+    {
+      "id": "Palmar trapezoideocapitate ligament",
+      "name": "Palmar trapezoideocapitate ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Pisohamate ligament",
+      "name": "Pisohamate ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Pisotriquetral ligament",
+      "name": "Pisotriquetral ligament",
+      "system": "connective"
+    },
+    {
+      "id": "Radiate carpal ligament",
+      "name": "Radiate carpal ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Radioscaphocapitate ligament",
+      "name": "Radioscaphocapitate ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Scaphocapitate ligament",
+      "name": "Scaphocapitate ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Scapholunate interosseus ligament",
+      "name": "Scapholunate interosseus ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Scaphotrapeziotrapezoidal ligament",
+      "name": "Scaphotrapeziotrapezoidal ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Transverse carpal ligament",
+      "name": "Transverse carpal ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Trapeziotrapezoidal interosseous ligament",
+      "name": "Trapeziotrapezoidal interosseous ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Trapezoideocapitate interosseous ligament",
+      "name": "Trapezoideocapitate interosseous ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Triquetrocapitate ligament",
+      "name": "Triquetrocapitate ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Triquetrohamate ligament",
+      "name": "Triquetrohamate ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Ulnopisiform ligament",
+      "name": "Ulnopisiform ligament",
+      "system": "bone"
+    },
+    {
+      "id": "Ulnotriquetral_ligament",
+      "name": "Ulnotriquetral ligament",
+      "system": "connective"
+    },
+    {
+      "id": "Basilic vein",
+      "name": "Basilic vein",
+      "system": "vein"
+    },
+    {
+      "id": "Cephalic vein",
+      "name": "Cephalic vein",
+      "system": "vein"
+    },
+    {
+      "id": "Deep venous palmar arch",
+      "name": "Deep venous palmar arch",
+      "system": "vein"
+    },
+    {
+      "id": "Dorsal digital veins",
+      "name": "Dorsal digital veins",
+      "system": "vein"
+    },
+    {
+      "id": "Dorsal metatarsal veins",
+      "name": "Dorsal metatarsal veins",
+      "system": "vein"
+    },
+    {
+      "id": "Dorsal venous network of hand",
+      "name": "Dorsal venous network of hand",
+      "system": "vein"
+    },
+    {
+      "id": "Intercapitular veins of hand",
+      "name": "Intercapitular veins of hand",
+      "system": "vein"
+    },
+    {
+      "id": "Median antebrachial vein",
+      "name": "Median antebrachial vein",
+      "system": "vein"
+    },
+    {
+      "id": "Palmal digital veins",
+      "name": "Palmal digital veins",
+      "system": "vein"
+    },
+    {
+      "id": "Palmar metacarpal veins",
+      "name": "Palmar metacarpal veins",
+      "system": "vein"
+    },
+    {
+      "id": "Palmar venous network of hand",
+      "name": "Palmar venous network of hand",
+      "system": "vein"
+    },
+    {
+      "id": "Posterior interosseous veins",
+      "name": "Posterior interosseous veins",
+      "system": "vein"
+    },
+    {
+      "id": "Radial veins",
+      "name": "Radial veins",
+      "system": "vein"
+    },
+    {
+      "id": "Superficial palmar venous arch",
+      "name": "Superficial palmar venous arch",
+      "system": "vein"
+    },
+    {
+      "id": "Superficial veins of upper limb",
+      "name": "Superficial veins of upper limb",
+      "system": "vein"
+    },
+    {
+      "id": "Ulnar veins",
+      "name": "Ulnar veins",
+      "system": "vein"
+    },
+    {
+      "id": "Anterior interosseous artery",
+      "name": "Anterior interosseous artery",
+      "system": "artery"
+    },
+    {
+      "id": "Common palmar digital arteries",
+      "name": "Common palmar digital arteries",
+      "system": "artery"
+    },
+    {
+      "id": "Deep palmar arch",
+      "name": "Deep palmar arch",
+      "system": "other"
+    },
+    {
+      "id": "Dorsal carpal arch",
+      "name": "Dorsal carpal arch",
+      "system": "bone"
+    },
+    {
+      "id": "Dorsal carpal network",
+      "name": "Dorsal carpal network",
+      "system": "bone"
+    },
+    {
+      "id": "Dorsal digital arteries of hand",
+      "name": "Dorsal digital arteries of hand",
+      "system": "artery"
+    },
+    {
+      "id": "Dorsal metacarpal artery",
+      "name": "Dorsal metacarpal artery",
+      "system": "artery"
+    },
+    {
+      "id": "Dorsalis indicis",
+      "name": "Dorsalis indicis",
+      "system": "other"
+    },
+    {
+      "id": "Dorsalis pollicis",
+      "name": "Dorsalis pollicis",
+      "system": "other"
+    },
+    {
+      "id": "Palmar carpal branches",
+      "name": "Palmar carpal branches",
+      "system": "bone"
+    },
+    {
+      "id": "Palmar metacarpal arteries",
+      "name": "Palmar metacarpal arteries",
+      "system": "artery"
+    },
+    {
+      "id": "Perforating arteries of hand",
+      "name": "Perforating arteries of hand",
+      "system": "artery"
+    },
+    {
+      "id": "Posterior interosseous artery",
+      "name": "Posterior interosseous artery",
+      "system": "artery"
+    },
+    {
+      "id": "Princeps pollicis artery",
+      "name": "Princeps pollicis artery",
+      "system": "artery"
+    },
+    {
+      "id": "Proper palmar digital arteries",
+      "name": "Proper palmar digital arteries",
+      "system": "artery"
+    },
+    {
+      "id": "Radial artery",
+      "name": "Radial artery",
+      "system": "artery"
+    },
+    {
+      "id": "Radialis indicis",
+      "name": "Radialis indicis",
+      "system": "other"
+    },
+    {
+      "id": "Superficial palmar arch",
+      "name": "Superficial palmar arch",
+      "system": "other"
+    },
+    {
+      "id": "Ulnar artery",
+      "name": "Ulnar artery",
+      "system": "artery"
+    },
+    {
+      "id": "Ulnar artery (dorsal carpal br)",
+      "name": "Ulnar artery (dorsal carpal br)",
+      "system": "artery"
+    },
+    {
+      "id": "Median nerve",
+      "name": "Median nerve",
+      "system": "nerve"
+    },
+    {
+      "id": "Median nerve Common palmar digital nerve of the thumb",
+      "name": "Median nerve Common palmar digital nerve of the thumb",
+      "system": "nerve"
+    },
+    {
+      "id": "Median nerve Common palmar digital nerves",
+      "name": "Median nerve Common palmar digital nerves",
+      "system": "nerve"
+    },
+    {
+      "id": "Median nerve Palmar br",
+      "name": "Median nerve Palmar br",
+      "system": "nerve"
+    },
+    {
+      "id": "Median nerve Proper palmar digital nerves",
+      "name": "Median nerve Proper palmar digital nerves",
+      "system": "nerve"
+    },
+    {
+      "id": "Median nerve Proper palmar digital nerves of the thumb",
+      "name": "Median nerve Proper palmar digital nerves of the thumb",
+      "system": "nerve"
+    },
+    {
+      "id": "Median nerve Recurrent br",
+      "name": "Median nerve Recurrent br",
+      "system": "nerve"
+    },
+    {
+      "id": "Radial nerve Dorsal digital nn",
+      "name": "Radial nerve Dorsal digital nn",
+      "system": "nerve"
+    },
+    {
+      "id": "Radial nerve Superficial br",
+      "name": "Radial nerve Superficial br",
+      "system": "nerve"
+    },
+    {
+      "id": "Ulnar nerve",
+      "name": "Ulnar nerve",
+      "system": "nerve"
+    },
+    {
+      "id": "Ulnar nerve Communicating br",
+      "name": "Ulnar nerve Communicating br",
+      "system": "nerve"
+    },
+    {
+      "id": "Ulnar nerve Deep br",
+      "name": "Ulnar nerve Deep br",
+      "system": "nerve"
+    },
+    {
+      "id": "Ulnar nerve Dorsal cutaneous br",
+      "name": "Ulnar nerve Dorsal cutaneous br",
+      "system": "nerve"
+    },
+    {
+      "id": "Ulnar nerve Palmar cutaneous br",
+      "name": "Ulnar nerve Palmar cutaneous br",
+      "system": "nerve"
+    },
+    {
+      "id": "Ulnar nerve Superficial br Common palmar digital n",
+      "name": "Ulnar nerve Superficial br Common palmar digital n",
+      "system": "nerve"
+    },
+    {
+      "id": "Ulnar nerve Superficial br Proper palmar digital nn",
+      "name": "Ulnar nerve Superficial br Proper palmar digital nn",
+      "system": "nerve"
+    }
+  ]
+}

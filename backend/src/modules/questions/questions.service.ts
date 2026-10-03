@@ -14,6 +14,7 @@ import {
 } from 'typeorm';
 import { EssayConfiguration } from '../../common/entities/essay-configuration.entity';
 import { McqOption } from '../../common/entities/mcq-option.entity';
+import { isSupportedMcqOptionCount } from '../../common/mcq-option-policy';
 import {
   Question,
   QuestionType,
@@ -30,6 +31,8 @@ import {
   EssayConfigurationDto,
   QuestionQueryDto,
   SearchQuestionsDto,
+  SaveMcqExplanationsDto,
+  EditMcqDto,
   UpdateMcqOptionDto,
   UpdateQuestionDto,
 } from './dtos/questions.dto';
@@ -109,6 +112,17 @@ export class QuestionsService {
         active: query.is_active,
       });
     }
+    if (query.has_explanation !== undefined) {
+      const complete = `(NULLIF(BTRIM(question.explanation), '') IS NOT NULL AND (
+        question.question_type <> 'MCQ' OR (
+          EXISTS (SELECT 1 FROM mcq_options explained_option WHERE explained_option.question_id = question.id)
+          AND NOT EXISTS (SELECT 1 FROM mcq_options missing_option WHERE missing_option.question_id = question.id AND NULLIF(BTRIM(missing_option.explanation), '') IS NULL)
+        )
+      ))`;
+      builder.andWhere(query.has_explanation ? complete : `NOT ${complete}`);
+    }
+    if (query.course_id) builder.andWhere('course.id = :courseId', { courseId: query.course_id });
+    if (query.lecture_id) builder.andWhere('lecture.id = :lectureId', { lectureId: query.lecture_id });
     if (query.topic_id) {
       builder.andWhere('question.topic_id = :topicId', {
         topicId: query.topic_id,
@@ -222,6 +236,55 @@ export class QuestionsService {
     return this.questions.save(question);
   }
 
+  async editMcq(id: string, dto: EditMcqDto, actor: AuthenticatedUser) {
+    await this.requireMutableQuestion(id, actor);
+    if (![4, 5].includes(dto.options.length) || dto.options.filter(option => option.is_correct).length !== 1 || dto.options.some(option => !option.option_text.trim()) || new Set(dto.options.map(option => option.option_text.trim().toLowerCase())).size !== dto.options.length) {
+      throw new BadRequestException('An MCQ requires four or five distinct choices and exactly one correct answer');
+    }
+    await this.dataSource.transaction(async manager => {
+      await manager.query('SET CONSTRAINTS ALL DEFERRED');
+      const rows = await manager.query('SELECT * FROM questions WHERE id = $1 FOR UPDATE', [id]);
+      const question = rows[0];
+      if (!question) throw new NotFoundException('Question not found');
+      if (actor.role === UserRole.INSTRUCTOR && question.created_by !== actor.userId) throw new ForbiddenException('Instructors may modify only their own questions');
+      if (question.question_type !== 'MCQ') throw new BadRequestException('This editor requires an MCQ');
+      if (dto.expected_version !== undefined && dto.expected_version !== question.version) throw new ConflictException('Question changed since you opened it. Reopen the editor before saving.');
+      const existing = await manager.query('SELECT id, display_order FROM mcq_options WHERE question_id = $1 ORDER BY id FOR UPDATE', [id]);
+      const suppliedIds = dto.options.flatMap(option => option.id ? [option.id] : []);
+      if (new Set(suppliedIds).size !== suppliedIds.length || suppliedIds.some(optionId => !existing.some(option => option.id === optionId))) throw new BadRequestException('A choice does not belong to this question');
+      await manager.query('UPDATE questions SET is_active = FALSE WHERE id = $1', [id]);
+      // Temporary unique texts permit swapping two choices without violating
+      // per-question text uniqueness. All intermediate states remain private.
+      const temporaryOrder = Math.max(0, ...existing.map(option => option.display_order)) + 10;
+      for (const [index, option] of existing.entries()) await manager.query("UPDATE mcq_options SET is_correct = FALSE, option_text = '__mcq_edit_' || id::text, display_order = $2 WHERE id = $1", [option.id, temporaryOrder + index]);
+      for (const option of existing.filter(option => !suppliedIds.includes(option.id))) await manager.query('DELETE FROM mcq_options WHERE id = $1', [option.id]);
+      for (const [index, option] of dto.options.entries()) {
+        if (option.id) await manager.query('UPDATE mcq_options SET option_text=$2, explanation=$3, is_correct=$4, display_order=$5 WHERE id=$1 AND question_id=$6', [option.id, option.option_text.trim(), option.explanation?.trim() || null, option.is_correct, index + 1, id]);
+        else await manager.query('INSERT INTO mcq_options (question_id, option_text, explanation, is_correct, display_order) VALUES ($1,$2,$3,$4,$5)', [id, option.option_text.trim(), option.explanation?.trim() || null, option.is_correct, index + 1]);
+      }
+      await manager.query('UPDATE questions SET title=$2, question_text=$3, explanation=$4, difficulty=$5, marks=$6, is_active=$7, version=version+1, updated_at=NOW() WHERE id=$1', [id, dto.title?.trim() || null, dto.question_text.trim(), dto.explanation.trim() || null, dto.difficulty, dto.marks.toFixed(2), question.is_active]);
+      await manager.query('SET CONSTRAINTS ALL IMMEDIATE');
+    });
+    return { saved: true };
+  }
+
+  async saveMcqExplanations(id: string, dto: SaveMcqExplanationsDto, actor: AuthenticatedUser) {
+    await this.requireMutableQuestion(id, actor);
+    await this.dataSource.transaction(async manager => {
+      const rows = await manager.query('SELECT question_text, question_type, created_by FROM questions WHERE id = $1 FOR UPDATE', [id]);
+      const question = rows[0];
+      if (!question) throw new NotFoundException('Question not found');
+      if (actor.role === UserRole.INSTRUCTOR && question.created_by !== actor.userId) throw new ForbiddenException('Instructors may modify only their own questions');
+      const options = await manager.query('SELECT id, option_text, is_correct FROM mcq_options WHERE question_id = $1 ORDER BY id FOR UPDATE', [id]);
+      if (question.question_type !== 'MCQ' || question.question_text !== dto.question_text || options.length !== dto.options.length || new Set(dto.options.map(option => option.id)).size !== options.length || options.some(option => !dto.options.some(expected => expected.id === option.id && expected.option_text === option.option_text && expected.is_correct === option.is_correct))) {
+        throw new ConflictException('Question or choices changed during generation. Generate explanations again.');
+      }
+      await manager.query('UPDATE questions SET explanation = $2, version = version + 1, updated_at = NOW() WHERE id = $1', [id, dto.explanation.trim()]);
+      for (const option of dto.options) await manager.query('UPDATE mcq_options SET explanation = $2 WHERE id = $1 AND question_id = $3', [option.id, option.explanation.trim(), id]);
+    });
+    return { saved: true };
+  }
+
   async remove(id: string, actor: AuthenticatedUser): Promise<void> {
     const question = await this.requireMutableQuestion(id, actor);
     if (question.isActive) {
@@ -273,6 +336,7 @@ export class QuestionsService {
             manager.create(McqOption, {
               questionId: copy.id,
               optionText: option.optionText,
+              explanation: option.explanation,
               isCorrect: option.isCorrect,
               displayOrder: option.displayOrder,
             }),
@@ -332,13 +396,17 @@ export class QuestionsService {
       throw new ConflictException('Deactivate the question before changing its options');
     }
     const optionCount = await this.options.count({ where: { questionId } });
-    if (optionCount >= 4) {
-      throw new ConflictException('An MCQ cannot contain more than four options');
+    if (optionCount >= 5) {
+      throw new ConflictException('An MCQ cannot contain more than five options');
     }
     await this.assertOptionTextUnique(questionId, dto.option_text);
+    if (dto.is_correct && await this.options.exists({ where: { questionId, isCorrect: true } })) {
+      throw new ConflictException('An MCQ can have only one correct option');
+    }
     const option = this.options.create({
       questionId,
       optionText: dto.option_text.trim(),
+      explanation: dto.explanation?.trim() || null,
       isCorrect: dto.is_correct,
       displayOrder: dto.display_order,
     });
@@ -367,9 +435,18 @@ export class QuestionsService {
     if (option.question.isActive) {
       throw new ConflictException('Deactivate the question before changing its options');
     }
+    if (dto.explanation !== undefined) option.explanation = dto.explanation.trim() || null;
     if (dto.option_text !== undefined) {
       await this.assertOptionTextUnique(option.questionId, dto.option_text, option.id);
       option.optionText = dto.option_text.trim();
+    }
+    if (dto.is_correct) {
+      const existingCorrect = await this.options.createQueryBuilder('option')
+        .where('option.question_id = :questionId', { questionId: option.questionId })
+        .andWhere('option.is_correct = TRUE')
+        .andWhere('option.id <> :optionId', { optionId: option.id })
+        .getExists();
+      if (existingCorrect) throw new ConflictException('An MCQ can have only one correct option');
     }
     if (dto.is_correct !== undefined) option.isCorrect = dto.is_correct;
     if (dto.display_order !== undefined) option.displayOrder = dto.display_order;
@@ -545,11 +622,8 @@ export class QuestionsService {
       const options = await this.options.find({
         where: { questionId: question.id },
       });
-      if (options.length < 2) {
-        throw new ConflictException('An active MCQ requires at least two options');
-      }
-      if (options.length > 4) {
-        throw new ConflictException('An active MCQ cannot contain more than four options');
+      if (!isSupportedMcqOptionCount(options.length)) {
+        throw new ConflictException('An active MCQ requires four or five options');
       }
       if (options.filter((option) => option.isCorrect).length !== 1) {
         throw new ConflictException('An active MCQ requires exactly one correct option');

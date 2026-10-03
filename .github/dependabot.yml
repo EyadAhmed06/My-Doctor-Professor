@@ -1,0 +1,33 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+      timezone: Africa/Cairo
+    open-pull-requests-limit: 5
+    groups:
+      backend-security-and-runtime:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:15"
+      timezone: Africa/Cairo
+    open-pull-requests-limit: 5
+    groups:
+      frontend-security-and-runtime:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:30"
+      timezone: Africa/Cairo

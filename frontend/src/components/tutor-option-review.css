@@ -1,0 +1,119 @@
+.tutor-option-review {
+  margin-top: 0.85rem;
+  border: 1px solid var(--border, #d9e0ea);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+  overflow: hidden;
+}
+
+.tutor-option-review > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.9rem 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.tutor-option-review > summary::-webkit-details-marker {
+  display: none;
+}
+
+.tutor-option-review > summary::after {
+  content: "+";
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.tutor-option-review[open] > summary::after {
+  content: "−";
+}
+
+.tutor-option-takeaway {
+  margin: 0 1rem 0.85rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--primary, #335cff) 7%, transparent);
+}
+
+.tutor-option-takeaway p {
+  margin: 0.35rem 0 0;
+}
+
+.tutor-option-review-list {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0 1rem 1rem;
+}
+
+.tutor-option-review-row {
+  border: 1px solid var(--border, #d9e0ea);
+  border-radius: 12px;
+  padding: 0.8rem 0.9rem;
+}
+
+.tutor-option-review-row.is-correct {
+  border-color: color-mix(in srgb, #168a51 55%, var(--border, #d9e0ea));
+  background: color-mix(in srgb, #168a51 7%, transparent);
+}
+
+.tutor-option-review-row.is-selected:not(.is-correct) {
+  border-color: color-mix(in srgb, #c23b3b 50%, var(--border, #d9e0ea));
+  background: color-mix(in srgb, #c23b3b 6%, transparent);
+}
+
+.tutor-option-review-row header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.tutor-option-letter {
+  width: 1.9rem;
+  height: 1.9rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--border, #d9e0ea);
+  font-weight: 800;
+}
+
+.tutor-option-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.tutor-option-badges em {
+  font-style: normal;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary, #335cff) 10%, transparent);
+}
+
+.tutor-option-review-row p {
+  margin: 0.55rem 0 0 2.55rem;
+  color: var(--text-muted, #5d6778);
+  line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  .tutor-option-review-row header {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .tutor-option-badges {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+
+  .tutor-option-review-row p {
+    margin-left: 0;
+  }
+}

@@ -7,12 +7,17 @@ import { Resource } from '../../common/entities/resource.entity';
 import { Semester } from '../../common/entities/semester.entity';
 import { Topic } from '../../common/entities/topic.entity';
 import { Week } from '../../common/entities/week.entity';
+import { BundleAccessModule } from '../bundle-access/bundle-access.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { AcademicAccessService } from './academic-access.service';
 import { AcademicController } from './academic.controller';
 import { AcademicService } from './academic.service';
 import { ResourceStorageService } from './resource-storage.service';
 
 @Module({
   imports: [
+    BundleAccessModule,
+    NotificationsModule,
     TypeOrmModule.forFeature([
       Semester,
       Course,
@@ -24,7 +29,7 @@ import { ResourceStorageService } from './resource-storage.service';
     ]),
   ],
   controllers: [AcademicController],
-  providers: [AcademicService, ResourceStorageService],
-  exports: [AcademicService, TypeOrmModule],
+  providers: [AcademicService, AcademicAccessService, ResourceStorageService],
+  exports: [AcademicService, AcademicAccessService, ResourceStorageService, TypeOrmModule],
 })
 export class AcademicModule {}
