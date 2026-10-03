@@ -138,6 +138,15 @@ export class AdminController {
     return this.admin.getUserDeviceAccess(id, actor);
   }
 
+  @Post('users/:userId/device-requests/:requestId/approve-second')
+  approveSecondDevice(
+    @Param('userId', uuid) userId: string,
+    @Param('requestId', uuid) requestId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.admin.approveUserDeviceRequest(userId, requestId, actor, true);
+  }
+
   @Post('users/:userId/device-requests/:requestId/approve')
   approveUserDeviceRequest(
     @Param('userId', uuid) userId: string,
