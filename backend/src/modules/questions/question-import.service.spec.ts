@@ -230,6 +230,44 @@ describe('QuestionImportService', () => {
     };
   }
 
+  function moduleExport() {
+    return { modules: ['Coma', 'Delirium'].map(title => ({ title, questions: [{
+      question: 'Which chamber receives blood from the pulmonary veins?',
+      correctAnswer: 'B',
+      options: ['Right atrium', 'Left atrium', 'Right ventricle', 'Left ventricle', 'Aorta']
+        .map((text, index) => ({ key: 'ABCDE'[index], text, isCorrect: index === 1 })),
+    }] })) };
+  }
+
+  it('normalizes module exports and preserves module sections and answer keys', async () => {
+    const { service } = build();
+    const result = await service.inspectJson(
+      { topic_id: topic.id, copyright_confirmed: true },
+      file(Buffer.from(JSON.stringify(moduleExport())), { originalname: 'modules.json' }), actor,
+    );
+    expect(result.summary.extracted).toBe(2);
+    expect(result.candidates.map(candidate => candidate.source_section)).toEqual(['Coma', 'Delirium']);
+    expect(result.candidates.every(candidate => candidate.answer_key_label === 'B' && candidate.options.length === 5)).toBe(true);
+  });
+
+  it('rejects contradictory exported answer keys instead of silently replacing them', async () => {
+    const { service } = build();
+    const payload = moduleExport();
+    payload.modules[0].questions[0].correctAnswer = 'A';
+    await expect(service.inspectJson(
+      { topic_id: topic.id, copyright_confirmed: true },
+      file(Buffer.from(JSON.stringify(payload)), { originalname: 'modules.json' }), actor,
+    )).rejects.toThrow('conflicting correctAnswer');
+  });
+
+  it('rejects malformed modules instead of skipping their questions', async () => {
+    const { service } = build();
+    await expect(service.inspectJson(
+      { topic_id: topic.id, copyright_confirmed: true },
+      file(Buffer.from(JSON.stringify({ modules: [{ title: 'Broken' }] })), { originalname: 'modules.json' }), actor,
+    )).rejects.toThrow('Module 1');
+  });
+
   it('inspects JSON MCQs through the same candidate review and duplicate checks', async () => {
     const { service } = build();
     const questions = [{
