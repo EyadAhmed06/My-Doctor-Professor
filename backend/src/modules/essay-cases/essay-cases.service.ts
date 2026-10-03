@@ -1,3 +1,4 @@
+import { buildInstructorCourseAccessSql } from '../bundle-access/instructor-course-access';
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
@@ -26,7 +27,7 @@ export class EssayCasesService {
         [actor.userId],
       );
     }
-    if (actor.role === UserRole.INSTRUCTOR) return this.db.query(`SELECT DISTINCT c.id,c.course_code AS "courseCode",c.course_name AS "courseName" FROM courses c LEFT JOIN course_instructors mine ON mine.course_id=c.id AND mine.instructor_id=$1 WHERE mine.instructor_id IS NOT NULL OR NOT EXISTS (SELECT 1 FROM course_instructors owner WHERE owner.course_id=c.id) ORDER BY c.course_name`, [actor.userId]);
+    if (actor.role === UserRole.INSTRUCTOR) return this.db.query(`SELECT DISTINCT c.id,c.course_code AS "courseCode",c.course_name AS "courseName" FROM courses c LEFT JOIN course_instructors mine ON mine.course_id=c.id AND mine.instructor_id=$1 WHERE ${buildInstructorCourseAccessSql('c.id', '$1')} OR NOT EXISTS (SELECT 1 FROM course_instructors owner WHERE owner.course_id=c.id) ORDER BY c.course_name`, [actor.userId]);
     return this.db.query(`SELECT id,course_code AS "courseCode",course_name AS "courseName" FROM courses ORDER BY course_name`);
   }
 
@@ -146,7 +147,7 @@ export class EssayCasesService {
   private async assertCourseAccess(courseId: string, actor: AuthenticatedUser, manage: boolean) {
     if (actor.role === UserRole.SYSTEM_ADMIN) return;
     if (actor.role === UserRole.INSTRUCTOR) {
-      const ok = (await this.db.query(`SELECT 1 FROM course_instructors WHERE course_id = $1 AND instructor_id = $2`, [courseId, actor.userId]))[0];
+      const ok = (await this.db.query(`SELECT 1 FROM courses c WHERE c.id = $1 AND ${buildInstructorCourseAccessSql('c.id', '$2')}`, [courseId, actor.userId]))[0];
       if (ok) return;
     }
     if (!manage && actor.role === UserRole.STUDENT) {
