@@ -248,7 +248,8 @@ export class UsersService {
       .andWhere('session.revoked_at IS NULL')
       .andWhere('session.expires_at > CURRENT_TIMESTAMP')
       .getCount();
-    return count > 0;
+    const rows = await this.dataSource.query('SELECT max_active_devices FROM users WHERE id=$1', [userId]);
+    return count >= Number(rows[0]?.max_active_devices ?? 1);
   }
 
   async getSecurityOverview(userId:string,currentSessionId:string) {
@@ -377,7 +378,7 @@ export class UsersService {
     const deviceLabel=this.normalizeDeviceLabel(proof?.deviceLabel);
     const ua=userAgent?.slice(0,1000)||null;
     const activeRows=await this.dataSource.query(
-      `SELECT id,client_device_id,public_key_jwk FROM trusted_devices WHERE user_id=$1 AND status='ACTIVE' LIMIT 1`,
+      `SELECT id,client_device_id,public_key_jwk FROM trusted_devices WHERE user_id=$1 AND status='ACTIVE'`,
       [user.id],
     ) as Array<{id:string;client_device_id:string;public_key_jwk:Record<string,unknown>}>;
     if(!activeRows.length) {
@@ -396,7 +397,7 @@ export class UsersService {
         return rows[0].id;
       });
     }
-    const active=activeRows[0];
+    const active=activeRows.find(device => device.client_device_id===clientDeviceId) || activeRows[0];
     const sameDevice=active.client_device_id===clientDeviceId;
     const sameKey=this.deviceKeyThumbprint(active.public_key_jwk)===this.deviceKeyThumbprint(normalizedKey);
     if(!sameDevice||!sameKey) {
@@ -479,18 +480,27 @@ export class UsersService {
       this.dataSource.query(`SELECT id,client_device_id,status,device_label,user_agent,first_ip,last_ip,created_at,last_seen_at,revoked_at,approved_by FROM trusted_devices WHERE user_id=$1 ORDER BY (status='ACTIVE') DESC,created_at DESC`,[userId]),
       this.dataSource.query(`SELECT id,client_device_id,device_label,user_agent,ip_address,status,requested_at,reviewed_at,reviewed_by FROM device_access_requests WHERE user_id=$1 ORDER BY requested_at DESC LIMIT 20`,[userId]),
     ]);
-    return {devices,requests};
+    const policy = await this.dataSource.query('SELECT max_active_devices FROM users WHERE id=$1', [userId]);
+    return {devices,requests,max_active_devices:Number(policy[0]?.max_active_devices ?? 1)};
   }
 
-  async approveDeviceAccessRequest(userId:string,requestId:string,actorUserId:string) {
+  async approveDeviceAccessRequest(userId:string,requestId:string,actorUserId:string,addSecondDevice=false) {
     return this.dataSource.transaction(async manager=>{
       await manager.query('SELECT id FROM users WHERE id=$1 FOR UPDATE',[userId]);
       const requests=await manager.query(`SELECT * FROM device_access_requests WHERE id=$1 AND user_id=$2 FOR UPDATE`,[requestId,userId]) as Array<{id:string;client_device_id:string;proposed_public_key_jwk:Record<string,unknown>;device_label:string|null;user_agent:string|null;ip_address:string|null;status:string}>;
       const request=requests[0];
       if(!request) throw new NotFoundException('Device access request not found');
       if(request.status!=='PENDING') throw new ConflictException('Device access request has already been reviewed');
+      if (addSecondDevice) {
+        const active = await manager.query(`SELECT id FROM trusted_devices WHERE user_id=$1 AND status='ACTIVE' AND client_device_id<>$2`, [userId,request.client_device_id]);
+        if (active.length >= 2) throw new ConflictException('Two devices are already approved. Revoke or replace a device first.');
+        await manager.query('UPDATE users SET max_active_devices=2 WHERE id=$1', [userId]);
+        await manager.query(`UPDATE auth_sessions SET revoked_at=CURRENT_TIMESTAMP WHERE user_id=$1 AND trusted_device_id IN (SELECT id FROM trusted_devices WHERE user_id=$1 AND client_device_id=$2) AND revoked_at IS NULL`, [userId,request.client_device_id]);
+      } else {
       await manager.query(`UPDATE trusted_devices SET status='REVOKED',revoked_at=CURRENT_TIMESTAMP WHERE user_id=$1 AND status='ACTIVE'`,[userId]);
       await manager.query(`UPDATE auth_sessions SET revoked_at=CURRENT_TIMESTAMP WHERE user_id=$1 AND revoked_at IS NULL`,[userId]);
+        await manager.query('UPDATE users SET max_active_devices=1 WHERE id=$1', [userId]);
+      }
       const devices=await manager.query(
         `INSERT INTO trusted_devices (user_id,client_device_id,public_key_jwk,key_algorithm,status,device_label,user_agent,first_ip,last_ip,last_seen_at,approved_by)
          VALUES ($1,$2,$3::jsonb,'ECDSA_P256_SHA256','ACTIVE',$4,$5,$6,$6,CURRENT_TIMESTAMP,$7)
@@ -504,10 +514,10 @@ export class UsersService {
       );
       await manager.query(
         `INSERT INTO audit_logs (user_id,action,entity_name,entity_id,description,new_values)
-         VALUES ($1,'UPDATE','trusted_devices',$2,'Approved student device replacement',$3::jsonb)`,
+         VALUES ($1,'UPDATE','trusted_devices',$2,'Approved student device access',$3::jsonb)`,
         [actorUserId,devices[0].id,JSON.stringify({student_user_id:userId,request_id:requestId})],
       );
-      return {message:'Device access approved. Previous trusted device and active sessions were revoked.',device_id:devices[0].id};
+      return {message:addSecondDevice ? 'Second device approved. Two devices may stay signed in together.' : 'Device access approved. Previous trusted devices and active sessions were revoked.',device_id:devices[0].id};
     });
   }
 
