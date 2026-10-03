@@ -645,13 +645,14 @@ export class AdminService implements OnModuleInit {
     userId: string,
     requestId: string,
     actor: AuthenticatedUser,
+    addSecondDevice = false,
   ) {
     const target = await this.requireUser(userId);
     await this.assertCanManageTarget(actor, target);
     if (target.role !== UserRole.STUDENT) {
       throw new BadRequestException("Trusted-device access applies to student accounts only");
     }
-    return this.usersService.approveDeviceAccessRequest(userId, requestId, actor.userId);
+    return this.usersService.approveDeviceAccessRequest(userId, requestId, actor.userId, addSecondDevice);
   }
 
   async rejectUserDeviceRequest(
