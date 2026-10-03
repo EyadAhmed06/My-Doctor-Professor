@@ -5,6 +5,7 @@ import { Course } from '../../common/entities/course.entity';
 import { Week } from '../../common/entities/week.entity';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { BundleAccessService } from '../bundle-access/bundle-access.service';
+import { buildActiveEnrollmentSql } from '../bundle-access/bundle-access.predicates';
 import { UserRole } from '../users/entities/user.entity';
 
 @Injectable()
@@ -30,9 +31,15 @@ export class McqPracticeCatalogService {
       courseId,
     );
 
-    if (!accessibleLectureIds.length) {
-      throw new ForbiddenException('This bundle does not grant access to this course');
-    }
+    const enrollment = await this.dataSource.query(
+      `SELECT 1 FROM bundle_courses link
+       JOIN bundles bundle ON bundle.id = link.bundle_id
+       JOIN bundle_enrollments enrollment ON enrollment.bundle_id = bundle.id AND enrollment.student_id = $3
+       WHERE link.bundle_id = $1 AND link.course_id = $2
+         AND ${buildActiveEnrollmentSql('enrollment', 'bundle')} LIMIT 1`,
+      [bundleId, courseId, actor.userId],
+    );
+    if (!enrollment.length) throw new ForbiddenException('This bundle does not grant access to this course');
     const allowed = new Set(accessibleLectureIds);
     const weeks = await this.weeks.find({
       where: { courseId },
@@ -42,7 +49,7 @@ export class McqPracticeCatalogService {
 
     for (const week of weeks) {
       week.lectures = week.lectures.filter(
-        (lecture) => allowed.has(lecture.id) && lecture.isPublished,
+        (lecture) => lecture.isPublished,
       );
     }
 
@@ -57,6 +64,7 @@ export class McqPracticeCatalogService {
       FROM questions question
       INNER JOIN topics topic ON topic.id = question.topic_id
       WHERE topic.lecture_id = ANY($1::uuid[])
+        AND topic.is_locked = FALSE
         AND question.is_active = TRUE
         AND question.is_question_bank = TRUE
         AND question.question_type = 'MCQ'
@@ -80,15 +88,21 @@ export class McqPracticeCatalogService {
     return {
       course,
       weeks: weeks.map((week) => ({
-        ...week,
+        id: week.id,
+        weekNumber: week.weekNumber,
+        title: week.title,
+        isLocked: week.isLocked || !week.lectures.some(lecture => allowed.has(lecture.id)),
         lectures: week.lectures.map((lecture) => ({
-          ...lecture,
-          question_count: byLecture.get(lecture.id) ?? 0,
-          topics: counts.filter((row) => row.lecture_id === lecture.id).map((row) => ({
+          id: lecture.id,
+          title: lecture.title,
+          lectureNumber: lecture.lectureNumber,
+          isLocked: !allowed.has(lecture.id),
+          question_count: allowed.has(lecture.id) ? byLecture.get(lecture.id) ?? 0 : 0,
+          topics: allowed.has(lecture.id) ? counts.filter((row) => row.lecture_id === lecture.id).map((row) => ({
             id: row.topic_id,
             title: row.topic_name,
             question_count: Number(row.question_count),
-          })),
+          })) : [],
         })),
       })),
     };
