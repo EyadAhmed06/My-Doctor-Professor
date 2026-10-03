@@ -411,10 +411,8 @@ export class BundlesService {
         : (link.course.weeks || [])
             .filter((week) => !visibleWeekIds || visibleWeekIds.has(week.id))
             .map((week) => ({ weekId: week.id, week }));
-      const effectiveWeeks = actor.role === UserRole.STUDENT
-        ? entitledWeeks.filter((item) => !item.week.isLocked)
-        : entitledWeeks;
-      const accessibleWeekIds = new Set(effectiveWeeks.map((item) => item.weekId));
+      const effectiveWeeks = entitledWeeks;
+      const accessibleWeekIds = new Set(effectiveWeeks.filter(item => actor.role !== UserRole.STUDENT || !item.week.isLocked).map((item) => item.weekId));
       const realWeeks = link.course.weeks || [];
       const lockedNumbers = new Set<number>(actor.role === UserRole.STUDENT && (scoped || visibleWeekIds)
         ? realWeeks.filter((week) => !accessibleWeekIds.has(week.id)).map((week) => week.weekNumber)
@@ -427,15 +425,23 @@ export class BundlesService {
       }
       return ({
       ...link.course,
-      locked_weeks: [...lockedNumbers].sort((a, b) => a - b).map((week_number) => ({ week_number })),
+      locked_weeks: [...lockedNumbers].filter(number => !effectiveWeeks.some(item => item.week.weekNumber === number)).sort((a, b) => a - b).map((week_number) => ({ week_number })),
       weeks: effectiveWeeks
         .map((item) => {
           const essayVisible = !essayWeekIds || essayWeekIds.has(item.weekId);
           return {
             ...item.week,
+            ...(actor.role === UserRole.STUDENT && item.week.isLocked ? { description: null } : {}),
             lectures: item.week.lectures
-              .filter((lecture) => actor.role !== UserRole.STUDENT || (lecture.isPublished && !lecture.isLocked))
+              .filter((lecture) => actor.role !== UserRole.STUDENT || lecture.isPublished)
               .map((lecture) => {
+                if (actor.role === UserRole.STUDENT && (item.week.isLocked || lecture.isLocked)) {
+                  return {
+                    id: lecture.id, title: lecture.title, lectureNumber: lecture.lectureNumber,
+                    isLocked: true, question_count: 0, mcq_count: 0,
+                    flashcard_deck_count: 0, resource_count: 0, topics: [],
+                  };
+                }
                 const raw = stats.get(lecture.id) ?? {
                   question_count: 0,
                   mcq_count: 0,
