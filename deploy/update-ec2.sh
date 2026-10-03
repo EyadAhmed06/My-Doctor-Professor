@@ -133,22 +133,44 @@ compose up -d --no-deps --force-recreate --pull never frontend
 wait_healthy mdp-frontend
 docker exec -i mdp-frontend node -e "fetch('http://127.0.0.1:3001/').then(r=>{console.log('Frontend HTTP',r.status);if(!r.ok)process.exit(1)}).catch(e=>{console.error(e);process.exit(1)})"
 docker restart mdp-caddy
-wait_public() {
+
+# Verify the real HTTPS hostname, TLS certificate, Caddy virtual host and
+# reverse-proxy path locally. Do not depend on this EC2 instance hairpinning
+# through its own public DNS/public IP.
+CADDY_RESOLVE="${APP_HOST}:443:127.0.0.1"
+
+wait_caddy_route() {
   local url="$1" label="$2" response="" i
+
   for i in $(seq 1 30); do
-    if response="$(curl --fail --silent --show-error --connect-timeout 3 --max-time 8 "$url" 2>/dev/null)"; then
-      printf '%s HTTP 200 after check %s/30\n' "$label" "$i"
+    if response="$(curl \
+      --fail \
+      --silent \
+      --show-error \
+      --resolve "$CADDY_RESOLVE" \
+      --connect-timeout 3 \
+      --max-time 8 \
+      "$url" 2>&1)"; then
+
+      printf '%s HTTP 200 through local Caddy after check %s/30\n' \
+        "$label" "$i"
+
       [[ $label == API ]] && printf '%s\n' "$response"
       return 0
     fi
-    printf '[%s/30] Waiting for public %s after Caddy restart\n' "$i" "$label"
+
+    printf '[%s/30] Waiting for Caddy %s route after restart: %s\n' \
+      "$i" "$label" "$response" >&2
+
     sleep 3
   done
+
   docker logs --tail 100 mdp-caddy >&2 || true
   return 1
 }
-wait_public "https://$APP_HOST/api/v1/health/ready" API
-wait_public "https://$APP_HOST/" HOME
+
+wait_caddy_route "https://$APP_HOST/api/v1/health/ready" API
+wait_caddy_route "https://$APP_HOST/" HOME
 
 # Only persist image references after the public checks succeed.
 for file in deploy.env local-images.env; do
