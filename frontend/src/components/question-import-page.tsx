@@ -205,8 +205,7 @@ function aiStatus(candidate: Candidate) {
 }
 
 function isAiEligible(candidate: Candidate) {
-  return candidate.status !== "INVALID"
-    && candidate.question_text.trim().length >= 8
+  return candidate.question_text.trim().length >= 8
     && hasSupportedOptionCount(candidate.options.length)
     && hasSequentialOptionLabels(candidate)
     && (candidate.options.length !== MIN_MCQ_OPTIONS || Boolean(candidate.allow_four_options))
@@ -709,7 +708,11 @@ export function QuestionImportPage() {
   }, []);
 
   const generateExplanations = useCallback(async (targets: Candidate[], force: boolean) => {
-    if (!inspection || targets.length === 0) return;
+    if (!inspection) return;
+    if (targets.length === 0) {
+      notify({ title: "Explanations already complete", description: "Every question has a complete explanation set. Use an individual question’s regenerate button to replace it.", tone: "info" });
+      return;
+    }
     if (inspection.summary?.structurally_complete === false) {
       notify({
         title: "Extraction is incomplete",
@@ -720,7 +723,7 @@ export function QuestionImportPage() {
     }
     const eligible = targets.filter(isAiEligible);
     if (!eligible.length) {
-      notify({ title: "No eligible questions", description: "Each question needs a valid stem, four or five sequential choices, one source-correct answer, and four-choice confirmation when applicable before AI generation.", tone: "info" });
+      notify({ title: "Questions need repair before AI generation", description: `${targets.length} question(s) still need explanations, but their stem, choice labels, answer key, or four-choice confirmation needs repair. Open these questions and resolve the structural issues, then retry.`, tone: "info" });
       return;
     }
 
@@ -1183,7 +1186,7 @@ export function QuestionImportPage() {
                           : `All 4-choice MCQs confirmed (${fourChoiceCount})`}
                       </button>
                     )}
-                    <button type="button" className="pp-button" disabled={enrichingIds.size > 0 || structurallyBlocked} onClick={() => void generateExplanations(candidates.filter((candidate) => !["GENERATED", "CACHED"].includes(aiStatus(candidate))), false)}>{enrichingIds.size ? <><FiRefreshCw className="spin" /> Generating…</> : <><FiRefreshCw /> Generate missing explanations</>}</button>
+                    <button type="button" className="pp-button" disabled={enrichingIds.size > 0 || structurallyBlocked} onClick={() => void generateExplanations(candidates.filter((candidate) => !hasCompleteExplanations(candidate) || aiStatus(candidate) === "STALE"), false)}>{enrichingIds.size ? <><FiRefreshCw className="spin" /> Generating…</> : <><FiRefreshCw /> Generate missing explanations</>}</button>
                     <button type="button" className="pp-button secondary" disabled={structurallyBlocked} onClick={approveAllReady}><FiCheckCircle /> Approve all ready</button>
                   </div>
                 </div>
