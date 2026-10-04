@@ -397,9 +397,8 @@ export class BundlesService {
     }>).map((row) => [row.id, row]));
     const topicsByLecture = new Map<string, Array<{ id: string; topicName: string; mcq_count: number; isLocked: boolean }>>();
     for (const row of topicStats as Array<{ id: string; lecture_id: string; topic_name: string; mcq_count: number; is_locked: boolean }>) {
-      if (actor.role === UserRole.STUDENT && row.is_locked) continue;
       const topics = topicsByLecture.get(row.lecture_id) || [];
-      topics.push({ id: row.id, topicName: row.topic_name, mcq_count: Number(row.mcq_count), isLocked: row.is_locked });
+      topics.push({ id: row.id, topicName: row.topic_name, mcq_count: actor.role === UserRole.STUDENT && row.is_locked ? 0 : Number(row.mcq_count), isLocked: row.is_locked });
       topicsByLecture.set(row.lecture_id, topics);
     }
     const courses = courseLinks.map((link) => {
@@ -439,7 +438,8 @@ export class BundlesService {
                   return {
                     id: lecture.id, title: lecture.title, lectureNumber: lecture.lectureNumber,
                     isLocked: true, question_count: 0, mcq_count: 0,
-                    flashcard_deck_count: 0, resource_count: 0, topics: [],
+                    flashcard_deck_count: 0, resource_count: 0,
+                    topics: (topicsByLecture.get(lecture.id) || []).map(topic => ({ ...topic, isLocked: true, mcq_count: 0 })),
                   };
                 }
                 const raw = stats.get(lecture.id) ?? {
@@ -451,6 +451,7 @@ export class BundlesService {
                 return {
                   ...lecture,
                   ...raw,
+                  ...(actor.role === UserRole.STUDENT ? { mcq_count: (topicsByLecture.get(lecture.id) || []).reduce((sum, topic) => sum + topic.mcq_count, 0) } : {}),
                   topics: topicsByLecture.get(lecture.id) || [],
                   question_count: essayVisible ? raw.question_count : raw.mcq_count,
                 };
