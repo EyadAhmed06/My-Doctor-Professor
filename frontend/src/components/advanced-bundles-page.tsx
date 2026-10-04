@@ -80,7 +80,7 @@ type Lecture = { isLocked?: boolean;
   mcq_count: number;
   flashcard_deck_count: number;
   resource_count: number;
-  topics: Array<{ id: string; topicName: string; mcq_count: number }>;
+  topics: Array<{ id: string; topicName: string; mcq_count: number; isLocked?: boolean }>;
 };
 
 type Week = { isLocked?: boolean; id: string; weekNumber: number; title: string | null; lectures: Lecture[] };
@@ -530,9 +530,6 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
   }
 
   if (!courses.length) return <EmptyState title="No curriculum available" description="This bundle has no accessible courses or lectures." />;
-  if (!courses.some((course) => course.weeks.some((week) => week.lectures.some((lecture) => Number(lecture.mcq_count || 0) > 0)))) {
-    return <EmptyState title="No active MCQs in this bundle" description="The bundle curriculum is visible, but none of its lecture topics currently contains an active question-bank MCQ." />;
-  }
 
   return <section className="bundle-question-builder">
     <Panel title={questionTarget === "final" ? "Build a 200-MCQ final" : `Build a ${required}-MCQ practice quiz`}>
@@ -558,7 +555,7 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
               return <fieldset key={week.id}>
                 <legend>
                   <label>
-                    <input type="checkbox" checked={allSelected} disabled={!eligible.length} onChange={() => toggleWeek(course, week)} />
+                    <input type="checkbox" checked={allSelected} disabled={week.isLocked || !eligible.length} onChange={() => toggleWeek(course, week)} />
                     <span><b>Week {week.weekNumber}: {week.title || "Untitled week"}</b><small>{week.isLocked ? "🔒 Locked" : `${eligible.reduce((sum, lecture) => sum + Number(lecture.mcq_count || 0), 0)} eligible MCQs`}</small></span>
                   </label>
                 </legend>
@@ -568,10 +565,10 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
                     const topics = (lecture.topics || []).filter((topic) => topic.mcq_count > 0);
                     const checked = topics.length > 0 && courseSelected && topics.every((topic) => selectedIds.includes(topic.id));
                     return <div className="question-lecture-topics" key={lecture.id}><label className={checked ? "checked" : ""}>
-                      <input type="checkbox" checked={checked} disabled={count <= 0} onChange={() => toggleLecture(course, lecture)} />
+                      <input type="checkbox" checked={checked} disabled={week.isLocked || lecture.isLocked || count <= 0} onChange={() => toggleLecture(course, lecture)} />
                       <FiBookOpen />
                       <span><b>{lecture.lectureNumber}. {lecture.title}</b><small>{lecture.isLocked ? "🔒 Locked" : count > 0 ? `${count} eligible MCQs` : "No published question-bank MCQs"}</small></span>
-                    </label><div className="question-topic-options">{(lecture.topics || []).map((topic) => <label key={topic.id} className={selectedIds.includes(topic.id) ? "checked" : ""}><input type="checkbox" checked={courseSelected && selectedIds.includes(topic.id)} disabled={topic.mcq_count <= 0} onChange={() => toggleTopic(course, topic.id)} /><span><b>{topic.topicName}</b><small>{topic.mcq_count} eligible MCQs</small></span></label>)}</div></div>;
+                    </label><div className="question-topic-options">{(lecture.topics || []).map((topic) => <label key={topic.id} className={selectedIds.includes(topic.id) ? "checked" : ""}><input type="checkbox" checked={courseSelected && selectedIds.includes(topic.id)} disabled={week.isLocked || lecture.isLocked || topic.isLocked || topic.mcq_count <= 0} onChange={() => toggleTopic(course, topic.id)} /><span><b>{topic.topicName}</b><small>{week.isLocked || lecture.isLocked || topic.isLocked ? "🔒 Locked" : `${topic.mcq_count} eligible MCQs`}</small></span></label>)}</div></div>;
                   })}
                 </div>
               </fieldset>;
