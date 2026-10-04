@@ -98,9 +98,10 @@ export class McqPracticeService {
       .andWhere('question.is_active = TRUE')
       .andWhere('question.is_question_bank = TRUE')
       .andWhere('question.question_type = :questionType', { questionType: QuestionType.MCQ });
+    builder.andWhere('topic.is_locked = FALSE');
     if (dto.topic_ids?.length) {
       const topicRows = await this.dataSource.query<Array<{ id: string }>>(
-        'SELECT id FROM topics WHERE id = ANY($1::uuid[]) AND lecture_id = ANY($2::uuid[])',
+        'SELECT id FROM topics WHERE id = ANY($1::uuid[]) AND lecture_id = ANY($2::uuid[]) AND is_locked = FALSE',
         [dto.topic_ids, uniqueLectureIds],
       );
       if (new Set(topicRows.map((row) => row.id)).size !== dto.topic_ids.length) {
