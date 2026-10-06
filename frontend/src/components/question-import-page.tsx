@@ -238,6 +238,10 @@ function hasAnyExplanation(candidate: Candidate) {
     || candidate.options.some((option) => Boolean(option.explanation?.trim()));
 }
 
+function normalizedOptionText(value: string) {
+  return value.normalize("NFKC").toLocaleLowerCase().replace(/\u0000/g, " ").replace(/\s+/g, " ").trim();
+}
+
 function candidateIsPublishable(candidate: Candidate) {
   if (candidate.reuse_question_id) return candidate.status !== "INVALID";
   const anyExplanation = hasAnyExplanation(candidate);
@@ -247,7 +251,8 @@ function candidateIsPublishable(candidate: Candidate) {
     && candidate.question_text.trim().length >= 8
     && hasSupportedOptionCount(candidate.options.length)
     && (candidate.options.length !== MIN_MCQ_OPTIONS || Boolean(candidate.allow_four_options))
-    && candidate.options.every((option) => option.option_text.trim())
+    && candidate.options.every((option) => normalizedOptionText(option.option_text))
+    && new Set(candidate.options.map((option) => normalizedOptionText(option.option_text))).size === candidate.options.length
     && candidate.options.filter((option) => option.is_correct).length === 1
     && explanationStateReady
     && (candidate.topic_confidence >= 0.08 || Boolean(candidate.allow_topic_override))
@@ -264,6 +269,7 @@ function recalculateCandidate(candidate: Candidate): Candidate {
     "NO_CORRECT_OPTION",
     "MULTIPLE_CORRECT_OPTIONS",
     "EMPTY_OPTION",
+    "DUPLICATE_OPTIONS",
     "INVALID_QUESTION_EXPLANATION",
     "INVALID_OPTION_EXPLANATION",
   ]);
@@ -280,6 +286,9 @@ function recalculateCandidate(candidate: Candidate): Candidate {
   }
   if (candidate.options.some((option) => !option.option_text.trim())) {
     issues.push({ code: "EMPTY_OPTION", severity: "WARNING", message: "One or more answer options are empty." });
+  }
+  if (new Set(candidate.options.map((option) => normalizedOptionText(option.option_text))).size !== candidate.options.length) {
+    issues.push({ code: "DUPLICATE_OPTIONS", severity: "ERROR", message: "Two or more choices have identical text. Correct them before approval." });
   }
   const correctCount = candidate.options.filter((option) => option.is_correct).length;
   if (correctCount === 0) issues.push({ code: "NO_CORRECT_OPTION", severity: "ERROR", message: "Select the single correct answer." });
