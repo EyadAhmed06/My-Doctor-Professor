@@ -14,10 +14,13 @@ die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die 'Run with sudo.'
 [[ $# -le 1 ]] || die 'Usage: sudo /opt/mdp/update-ec2.sh [expected-commit-prefix]'
 [[ -d $SOURCE_DIR/.git && -f $COMPOSE_FILE ]] || die 'Expected /opt/mdp-source and /opt/mdp/compose.production.yml.'
-for bin in docker git curl sed awk; do command -v "$bin" >/dev/null || die "Missing $bin"; done
+for bin in docker git curl sed awk df flock; do command -v "$bin" >/dev/null || die "Missing $bin"; done
 for file in deploy.env app.env local-images.env; do
   [[ -f $STACK_DIR/$file ]] || die "Missing $STACK_DIR/$file"
 done
+
+exec 9>"$STACK_DIR/deploy.lock"
+flock -n 9 || die 'Another deployment is already running.'
 
 cd "$SOURCE_DIR"
 git -c safe.directory="$SOURCE_DIR" diff --quiet || die 'Source worktree has uncommitted changes.'
@@ -46,6 +49,58 @@ OLD_FRONTEND="mdp-frontend:rollback-$STAMP"
 docker tag "$CURRENT_BACKEND_ID" "$OLD_BACKEND"
 docker tag "$CURRENT_FRONTEND_ID" "$OLD_FRONTEND"
 
+
+# Keep all container images (including stopped containers) and two rollback
+# versions per app. Cleanup is restricted to our generated application tags.
+cleanup_app_images() {
+  local repo tag image_id
+  local -A protected=()
+  local -a container_ids=()
+  mapfile -t container_ids < <(docker ps -aq)
+  if (( ${#container_ids[@]} )); then
+    while IFS= read -r image_id; do protected["$image_id"]=1; done < <(
+      docker inspect --format '{{.Image}}' "${container_ids[@]}"
+    )
+  fi
+  for repo in mdp-backend mdp-frontend; do
+    while IFS= read -r tag; do
+      [[ -n $tag ]] || continue
+      image_id="$(docker image inspect "$repo:$tag" --format '{{.Id}}')"
+      protected["$image_id"]=1
+    done < <(docker image ls "$repo" --format '{{.Tag}}' |
+      awk '/^rollback-[0-9]{8}-[0-9]{6}$/' | sort -r | sed -n '1,2p')
+  done
+  for repo in mdp-backend mdp-frontend; do
+    while IFS= read -r tag; do
+      [[ $tag =~ ^([a-f0-9]{8,40}|rollback-[0-9]{8}-[0-9]{6})$ ]] || continue
+      [[ $tag == "$DEPLOY_SHA" || "$repo:$tag" == "$OLD_BACKEND" || "$repo:$tag" == "$OLD_FRONTEND" ]] && continue
+      image_id="$(docker image inspect "$repo:$tag" --format '{{.Id}}')"
+      [[ ${protected[$image_id]:-0} == 1 ]] && continue
+      # No --force: Docker refuses removal if another container needs the image.
+      docker image rm "$repo:$tag" || printf 'Keeping image %s:%s; Docker refused removal.\n' "$repo" "$tag" >&2
+    done < <(docker image ls "$repo" --format '{{.Tag}}')
+  done
+  docker image prune -f
+  docker builder prune -f --filter 'until=168h'
+}
+
+check_build_space() {
+  local docker_root available free_inodes path
+  local minimum_gb="${MDP_MIN_BUILD_FREE_GB:-8}"
+  [[ $minimum_gb =~ ^[1-9][0-9]*$ ]] || die 'MDP_MIN_BUILD_FREE_GB must be a positive integer.'
+  docker_root="$(docker info --format '{{.DockerRootDir}}')"
+  for path in "$docker_root" "$SOURCE_DIR" "$STACK_DIR"; do
+    available="$(df -Pk "$path" | awk 'NR==2 {print $4}')"
+    free_inodes="$(df -Pi "$path" | awk 'NR==2 {print $4}')"
+    [[ $available =~ ^[0-9]+$ && $free_inodes =~ ^[0-9]+$ ]] || die "Cannot check disk capacity for $path"
+    (( available >= minimum_gb * 1024 * 1024 )) || die "Insufficient free disk space at $path: need at least ${minimum_gb} GiB before building. Increase disk capacity or remove older files."
+    (( free_inodes >= 100000 )) || die "Insufficient free inodes at $path: need at least 100000 before building."
+  done
+}
+printf 'Cleaning old application build images while preserving rollback versions.\n'
+cleanup_app_images
+check_build_space
+
 # Read plain env values as data; never source files containing secrets as shell code.
 env_value() { sed -n "s|^$1=||p" "$2" | tail -1; }
 ANATOMY_BASE="${NEXT_PUBLIC_ANATOMY_ASSET_BASE:-}"
@@ -58,6 +113,7 @@ fi
 
 printf 'Building backend %s\n' "$DEPLOY_SHA"
 docker build -t "mdp-backend:$DEPLOY_SHA" ./backend
+check_build_space
 printf 'Building frontend %s\n' "$DEPLOY_SHA"
 docker build -t "mdp-frontend:$DEPLOY_SHA" \
   --build-arg NEXT_PUBLIC_API_URL=/api/v1 \
@@ -185,6 +241,7 @@ for file in deploy.env local-images.env; do
 done
 install -m 0750 "$SOURCE_DIR/deploy/update-ec2.sh" "$STACK_DIR/update-ec2.sh"
 trap - ERR
+cleanup_app_images || printf 'Image cleanup incomplete; deployment is healthy.\n' >&2
 printf '\nDEPLOYED %s\nRollback tags: %s %s\nDatabase backup: %s\n' "$DEPLOY_SHA" "$OLD_BACKEND" "$OLD_FRONTEND" "$BACKUP_FILE"
 docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
 (unset BACKEND_IMAGE FRONTEND_IMAGE; compose config --images)
