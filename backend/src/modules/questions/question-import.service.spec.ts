@@ -230,6 +230,28 @@ describe('QuestionImportService', () => {
     };
   }
 
+
+  it('preserves directional medical symbols while still rejecting identical choices', () => {
+    const { service } = build();
+    const candidate = { question_text: 'Which thyroid hormone pattern indicates this diagnosis?',
+      options: ['↑ TSH, ↑ Free T4', '↓ TSH, ↑ Free T4', '↓ TSH, normal Free T4', 'Normal TSH, ↑ Free T4', '↑ TSH, ↓ Free T4']
+        .map((option_text, index) => ({ option_text, is_correct: index === 1 })) };
+    expect(() => (service as any).validatePublishCandidate(candidate, 0)).not.toThrow();
+    candidate.options[4].option_text = '  ↑ TSH,   ↑ Free T4 ';
+    expect(() => (service as any).validatePublishCandidate(candidate, 0)).toThrow('duplicate options');
+  });
+
+  it('removes PostgreSQL-incompatible null characters during JSON inspection', async () => {
+    const { service } = build();
+    const payload = moduleExport();
+    payload.modules[0].questions[0].options[0].text = 'Hypertension \u0000bradycardia';
+    const result = await service.inspectJson(
+      { topic_id: topic.id, copyright_confirmed: true },
+      file(Buffer.from(JSON.stringify(payload)), { originalname: 'nulls.json' }), actor,
+    );
+    expect(result.candidates[0].options[0].option_text).toBe('Hypertension  bradycardia');
+  });
+
   function moduleExport() {
     return { modules: ['Coma', 'Delirium'].map(title => ({ title, questions: [{
       question: 'Which chamber receives blood from the pulmonary veins?',
