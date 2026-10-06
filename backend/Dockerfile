@@ -22,7 +22,7 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/tsconfig.json /app/tsconfig.build.json ./
-RUN mkdir -p /app/uploads /app/backups && chown -R app:nodejs /app
+RUN mkdir -p /app/uploads /app/backups && chown app:nodejs /app/uploads /app/backups
 USER app
 EXPOSE 3000
 CMD ["node", "dist/main.js"]
