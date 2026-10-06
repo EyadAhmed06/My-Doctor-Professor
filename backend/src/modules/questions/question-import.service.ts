@@ -174,7 +174,7 @@ export class QuestionImportService {
       throw new BadRequestException('Select a non-empty .json or .txt file no larger than 2 MB');
     }
     let payload: unknown;
-    try { payload = JSON.parse(file.buffer.toString('utf8').replace(/^\uFEFF/, '')); }
+    try { payload = JSON.parse(file.buffer.toString('utf8').replace(/^\uFEFF/, ''), (_key, value) => typeof value === 'string' ? value.replace(/\u0000/g, ' ') : value); }
     catch { throw new BadRequestException('The file does not contain valid UTF-8 JSON'); }
     const root = payload && typeof payload === 'object' && !Array.isArray(payload)
       ? payload as Record<string, unknown> : undefined;
@@ -850,8 +850,8 @@ export class QuestionImportService {
             topicId: destinationTopicId,
             questionType: QuestionType.MCQ,
             title: null,
-            questionText: candidate.question_text.trim(),
-            explanation: candidate.explanation?.trim() || null,
+            questionText: candidate.question_text.replace(/\u0000/g, ' ').trim(),
+            explanation: candidate.explanation?.replace(/\u0000/g, ' ').trim() || null,
             hint: null,
             reference: this.importReference(
               dto.original_filename,
@@ -873,7 +873,7 @@ export class QuestionImportService {
           candidate.options.map((option, optionIndex) =>
             manager.create(McqOption, {
               questionId: question.id,
-              optionText: option.option_text.trim(),
+              optionText: option.option_text.replace(/\u0000/g, ' ').trim(),
               isCorrect: option.is_correct,
               displayOrder: optionIndex + 1,
             }),
@@ -1653,7 +1653,7 @@ export class QuestionImportService {
     documentExtractionConfidence = 1,
   ): ImportCandidate {
     const issues: ImportIssue[] = [];
-    const optionTexts = candidate.options.map((option) => this.normalize(option.text));
+    const optionTexts = candidate.options.map((option) => this.normalizeOption(option.text));
     if (candidate.questionText.length < 8) {
       issues.push({ code: 'STEM_TOO_SHORT', severity: 'ERROR', message: 'Question stem is too short to publish safely.' });
     }
@@ -1785,7 +1785,7 @@ export class QuestionImportService {
         `Question ${index + 1} has four options and requires explicit instructor confirmation before publication`,
       );
     }
-    const normalized = candidate.options.map((option) => this.normalize(option.option_text));
+    const normalized = candidate.options.map((option) => this.normalizeOption(option.option_text));
     if (normalized.some((option) => !option) || new Set(normalized).size !== normalized.length) {
       throw new BadRequestException(`Question ${index + 1} contains empty or duplicate options`);
     }
@@ -1889,6 +1889,11 @@ export class QuestionImportService {
   private tokens(value: string): string[] {
     return (value.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) || [])
       .filter((token) => token.length > 2 && !STOPWORDS.has(token));
+  }
+
+  private normalizeOption(value: string): string {
+    // Symbols distinguish medical answers (↑/↓, +/−, < />); keep them.
+    return value.normalize('NFKC').toLocaleLowerCase().replace(/\u0000/g, ' ').replace(/\s+/g, ' ').trim();
   }
 
   private normalize(value: string): string {
