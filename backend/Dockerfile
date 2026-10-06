@@ -11,7 +11,11 @@ RUN npm ci
 
 FROM dependencies AS builder
 COPY . .
-RUN npm run build
+RUN npm run build \
+    && npm test -- --runInBand \
+      src/modules/questions/question-import.service.spec.ts \
+      src/modules/bundle-access/bundle-access.predicate.spec.ts \
+      src/modules/tests/mcq-practice.service.security.spec.ts
 
 FROM base AS runner
 WORKDIR /app
