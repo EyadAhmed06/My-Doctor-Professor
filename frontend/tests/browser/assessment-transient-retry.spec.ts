@@ -114,10 +114,10 @@ test('retries only the idempotent answer/save and submit mutations after transie
   await expect(page.getByText('Transient retry question')).toBeVisible();
 
   await page.getByRole('radio').first().click();
-  await page.getByRole('button', { name: 'High' }).click();
+  await page.getByRole('button', { name: 'High', exact: true }).click();
   await expect.poll(() => answerCalls).toBe(2);
   await expect(page.getByRole('radio').first()).toHaveAttribute('aria-checked', 'true');
-  await expect(page.getByRole('button', { name: 'High' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'High', exact: true })).toHaveAttribute('aria-pressed', 'true');
 
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: /Submit exam/i }).click();
