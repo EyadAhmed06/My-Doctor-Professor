@@ -115,6 +115,16 @@ class DeploymentTests(unittest.TestCase):
                 self.assertNotIn(" up -d ", calls)
                 self.assertNotIn("DEPLOYED", result.stdout)
 
+    def test_failed_migration_preserves_evidence_before_cleanup(self):
+        result, calls = self.run_deploy("production")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Migration process exit=", result.stderr)
+        self.assertIn("Migration container:", result.stderr)
+        self.assertIn("logs --tail 100 mdp-production-migrate-", calls)
+        self.assertLess(calls.index("logs --tail 100 mdp-production-migrate-"),
+                        calls.index("rm -f mdp-production-migrate-"))
+        self.assertNotIn("run --rm --name mdp-production-migrate-", calls)
+
     def test_switch_failure_attempts_rollback(self):
         result, calls = self.run_deploy("switch")
         self.assertNotEqual(result.returncode, 0)
