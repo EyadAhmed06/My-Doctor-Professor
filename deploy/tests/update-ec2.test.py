@@ -16,6 +16,7 @@ case "$1" in
    *Config.Env*) printf 'POSTGRES_DB=test\nPOSTGRES_USER=test\nPOSTGRES_PASSWORD=test\n' ;;
    *State.Running*) echo true ;;
    *State.Health*) echo healthy ;;
+   *'Migration container:'*) echo 'Migration container: status=exited exit=1 oom=false started=2026-10-10T13:00:00Z finished=2026-10-10T13:00:01Z' ;;
    *) echo sha256:current ;;
   esac ;;
  info) echo "$TEST_ROOT" ;;
