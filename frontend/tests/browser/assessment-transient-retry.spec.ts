@@ -123,5 +123,5 @@ test('retries only the idempotent answer/save and submit mutations after transie
   await page.getByRole('button', { name: /Submit exam/i }).click();
   await expect.poll(() => submitCalls).toBe(2);
   await expect(page.getByText('Assessment submitted')).toBeVisible();
-  await expect(page.getByText('Retry proof takeaway.')).toBeVisible();
+  await expect(page.getByText('Retry proof takeaway.').first()).toBeVisible();
 });
