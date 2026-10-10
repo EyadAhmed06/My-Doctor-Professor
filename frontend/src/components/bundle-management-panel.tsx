@@ -401,10 +401,10 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
           );
         }}
       >
-        <select value={instructorId} onChange={(event) => setInstructorId(event.target.value)} required>
+        <select aria-label="Instructor to assign" value={instructorId} onChange={(event) => setInstructorId(event.target.value)} required>
           <option value="">Choose instructor</option>
           {data.instructors.available.map((person) =>
-            <option key={person.id} value={person.id}>{person.fullName}</option>,
+            <option key={person.id} value={person.id}>{person.fullName} · {person.email}</option>,
           )}
         </select>
         <button className="pp-button secondary" disabled={busy || !instructorId}>
