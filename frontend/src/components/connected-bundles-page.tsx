@@ -629,6 +629,9 @@ function BundleTab({ content, tab }: { content: Content; tab: Tab }) {
       <section className="bundle-accordion-stack">
         {content.courses.map((course) => (
           <Panel key={course.id} title={`${course.courseCode} · ${course.courseName}`} className="bundle-course">
+            {course.weeks.some((week) => week.lectures.some((lecture) => Number(lecture.mcq_count || 0) > 0)) && (
+              <Link href={`/rounds?bundle=${content.bundle.id}&course=${course.id}`}>Select lectures for quiz</Link>
+            )}
             {course.weeks.map((week, weekIndex) => (
               <BundleWeekDetails
                 key={week.id}
