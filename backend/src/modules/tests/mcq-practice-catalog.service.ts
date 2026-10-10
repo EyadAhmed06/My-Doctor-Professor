@@ -5,7 +5,6 @@ import { Course } from '../../common/entities/course.entity';
 import { Week } from '../../common/entities/week.entity';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { BundleAccessService } from '../bundle-access/bundle-access.service';
-import { buildActiveEnrollmentSql } from '../bundle-access/bundle-access.predicates';
 import { UserRole } from '../users/entities/user.entity';
 
 @Injectable()
@@ -36,7 +35,7 @@ export class McqPracticeCatalogService {
        JOIN bundles bundle ON bundle.id = link.bundle_id
        JOIN bundle_enrollments enrollment ON enrollment.bundle_id = bundle.id AND enrollment.student_id = $3
        WHERE link.bundle_id = $1 AND link.course_id = $2
-         AND ${buildActiveEnrollmentSql('enrollment', 'bundle')} LIMIT 1`,
+         AND enrollment.status = 'ACTIVE' AND (enrollment.starts_at IS NULL OR enrollment.starts_at <= CURRENT_TIMESTAMP) AND (enrollment.expires_at IS NULL OR enrollment.expires_at > CURRENT_TIMESTAMP) AND enrollment.payment_status IN ('NOT_REQUIRED', 'PAID') AND bundle.status = 'PUBLISHED' AND (bundle.available_from IS NULL OR bundle.available_from <= CURRENT_TIMESTAMP) AND (bundle.available_until IS NULL OR bundle.available_until > CURRENT_TIMESTAMP) LIMIT 1`,
       [bundleId, courseId, actor.userId],
     );
     if (!enrollment.length) throw new ForbiddenException('This bundle does not grant access to this course');
