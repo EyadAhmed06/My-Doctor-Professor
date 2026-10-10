@@ -112,5 +112,5 @@ test('question-bank lecture entry remains available for a small eligible MCQ poo
   await mockBundle(page, 1);
   await page.goto('/bundles?bundle=clinical-foundations&tab=questions');
   await expect(page.getByRole('heading', { name: 'Bundle Question Bank' })).toBeVisible();
-  await expect(page.locator(`a[href*="lecture=${lectureId}"]`)).toBeHidden();
+  await expect(page.locator(`a[href*="lecture=${lectureId}"]`)).toBeVisible();
 });
