@@ -22,7 +22,46 @@ env:
   APP_ENV_PARAMETER: /my-doctor-professor/demo/app-env
 
 jobs:
+  preflight:
+    name: Validate deployable commit
+    if: ${{ inputs.confirm == 'DEPLOY' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require approved deployment branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/agent/phase1-interactions" || {
+            echo "::error::AWS demo deployment is restricted to agent/phase1-interactions."
+            exit 1
+          }
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Backend dependency audit, static audit, build and tests
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts
+          npm audit --omit=dev --audit-level=high
+          npm run audit:security
+          npm run migration:verify-ledger
+          npm run lint
+          npm run build
+          npm test -- --runInBand
+      - name: Frontend dependency audit, static audit, build and tests
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts
+          npm audit --omit=dev --audit-level=high
+          npm run audit:security
+          npm run lint
+          npm run build
+          npm test
   deploy:
+    needs: preflight
     if: ${{ inputs.confirm == 'DEPLOY' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
