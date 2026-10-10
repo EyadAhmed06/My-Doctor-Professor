@@ -9,3 +9,9 @@
   .exam-session-footer>button,.exam-session-footer>div .end,.exam-session-footer>div .next{min-height:44px;padding:0 10px;font-size:13px;white-space:normal;text-align:center}
   .exam-session-footer>div .end,.exam-session-footer>div .next{flex:1 1 auto}
 }
+
+/* Dedicated assessment sessions cannot share their action area with the fixed workspace dock. */
+@media (max-width: 900px){
+  .product-app:has(.exam-annotation-surface) .phase5-mobile-dock{display:none!important}
+  .product-app:has(.exam-annotation-surface) .exam-session-footer{bottom:env(safe-area-inset-bottom,0px)}
+}
