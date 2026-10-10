@@ -142,7 +142,7 @@ test('200-question timed final uses five 40-question blocks and restores server 
 
   await page.getByRole('button', { name: '161–200' }).click();
   await expect(page.getByText('Final question 161')).toBeVisible();
-  await expect(page.getByText('Block 5 of 5')).toBeVisible();
+  await expect(page.getByRole('button', { name: '161–200' })).toHaveAttribute('aria-current', 'page');
 
   await page.getByRole('radio').first().click();
   await page.getByRole('button', { name: 'High', exact: true }).click();
