@@ -79,3 +79,10 @@ body:has(.public-home) .public-theme-access{display:none}
   .public-theme-access{top:8px;right:8px}
   .public-session-copy{display:none}
 }
+
+/* Keep language controls discoverable on public pages even when the floating
+   appearance button is hidden for the public home layout. */
+.public-theme-access .global-language-access{display:flex;align-items:center;gap:4px}
+.public-theme-access .global-language-access button{border:1px solid var(--app-border,var(--line));border-radius:8px;background:transparent;color:inherit;padding:4px 7px;cursor:pointer}
+body:has(.public-home) .public-theme-access{display:flex;width:auto;height:auto;gap:6px}
+body:has(.public-home) .public-theme-access>.global-theme-toggle{display:none}
