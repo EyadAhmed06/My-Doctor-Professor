@@ -5,6 +5,7 @@ import { useLocale } from "./locale-provider";
 import "./public-theme-access.css";
 
 export function PublicThemeAccess() {
+  const { locale, setLocale } = useLocale();
   return <aside className="public-theme-access" aria-label="Appearance controls">
     <span>Appearance</span>
     <ThemeToggle compact iconOnly />
