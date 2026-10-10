@@ -542,7 +542,7 @@ function BundleQuestionBank({ content, courses }: { content: Content; courses: C
         <div><FiFileText /><span><b>Select topics or whole lectures</b><small>Practice includes eligible MCQs only from your selected topics, up to 200.</small></span></div>
         <strong className={ready ? "ready" : ""}>{pool} / {required} eligible MCQs</strong>
       </div>
-      <div className="question-bank-lecture-links" aria-label="Question bank lectures">{courses.flatMap((course) => course.weeks.flatMap((week) => week.lectures.filter((lecture) => !week.isLocked && !lecture.isLocked && Number(lecture.mcq_count ?? lecture.question_count ?? 0) > 0).map((lecture) => <Link key={lecture.id} href={guideHref(course, lecture)}>{lecture.title} · Question bank</Link>)))}</div>
+      <div className="question-bank-lecture-links" aria-label="Question bank lectures">{courses.flatMap((course) => course.weeks.flatMap((week) => week.lectures.filter((lecture) => !week.isLocked && !lecture.isLocked && Number(lecture.mcq_count ?? lecture.question_count ?? 0) > 0).map((lecture) => <Link key={lecture.id} href={`/guidelines?course=${encodeURIComponent(course.id)}&lecture=${encodeURIComponent(lecture.id)}`}>{lecture.title} · Question bank</Link>)))}</div>
       <div className="question-curriculum">
         {courses.map((course) => {
           const courseSelected = questionTarget === "final"
