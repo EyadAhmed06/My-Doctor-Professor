@@ -1,12 +1,15 @@
 "use client";
 
 import { ThemeToggle } from "./app-theme";
+import { usePathname } from "next/navigation";
 import { useLocale } from "./locale-provider";
 import "./public-theme-access.css";
 
 export function PublicThemeAccess() {
   const { locale, setLocale } = useLocale();
-  return <aside className="public-theme-access" aria-label="Appearance controls">
+  const pathname = usePathname();
+  if (pathname !== "/") return null;
+  return <aside className="public-theme-access" style={{ display: "flex", width: "auto", height: "auto", gap: "6px" }} aria-label="Appearance controls">
     <span>Appearance</span>
     <ThemeToggle compact iconOnly />
     <div className="global-language-access" role="group" aria-label="Interface language">
