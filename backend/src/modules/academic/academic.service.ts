@@ -1,4 +1,3 @@
-import { buildInstructorCourseAccessSql } from '../bundle-access/instructor-course-access';
 import {
   ConflictException,
   ForbiddenException,
@@ -748,7 +747,7 @@ export class AcademicService {
     if (actor.role === UserRole.SYSTEM_ADMIN) return;
     if (
       actor.role === UserRole.INSTRUCTOR &&
-      (await this.dataSource.query(`SELECT 1 FROM courses course WHERE course.id = $1 AND ${buildInstructorCourseAccessSql('course.id', '$2')}`, [courseId, actor.userId])).length > 0
+      (await this.dataSource.query(`SELECT 1 FROM courses course WHERE course.id = $1 AND (EXISTS (SELECT 1 FROM course_instructors assignment WHERE assignment.course_id = course.id AND assignment.instructor_id = $2) OR EXISTS (SELECT 1 FROM bundle_courses instructor_course JOIN bundle_instructors instructor_bundle ON instructor_bundle.bundle_id = instructor_course.bundle_id WHERE instructor_course.course_id = course.id AND instructor_bundle.instructor_id = $2))`, [courseId, actor.userId])).length > 0
     ) return;
     throw new ForbiddenException('You are not assigned to manage this course');
   }
