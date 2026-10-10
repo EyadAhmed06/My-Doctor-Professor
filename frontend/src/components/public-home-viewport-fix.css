@@ -10,11 +10,9 @@ body:has(.public-home) {
   overflow-y: visible;
 }
 
-/* The landing page owns its appearance control inside the navigation.
-   Never leave a second fixed control floating over page content. */
-body:has(.public-home) .public-theme-access {
-  display: none !important;
-}
+/* The floating control on the public homepage supplies the language switcher.
+   PublicThemeAccess itself is route-scoped to /, so authenticated screens
+   never receive the overlay. Do not hide its ancestor here. */
 
 /* Once the intro has settled, release the hero from its compositor layer.
    This prevents Chromium/WebKit from retaining a softened scaled texture. */
