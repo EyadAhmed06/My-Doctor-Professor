@@ -122,7 +122,7 @@ class DeploymentTests(unittest.TestCase):
         self.assertIn("Migration container:", result.stderr)
         self.assertIn("logs --tail 100 mdp-production-migrate-", calls)
         self.assertLess(calls.index("logs --tail 100 mdp-production-migrate-"),
-                        calls.index("rm -f mdp-production-migrate-"))
+                        calls.rindex("rm -f mdp-production-migrate-"))
         self.assertNotIn("run --rm --name mdp-production-migrate-", calls)
 
     def test_switch_failure_attempts_rollback(self):
