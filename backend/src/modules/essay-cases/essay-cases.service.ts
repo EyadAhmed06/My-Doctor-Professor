@@ -1,4 +1,3 @@
-import { buildInstructorCourseAccessSql } from '../bundle-access/instructor-course-access';
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
@@ -27,7 +26,7 @@ export class EssayCasesService {
         [actor.userId],
       );
     }
-    if (actor.role === UserRole.INSTRUCTOR) return this.db.query(`SELECT DISTINCT c.id,c.course_code AS "courseCode",c.course_name AS "courseName" FROM courses c LEFT JOIN course_instructors mine ON mine.course_id=c.id AND mine.instructor_id=$1 WHERE ${buildInstructorCourseAccessSql('c.id', '$1')} OR NOT EXISTS (SELECT 1 FROM course_instructors owner WHERE owner.course_id=c.id) ORDER BY c.course_name`, [actor.userId]);
+    if (actor.role === UserRole.INSTRUCTOR) return this.db.query(`SELECT DISTINCT c.id,c.course_code AS "courseCode",c.course_name AS "courseName" FROM courses c LEFT JOIN course_instructors mine ON mine.course_id=c.id AND mine.instructor_id=$1 WHERE (EXISTS (SELECT 1 FROM course_instructors assignment WHERE assignment.course_id = c.id AND assignment.instructor_id = $1) OR EXISTS (SELECT 1 FROM bundle_courses instructor_course JOIN bundle_instructors instructor_bundle ON instructor_bundle.bundle_id = instructor_course.bundle_id WHERE instructor_course.course_id = c.id AND instructor_bundle.instructor_id = $1)) OR NOT EXISTS (SELECT 1 FROM course_instructors owner WHERE owner.course_id=c.id) ORDER BY c.course_name`, [actor.userId]);
     return this.db.query(`SELECT id,course_code AS "courseCode",course_name AS "courseName" FROM courses ORDER BY course_name`);
   }
 
