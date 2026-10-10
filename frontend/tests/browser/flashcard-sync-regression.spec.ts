@@ -24,7 +24,7 @@ async function mockStudent(page: Page) {
     localStorage.removeItem('mdp_logged_out_at');
     localStorage.setItem('mdp-theme', 'light');
     localStorage.setItem('mdp-locale', 'en');
-    localStorage.removeItem('mdp-flashcard-session:student-flashcard-sync');
+    localStorage.removeItem('mdp-flashcard-session:student-flashcard-sync:course-1:all');
   });
 
   let reviewRequests = 0;
@@ -46,7 +46,8 @@ async function mockStudent(page: Page) {
     if (path === '/auth/me') return respond(user);
     if (path === '/notifications/unread/count') return respond({ count: 0 });
     if (path === '/notifications') return respond({ data: [] });
-    if (path === '/flashcards/cards/due') return respond({
+    if (path === '/flashcards/courses') return respond([{ id: 'course-1', courseName: 'Cardiovascular Medicine', courseCode: 'CARD101', deckCount: 1, cardCount: 1 }]);
+    if (path.startsWith('/flashcards/cards/mine?')) return respond({
       data: [{
         id: 'card-1',
         title: 'Cardiac cycle card',
@@ -79,7 +80,7 @@ async function mockStudent(page: Page) {
 
 test('one rating produces one backend review and does not resurrect the card', async ({ page }) => {
   const state = await mockStudent(page);
-  await page.goto('/flashcards');
+  await page.goto('/flashcards?course=course-1');
   await expect(page.getByText('Which valve closes at the start of systole?')).toBeVisible();
 
   await page.getByRole('button', { name: /Which valve closes at the start of systole/i }).click();
