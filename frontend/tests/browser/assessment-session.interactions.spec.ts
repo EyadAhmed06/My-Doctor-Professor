@@ -222,6 +222,7 @@ test('Tutor mode supports highlighter, strike-out, flags, notes, labs, and immed
 
 
   await page.getByRole('radio').nth(1).click();
+  await page.getByRole('button', { name: 'High', exact: true }).click();
   await expect(page.locator('.exam-answer-row').nth(1)).toHaveClass(/answer-incorrect/);
   const explanation = page.locator('.tutor-explanation');
   await expect(explanation).toContainText('Incorrect');
