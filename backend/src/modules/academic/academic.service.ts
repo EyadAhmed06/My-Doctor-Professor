@@ -1,3 +1,4 @@
+import { buildInstructorCourseAccessSql } from '../bundle-access/instructor-course-access';
 import {
   ConflictException,
   ForbiddenException,
