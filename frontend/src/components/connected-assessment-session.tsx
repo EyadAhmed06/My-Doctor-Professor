@@ -165,14 +165,25 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   useEffect(() => {
     if (!attemptId || !testId) return;
     let active = true;
-    void Promise.all([request<WorkspaceState>(`/tests/attempts/${attemptId}/workspace-state`), request<Assignment[]>(`/tests/${testId}/questions`)])
-      .then(([state, questions]) => {
+    void (async () => {
+      const state = await request<WorkspaceState>(`/tests/attempts/${attemptId}/workspace-state`);
+      if (!active) return;
+      // Closed attempts are review-only. Their active question endpoint may
+      // intentionally reject access, so never request it before checking status.
+      if (state.attempt.status !== "IN_PROGRESS") {
+        const completedReview = await request<Review>(`/tests/attempts/${attemptId}/review`);
         if (!active) return;
-        setAttempt(state.attempt); setItems(questions);
-        setAnswers(Object.fromEntries(state.answers.filter((item) => item.selectedOptionId).map((item) => [item.questionId, item.selectedOptionId!])));
-        setConfidence(Object.fromEntries(state.answers.filter((item) => item.confidenceLevel).map((item) => [item.questionId, item.confidenceLevel!])));
-        setFlags(state.flagged_question_ids); setHardFlags(state.hard_question_ids || []); setNotes(Object.fromEntries(state.notes.map((item) => [item.question_id, item.note])));
-      })
+        setAttempt(state.attempt);
+        setReview(completedReview);
+        return;
+      }
+      const questions = await request<Assignment[]>(`/tests/${testId}/questions`);
+      if (!active) return;
+      setAttempt(state.attempt); setItems(questions);
+      setAnswers(Object.fromEntries(state.answers.filter((item) => item.selectedOptionId).map((item) => [item.questionId, item.selectedOptionId!])));
+      setConfidence(Object.fromEntries(state.answers.filter((item) => item.confidenceLevel).map((item) => [item.questionId, item.confidenceLevel!])));
+      setFlags(state.flagged_question_ids); setHardFlags(state.hard_question_ids || []); setNotes(Object.fromEntries(state.notes.map((item) => [item.question_id, item.note])));
+    })()
       .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "Unable to load this attempt."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
