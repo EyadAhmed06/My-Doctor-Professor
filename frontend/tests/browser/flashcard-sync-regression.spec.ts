@@ -47,6 +47,13 @@ async function mockStudent(page: Page) {
     if (path === '/notifications/unread/count') return respond({ count: 0 });
     if (path === '/notifications') return respond({ data: [] });
     if (path === '/flashcards/courses') return respond([{ id: 'course-1', courseName: 'Cardiovascular Medicine', courseCode: 'CARD101', deckCount: 1, cardCount: 1 }]);
+    if (path === '/flashcards/decks') return respond({
+      data: [{ id: 'deck-1', title: 'Cardiac Physiology', cardCount: 1, course: { id: 'course-1', courseName: 'Cardiovascular Medicine' }, lecture: { id: 'lecture-1', title: 'Cardiac cycle' } }],
+      page: 1, limit: 100, total: 1, total_pages: 1,
+    });
+    if (path === '/flashcards/decks/deck-1/cards') return respond({
+      data: [{ id: 'card-1' }], page: 1, limit: 100, total: 1, total_pages: 1,
+    });
     if (path === '/flashcards/cards/mine') return respond({
       data: [{
         id: 'card-1',
@@ -81,6 +88,7 @@ async function mockStudent(page: Page) {
 test('one rating produces one backend review and does not resurrect the card', async ({ page }) => {
   const state = await mockStudent(page);
   await page.goto('/flashcards?course=course-1');
+  await page.getByRole('button', { name: /Cardiac Physiology/i }).click();
   await expect(page.getByText('Which valve closes at the start of systole?')).toBeVisible();
 
   await page.getByRole('button', { name: /Which valve closes at the start of systole/i }).click();
