@@ -34,9 +34,15 @@ function numericCount(value: unknown) {
   return Number.isFinite(number) && number >= 0 ? number : 0;
 }
 
+// A lecture with MCQs but no topic records is selectable as a whole.
+function eligibleSelectionIds(lecture: Lecture): string[] {
+  const topics = (lecture.topics || []).filter((topic) => numericCount(topic.mcq_count) > 0);
+  return topics.length ? topics.map((topic) => topic.id) : numericCount(lecture.mcq_count) > 0 ? [lecture.id] : [];
+}
+
 function defaultPracticeLectures(lectures: Lecture[]) {
   const first = lectures.find((lecture) => numericCount(lecture.mcq_count) > 0);
-  return first ? (first.topics || []).filter((topic) => topic.mcq_count > 0).map((topic) => topic.id) : [];
+  return first ? eligibleSelectionIds(first) : [];
 }
 
 function sessionHref(generated: Generated, bundleId: string, lectureIds: string[], mode: PracticeMode) {
@@ -126,8 +132,11 @@ export function ConnectedRoundsPage() {
     [lectureRows],
   );
   const currentBundle = bundles.find((item) => item.id === bundleId);
-  const selectedLectures = lectureRows.filter(({ lecture }) => lecture.topics?.some((topic) => selectedIds.includes(topic.id)));
-  const selectedQuestionPool = selectedLectures.flatMap(({ lecture }) => lecture.topics || []).filter((topic) => selectedIds.includes(topic.id)).reduce((sum, topic) => sum + numericCount(topic.mcq_count), 0);
+  const selectedLectures = lectureRows.filter(({ lecture }) => eligibleSelectionIds(lecture).some((id) => selectedIds.includes(id)));
+  const selectedQuestionPool = selectedLectures.reduce((sum, { lecture }) => {
+    const topics = (lecture.topics || []).filter((topic) => selectedIds.includes(topic.id));
+    return sum + (topics.length ? topics.reduce((count, topic) => count + numericCount(topic.mcq_count), 0) : selectedIds.includes(lecture.id) ? numericCount(lecture.mcq_count) : 0);
+  }, 0);
   const questionCount = Math.min(selectedQuestionPool, MAX_PRACTICE_QUESTION_COUNT);
   const ready = selectedIds.length > 0 && questionCount > 0 && !currentBundle?.read_only;
 
@@ -140,12 +149,12 @@ export function ConnectedRoundsPage() {
     const allLectures = weeks.flatMap((item) => item.lectures);
     const requested = requestedLectures.filter((id) => allLectures.some((lecture) => lecture.id === id));
     if (!requested.length && requestedLecture && allLectures.some((lecture) => lecture.id === requestedLecture)) requested.push(requestedLecture);
-    const initial = requested.length ? allLectures.filter((lecture) => requested.includes(lecture.id)).flatMap((lecture) => (lecture.topics || []).filter((topic) => topic.mcq_count > 0).map((topic) => topic.id)) : defaultPracticeLectures(allLectures);
+    const initial = requested.length ? allLectures.filter((lecture) => requested.includes(lecture.id)).flatMap(eligibleSelectionIds) : defaultPracticeLectures(allLectures);
     setSelectedIds(initial);
-    const first = allLectures.find((lecture) => lecture.topics?.some((topic) => topic.id === initial[0])) || allLectures[0] || null;
+    const first = allLectures.find((lecture) => eligibleSelectionIds(lecture).includes(initial[0])) || allLectures[0] || null;
     setActiveLecture(first);
     const initialSet = new Set(initial);
-    const selectedWeeks = weeks.filter((item) => item.lectures.some((lecture) => lecture.topics?.some((topic) => initialSet.has(topic.id)))).map((item) => item.id);
+    const selectedWeeks = weeks.filter((item) => item.lectures.some((lecture) => eligibleSelectionIds(lecture).some((id) => initialSet.has(id)))).map((item) => item.id);
     const firstWeek = first ? weeks.find((item) => item.lectures.some((lecture) => lecture.id === first.id)) : undefined;
     setOpenWeeks(selectedWeeks.length ? selectedWeeks : firstWeek ? [firstWeek.id] : []);
   }, [courseId, requestedLecture, requestedLectures, weeks]);
@@ -156,12 +165,12 @@ export function ConnectedRoundsPage() {
 
   function toggleLecture(lecture: Lecture) {
     setActiveLecture(lecture);
-    const ids = (lecture.topics || []).filter((topic) => topic.mcq_count > 0).map((topic) => topic.id);
+    const ids = eligibleSelectionIds(lecture);
     setSelectedIds((current) => ids.every((id) => current.includes(id)) ? current.filter((id) => !ids.includes(id)) : [...new Set([...current, ...ids])]);
   }
 
   function toggleWholeWeek(week: Week) {
-    const ids = week.lectures.flatMap((lecture) => lecture.topics || []).filter((topic) => topic.mcq_count > 0).map((topic) => topic.id);
+    const ids = week.lectures.flatMap(eligibleSelectionIds);
     const allSelected = ids.every((id) => selectedIds.includes(id));
     setSelectedIds((current) => allSelected ? current.filter((id) => !ids.includes(id)) : [...new Set([...current, ...ids])]);
   }
@@ -176,7 +185,7 @@ export function ConnectedRoundsPage() {
         body: {
           bundle_id: bundleId,
           lecture_ids: selectedLectures.map(({ lecture }) => lecture.id),
-          topic_ids: selectedIds,
+          topic_ids: selectedIds.filter((id) => selectedLectures.some(({ lecture }) => (lecture.topics || []).some((topic) => topic.id === id))),
           question_count: questionCount,
           test_mode: mode,
           duration_minutes: mode === "TIMED" ? Math.ceil(questionCount * 1.5) : undefined,
@@ -214,8 +223,8 @@ export function ConnectedRoundsPage() {
               {weeks.map((week) => {
                 const isOpen = openWeeks.includes(week.id);
                 const weekMcqs = week.lectures.reduce((sum, item) => sum + numericCount(item.mcq_count), 0);
-                const weekTopics = week.lectures.flatMap((lecture) => lecture.topics || []).filter((topic) => topic.mcq_count > 0);
-                const allSelected = weekTopics.length > 0 && weekTopics.every((topic) => selectedIds.includes(topic.id));
+                const weekSelectionIds = week.lectures.flatMap(eligibleSelectionIds);
+                const allSelected = weekSelectionIds.length > 0 && weekSelectionIds.every((id) => selectedIds.includes(id));
                 return (
                   <section key={week.id}>
                     <div className="practice-week-heading">
