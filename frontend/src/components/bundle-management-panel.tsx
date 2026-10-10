@@ -460,7 +460,7 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
                     <td>
                       <div className="bundle-entitlement-badges">
                         <span className={`role-status ${statusBadgeClass(row.access_status)}`}>
-                          {row.access_status === "PENDING_PAYMENT" ? "PENDING PAYMENT" : translate(statusLabel(row.access_status))}
+                          {row.access_status === "PENDING_PAYMENT" ? "PENDING PAYMENT" : row.access_status === "ACTIVE" ? "ACTIVE" : translate(statusLabel(row.access_status))}
                         </span>
                         <span className="role-status">{row.paymentStatus}</span>
                       </div>
