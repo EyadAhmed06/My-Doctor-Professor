@@ -458,9 +458,12 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
                     </td>
                     <td>{row.student.email}</td>
                     <td>
-                      <span className={`role-status ${statusBadgeClass(row.access_status)}`}>
-                        {translate(statusLabel(row.access_status))}
-                      </span>
+                      <div className="bundle-entitlement-badges">
+                        <span className={`role-status ${statusBadgeClass(row.access_status)}`}>
+                          {row.access_status === "PENDING_PAYMENT" ? "PENDING PAYMENT" : translate(statusLabel(row.access_status))}
+                        </span>
+                        <span className="role-status">{row.paymentStatus}</span>
+                      </div>
                     </td>
                     <td>
                       <small>
@@ -480,10 +483,6 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
                             className="primary"
                             disabled={busy}
                             onClick={() => {
-                              const ok = window.confirm(
-                                `${translate("Mark")} ${row.student.fullName} ${translate("as paid?")}`
-                              );
-                              if (!ok) return;
                               void mutate(
                                 `/bundles/${bundleId}/enrollments/${row.student.id}/confirm-payment`,
                                 "POST",
