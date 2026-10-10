@@ -1,3 +1,4 @@
+import { buildInstructorCourseAccessSql } from '../bundle-access/instructor-course-access';
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
