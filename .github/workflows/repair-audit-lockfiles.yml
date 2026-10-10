@@ -1,0 +1,39 @@
+name: Repair production audit lockfiles
+on:
+  push:
+    branches:
+      - fix/npm-audit-proxy-sharp-sourcemap-20261010
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Repair backend dependency lock
+        working-directory: backend
+        run: |
+          npm audit fix --package-lock-only --omit=dev
+          npm ci --ignore-scripts
+          npm audit --omit=dev --audit-level=high
+      - name: Repair frontend dependency lock
+        working-directory: frontend
+        run: |
+          npm audit fix --package-lock-only --omit=dev
+          npm ci --ignore-scripts
+          npm audit --omit=dev --audit-level=high
+      - name: Commit verified lockfile repairs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/package-lock.json frontend/package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "fix(deps): resolve critical and high production audit advisories"
+            git push
+          fi
