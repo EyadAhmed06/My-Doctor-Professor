@@ -17,12 +17,16 @@ REHEARSAL_CHECK="mdp-rehearsal-check-$STAMP"
 CANDIDATE_FRONTEND="mdp-candidate-frontend-$STAMP"
 PRODUCTION_MIGRATE="mdp-production-migrate-$STAMP"
 LOG_OVERRIDE="$STACK_DIR/compose.deploy-logging.yml"
+DEPLOY_LOG_DIR="$STACK_DIR/data/deployment-logs"
+mkdir -p "$DEPLOY_LOG_DIR"
+chmod 700 "$DEPLOY_LOG_DIR"
+MIGRATION_LOG="$DEPLOY_LOG_DIR/migration-$STAMP.log"
 
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die 'Run with sudo.'
 [[ $# -le 1 ]] || die 'Usage: sudo /opt/mdp/update-ec2.sh [expected-commit-prefix]'
 [[ -d $SOURCE_DIR/.git && -f $COMPOSE_FILE ]] || die 'Expected /opt/mdp-source and /opt/mdp/compose.production.yml.'
-for bin in docker git curl sed awk df flock timeout openssl sort find head seq install cp chmod rm; do command -v "$bin" >/dev/null || die "Missing $bin"; done
+for bin in docker git curl sed awk df flock timeout openssl sort find head seq install cp chmod rm tee mkdir; do command -v "$bin" >/dev/null || die "Missing $bin"; done
 for file in deploy.env app.env local-images.env; do
   [[ -f $STACK_DIR/$file ]] || die "Missing $STACK_DIR/$file"
 done
@@ -167,7 +171,7 @@ YAML
 chmod 600 "$LOG_OVERRIDE"
 
 compose() {
-  timeout --kill-after=30s 15m docker compose \
+  timeout --kill-after=15s "${DEPLOY_COMPOSE_TIMEOUT:-15m}" docker compose \
     --env-file "$STACK_DIR/deploy.env" \
     --env-file "$STACK_DIR/app.env" \
     --env-file "$STACK_DIR/local-images.env" \
@@ -186,7 +190,7 @@ wait_healthy() {
   return 1
 }
 cleanup_temporary() {
-  docker rm -f "$CANDIDATE_FRONTEND" "$REHEARSAL_CHECK" "$REHEARSAL_MIGRATE" "$PRODUCTION_MIGRATE" >/dev/null 2>&1 || true
+  docker rm -f "$CANDIDATE_FRONTEND" "$REHEARSAL_CHECK" "$REHEARSAL_MIGRATE" >/dev/null 2>&1 || true
   docker rm -fv "$REHEARSAL_DB" >/dev/null 2>&1 || true
   docker network rm "$REHEARSAL_NETWORK" >/dev/null 2>&1 || true
 }
@@ -205,13 +209,14 @@ rollback_on_error() {
       || printf 'Migration container was not created or is no longer inspectable.\n' >&2
     docker logs --tail 100 "$PRODUCTION_MIGRATE" >&2 \
       || printf 'Migration container logs are unavailable.\n' >&2
+    printf 'Persisted migration log: %s\n' "$MIGRATION_LOG" >&2
     printf 'Host memory snapshot after failure:\n' >&2
     free -h >&2 || true
     printf 'Current Docker container states:\n' >&2
     docker ps -a --format 'table {{.Names}}\t{{.Status}}' >&2 || true
   fi
-  # Cancel any still-running migration before attempting recovery.
-  docker rm -f "$PRODUCTION_MIGRATE" >/dev/null 2>&1 || true
+  # Stop a stalled migration but keep the stopped container for postmortem inspection.
+  docker stop --time 5 "$PRODUCTION_MIGRATE" >/dev/null 2>&1 || true
   if (( mutation_started )); then
     printf 'Deployment failed (exit %s); restoring previous application images.\n' "$code" >&2
     export BACKEND_IMAGE="$OLD_BACKEND" FRONTEND_IMAGE="$OLD_FRONTEND"
@@ -331,7 +336,8 @@ export APP_HOST="$(env_value APP_HOST "$STACK_DIR/deploy.env")"
 printf 'Running migrations from %s\n' "$BACKEND_IMAGE"
 # Preserve the named container until its outcome is known. --rm would hide
 # startup failures and SIGKILL/OOM evidence from the rollback handler.
-compose run --name "$PRODUCTION_MIGRATE" --no-deps --pull never -e PGOPTIONS="-c lock_timeout=10000 -c statement_timeout=600000" migrate
+printf 'Production migration deadline: 4 minutes. Persistent log: %s\n' "$MIGRATION_LOG"
+DEPLOY_COMPOSE_TIMEOUT=240s compose run --name "$PRODUCTION_MIGRATE" --no-deps --pull never -e PGOPTIONS="-c lock_timeout=10000 -c statement_timeout=600000" migrate 2>&1 | tee "$MIGRATION_LOG"
 docker rm "$PRODUCTION_MIGRATE" >/dev/null
 
 mutation_started=1
