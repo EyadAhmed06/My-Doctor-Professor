@@ -432,7 +432,7 @@ export function ConnectedBundlesPage() {
             <section className={`bundle-content ${bundleLoading ? "is-loading" : ""}`} aria-busy={bundleLoading}>
               {!manager && bundles.some((item) => (item.id === requestedId || item.slug === requestedId || item.id === (requestedId || bundles[0]?.id)) && item.payment_required) ? (
                 <Panel title="Payment required">
-                  <p>This bundle's content is locked until payment is confirmed.</p>
+                  <p>Bundle content is locked until payment is confirmed.</p>
                   <p>{(() => {
                     const locked = bundles.find((item) => item.id === requestedId || item.slug === requestedId) || bundles[0];
                     return `${locked.priceCurrency || "EGP"} ${Number(locked.priceAmount || 0).toFixed(2)}`;
