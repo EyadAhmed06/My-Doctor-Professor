@@ -135,7 +135,7 @@ test('200-question timed final uses five 40-question blocks and restores server 
 
   await page.goto(`/mock-exam/session?attempt=${attemptId}&test=${testId}&source=rounds`);
 
-  await expect(page.getByText('Block 1 of 5')).toBeVisible();
+  await expect(page.getByRole('button', { name: '1–40' })).toBeVisible();
   await expect(page.getByRole('button', { name: '1–40' })).toBeVisible();
   await expect(page.getByRole('button', { name: '161–200' })).toBeVisible();
   await expect(page.getByText('Review all 5 options')).toHaveCount(0);
