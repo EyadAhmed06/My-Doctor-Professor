@@ -86,3 +86,7 @@ body:has(.public-home) .public-theme-access{display:none}
 .public-theme-access .global-language-access button{border:1px solid var(--app-border,var(--line));border-radius:8px;background:transparent;color:inherit;padding:4px 7px;cursor:pointer}
 body:has(.public-home) .public-theme-access{display:flex;width:auto;height:auto;gap:6px}
 body:has(.public-home) .public-theme-access>.global-theme-toggle{display:none}
+
+/* Public language switcher must stay accessible even when the authenticated shell also exists. */
+body:has(.product-app) .public-theme-access:has(.global-language-access){display:flex;width:auto;height:auto;gap:6px}
+body:has(.product-app) .public-theme-access:has(.global-language-access)>.global-theme-toggle{display:none}
