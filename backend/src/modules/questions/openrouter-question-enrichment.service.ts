@@ -64,7 +64,17 @@ const DEFAULT_MODEL = 'google/gemini-2.5-flash';
 const PROMPT_VERSION = 'mcq-explanation-v5-evidence-grounded';
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_ATTEMPTS = 3;
-const MAX_OUTPUT_TOKENS = 1_800;
+const DEFAULT_MAX_OUTPUT_TOKENS = 1_400;
+const MIN_OUTPUT_TOKENS = 700;
+const MAX_ALLOWED_OUTPUT_TOKENS = 1_800;
+
+function configuredOutputTokens(): number {
+  const raw = process.env.OPENROUTER_MAX_OUTPUT_TOKENS;
+  const parsed = raw == null || raw.trim() === '' ? DEFAULT_MAX_OUTPUT_TOKENS : Number(raw);
+  return Number.isSafeInteger(parsed) && parsed >= MIN_OUTPUT_TOKENS && parsed <= MAX_ALLOWED_OUTPUT_TOKENS
+    ? parsed
+    : DEFAULT_MAX_OUTPUT_TOKENS;
+}
 const MAX_REVIEW_REASON_CHARS = 320;
 const MAX_ERROR_BODY_CHARS = 16_384;
 const MAX_PROVIDER_MESSAGE_CHARS = 500;
@@ -105,9 +115,11 @@ export class OpenRouterQuestionEnrichmentService {
     this.assertInput(input);
 
     let lastError: OpenRouterEnrichmentError | undefined;
+    let outputTokens = configuredOutputTokens();
+    let affordabilityRetried = false;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       try {
-        return await this.generateOnce(input, true);
+        return await this.generateOnce(input, true, outputTokens);
       } catch (error) {
         let failure = this.normalizeFailure(error);
         if (
@@ -115,9 +127,22 @@ export class OpenRouterQuestionEnrichmentService {
           this.canRelaxProviderRequirements(failure)
         ) {
           try {
-            return await this.generateOnce(input, false);
+            return await this.generateOnce(input, false, outputTokens);
           } catch (compatibilityError) {
             failure = this.normalizeFailure(compatibilityError);
+          }
+        }
+        if (!affordabilityRetried && failure.status === 402 && failure.kind === 'INSUFFICIENT_CREDITS') {
+          // Only retry when the provider explicitly reports a lower affordable token ceiling.
+          // True account exhaustion remains a non-retryable billing failure.
+          const match = failure.providerMessage?.match(/can only afford\\s+(\\d+)/i);
+          const affordable = match ? Number(match[1]) : NaN;
+          const reduced = Math.min(outputTokens - 1, Math.floor(affordable * 0.9));
+          if (Number.isSafeInteger(reduced) && reduced >= MIN_OUTPUT_TOKENS) {
+            affordabilityRetried = true;
+            outputTokens = reduced;
+            attempt -= 1;
+            continue;
           }
         }
         lastError = failure;
@@ -133,6 +158,7 @@ export class OpenRouterQuestionEnrichmentService {
   private async generateOnce(
     input: McqExplanationInput,
     requireParameters: boolean,
+    outputTokens: number,
   ): Promise<McqExplanationResult> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -149,7 +175,7 @@ export class OpenRouterQuestionEnrichmentService {
         body: JSON.stringify({
           model: this.model,
           temperature: 0.1,
-          max_tokens: MAX_OUTPUT_TOKENS,
+          max_tokens: outputTokens,
           reasoning: { effort: 'minimal' },
           ...(requireParameters
             ? { provider: { require_parameters: true } }
