@@ -366,6 +366,8 @@ test('administrator navigation is limited to operational tools', async ({ page }
   await installApi(page, 'SYSTEM_ADMIN', 'light');
   await page.goto('/admin');
   const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
+  const menu = page.getByRole('button', { name: 'Open menu' });
+  if (await menu.isVisible()) await menu.click();
   for (const label of ['Overview', 'Users', 'Audit', 'Notifications', 'Settings']) {
     await expect(navigation.getByRole('link', { name: label, exact: true })).toBeVisible();
   }
