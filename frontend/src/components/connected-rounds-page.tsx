@@ -236,8 +236,8 @@ export function ConnectedRoundsPage() {
                     {isOpen && (
                       <div className="rounds-lecture-list">
                         {week.lectures.map((lecture) => {
-                          const eligibleTopics = (lecture.topics || []).filter((topic) => topic.mcq_count > 0);
-                          const checked = eligibleTopics.length > 0 && eligibleTopics.every((topic) => selectedIds.includes(topic.id));
+                          const eligibleIds = eligibleSelectionIds(lecture);
+                          const checked = eligibleIds.length > 0 && eligibleIds.every((id) => selectedIds.includes(id));
                           return (
                             <div key={lecture.id}><button type="button" className={`${activeLecture?.id === lecture.id ? "active" : ""} ${checked ? "selected-for-practice" : ""}`} onClick={() => toggleLecture(lecture)}>
                               <span className={`practice-check ${checked ? "checked" : ""}`}>{checked ? <FiCheck /> : ""}</span>
