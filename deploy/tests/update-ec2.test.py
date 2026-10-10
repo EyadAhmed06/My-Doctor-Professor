@@ -122,8 +122,9 @@ class DeploymentTests(unittest.TestCase):
         self.assertIn("Migration process exit=", result.stderr)
         self.assertIn("Migration container:", result.stderr)
         self.assertIn("logs --tail 100 mdp-production-migrate-", calls)
-        self.assertLess(calls.index("logs --tail 100 mdp-production-migrate-"),
-                        calls.rindex("rm -f mdp-production-migrate-"))
+        self.assertIn("stop --time 5 mdp-production-migrate-", calls)
+        self.assertNotIn("rm -f mdp-production-migrate-", calls)
+        self.assertIn("Persisted migration log:", result.stderr)
         self.assertNotIn("run --rm --name mdp-production-migrate-", calls)
 
     def test_switch_failure_attempts_rollback(self):
@@ -131,7 +132,7 @@ class DeploymentTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("restoring previous application images", result.stderr)
         self.assertIn("backend=mdp-backend:rollback-", calls)
-        self.assertIn("rm -f mdp-production-migrate", calls)
+        self.assertIn("rm mdp-production-migrate", calls)
 
     def test_capacity_guards_block_build(self):
         for options in ({"low_disk": True}, {"memory": "999999999"}):
