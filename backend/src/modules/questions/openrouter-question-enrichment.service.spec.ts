@@ -64,7 +64,7 @@ describe('OpenRouterQuestionEnrichmentService', () => {
     const body = JSON.parse(String(request.body));
     expect(body).toMatchObject({
       model: 'google/gemini-2.5-flash',
-      max_tokens: 1800,
+      max_tokens: 1400,
       reasoning: { effort: 'minimal' },
       provider: { require_parameters: true },
       plugins: [{ id: 'response-healing' }],
@@ -288,6 +288,27 @@ describe('OpenRouterQuestionEnrichmentService', () => {
 
     await expect(promise).resolves.toMatchObject({ sourceCorrectLabel: 'C' });
     expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('reduces an unaffordable output ceiling once and preserves the explanation contract', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 402,
+        text: async () => JSON.stringify({
+          error: { message: 'This request requires more credits, or fewer max_tokens. You requested up to 1400 tokens, but can only afford 1200.' },
+        }),
+      } as Response)
+      .mockResolvedValueOnce(response(validPayload()));
+
+    await expect(new OpenRouterQuestionEnrichmentService().generate(input)).resolves.toMatchObject({ sourceCorrectLabel: 'C' });
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    const first = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+    const second = JSON.parse((global.fetch as jest.Mock).mock.calls[1][1].body);
+    expect(first.max_tokens).toBe(1400);
+    expect(second.max_tokens).toBe(1080);
+    expect(second.response_format).toEqual(first.response_format);
   });
 
   it('does not retry a permanent 402 insufficient-credit failure', async () => {
