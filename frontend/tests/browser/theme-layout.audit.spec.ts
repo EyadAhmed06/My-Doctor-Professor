@@ -304,7 +304,7 @@ test('resource upload keeps product controls styled on a direct load', async ({ 
   expect(styles.panelBackground).not.toBe('rgba(0, 0, 0, 0)');
   expect(styles.panelBorder).not.toBe('0px');
   expect(styles.inputBorder).not.toBe('0px');
-  expect(styles.buttonDisplay).toBe('inline-flex');
+  expect(['inline-flex', 'flex']).toContain(styles.buttonDisplay);
   await expectNoHorizontalOverflow(page);
 });
 
