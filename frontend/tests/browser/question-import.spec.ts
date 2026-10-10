@@ -146,13 +146,13 @@ async function openInspection(page: Page, inspection = inspectionBody(), upload:
 test('instructor uploads JSON and reviews the candidate in the same inspector', async ({ page }) => {
   await openInspection(page, { ...inspectionBody(), original_filename: 'cardiac-questions.json', extraction_method: 'JSON', page_count: 0 }, 'json');
   await expect(page.getByText('cardiac-questions.json')).toBeVisible();
-  await expect(page.getByText('Left atrium', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Choice B' }).first()).toHaveValue('Left atrium');
 });
 
 test('instructor uploads a text file containing JSON', async ({ page }) => {
   await openInspection(page, { ...inspectionBody(), original_filename: 'cardiac-questions.txt', extraction_method: 'JSON', page_count: 0 }, 'txt');
   await expect(page.getByText('cardiac-questions.txt')).toBeVisible();
-  await expect(page.getByText('Left atrium', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Choice B' }).first()).toHaveValue('Left atrium');
 });
 
 test('instructor inspects a five-option PDF candidate and publishes an approved question', async ({ page }) => {
