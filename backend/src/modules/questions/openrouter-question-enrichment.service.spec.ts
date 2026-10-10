@@ -64,7 +64,7 @@ describe('OpenRouterQuestionEnrichmentService', () => {
     const body = JSON.parse(String(request.body));
     expect(body).toMatchObject({
       model: 'google/gemini-2.5-flash',
-      max_tokens: 1800,
+      max_tokens: 1400,
       reasoning: { effort: 'minimal' },
       provider: { require_parameters: true },
       plugins: [{ id: 'response-healing' }],
