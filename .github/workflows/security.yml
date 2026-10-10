@@ -20,6 +20,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  deployment-control-flow:
+    name: Deployment safety tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate deployment script syntax
+        run: bash -n deploy/update-ec2.sh
+      - name: Exercise deployment failure paths (mock Docker)
+        run: python3 -m unittest discover -s deploy/tests -p 'update-ec2.test.py' -v
+
   dependency-and-build:
     name: Dependency and build gates
     runs-on: ubuntu-latest
