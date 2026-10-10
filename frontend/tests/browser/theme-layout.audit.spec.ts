@@ -372,8 +372,11 @@ test('administrator navigation is limited to operational tools', async ({ page }
     await expect(menu).toHaveAttribute('aria-expanded', 'true');
   }
   await expect(navigation).toBeVisible();
-  for (const [label, href] of [['Overview', '/admin'], ['Users', '/admin/users'], ['Audit', '/admin/audit'], ['Notifications', '/notifications'], ['Settings', '/settings']]) {
-    const link = navigation.locator('a').filter({ hasText: new RegExp('^' + label + '
+  for (const [label, href] of [['Overview', '/admin'], ['Users', '/admin/users'], ['Audit', '/admin/audit'], ['Notifications', '/notifications'], ['Settings', '/settings']] as const) {
+    const link = navigation.getByRole('link', { name: label, exact: true });
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute('href', href);
+  }
   for (const label of ['Academics', 'Resources', 'Questions', 'Assessments', 'Flashcards', 'Bundles']) {
     await expect(navigation.getByRole('link', { name: label, exact: true })).toHaveCount(0);
   }
