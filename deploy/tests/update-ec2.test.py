@@ -16,6 +16,7 @@ case "$1" in
    *Config.Env*) printf 'POSTGRES_DB=test\nPOSTGRES_USER=test\nPOSTGRES_PASSWORD=test\n' ;;
    *State.Running*) echo true ;;
    *State.Health*) echo healthy ;;
+   *'Migration container:'*) echo 'Migration container: status=exited exit=1 oom=false started=2026-10-10T13:00:00Z finished=2026-10-10T13:00:01Z' ;;
    *) echo sha256:current ;;
   esac ;;
  info) echo "$TEST_ROOT" ;;
@@ -114,6 +115,16 @@ class DeploymentTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertNotIn(" up -d ", calls)
                 self.assertNotIn("DEPLOYED", result.stdout)
+
+    def test_failed_migration_preserves_evidence_before_cleanup(self):
+        result, calls = self.run_deploy("production")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Migration process exit=", result.stderr)
+        self.assertIn("Migration container:", result.stderr)
+        self.assertIn("logs --tail 100 mdp-production-migrate-", calls)
+        self.assertLess(calls.index("logs --tail 100 mdp-production-migrate-"),
+                        calls.rindex("rm -f mdp-production-migrate-"))
+        self.assertNotIn("run --rm --name mdp-production-migrate-", calls)
 
     def test_switch_failure_attempts_rollback(self):
         result, calls = self.run_deploy("switch")
