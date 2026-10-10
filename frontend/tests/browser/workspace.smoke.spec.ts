@@ -181,7 +181,7 @@ test('authenticated shell menus, theme, and command palette are keyboard usable'
 
   await page.locator('.profile-menu-trigger').click();
   await expect(page.getByRole('menu')).toBeVisible();
-  await page.getByRole('button', { name: /Switch to dark theme/i }).click();
+  await page.getByRole('menu').getByRole('button', { name: /Switch to dark theme/i }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
   await page.keyboard.press('Control+K');

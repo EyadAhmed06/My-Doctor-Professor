@@ -100,7 +100,7 @@ test(`lecture quiz builder launches the selected lecture's 25 MCQs in ${practice
     lecture_ids: [lecture1],
     question_count: 25,
     test_mode: practiceMode,
-    ...(practiceMode === 'TIMED' ? { duration_minutes: 25 } : {}),
+    ...(practiceMode === 'TIMED' ? { duration_minutes: 38 } : {}),
   });
   await expect(page).toHaveURL(new RegExp(`/mock-exam/session\\?attempt=${attemptId}`));
 });

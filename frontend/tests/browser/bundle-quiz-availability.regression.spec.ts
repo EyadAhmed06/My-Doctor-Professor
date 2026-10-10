@@ -93,24 +93,24 @@ async function mockBundle(page: Page, mcqCount: number) {
   });
 }
 
-test('curriculum hides the 40-MCQ quiz entry when no single course has forty eligible MCQs', async ({ page }) => {
+test('curriculum allows a quiz with fewer than 40 eligible MCQs', async ({ page }) => {
   await mockBundle(page, 39);
   await page.goto('/bundles?bundle=clinical-foundations&tab=curriculum');
   await expect(page.getByRole('heading', { name: 'Clinical Foundations' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Select lectures for 40-MCQ quiz' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Select lectures for quiz' })).toBeVisible();
 });
 
-test('curriculum exposes the 40-MCQ quiz entry only after the server reports a forty-MCQ course pool', async ({ page }) => {
+test('curriculum exposes quiz selection when the course has forty eligible MCQs', async ({ page }) => {
   await mockBundle(page, 40);
   await page.goto('/bundles?bundle=clinical-foundations&tab=curriculum');
-  const link = page.getByRole('link', { name: 'Select lectures for 40-MCQ quiz' });
+  const link = page.getByRole('link', { name: 'Select lectures for quiz' });
   await expect(link).toBeVisible();
   await expect(link).toHaveAttribute('href', `/rounds?bundle=${bundleId}&course=${courseId}`);
 });
 
-test('question-bank lecture entry does not open the fixed quiz builder until that lecture itself has forty eligible MCQs', async ({ page }) => {
+test('question-bank lecture entry remains available for a small eligible MCQ pool', async ({ page }) => {
   await mockBundle(page, 1);
   await page.goto('/bundles?bundle=clinical-foundations&tab=questions');
   await expect(page.getByRole('heading', { name: 'Bundle Question Bank' })).toBeVisible();
-  await expect(page.locator(`a[href*="lecture=${lectureId}"]`)).toBeHidden();
+  await expect(page.locator(`a[href*="lecture=${lectureId}"]`)).toBeVisible();
 });

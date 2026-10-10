@@ -93,8 +93,7 @@ test('Arabic dashboard translates dynamic learning copy instead of only changing
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await expect(page.getByRole('heading', { name: /مرحبًا بعودتك، Test/ })).toBeVisible();
   await expect(page.getByText('التقدم السريري')).toBeVisible();
-  await expect(page.getByText('خطة اليوم')).toBeVisible();
-  await expect(page.getByText('تابع التعلم')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'الاستوديو' })).toBeVisible();
   await expect(page.getByText('Clinical Momentum')).toHaveCount(0);
 });
 

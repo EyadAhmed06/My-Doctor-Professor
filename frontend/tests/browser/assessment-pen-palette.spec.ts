@@ -96,7 +96,7 @@ test('assessment pen palette renders all four colours and allows colour selectio
   await page.goto(`/mock-exam/session?attempt=${attemptId}&test=${testId}&source=assessments`);
   await expect(page.getByText('Which option is correct?')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Pen' }).click();
+  await page.getByRole('button', { name: 'Pen', exact: true }).click();
   await expect(page.getByLabel('Pen colour')).toBeVisible();
   await expect(page.getByRole('button', { name: 'red pen' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'blue pen' })).toBeVisible();

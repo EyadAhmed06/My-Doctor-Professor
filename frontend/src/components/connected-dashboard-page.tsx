@@ -149,8 +149,16 @@ function StudentDashboardScreen({
   reload: () => Promise<void>;
 }) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, request } = useAuth();
   const { translate, locale } = useLocale();
+  const [latestPearl, setLatestPearl] = useState<{ title: string; content: string } | null>(null);
+  useEffect(() => {
+    let active = true;
+    request<{ data: Array<{ title: string; content: string; noteType?: string }> }>("/notebook/notes?limit=50")
+      .then((response) => { if (active) setLatestPearl(response.data.find((item) => item.noteType === "PEARL") || null); })
+      .catch(() => { if (active) setLatestPearl(null); });
+    return () => { active = false; };
+  }, [request]);
   const { startNavigation } = useUx();
   const displayName = user?.fullName || user?.full_name || user?.email || "Student";
   const firstName = displayName.trim().split(/\s+/)[0];
@@ -228,6 +236,7 @@ function StudentDashboardScreen({
               </div>
             </div>
           </Card>
+          {latestPearl && <Card title={translate("Professor\'s Pearls")} className="pearl-dashboard-card"><p>{latestPearl.title}</p><p>{latestPearl.content}</p></Card>}
           <Card title={translate("Weekly Activity")} action={<Link href="/analytics">{translate("Open analytics")} →</Link>} className="activity-card">
             <div className="chart-legend"><span><i />{translate("Learning interactions")}</span></div><div className="bar-chart">{activity.map((item) => <div key={item.label}><span title={translate(`${item.value} interactions: ${number(item.detail?.questions)} MCQs, ${number(item.detail?.essay_cases)} essay cases, ${number(item.detail?.flashcards)} flashcards, ${number(item.detail?.lectures)} lectures, ${number(item.detail?.plan_sessions)} plan sessions`)} style={{ height: `${Math.max(2, Math.round(item.value / maxActivity * 92))}px` }} /><small>{item.label}</small></div>)}</div>
           </Card>

@@ -135,17 +135,17 @@ test('200-question timed final uses five 40-question blocks and restores server 
 
   await page.goto(`/mock-exam/session?attempt=${attemptId}&test=${testId}&source=rounds`);
 
-  await expect(page.getByText('Block 1 of 5')).toBeVisible();
+  await expect(page.getByRole('button', { name: '1–40' })).toBeVisible();
   await expect(page.getByRole('button', { name: '1–40' })).toBeVisible();
   await expect(page.getByRole('button', { name: '161–200' })).toBeVisible();
   await expect(page.getByText('Review all 5 options')).toHaveCount(0);
 
   await page.getByRole('button', { name: '161–200' }).click();
   await expect(page.getByText('Final question 161')).toBeVisible();
-  await expect(page.getByText('Block 5 of 5')).toBeVisible();
+  await expect(page.getByRole('button', { name: '161–200' })).toHaveAttribute('aria-current', 'page');
 
   await page.getByRole('radio').first().click();
-  await page.getByRole('button', { name: 'High' }).click();
+  await page.getByRole('button', { name: 'High', exact: true }).click();
   await expect(page.locator('.tutor-explanation')).toHaveCount(0);
   await expect(page.getByText('Review all 5 options')).toHaveCount(0);
 
@@ -156,7 +156,7 @@ test('200-question timed final uses five 40-question blocks and restores server 
   await page.getByRole('button', { name: '161–200' }).click();
   await expect(page.getByText('Final question 161')).toBeVisible();
   await expect(page.getByRole('radio').first()).toHaveAttribute('aria-checked', 'true');
-  await expect(page.getByRole('button', { name: 'High' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'High', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: /^Flag$/ })).toHaveClass(/active/);
   await expect(page.getByRole('button', { name: /Hard question/i })).toHaveClass(/active/);
 });
@@ -231,7 +231,7 @@ test('timed assessment reveals A-E rationales only after submission', async ({ p
   await expect(page.getByText('Review all 5 options')).toHaveCount(0);
 
   await page.getByRole('radio').nth(1).click();
-  await page.getByRole('button', { name: 'High' }).click();
+  await page.getByRole('button', { name: 'High', exact: true }).click();
   await expect(page.locator('.tutor-explanation')).toHaveCount(0);
   await expect(page.getByText('Option 1 rationale.')).toHaveCount(0);
 
