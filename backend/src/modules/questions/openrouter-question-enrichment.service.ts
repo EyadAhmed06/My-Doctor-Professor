@@ -135,7 +135,7 @@ export class OpenRouterQuestionEnrichmentService {
         if (!affordabilityRetried && failure.status === 402 && failure.kind === 'INSUFFICIENT_CREDITS') {
           // Only retry when the provider explicitly reports a lower affordable token ceiling.
           // True account exhaustion remains a non-retryable billing failure.
-          const match = failure.providerMessage?.match(/can only afford\\s+(\\d+)/i);
+          const match = failure.providerMessage?.match(/can only afford\s+(\d+)/i);
           const affordable = match ? Number(match[1]) : NaN;
           const reduced = Math.min(outputTokens - 1, Math.floor(affordable * 0.9));
           if (Number.isSafeInteger(reduced) && reduced >= MIN_OUTPUT_TOKENS) {
