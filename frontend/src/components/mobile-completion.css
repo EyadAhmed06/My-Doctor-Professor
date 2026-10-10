@@ -290,3 +290,20 @@ html,body{max-width:100%;overflow-x:hidden}
 @media(prefers-reduced-motion:reduce){
   .pp-topbar>nav{transition:none!important}
 }
+
+/* Authoritative mobile navigation open state across overlapping legacy stylesheets. */
+@media (max-width: 1180px) {
+  .product-app .pp-topbar > nav#product-navigation.open {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    transform: translateX(0) !important;
+    pointer-events: auto !important;
+  }
+  .product-app .pp-topbar > nav#product-navigation.open > a {
+    display: flex !important;
+    visibility: visible !important;
+    align-items: center;
+    opacity: 1 !important;
+  }
+}
