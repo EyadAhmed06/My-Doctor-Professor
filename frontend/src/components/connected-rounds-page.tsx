@@ -268,7 +268,7 @@ export function ConnectedRoundsPage() {
                   <div className={`rounds-primary-action practice-launch ${ready ? "ready" : "needs-questions"}`}>
                     <div>
                       <small>{ready ? "READY" : "QUESTION POOL"}</small>
-                      <h3>{ready ? `Start a ${questionCount}-MCQ ${mode === "TIMED" ? "Timed" : "Tutor"} quiz` : "Select a topic with eligible MCQs"}</h3>
+                      <h3>{ready ? `Start a ${questionCount}-MCQ ${mode === "TIMED" ? "Timed" : "Tutor"} quiz` : "Select a lecture with eligible MCQs"}</h3>
                       <p>{ready ? "Questions are sampled from exactly the topics you selected and answers are saved to the backend." : "Select additional topics or ask the instructor to publish more active question-bank MCQs. The app will not silently duplicate questions."}</p>
                     </div>
                     <div className="practice-launch-controls"><label>Mode<select aria-label="Quiz mode" value={mode} disabled={starting} onChange={(event) => setMode(event.target.value as PracticeMode)}><option value="TUTOR">Tutor · explanation after each answer</option><option value="TIMED">Timed · {Math.ceil(questionCount * 1.5)} minutes</option></select></label><button className="pp-button" type="button" disabled={!ready || starting} onClick={() => void startPractice()}><FiPlayCircle />{starting ? "Building quiz…" : `Start ${questionCount} questions`}<FiArrowRight /></button></div>
