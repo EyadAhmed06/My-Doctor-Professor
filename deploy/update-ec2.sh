@@ -196,6 +196,20 @@ rollback_on_error() {
   local code=${1:-$?}
   trap - ERR
   printf 'Deployment failed at stage %s (exit %s).\n' "$stage" "$code" >&2
+  if [[ $stage == production-migration ]]; then
+    printf 'Migration process exit=%s (137=SIGKILL, 124=timeout; inspect logs for cause).\n' "$code" >&2
+    # The named migration container is intentionally NOT --rm so a failed
+    # Compose client cannot erase the container evidence before this handler.
+    docker inspect "$PRODUCTION_MIGRATE" \
+      --format 'Migration container: status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} started={{.State.StartedAt}} finished={{.State.FinishedAt}}' >&2 \
+      || printf 'Migration container was not created or is no longer inspectable.\n' >&2
+    docker logs --tail 100 "$PRODUCTION_MIGRATE" >&2 \
+      || printf 'Migration container logs are unavailable.\n' >&2
+    printf 'Host memory snapshot after failure:\n' >&2
+    free -h >&2 || true
+    printf 'Current Docker container states:\n' >&2
+    docker ps -a --format 'table {{.Names}}\t{{.Status}}' >&2 || true
+  fi
   # Cancel any still-running migration before attempting recovery.
   docker rm -f "$PRODUCTION_MIGRATE" >/dev/null 2>&1 || true
   if (( mutation_started )); then
@@ -315,7 +329,10 @@ export FRONTEND_IMAGE="$OLD_FRONTEND"
 export APP_HOST="$(env_value APP_HOST "$STACK_DIR/deploy.env")"
 [[ -n $APP_HOST ]] || die 'APP_HOST missing from deploy.env.'
 printf 'Running migrations from %s\n' "$BACKEND_IMAGE"
-compose run --rm --name "$PRODUCTION_MIGRATE" --no-deps --pull never -e PGOPTIONS="-c lock_timeout=10000 -c statement_timeout=600000" migrate
+# Preserve the named container until its outcome is known. --rm would hide
+# startup failures and SIGKILL/OOM evidence from the rollback handler.
+compose run --name "$PRODUCTION_MIGRATE" --no-deps --pull never -e PGOPTIONS="-c lock_timeout=10000 -c statement_timeout=600000" migrate
+docker rm "$PRODUCTION_MIGRATE" >/dev/null
 
 mutation_started=1
 stage=backend-switch
