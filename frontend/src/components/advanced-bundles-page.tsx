@@ -621,6 +621,7 @@ function PaymentLockedBundle({ bundle, busy, onSubscribe }: {
   if (isPending) {
     return (
       <Panel title={translate("Payment required")}>
+        <p>Bundle content is locked until payment is confirmed.</p>
         <div className="bundle-read-only-reason" style={{ flexDirection: "column", gap: "16px", padding: "18px" }}>
           <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", width: "100%" }}>
             <FiClock style={{ fontSize: "24px", color: "var(--warning, #c58b2a)", flexShrink: 0, marginTop: "2px" }} />
