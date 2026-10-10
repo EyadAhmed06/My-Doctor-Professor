@@ -367,9 +367,35 @@ test('administrator navigation is limited to operational tools', async ({ page }
   await page.goto('/admin');
   const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
   const menu = page.getByRole('button', { name: 'Open menu' });
-  if (await menu.isVisible()) await menu.click();
-  for (const label of ['Overview', 'Users', 'Audit', 'Notifications', 'Settings']) {
-    await expect(navigation.getByRole('link', { name: label, exact: true })).toBeVisible();
+  if (await menu.isVisible()) {
+    await menu.click();
+    await expect(menu).toHaveAttribute('aria-expanded', 'true');
+  }
+  await expect(navigation).toBeVisible();
+  for (const [label, href] of [['Overview', '/admin'], ['Users', '/admin/users'], ['Audit', '/admin/audit'], ['Notifications', '/notifications'], ['Settings', '/settings']]) {
+    const link = navigation.locator('a').filter({ hasText: new RegExp('^' + label + '
+  for (const label of ['Academics', 'Resources', 'Questions', 'Assessments', 'Flashcards', 'Bundles']) {
+    await expect(navigation.getByRole('link', { name: label, exact: true })).toHaveCount(0);
+  }
+  await expect(page.getByRole('link', { name: 'User administration' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Audit trail' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Academic structure' })).toHaveCount(0);
+
+  for (const restrictedPath of [
+    '/admin/academics',
+    '/admin/questions',
+    '/admin/assessments',
+    '/admin/flashcards',
+    '/bundles',
+    '/resources/upload',
+  ]) {
+    await page.goto(restrictedPath);
+    await expect(page).toHaveURL(/\/admin$/);
+  }
+});
+) });
+    await expect(link, `Expected visible admin navigation link ${label} (${href})`).toBeVisible();
+    await expect(link).toHaveAttribute('href', href);
   }
   for (const label of ['Academics', 'Resources', 'Questions', 'Assessments', 'Flashcards', 'Bundles']) {
     await expect(navigation.getByRole('link', { name: label, exact: true })).toHaveCount(0);
