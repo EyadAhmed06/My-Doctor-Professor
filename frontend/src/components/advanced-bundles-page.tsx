@@ -620,7 +620,7 @@ function PaymentLockedBundle({ bundle, busy, onSubscribe }: {
 
   if (isPending) {
     return (
-      <Panel title={translate("Awaiting payment confirmation")}>
+      <Panel title={translate("Payment required")}>
         <div className="bundle-read-only-reason" style={{ flexDirection: "column", gap: "16px", padding: "18px" }}>
           <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", width: "100%" }}>
             <FiClock style={{ fontSize: "24px", color: "var(--warning, #c58b2a)", flexShrink: 0, marginTop: "2px" }} />
@@ -751,7 +751,7 @@ function BundleWorkspaceTab({ content, tab, courses, lectures, openWeeks, setOpe
 
   if (tab === "curriculum" && !courses.length) return <EmptyState title="No courses in this semester" description="This bundle does not currently contain courses for the selected semester." />;
 
-  if (tab === "curriculum") return <section className="bundle-accordion-stack"><div className="bundle-expand-actions"><Link className="pp-button secondary" href={`/rounds?bundle=${encodeURIComponent(content.bundle.id)}`}>Select topics for practice</Link><button type="button" onClick={() => setOpenWeeks(new Set(courses.flatMap((course) => course.weeks.map((week) => week.id))))}>Expand all</button><button type="button" onClick={() => setOpenWeeks(new Set())}>Collapse all</button></div>{courses.map((course) => <Panel key={course.id} title={`${course.courseCode} · ${course.courseName}`} className="bundle-course">{[...course.weeks.map((week) => ({ week, number: week.weekNumber })), ...(course.locked_weeks || []).map((locked) => ({ week: null, number: locked.week_number }))].sort((a, b) => a.number - b.number).map(({ week, number }) => {
+  if (tab === "curriculum") return <section className="bundle-accordion-stack"><div className="bundle-expand-actions"><Link className="pp-button secondary" href={`/rounds?bundle=${encodeURIComponent(content.bundle.id)}`}>Select topics for practice</Link>{courses.filter((course) => course.weeks.some((week) => week.lectures.some((lecture) => Number(lecture.mcq_count ?? lecture.question_count ?? 0) > 0))).map((course) => <Link className="pp-button secondary" key={course.id} href={`/rounds?bundle=${encodeURIComponent(content.bundle.id)}&course=${encodeURIComponent(course.id)}`}>Select lectures for quiz</Link>)}<button type="button" onClick={() => setOpenWeeks(new Set(courses.flatMap((course) => course.weeks.map((week) => week.id))))}>Expand all</button><button type="button" onClick={() => setOpenWeeks(new Set())}>Collapse all</button></div>{courses.map((course) => <Panel key={course.id} title={`${course.courseCode} · ${course.courseName}`} className="bundle-course">{[...course.weeks.map((week) => ({ week, number: week.weekNumber })), ...(course.locked_weeks || []).map((locked) => ({ week: null, number: locked.week_number }))].sort((a, b) => a.number - b.number).map(({ week, number }) => {
     if (!week) return <section className="advanced-bundle-week locked" key={`locked-${number}`} aria-label={`Week ${number} locked`}><div className="locked-week-label"><span><b>Week {number}</b><small>Content locked</small></span><FiLock aria-hidden="true" /></div></section>;
     const questions = week.lectures.reduce((sum, lecture) => sum + lecture.question_count, 0);
     const decks = week.lectures.reduce((sum, lecture) => sum + lecture.flashcard_deck_count, 0);
@@ -768,7 +768,7 @@ function BundleWorkspaceTab({ content, tab, courses, lectures, openWeeks, setOpe
     }}><span><b>Week {week.weekNumber}: {week.title || "Untitled week"}</b><small>{questions} questions · {decks} decks · {resources} resources</small></span><small>{week.lectures.length} lectures</small><FiChevronDown /></button>{open && <div>{week.lectures.map((lecture) => <Link href={guideHref(course, lecture)} key={lecture.id}><FiBookOpen /><span><b>{lecture.lectureNumber}. {lecture.title}</b><small>{lecture.question_count} questions · {lecture.flashcard_deck_count} decks · {lecture.resource_count} resources</small></span></Link>)}</div>}</section>;
   })}</Panel>)}</section>;
 
-  if (tab === "questions") return <BundleQuestionBank content={content} courses={courses} />;
+  if (tab === "questions") return <><h2>Bundle Question Bank</h2><BundleQuestionBank content={content} courses={courses} /></>;
 
   if (tab === "exams") return <Panel title="End-of-round & Bundle Exams">{content.past_exams.length ? content.past_exams.map((exam) => <Link className="bundle-row" href={`/past-exams?bundle=${encodeURIComponent(content.bundle.id)}&test=${encodeURIComponent(exam.id)}`} key={exam.id}><FiClock /><span><b>{exam.title}</b><small>{exam.durationMinutes ? `${exam.durationMinutes} minute instructor timer · choose Tutor or Timed` : "Tutor mode available · no timed duration configured"}</small></span><strong>Open →</strong></Link>) : <EmptyState title="No exams assigned" description="The instructor must publish and attach the end-of-round exam to this bundle before it appears here." />}</Panel>;
 
