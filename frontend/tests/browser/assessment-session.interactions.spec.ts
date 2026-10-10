@@ -241,14 +241,14 @@ test('Pen preserves every selected colour while a stroke grows', async ({ page }
 
   await page.getByRole('button', { name: /^Pen$/ }).click();
   const surface = page.locator('.exam-annotation-surface');
-  const box = await surface.boundingBox();
-  if (!box) throw new Error('Pen drawing surface is not visible');
-
   for (const [index, color] of ['blue', 'green', 'black', 'red'].entries()) {
     const colourButton = page.getByRole('button', { name: `${color} pen` });
     await colourButton.click();
     await expect(colourButton).toHaveAttribute('aria-pressed', 'true');
 
+    await surface.scrollIntoViewIfNeeded();
+    const box = await surface.boundingBox();
+    if (!box) throw new Error('Pen drawing surface is not visible');
     const y = box.y + 24 + index * 16;
     await page.mouse.move(box.x + 24, y);
     await page.mouse.down();
