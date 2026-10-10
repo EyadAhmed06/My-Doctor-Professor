@@ -270,7 +270,7 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
     </Panel>
 
     <Panel
-      title="Curriculum"
+      title="Curriculum composition"
       action={<button className="bundle-inline-action" type="button" onClick={() => void load()}>
         <FiRefreshCw /> Refresh
       </button>}
