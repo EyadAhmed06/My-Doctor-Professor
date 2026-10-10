@@ -90,3 +90,7 @@ body:has(.public-home) .public-theme-access>.global-theme-toggle{display:none}
 /* Public language switcher must stay accessible even when the authenticated shell also exists. */
 body:has(.product-app) .public-theme-access:has(.global-language-access){display:flex;width:auto;height:auto;gap:6px}
 body:has(.product-app) .public-theme-access:has(.global-language-access)>.global-theme-toggle{display:none}
+
+/* Only public home needs the floating language switcher; app shell owns its own controls. */
+body:has(.product-app):not(:has(.public-home)) .public-theme-access{display:none !important}
+body:has(.public-home) .public-theme-access{display:flex !important;width:auto;height:auto;gap:6px}
