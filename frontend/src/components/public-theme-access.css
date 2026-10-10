@@ -94,3 +94,8 @@ body:has(.product-app) .public-theme-access:has(.global-language-access)>.global
 /* Only public home needs the floating language switcher; app shell owns its own controls. */
 body:has(.product-app):not(:has(.public-home)) .public-theme-access{display:none !important}
 body:has(.public-home) .public-theme-access{display:flex !important;width:auto;height:auto;gap:6px}
+
+/* The language selector is part of the public home header, not an authenticated overlay.
+   Override legacy app-shell language visibility rules on the landing page only. */
+body:has(.public-home) .public-theme-access .global-language-access,
+body:has(.public-home) .global-language-access{display:flex !important;visibility:visible !important;opacity:1 !important;align-items:center;gap:4px}
