@@ -47,7 +47,7 @@ async function mockStudent(page: Page) {
     if (path === '/notifications/unread/count') return respond({ count: 0 });
     if (path === '/notifications') return respond({ data: [] });
     if (path === '/flashcards/courses') return respond([{ id: 'course-1', courseName: 'Cardiovascular Medicine', courseCode: 'CARD101', deckCount: 1, cardCount: 1 }]);
-    if (path.startsWith('/flashcards/cards/mine?')) return respond({
+    if (path === '/flashcards/cards/mine') return respond({
       data: [{
         id: 'card-1',
         title: 'Cardiac cycle card',
