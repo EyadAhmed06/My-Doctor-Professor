@@ -11,6 +11,8 @@ git -c safe.directory=/opt/mdp-source fetch origin agent/phase1-interactions
 git -c safe.directory=/opt/mdp-source checkout agent/phase1-interactions
 git -c safe.directory=/opt/mdp-source merge --ff-only origin/agent/phase1-interactions
 install -m 0750 /opt/mdp-source/deploy/update-ec2.sh /opt/mdp/update-ec2.sh
+install -m 0750 /opt/mdp-source/deploy/update-ec2-first.sh /opt/mdp/update-ec2-first.sh
+install -m 0750 /opt/mdp-source/deploy/update-ec2-legacy.sh /opt/mdp/update-ec2-legacy.sh
 ```
 
 ## Run for each update
@@ -32,10 +34,11 @@ The script copies its latest version into `/opt/mdp/update-ec2.sh` after a succe
 Both commands use the **same guarded deployment engine** and accept the optional expected commit prefix:
 
 - **Current:** `sudo /opt/mdp-source/deploy/update-ec2.sh <commit-prefix>`
-- **Legacy command:** `sudo /opt/mdp-source/deploy/update-ec2-legacy.sh <commit-prefix>`
+- **First/original command (supported):** `sudo /opt/mdp-source/deploy/update-ec2-first.sh <commit-prefix>`
+- **Legacy alias (supported):** `sudo /opt/mdp-source/deploy/update-ec2-legacy.sh <commit-prefix>`
 
 The legacy entry point delegates to the hardened current script; it does **not** bypass preflight, backup, isolated migration rehearsal, diagnostics, or rollback protection. The repository also preserves the initial September deployment implementation in `deploy/update-ec2-original.reference.sh` for audit/history **only**. Do not run the reference script against production: it does not contain later safeguards.
 
 These commands operate on the server's existing `/opt/mdp-source` checkout and require its deployment branch to be checked out. Do not assume a GitHub PR automatically updates files on EC2. Use the deployed script version appropriate for the checkout and pin the SHA; deploy only after all required checks pass. The legacy alias cannot repair a host-side SIGKILL or an SSM session termination by itself.
 
-To validate both script entry points without touching production, run `bash -n deploy/update-ec2.sh deploy/update-ec2-legacy.sh` in CI. Review deployment logs under `/opt/mdp/data/deployment-logs` after failures.
+To validate both script entry points without touching production, run `bash -n deploy/update-ec2.sh deploy/update-ec2-first.sh deploy/update-ec2-legacy.sh` in CI. Review deployment logs under `/opt/mdp/data/deployment-logs` after failures.
