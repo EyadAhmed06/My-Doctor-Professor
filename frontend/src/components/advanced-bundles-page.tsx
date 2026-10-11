@@ -616,8 +616,8 @@ function PaymentLockedBundle({ bundle, busy, onSubscribe }: {
     (studentEmail ? `\nالبريد الإلكتروني: ${studentEmail}` : "");
 
   const waMessage = locale === "ar" ? messageAr : messageEn;
-  const primaryWaUrl = `https://wa.me/201090725600?text=${encodeURIComponent(waMessage)}`;
-  const alternativeWaUrl = `https://wa.me/201015433123?text=${encodeURIComponent(waMessage)}`;
+  const primaryWaUrl = `https://wa.me/201015433123?text=${encodeURIComponent(waMessage)}`;
+  const alternativeWaUrl = `https://wa.me/201090725600?text=${encodeURIComponent(waMessage)}`;
 
   if (isPending) {
     return (
@@ -673,7 +673,7 @@ function PaymentLockedBundle({ bundle, busy, onSubscribe }: {
                   {translate("Primary Contact (Main)")}
                 </small>
                 <span dir="ltr" style={{ fontWeight: 800, fontSize: "15px", letterSpacing: "0.02em" }}>
-                  +20 10 9072 5600
+                  +20 10 1543 3123
                 </span>
               </div>
               <a
@@ -705,7 +705,7 @@ function PaymentLockedBundle({ bundle, busy, onSubscribe }: {
                   {translate("Alternative Contact")}
                 </small>
                 <span dir="ltr" style={{ fontWeight: 800, fontSize: "15px", letterSpacing: "0.02em" }}>
-                  +20 10 1543 3123
+                  +20 10 9072 5600
                 </span>
               </div>
               <a
