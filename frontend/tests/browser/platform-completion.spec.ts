@@ -125,7 +125,7 @@ test('logout navigates immediately even when server revocation is slow', async (
   // Time the application's click handler and navigation, not the driver's
   // pre-click actionability wait. Other browser tests exercise pointer clicks.
   const startedAt = Date.now();
-  await confirmButton.evaluate((button: HTMLButtonElement) => button.click());
+  await confirmButton.evaluate(button => (button as HTMLButtonElement).click());
   await expect(page).toHaveURL(/\/login/, { timeout: 3500 });
   expect(Date.now() - startedAt).toBeLessThan(3500);
   await page.reload();
