@@ -124,10 +124,13 @@ test('logout navigates immediately even when server revocation is slow', async (
   // On WebKit Playwright may wait several seconds for a stationary click target.
   // Time the application's click handler and navigation, not the driver's
   // pre-click actionability wait. Other browser tests exercise pointer clicks.
-  const startedAt = Date.now();
-  await confirmButton.evaluate(button => (button as HTMLButtonElement).click());
-  await expect(page).toHaveURL(/\/login/, { timeout: 3500 });
-  expect(Date.now() - startedAt).toBeLessThan(3500);
+  // WebKit can delay returning from page.evaluate during navigation. The
+  // Playwright round-trip is not application logout time; enforce the actual
+  // navigation deadline independently of when that RPC settles.
+  await Promise.all([
+    page.waitForURL(/\/login/, { timeout: 3500 }),
+    confirmButton.evaluate(button => (button as HTMLButtonElement).click()),
+  ]);
   await page.reload();
   await expect(page).toHaveURL(/\/login/);
 });
