@@ -187,6 +187,7 @@ async function highlightFirstWords(page: Page) {
 }
 
 test('Tutor mode supports highlighter, strike-out, flags, notes, labs, and immediate explanations', async ({ page }) => {
+  test.setTimeout(90_000); // WebKit touch interactions and full workflow exceed the global 45s budget.
   const state = await installAssessmentMock(page, 'TUTOR');
   await page.goto(`/mock-exam/session?attempt=${attemptId}&test=${testId}&source=rounds`);
 
