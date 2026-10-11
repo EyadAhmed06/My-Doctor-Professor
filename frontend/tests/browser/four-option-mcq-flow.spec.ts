@@ -251,6 +251,7 @@ function optionPanel(dialog: ReturnType<Page['getByRole']>, label: string) {
 }
 
 test('question bank creates A-D, edits A-D to A-E, edits back to A-D, and preserves activation + one correct answer', async ({ page }) => {
+  test.setTimeout(90_000); // Full create/edit/delete/save flow may exceed 45s on emulated iPhone.
   const state = await installQuestionBankMock(page);
   await page.goto('/instructor/questions');
 
