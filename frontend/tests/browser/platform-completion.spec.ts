@@ -118,8 +118,14 @@ test('logout navigates immediately even when server revocation is slow', async (
   await page.getByRole('menuitem', { name: /Log out/i }).click();
   const confirmation = page.getByRole('alertdialog', { name: 'Log out?' });
   await expect(confirmation).toBeVisible();
+  const confirmButton = confirmation.getByRole('button', { name: /^Log out$/i });
+  await expect(confirmButton).toBeVisible();
+  await expect(confirmButton).toBeEnabled();
+  // On WebKit Playwright may wait several seconds for a stationary click target.
+  // Time the application's click handler and navigation, not the driver's
+  // pre-click actionability wait. Other browser tests exercise pointer clicks.
   const startedAt = Date.now();
-  await confirmation.getByRole('button', { name: /^Log out$/i }).click();
+  await confirmButton.evaluate((button: HTMLButtonElement) => button.click());
   await expect(page).toHaveURL(/\/login/, { timeout: 3500 });
   expect(Date.now() - startedAt).toBeLessThan(3500);
   await page.reload();
