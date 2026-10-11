@@ -93,8 +93,7 @@ test('Arabic dashboard translates dynamic learning copy instead of only changing
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await expect(page.getByRole('heading', { name: /مرحبًا بعودتك، Test/ })).toBeVisible();
   await expect(page.getByText('التقدم السريري')).toBeVisible();
-  await expect(page.getByText('خطة اليوم')).toBeVisible();
-  await expect(page.getByText('تابع التعلم')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'الاستوديو' })).toBeVisible();
   await expect(page.getByText('Clinical Momentum')).toHaveCount(0);
 });
 
@@ -119,10 +118,19 @@ test('logout navigates immediately even when server revocation is slow', async (
   await page.getByRole('menuitem', { name: /Log out/i }).click();
   const confirmation = page.getByRole('alertdialog', { name: 'Log out?' });
   await expect(confirmation).toBeVisible();
-  const startedAt = Date.now();
-  await confirmation.getByRole('button', { name: /^Log out$/i }).click();
-  await expect(page).toHaveURL(/\/login/, { timeout: 3500 });
-  expect(Date.now() - startedAt).toBeLessThan(3500);
+  const confirmButton = confirmation.getByRole('button', { name: /^Log out$/i });
+  await expect(confirmButton).toBeVisible();
+  await expect(confirmButton).toBeEnabled();
+  // On WebKit Playwright may wait several seconds for a stationary click target.
+  // Time the application's click handler and navigation, not the driver's
+  // pre-click actionability wait. Other browser tests exercise pointer clicks.
+  // WebKit can delay returning from page.evaluate during navigation. The
+  // Playwright round-trip is not application logout time; enforce the actual
+  // navigation deadline independently of when that RPC settles.
+  await Promise.all([
+    page.waitForURL(/\/login/, { timeout: 3500 }),
+    confirmButton.evaluate(button => (button as HTMLButtonElement).click()),
+  ]);
   await page.reload();
   await expect(page).toHaveURL(/\/login/);
 });

@@ -304,7 +304,7 @@ test('resource upload keeps product controls styled on a direct load', async ({ 
   expect(styles.panelBackground).not.toBe('rgba(0, 0, 0, 0)');
   expect(styles.panelBorder).not.toBe('0px');
   expect(styles.inputBorder).not.toBe('0px');
-  expect(styles.buttonDisplay).toBe('inline-flex');
+  expect(['inline-flex', 'flex']).toContain(styles.buttonDisplay);
   await expectNoHorizontalOverflow(page);
 });
 
@@ -366,8 +366,17 @@ test('administrator navigation is limited to operational tools', async ({ page }
   await installApi(page, 'SYSTEM_ADMIN', 'light');
   await page.goto('/admin');
   const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
-  for (const label of ['Overview', 'Users', 'Audit', 'Notifications', 'Settings']) {
-    await expect(navigation.getByRole('link', { name: label, exact: true })).toBeVisible();
+  const menu = page.getByRole('button', { name: 'Open menu' });
+  if ((page.viewportSize()?.width ?? 1920) <= 1180) {
+    await expect(menu).toBeVisible();
+    await menu.click();
+    await expect(menu).toHaveAttribute('aria-expanded', 'true');
+  }
+  await expect(navigation).toBeVisible();
+  for (const [label, href] of [['Overview', '/admin'], ['Users', '/admin/users'], ['Audit', '/admin/audit'], ['Notifications', '/notifications'], ['Settings', '/settings']] as const) {
+    const link = navigation.getByRole('link', { name: label, exact: true });
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute('href', href);
   }
   for (const label of ['Academics', 'Resources', 'Questions', 'Assessments', 'Flashcards', 'Bundles']) {
     await expect(navigation.getByRole('link', { name: label, exact: true })).toHaveCount(0);

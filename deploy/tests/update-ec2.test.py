@@ -41,6 +41,9 @@ case "$1" in
   if [[ "$*" == *--entrypoint* ]]; then
    cat >/dev/null
    [[ "$*" != *rehearsal-migrate* || "${FAIL_STAGE:-}" != rehearsal ]] || exit 1
+   if [[ "$*" == *rehearsal-migrate* ]]; then
+     if [[ "${NO_PENDING_MIGRATIONS:-0}" == 1 ]]; then echo 'Rehearsed migrations: []'; else echo "Rehearsed migrations: [ 'mock' ]"; fi
+   fi
    [[ "$*" != *rehearsal-check* || "${FAIL_STAGE:-}" != schema ]] || exit 1
   fi ;;
  compose)
@@ -70,7 +73,7 @@ fi
 """
 
 class DeploymentTests(unittest.TestCase):
-    def run_deploy(self, failure="", low_disk=False, memory="1"):
+    def run_deploy(self, failure="", low_disk=False, memory="1", no_pending=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source, stack, binaries = root / "source", root / "stack", root / "bin"
@@ -95,6 +98,7 @@ class DeploymentTests(unittest.TestCase):
             env = dict(os.environ, PATH=f"{binaries}:{os.environ['PATH']}",
                        TEST_ROOT=str(root), TEST_LOG=str(root / "calls"),
                        FAIL_STAGE=failure, DISK_LOW=str(int(low_disk)),
+                       NO_PENDING_MIGRATIONS=str(int(no_pending)),
                        MDP_MIN_AVAILABLE_MEMORY_MB=memory)
             result = subprocess.run(["bash", str(path), "abcdef12"], env=env,
                                     capture_output=True, text=True, timeout=20)
@@ -107,6 +111,14 @@ class DeploymentTests(unittest.TestCase):
         self.assertIn("DEPLOYED abcdef12", result.stdout)
         self.assertLess(calls.index("rehearsal-migrate"), calls.index("production-migrate"))
         self.assertIn("rm -fv mdp-rehearsal-db", calls)
+
+    def test_noop_rehearsal_skips_production_migration_but_switches_release(self):
+        result, calls = self.run_deploy(no_pending=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("No pending migrations", result.stdout)
+        self.assertIn("DEPLOYED abcdef12", result.stdout)
+        self.assertNotIn("production-migrate", calls)
+        self.assertIn(" up -d ", calls)
 
     def test_pre_switch_failures_leave_application_running(self):
         for failure in ("build", "restore", "rehearsal", "schema", "frontend", "production"):
@@ -122,8 +134,9 @@ class DeploymentTests(unittest.TestCase):
         self.assertIn("Migration process exit=", result.stderr)
         self.assertIn("Migration container:", result.stderr)
         self.assertIn("logs --tail 100 mdp-production-migrate-", calls)
-        self.assertLess(calls.index("logs --tail 100 mdp-production-migrate-"),
-                        calls.rindex("rm -f mdp-production-migrate-"))
+        self.assertIn("stop --time 5 mdp-production-migrate-", calls)
+        self.assertNotIn("rm -f mdp-production-migrate-", calls)
+        self.assertIn("Persisted migration log:", result.stderr)
         self.assertNotIn("run --rm --name mdp-production-migrate-", calls)
 
     def test_switch_failure_attempts_rollback(self):
@@ -131,7 +144,7 @@ class DeploymentTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("restoring previous application images", result.stderr)
         self.assertIn("backend=mdp-backend:rollback-", calls)
-        self.assertIn("rm -f mdp-production-migrate", calls)
+        self.assertIn("rm mdp-production-migrate", calls)
 
     def test_capacity_guards_block_build(self):
         for options in ({"low_disk": True}, {"memory": "999999999"}):

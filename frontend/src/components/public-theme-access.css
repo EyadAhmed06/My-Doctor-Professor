@@ -79,3 +79,23 @@ body:has(.public-home) .public-theme-access{display:none}
   .public-theme-access{top:8px;right:8px}
   .public-session-copy{display:none}
 }
+
+/* Keep language controls discoverable on public pages even when the floating
+   appearance button is hidden for the public home layout. */
+.public-theme-access .global-language-access{display:flex;align-items:center;gap:4px}
+.public-theme-access .global-language-access button{border:1px solid var(--app-border,var(--line));border-radius:8px;background:transparent;color:inherit;padding:4px 7px;cursor:pointer}
+body:has(.public-home) .public-theme-access{display:flex;width:auto;height:auto;gap:6px}
+body:has(.public-home) .public-theme-access>.global-theme-toggle{display:none}
+
+/* Public language switcher must stay accessible even when the authenticated shell also exists. */
+body:has(.product-app) .public-theme-access:has(.global-language-access){display:flex;width:auto;height:auto;gap:6px}
+body:has(.product-app) .public-theme-access:has(.global-language-access)>.global-theme-toggle{display:none}
+
+/* Only public home needs the floating language switcher; app shell owns its own controls. */
+body:has(.product-app):not(:has(.public-home)) .public-theme-access{display:none !important}
+body:has(.public-home) .public-theme-access{display:flex !important;width:auto;height:auto;gap:6px}
+
+/* The language selector is part of the public home header, not an authenticated overlay.
+   Override legacy app-shell language visibility rules on the landing page only. */
+body:has(.public-home) .public-theme-access .global-language-access,
+body:has(.public-home) .global-language-access{display:flex !important;visibility:visible !important;opacity:1 !important;align-items:center;gap:4px}

@@ -13,15 +13,15 @@ type ThemeContextValue = {
 };
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+// Initial render must be identical on the server and during client hydration.
+// Browser-only preferences are applied by the effects after hydration, rather
+// than changing the theme toggle's icon and accessible name mid-hydration.
 function initialPreference(): ThemePreference {
-  if (typeof document === "undefined") return "system";
-  const value = document.documentElement.dataset.themePreference;
-  return value === "light" || value === "dark" || value === "system" ? value : "system";
+  return "system";
 }
 
 function initialTheme(): Theme {
-  if (typeof document === "undefined") return "dark";
-  return document.documentElement.dataset.theme === "light" ? "light" : "dark";
+  return "dark";
 }
 
 export function AppThemeProvider({ children }: { children: React.ReactNode }) {

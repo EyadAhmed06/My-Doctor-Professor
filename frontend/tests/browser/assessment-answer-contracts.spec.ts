@@ -144,6 +144,7 @@ test('Timed mode lets a student change a persisted demo-ID answer before submiss
 
   await choices.nth(0).click();
   await expect(page.locator('.exam-answer-row').nth(0)).toHaveClass(/selected/);
+  await page.getByRole('button', { name: 'High', exact: true }).click();
   await expect.poll(state.getSelectedOptionId).toBe(correctOptionId);
 
   await choices.nth(1).click();
@@ -165,6 +166,7 @@ test('Tutor mode locks the persisted demo-ID answer after grading and always exp
   const choices = page.getByRole('radio');
 
   await choices.nth(1).click();
+  await page.getByRole('button', { name: 'High', exact: true }).click();
   await expect.poll(state.getSelectedOptionId).toBe(wrongOptionId);
   await expect(page.locator('.exam-answer-row').nth(1)).toHaveClass(/answer-incorrect/);
   await expect(page.locator('.tutor-explanation')).toContainText('Incorrect');

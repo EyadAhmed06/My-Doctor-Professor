@@ -73,7 +73,7 @@ test('student progress shield sits beside the user and reveals the live progress
   const dialog = page.getByRole('dialog', { name: 'Your Progress' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('Level 1')).toBeVisible();
-  await expect(dialog.getByText('25 / 100 XP')).toBeVisible();
+  await expect(dialog.getByText('55 / 100 XP to next level')).toBeVisible();
   await expect(dialog.getByText('3 of 6 lectures')).toBeVisible();
   await expect(dialog.getByText('75%')).toBeVisible();
   await expect(dialog.getByText('5', { exact: true })).toBeVisible();

@@ -13,7 +13,7 @@ type BundleContent = {
   }>;
 };
 
-const REQUIRED_MCQS = 40;
+const REQUIRED_MCQS = 1;
 
 function finiteCount(value: unknown) {
   const number = Number(value);

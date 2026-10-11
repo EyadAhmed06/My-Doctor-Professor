@@ -251,6 +251,7 @@ function optionPanel(dialog: ReturnType<Page['getByRole']>, label: string) {
 }
 
 test('question bank creates A-D, edits A-D to A-E, edits back to A-D, and preserves activation + one correct answer', async ({ page }) => {
+  test.setTimeout(90_000); // Full create/edit/delete/save flow may exceed 45s on emulated iPhone.
   const state = await installQuestionBankMock(page);
   await page.goto('/instructor/questions');
 
@@ -315,6 +316,7 @@ test('question bank creates A-D, edits A-D to A-E, edits back to A-D, and preser
   await optionPanel(edit, 'E').getByRole('button', { name: /Remove choice/i }).click();
   await expect(edit.getByText(/4 choices · four or five supported/i)).toBeVisible();
   await edit.getByRole('button', { name: /Save all changes/i }).click();
+  await expect(edit).toBeHidden(); // wait for all async option mutations to finish
 
   await expect.poll(() => state.questions[0].options.length).toBe(4);
   await expect.poll(() => state.questions[0].isActive).toBe(true);

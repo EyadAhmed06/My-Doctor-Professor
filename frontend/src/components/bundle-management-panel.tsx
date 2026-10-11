@@ -270,7 +270,7 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
     </Panel>
 
     <Panel
-      title="Curriculum"
+      title="Curriculum composition"
       action={<button className="bundle-inline-action" type="button" onClick={() => void load()}>
         <FiRefreshCw /> Refresh
       </button>}
@@ -401,10 +401,10 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
           );
         }}
       >
-        <select value={instructorId} onChange={(event) => setInstructorId(event.target.value)} required>
+        <select aria-label="Instructor to assign" value={instructorId} onChange={(event) => setInstructorId(event.target.value)} required>
           <option value="">Choose instructor</option>
           {data.instructors.available.map((person) =>
-            <option key={person.id} value={person.id}>{person.fullName}</option>,
+            <option key={person.id} value={person.id}>{person.fullName} · {person.email}</option>,
           )}
         </select>
         <button className="pp-button secondary" disabled={busy || !instructorId}>
@@ -458,9 +458,12 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
                     </td>
                     <td>{row.student.email}</td>
                     <td>
-                      <span className={`role-status ${statusBadgeClass(row.access_status)}`}>
-                        {translate(statusLabel(row.access_status))}
-                      </span>
+                      <div className="bundle-entitlement-badges">
+                        <span className={`role-status ${statusBadgeClass(row.access_status)}`}>
+                          {row.access_status === "PENDING_PAYMENT" ? "PENDING PAYMENT" : row.access_status === "ACTIVE" ? "ACTIVE" : translate(statusLabel(row.access_status))}
+                        </span>
+                        <span className="role-status">{row.paymentStatus}</span>
+                      </div>
                     </td>
                     <td>
                       <small>
@@ -480,10 +483,6 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
                             className="primary"
                             disabled={busy}
                             onClick={() => {
-                              const ok = window.confirm(
-                                `${translate("Mark")} ${row.student.fullName} ${translate("as paid?")}`
-                              );
-                              if (!ok) return;
                               void mutate(
                                 `/bundles/${bundleId}/enrollments/${row.student.id}/confirm-payment`,
                                 "POST",

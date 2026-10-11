@@ -106,7 +106,7 @@ export function ConnectedBundlesPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const requestedId = searchParams.get("id");
+  const requestedId = searchParams.get("id") || searchParams.get("bundle");
   const requestedTab = validTab(searchParams.get("tab"));
 
   const [tab, setTab] = useState<Tab>(requestedTab);
@@ -189,11 +189,16 @@ export function ConnectedBundlesPage() {
     })();
 
     const target =
-      bundles.find((item) => item.id === requestedId) ||
+      bundles.find((item) => item.id === requestedId || item.slug === requestedId) ||
       bundles.find((item) => item.id === stored) ||
       bundles[0];
 
     if (!requestedId || requestedId !== target.id) setUrl(target.id, requestedTab, true);
+    if (target.payment_required) {
+      setSelected(null);
+      setBundleLoading(false);
+      return;
+    }
     if (selected?.bundle.id === target.id) return;
 
     let active = true;
@@ -425,7 +430,15 @@ export function ConnectedBundlesPage() {
             </aside>
 
             <section className={`bundle-content ${bundleLoading ? "is-loading" : ""}`} aria-busy={bundleLoading}>
-              {selected ? (
+              {!manager && bundles.some((item) => (item.id === requestedId || item.slug === requestedId || item.id === (requestedId || bundles[0]?.id)) && item.payment_required) ? (
+                <Panel title="Payment required">
+                  <p>Bundle content is locked until payment is confirmed.</p>
+                  <p>{(() => {
+                    const locked = bundles.find((item) => item.id === requestedId || item.slug === requestedId) || bundles[0];
+                    return `${locked.priceCurrency || "EGP"} ${Number(locked.priceAmount || 0).toFixed(2)}`;
+                  })()}</p>
+                </Panel>
+              ) : selected ? (
                 <>
                   <div className="bundle-hero">
                     <div>
@@ -616,6 +629,9 @@ function BundleTab({ content, tab }: { content: Content; tab: Tab }) {
       <section className="bundle-accordion-stack">
         {content.courses.map((course) => (
           <Panel key={course.id} title={`${course.courseCode} · ${course.courseName}`} className="bundle-course">
+            {course.weeks.some((week) => week.lectures.some((lecture) => Number(lecture.question_count || 0) > 0)) && (
+              <Link href={`/rounds?bundle=${content.bundle.id}&course=${course.id}`}>Select lectures for quiz</Link>
+            )}
             {course.weeks.map((week, weekIndex) => (
               <BundleWeekDetails
                 key={week.id}

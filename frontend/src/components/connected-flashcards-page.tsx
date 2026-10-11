@@ -390,12 +390,9 @@ export function ConnectedFlashcardsPage() {
     const entry: PendingReview = { token: crypto.randomUUID(), card, rating, createdAt: Date.now(), originalIndex: index };
     const rest = cards.filter((item) => item.id !== card.id);
     const upcoming = rest[Math.min(index, rest.length - 1)] ?? null;
-    const insertAt = rating === "VERY_HARD" || rating === "HARD"
-      ? 0
-      : rating === "GOOD"
-        ? Math.min(rest.length, Math.ceil(rest.length / 2))
-        : rest.length;
-    const reordered = [...rest.slice(0, insertAt), card, ...rest.slice(insertAt)];
+    // Successfully rated cards leave the active queue. Re-adding them causes
+    // the same card to appear again immediately after a review.
+    const reordered = rest;
     setPending((current) => [...current, entry]);
     setReviewed((value) => value + 1);
     setReviewedRatings((current) => ({ ...current, [card.id]: rating }));

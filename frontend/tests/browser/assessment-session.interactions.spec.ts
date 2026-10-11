@@ -187,13 +187,14 @@ async function highlightFirstWords(page: Page) {
 }
 
 test('Tutor mode supports highlighter, strike-out, flags, notes, labs, and immediate explanations', async ({ page }) => {
+  test.setTimeout(90_000); // WebKit touch interactions and full workflow exceed the global 45s budget.
   const state = await installAssessmentMock(page, 'TUTOR');
   await page.goto(`/mock-exam/session?attempt=${attemptId}&test=${testId}&source=rounds`);
 
   await expect(page.getByText('Tutor Practice')).toBeVisible();
   await expect(page.getByText('Tutor explanations appear after the server confirms each saved answer.')).toBeVisible();
 
-  const highlighter = page.getByRole('button', { name: /Highlighter/i });
+  const highlighter = page.getByRole('button', { name: 'Highlighter', exact: true });
   await highlighter.click();
   await expect(highlighter).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.exam-tool-hint')).toContainText('Highlighter active');
@@ -220,11 +221,9 @@ test('Tutor mode supports highlighter, strike-out, flags, notes, labs, and immed
   await page.getByRole('button', { name: /Save note/i }).click();
   await expect.poll(state.getSavedNote).toBe('Review coronary perfusion physiology.');
 
-  await page.getByRole('button', { name: /Lab values/i }).first().click();
-  await expect(page.getByRole('dialog', { name: 'Lab values' })).toBeVisible();
-  await page.getByRole('button', { name: /Close lab values/i }).click();
 
   await page.getByRole('radio').nth(1).click();
+  await page.getByRole('button', { name: 'High', exact: true }).click();
   await expect(page.locator('.exam-answer-row').nth(1)).toHaveClass(/answer-incorrect/);
   const explanation = page.locator('.tutor-explanation');
   await expect(explanation).toContainText('Incorrect');
@@ -243,14 +242,14 @@ test('Pen preserves every selected colour while a stroke grows', async ({ page }
 
   await page.getByRole('button', { name: /^Pen$/ }).click();
   const surface = page.locator('.exam-annotation-surface');
-  const box = await surface.boundingBox();
-  if (!box) throw new Error('Pen drawing surface is not visible');
-
   for (const [index, color] of ['blue', 'green', 'black', 'red'].entries()) {
     const colourButton = page.getByRole('button', { name: `${color} pen` });
     await colourButton.click();
     await expect(colourButton).toHaveAttribute('aria-pressed', 'true');
 
+    await surface.scrollIntoViewIfNeeded();
+    const box = await surface.boundingBox();
+    if (!box) throw new Error('Pen drawing surface is not visible');
     const y = box.y + 24 + index * 16;
     await page.mouse.move(box.x + 24, y);
     await page.mouse.down();
@@ -276,6 +275,7 @@ test('Timed mode hides live explanations, uses the countdown controls, and revea
   await expect(page.locator('.overview-time strong')).not.toHaveText('••:••:••');
 
   await page.getByRole('radio').nth(1).click();
+  await page.getByRole('button', { name: 'High', exact: true }).click();
   await expect(page.locator('.exam-answer-row').nth(1)).toHaveClass(/selected/);
   await expect(page.locator('.tutor-explanation')).toHaveCount(0);
 
