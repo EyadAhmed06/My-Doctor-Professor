@@ -367,7 +367,8 @@ test('administrator navigation is limited to operational tools', async ({ page }
   await page.goto('/admin');
   const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
   const menu = page.getByRole('button', { name: 'Open menu' });
-  if (await menu.isVisible()) {
+  if ((page.viewportSize()?.width ?? 1920) <= 1180) {
+    await expect(menu).toBeVisible();
     await menu.click();
     await expect(menu).toHaveAttribute('aria-expanded', 'true');
   }
