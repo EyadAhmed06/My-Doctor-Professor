@@ -354,14 +354,14 @@ stage=backend-switch
 printf 'Switching backend\n'
 compose up -d --no-deps --force-recreate --pull never backend
 wait_healthy mdp-backend
-timeout 20s docker exec -i mdp-backend node -e "fetch('http://127.0.0.1:3000/api/v1/health/ready').then(async r=>{const b=await r.json(); console.log(b); if(!r.ok||b.status!=='ready'||b.database!=='up'||b.schema!=='ready')process.exit(1)}).catch(e=>{console.error(e);process.exit(1)})"
+timeout --kill-after=5s 20s docker exec mdp-backend node -e "fetch('http://127.0.0.1:3000/api/v1/health/ready').then(async r=>{const b=await r.json(); console.log(b); if(!r.ok||b.status!=='ready'||b.database!=='up'||b.schema!=='ready')process.exit(1)}).catch(e=>{console.error(e);process.exit(1)})"
 
 export FRONTEND_IMAGE="mdp-frontend:$DEPLOY_SHA"
 stage=frontend-switch
 printf 'Switching frontend\n'
 compose up -d --no-deps --force-recreate --pull never frontend
 wait_healthy mdp-frontend
-timeout 20s docker exec -i mdp-frontend node -e "fetch('http://127.0.0.1:3001/').then(r=>{console.log('Frontend HTTP',r.status);if(!r.ok)process.exit(1)}).catch(e=>{console.error(e);process.exit(1)})"
+timeout --kill-after=5s 20s docker exec mdp-frontend node -e "fetch('http://127.0.0.1:3001/').then(r=>{console.log('Frontend HTTP',r.status);if(!r.ok)process.exit(1)}).catch(e=>{console.error(e);process.exit(1)})"
 compose up -d --no-deps --force-recreate --pull never caddy
 stage=https-checks
 
