@@ -21,6 +21,7 @@ DEPLOY_LOG_DIR="$STACK_DIR/data/deployment-logs"
 mkdir -p "$DEPLOY_LOG_DIR"
 chmod 700 "$DEPLOY_LOG_DIR"
 MIGRATION_LOG="$DEPLOY_LOG_DIR/migration-$STAMP.log"
+REHEARSAL_MIGRATION_LOG="$DEPLOY_LOG_DIR/rehearsal-migration-$STAMP.log"
 
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die 'Run with sudo.'
@@ -284,7 +285,7 @@ rehearsal_node() {
     -e DB_NAME=rehearsal -e DB_USERNAME=rehearsal -e "DB_PASSWORD=$REHEARSAL_PASSWORD" \
     -e DB_SSL_ENABLED=false -e PGOPTIONS="-c lock_timeout=10000 -c statement_timeout=600000" "$image"
 }
-rehearsal_node "mdp-backend:$DEPLOY_SHA" "$REHEARSAL_MIGRATE" <<'JS'
+rehearsal_node "mdp-backend:$DEPLOY_SHA" "$REHEARSAL_MIGRATE" <<'JS' | tee "$REHEARSAL_MIGRATION_LOG"
 const { AppDataSource: db } = require('./dist/database/data-source');
 (async () => {
   await db.initialize();
@@ -333,12 +334,20 @@ export BACKEND_IMAGE="mdp-backend:$DEPLOY_SHA"
 export FRONTEND_IMAGE="$OLD_FRONTEND"
 export APP_HOST="$(env_value APP_HOST "$STACK_DIR/deploy.env")"
 [[ -n $APP_HOST ]] || die 'APP_HOST missing from deploy.env.'
-printf 'Running migrations from %s\n' "$BACKEND_IMAGE"
-# Preserve the named container until its outcome is known. --rm would hide
-# startup failures and SIGKILL/OOM evidence from the rollback handler.
-printf 'Production migration deadline: 4 minutes. Persistent log: %s\n' "$MIGRATION_LOG"
-DEPLOY_COMPOSE_TIMEOUT=240s compose run --name "$PRODUCTION_MIGRATE" --no-deps --pull never -e PGOPTIONS="-c lock_timeout=10000 -c statement_timeout=600000" migrate 2>&1 | tee "$MIGRATION_LOG"
-docker rm "$PRODUCTION_MIGRATE" >/dev/null
+# The rehearsal uses a fresh restore of the just-captured production dump
+# and the exact candidate backend image. If it applied no migrations, avoid
+# starting a redundant production migration process (which has previously
+# been SIGKILLed in an SSM deployment). For pending migrations, keep all
+# pre-existing timeout, diagnostic, and rollback handling.
+if grep -Fxq 'Rehearsed migrations: []' "$REHEARSAL_MIGRATION_LOG"; then
+  printf 'No pending migrations in the production-backup rehearsal; skipping production migration container.\n' | tee "$MIGRATION_LOG"
+else
+  printf 'Running migrations from %s\n' "$BACKEND_IMAGE"
+  # Preserve the named container until its outcome is known.
+  printf 'Production migration deadline: 4 minutes. Persistent log: %s\n' "$MIGRATION_LOG"
+  DEPLOY_COMPOSE_TIMEOUT=240s compose run --name "$PRODUCTION_MIGRATE" --no-deps --pull never -e PGOPTIONS="-c lock_timeout=10000 -c statement_timeout=600000" migrate 2>&1 | tee "$MIGRATION_LOG"
+  docker rm "$PRODUCTION_MIGRATE" >/dev/null
+fi
 
 mutation_started=1
 stage=backend-switch
