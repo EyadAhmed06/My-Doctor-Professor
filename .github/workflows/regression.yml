@@ -37,6 +37,10 @@ jobs:
       - name: Install browser engines
         run: npx playwright install --with-deps chromium webkit
 
+      - name: Parse and lint all browser tests before building
+        run: |
+          npm run lint -- --max-warnings=20
+          npx playwright test --list > /dev/null
       - name: Build production frontend
         env:
           NEXT_PUBLIC_API_URL: /api/v1
