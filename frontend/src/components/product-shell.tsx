@@ -292,7 +292,7 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
     setProgressOpen(false);
     startNavigation();
     void logout();
-    window.location.replace("/login");
+    router.replace("/login");
   }
 
   if (loading || !user) {
@@ -324,7 +324,7 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
       <BrandLockup className="pp-brand" href={homeFor(user.role)} />
       <button className="pp-menu" onClick={() => setOpen(true)} aria-label={translate("Open menu")} aria-expanded={open} aria-controls="product-navigation"><FiMenu /></button>
       {open && <button className="pp-mobile-overlay" type="button" aria-label={translate("Close navigation")} onClick={() => setOpen(false)} />}
-      <nav id="product-navigation" className={open ? "open" : ""} aria-label={translate("Primary navigation")}>
+      <nav id="product-navigation" className={open ? "open" : ""} style={open ? { display: "flex", visibility: "visible", transform: "translateX(0)", pointerEvents: "auto" } : undefined} aria-label="Primary navigation">
         <button className="pp-nav-close" type="button" onClick={() => setOpen(false)} aria-label={translate("Close menu")}><FiX /></button>
         {nav.map(item => <Link key={item.href} prefetch={true} className={isNavActive(path, item.href) ? "active" : ""} href={item.href} onClick={() => { if (open) setOpen(false); }}>{translate(item.label)}</Link>)}
         {!nav.some(item => item.href === "/notifications") && <Link className={`pp-mobile-nav-link${path.startsWith("/notifications") ? " active" : ""}`} href="/notifications" prefetch={true} onClick={() => setOpen(false)}>{translate("Notifications")}{unread > 0 && <span>{unread > 99 ? "99+" : unread}</span>}</Link>}
