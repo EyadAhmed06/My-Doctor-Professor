@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate deployment script syntax
-        run: bash -n deploy/update-ec2.sh deploy/update-ec2-legacy.sh deploy/update-ec2-original.reference.sh
+        run: bash -n deploy/update-ec2.sh deploy/update-ec2-first.sh deploy/update-ec2-legacy.sh deploy/update-ec2-original.reference.sh
       - name: Exercise deployment failure paths (mock Docker)
         run: python3 deploy/tests/update-ec2.test.py -v
 
