@@ -1512,7 +1512,7 @@ export class QuestionImportService {
     answerKey: Map<number, AnswerKeyEntry>,
   ): ParsedQuestion[] {
     const starts = Array.from(
-      section.text.matchAll(/^\s*(?:Q(?:uestion)?\s*)?(\d{1,3})[.)]\s+(.+)$/gim),
+      section.text.matchAll(/^\s*(?:Q(?:uestion)?\s*)?(\d{1,3})[.):]\s+(.+)$/gim),
     ).filter((match) => !this.isCompactAnswerKeyLine(match[0]));
     const candidates: ParsedQuestion[] = [];
 
@@ -1529,7 +1529,7 @@ export class QuestionImportService {
       if (firstOption < 0) continue;
       const stem = block
         .slice(0, firstOption)
-        .replace(/^\s*(?:Q(?:uestion)?\s*)?\d{1,3}[.)]\s*/i, '')
+        .replace(/^\s*(?:Q(?:uestion)?\s*)?\d{1,3}[.):]\s*/i, '')
         .replace(/\s+/g, ' ')
         .trim();
       const optionArea = block.slice(firstOption);
