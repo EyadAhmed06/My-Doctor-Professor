@@ -26,7 +26,9 @@ export class EssayQuestionImportController {
     @Body() dto: InspectEssayQuestionImportDto,
     @UploadedFile() file: UploadedResourceFile | undefined,
   ) {
-    return this.imports.inspectPdf(dto.copyright_confirmed, file);
+    return /\\.(json|txt)$/i.test(file?.originalname || '')
+      ? this.imports.inspectJson(dto.copyright_confirmed, file)
+      : this.imports.inspectPdf(dto.copyright_confirmed, file);
   }
 
   @RateLimit({ key: 'essay-import-publish', maximum: 20, windowSeconds: 3600 })
