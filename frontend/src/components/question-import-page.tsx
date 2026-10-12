@@ -1281,7 +1281,6 @@ export function QuestionImportPage() {
                           key={mobileCandidate.candidate.candidate_id}
                           candidate={mobileCandidate.candidate}
                           displayNumber={mobileCandidate.index + 1}
-                          topicName={inspection.topic.name}
                           structurallyBlocked={structurallyBlocked}
                           enriching={enrichingIds.has(mobileCandidate.candidate.candidate_id)}
                           onUpdate={updateCandidate}
