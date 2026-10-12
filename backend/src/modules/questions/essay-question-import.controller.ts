@@ -26,9 +26,10 @@ export class EssayQuestionImportController {
     @Body() dto: InspectEssayQuestionImportDto,
     @UploadedFile() file: UploadedResourceFile | undefined,
   ) {
+    const standaloneType = dto.content_type === 'CASE' ? 'CASE' : 'LECTURE';
     return /\.(json|txt)$/i.test(file?.originalname || '')
-      ? this.imports.inspectJson(dto.copyright_confirmed, file)
-      : this.imports.inspectPdf(dto.copyright_confirmed, file);
+      ? this.imports.inspectJson(dto.copyright_confirmed, file, standaloneType)
+      : this.imports.inspectPdf(dto.copyright_confirmed, file, standaloneType);
   }
 
   @RateLimit({ key: 'essay-import-publish', maximum: 20, windowSeconds: 3600 })
