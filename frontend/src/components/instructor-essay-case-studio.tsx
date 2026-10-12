@@ -241,7 +241,7 @@ export function InstructorEssayCaseStudio() {
               href="/instructor/questions/import-essay"
               className="pp-button secondary"
             >
-              <FiUploadCloud /> Inspect PDF
+              <FiUploadCloud /> Import cases &amp; lectures
             </Link>
           </div>
         </div>
