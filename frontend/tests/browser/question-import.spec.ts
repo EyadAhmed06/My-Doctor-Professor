@@ -217,6 +217,55 @@ test('instructor inspects a five-option PDF candidate and publishes an approved 
   expect(body.candidates?.[0]?.options?.filter(option => option.is_correct)).toHaveLength(1);
 });
 
+test('publishes only the focused MCQ even when other questions are approved', async ({ page }) => {
+  const first = inspectionBody().candidates[0];
+  const inspection = {
+    ...inspectionBody(),
+    summary: { extracted: 2, valid: 2, needs_review: 0, invalid: 0, duplicates: 0 },
+    candidates: [
+      { ...first, candidate_id: 'candidate-1', question_number: 1, source_section: 'Lecture One: Cardiac anatomy' },
+      { ...first, candidate_id: 'candidate-2', question_number: 2, source_section: 'Lecture Two: Pharmacology', question_text: 'Which chamber receives blood from the lungs through pulmonary veins?' },
+    ],
+  };
+  await openInspection(page, inspection);
+  let payload: { candidates: Array<{ question_text: string; approved: boolean }> } | null = null;
+  await page.route('**/api/v1/questions/imports/publish', async route => {
+    payload = route.request().postDataJSON() as typeof payload;
+    await route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({created:1,reused:0,skipped:0})});
+  });
+  await page.getByRole('button', { name: /Approve all ready/i }).first().click();
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Publish this question only' }).click();
+  await expect.poll(() => payload).not.toBeNull();
+  expect(payload!.candidates).toHaveLength(1);
+  expect(payload!.candidates[0].question_text).toBe(first.question_text);
+  expect(payload!.candidates[0].approved).toBe(true);
+});
+
+test('publishes only the current lecture from a mixed PDF', async ({ page }) => {
+  const first = inspectionBody().candidates[0];
+  const inspection = {
+    ...inspectionBody(),
+    summary: { extracted: 3, valid: 3, needs_review: 0, invalid: 0, duplicates: 0 },
+    candidates: [
+      { ...first, candidate_id: 'first', question_number: 1, source_section: 'Lecture One: Anatomy' },
+      { ...first, candidate_id: 'second', question_number: 2, source_section: 'Lecture One: Anatomy', question_text: 'Which chamber is adjacent to the pulmonary venous circulation?' },
+      { ...first, candidate_id: 'third', question_number: 1, source_section: 'Lecture Two: Physiology', question_text: 'What is the main cardiac conduction pacemaker located in the atrium?' },
+    ],
+  };
+  await openInspection(page, inspection);
+  let payload: { candidates: Array<{ question_text: string; source_section: string }> } | null = null;
+  await page.route('**/api/v1/questions/imports/publish', async route => {
+    payload = route.request().postDataJSON() as typeof payload;
+    await route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({created:2,reused:0,skipped:0})});
+  });
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Publish ready questions in this lecture only' }).click();
+  await expect.poll(() => payload).not.toBeNull();
+  expect(payload!.candidates).toHaveLength(2);
+  expect(payload!.candidates.every(item => item.source_section === 'Lecture One: Anatomy')).toBe(true);
+});
+
 test('removing a populated fifth choice is atomic and exposes four-choice review', async ({ page }) => {
   await openInspection(page);
 
