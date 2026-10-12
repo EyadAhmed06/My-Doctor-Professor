@@ -178,25 +178,26 @@ export class QuestionImportService {
     catch { throw new BadRequestException('The file does not contain valid UTF-8 JSON'); }
     const root = payload && typeof payload === 'object' && !Array.isArray(payload)
       ? payload as Record<string, unknown> : undefined;
-    let inputRows: unknown = Array.isArray(payload) ? payload : root?.questions;
-    if (root?.modules !== undefined) {
-      if (root.questions !== undefined || !Array.isArray(root.modules) || !root.modules.length) {
-        throw new BadRequestException('JSON must provide either questions or a non-empty modules array');
+    // Accept a single question, a flat list, or arbitrarily selected groups
+    // (lecture/case/section/module), without requiring a complete collection.
+    const record = (value: unknown): Record<string, unknown> | null =>
+      value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+    const flatten = (value: unknown, inheritedTitle?: string): unknown[] => {
+      if (Array.isArray(value)) return value.flatMap(item => flatten(item, inheritedTitle));
+      const item = record(value);
+      if (!item) throw new BadRequestException('Each imported JSON question or section must be an object');
+      if (Array.isArray(item.options)) {
+        return [{ ...item, source_section: item.source_section ?? item.source_lecture ?? inheritedTitle }];
       }
-      inputRows = root.modules.flatMap((rawModule, index) => {
-        const module = rawModule && typeof rawModule === 'object' && !Array.isArray(rawModule)
-          ? rawModule as Record<string, unknown> : undefined;
-        if (!module || typeof module.title !== 'string' || !module.title.trim() ||
-            !Array.isArray(module.questions) || !module.questions.length) {
-          throw new BadRequestException(`Module ${index + 1} needs a title and a non-empty questions array`);
-        }
-        return module.questions.map(raw => {
-          if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw;
-          const row = raw as Record<string, unknown>;
-          return { ...row, source_section: row.source_section ?? row.source_lecture ?? module.title };
-        });
-      });
-    }
+      const nested = item.questions ?? item.lectures ?? item.cases ?? item.sections ?? item.modules;
+      if (!Array.isArray(nested) || nested.length === 0)
+        throw new BadRequestException('An import section needs questions, or a question needs an options array');
+      const title = typeof item.title === 'string' && item.title.trim()
+        ? item.title.trim()
+        : typeof item.name === 'string' && item.name.trim() ? item.name.trim() : inheritedTitle;
+      return nested.flatMap(child => flatten(child, title));
+    };
+    const inputRows: unknown = flatten(payload);
     if (!Array.isArray(inputRows) || inputRows.length < 1 || inputRows.length > 500) {
       throw new BadRequestException('JSON must contain 1–500 questions in an array, questions array, or modules');
     }
