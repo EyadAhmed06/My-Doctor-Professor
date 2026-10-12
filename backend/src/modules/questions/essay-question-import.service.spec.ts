@@ -173,7 +173,8 @@ Second answer
       Neurons and supporting glial cells.
       2)
       Mitochondria and Golgi apparatus.
-      Lecture 2 : Types of immunity
+      Lecture 2 : Types of
+      immunity
       1) List two primary lymphoid organs.
       Answers of Lecture 2 : Types of immunity
       1)
@@ -185,6 +186,7 @@ Second answer
     expect(candidates[1].section).toContain('Anatomy nervous system');
     expect(candidates[1].model_answer).toContain('Neurons');
     expect(candidates[2].model_answer).toContain('Mitochondria');
+    expect(candidates[3].case_stem).toBe('Types of immunity');
     expect(candidates[3].model_answer).toContain('Bone marrow');
     expect(candidates.every((candidate: any) => candidate.status === 'VALID')).toBe(true);
   });
