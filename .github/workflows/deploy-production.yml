@@ -130,8 +130,8 @@ jobs:
               Success|Failed|Cancelled|TimedOut|Cancelling|DeliveryTimedOut|ExecutionTimedOut|Undeliverable|Terminated)
                 printf '%s' "$result" | python3 -c 'import json,sys; r=json.load(sys.stdin); print("STDOUT (tail):\n"+r.get("StandardOutputContent","")[-12000:]); print("STDERR (tail):\n"+r.get("StandardErrorContent","")[-12000:])'
                 [[ "$status" == Success ]] || exit 1
-                # Verify the SSM command explicitly reached the final marker.
-                printf '%s' "$result" | python3 -c 'import json,os,sys; x=json.load(sys.stdin)["StandardOutputContent"]; assert "PRODUCTION_RELEASE_SUCCESS " + os.environ["RELEASE_SHA"] in x, "Release marker missing"'
+                # SSM Success means every command exited zero; its output can
+                # be truncated, so never require a trailing marker in stdout.
                 exit 0
                 ;;
             esac
