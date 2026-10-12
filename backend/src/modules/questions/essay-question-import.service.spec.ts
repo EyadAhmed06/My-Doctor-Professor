@@ -243,6 +243,29 @@ Second answer
     expect(candidates.map((candidate: any) => candidate.answer_origin)).toEqual(['SOURCE', 'SOURCE']);
   });
 
+  it('treats an unheaded standalone case PDF as a case when selected', () => {
+    const text = `
+      A patient presents with fever and tachycardia.
+      1) What are two clinical findings?
+      Answers:
+      1) Fever and tachycardia.
+    `;
+    const parsed = (service as any).parseEssayCases({
+      pages:[{page:1,text}],pageCount:1,text,extractionConfidence:1,
+    },'a'.repeat(64),'CASE');
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]).toMatchObject({block_type:'CASE',case_number:1,answer_origin:'SOURCE'});
+    expect(parsed[0].case_stem).toContain('patient presents');
+  });
+
+  it('inspects one essay question JSON with explicit CASE selection', async () => {
+    const json={question:'What clinical findings are present?',answer:'Fever and tachycardia.'};
+    const buffer=Buffer.from(JSON.stringify(json));
+    const inspected=await service.inspectJson(true,{originalname:'single.json',mimetype:'application/json',buffer,size:buffer.length} as any,'CASE');
+    expect(inspected.summary).toMatchObject({cases:1,lectures:0,extracted:1});
+    expect(inspected.candidates[0].model_answer).toBe('Fever and tachycardia.');
+  });
+
   it('leaves questions with no source answer invalid instead of calling an AI answer generator', () => {
     const candidates = parse(`
       Final 2028
