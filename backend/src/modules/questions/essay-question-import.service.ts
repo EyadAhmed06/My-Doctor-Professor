@@ -228,7 +228,7 @@ export class EssayQuestionImportService {
     });
 
     for (const [index, candidate] of selected.entries()) {
-      const questionText = this.composeQuestion(candidate.case_stem, candidate.question_text);
+      const questionText = this.composeQuestion(candidate.case_stem, candidate.question_text, candidate.block_type);
       if (!candidate.model_answer.trim()) throw new BadRequestException(`Essay ${index + 1} needs a model answer before publication`);
       if (candidate.reuse_question_id) {
         const reusable = existing.find((item) => item.id === candidate.reuse_question_id && item.topicId === candidate.topic_id && item.isActive);
@@ -516,9 +516,11 @@ export class EssayQuestionImportService {
     return matches.length ? Number(matches[matches.length - 1][1]) : null;
   }
 
-  private composeQuestion(caseStem: string, question: string) {
+  private composeQuestion(caseStem: string, question: string, blockType: 'CASE' | 'LECTURE' = 'CASE') {
     const stem = caseStem.trim();
     const prompt = question.trim();
+    // A lecture title is curriculum metadata, not a clinical case stem.
+    if (blockType === 'LECTURE') return prompt;
     return stem ? `CASE\n${stem}\n\nQUESTION\n${prompt}` : prompt;
   }
 
