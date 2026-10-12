@@ -205,6 +205,44 @@ Second answer
     expect(candidates[0].model_answer).toContain('Neurons and glial cells');
   });
 
+  it('inspects a standalone JSON lecture without a collection wrapper', async () => {
+    const json = {
+      title: 'Types of immunity',
+      questions: [{ prompt: 'What are the primary lymphoid organs?', answer: 'Bone marrow and thymus.' }],
+    };
+    const result = await service.inspectJson(true, {
+      originalname: 'immunity.json', mimetype: 'application/json',
+      buffer: Buffer.from(JSON.stringify(json)), size: Buffer.byteLength(JSON.stringify(json)),
+    } as any);
+    expect(result.summary).toMatchObject({ lectures: 1, cases: 0, extracted: 1, valid: 1 });
+    expect(result.candidates[0].case_stem).toBe('Types of immunity');
+    expect(result.candidates[0].model_answer).toBe('Bone marrow and thymus.');
+  });
+
+  it('inspects a single clinical case JSON and preserves the source answer', async () => {
+    const json = { type: 'CASE', number: 3, title: 'Clinical case', stem: 'A patient presents with fever.',
+      questions: [{ question: 'State two observations.', model_answer: 'Fever and tachycardia.' }] };
+    const result = await service.inspectJson(true, {
+      originalname: 'case.json', mimetype: 'application/json',
+      buffer: Buffer.from(JSON.stringify(json)), size: Buffer.byteLength(JSON.stringify(json)),
+    } as any);
+    expect(result.summary).toMatchObject({ cases: 1, lectures: 0, extracted: 1 });
+    expect(result.candidates[0]).toMatchObject({ block_type: 'CASE', case_number: 3, status: 'VALID' });
+  });
+
+  it('parses an unheaded standalone PDF as one lecture without generating answers', () => {
+    const candidates = parse(`
+      1) List two primary lymphoid organs.
+      2) What is a macrophage?
+      Answers:
+      1) Bone marrow and thymus.
+      2) A professional phagocyte and antigen-presenting cell.
+    `);
+    expect(candidates).toHaveLength(2);
+    expect(candidates.every((candidate: any) => candidate.block_type === 'LECTURE')).toBe(true);
+    expect(candidates.map((candidate: any) => candidate.answer_origin)).toEqual(['SOURCE', 'SOURCE']);
+  });
+
   it('leaves questions with no source answer invalid instead of calling an AI answer generator', () => {
     const candidates = parse(`
       Final 2028
