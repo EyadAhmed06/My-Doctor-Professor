@@ -895,20 +895,19 @@ export function QuestionImportPage() {
       });
       return;
     }
-    let approved = 0;
-    setCandidates((current) => current.map((candidate) => {
-      // Bulk review must never silently accept an academic topic mismatch.
-      const reviewedCandidate = candidate;
-      const ready = candidateIsPublishable(reviewedCandidate);
-      if (ready) approved += 1;
-      return { ...reviewedCandidate, approved: ready };
-    }));
+    // Compute once outside the React state updater. Updaters must be pure:
+    // React can invoke them more than once in development Strict Mode.
+    const eligibleIds = new Set(candidates.filter(candidateIsPublishable).map((candidate) => candidate.candidate_id));
+    setCandidates(current => current.map(candidate => ({
+      ...candidate,
+      approved: eligibleIds.has(candidate.candidate_id),
+    })));
     notify({
-      title: approved ? "Ready questions approved" : "No questions are ready yet",
-      description: approved
-        ? `${approved} question(s) approved. AI explanations are optional; incomplete or stale explanation sets still need review.`
-        : "Fix structural errors, duplicates, or partial/stale explanations before approval.",
-      tone: approved ? "success" : "info",
+      title: eligibleIds.size ? "Ready questions approved" : "No questions are ready yet",
+      description: eligibleIds.size
+        ? `${eligibleIds.size} of ${candidates.length} question(s) approved. The others require review or explicit confirmation; no questions were published.`
+        : "No questions met all approval requirements. Review blocked questions and confirm their academic destination if needed.",
+      tone: eligibleIds.size ? "success" : "info",
     });
   }
 
