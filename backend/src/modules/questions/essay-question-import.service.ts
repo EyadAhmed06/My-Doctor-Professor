@@ -253,7 +253,7 @@ export class EssayQuestionImportService {
           topicId: candidate.topic_id,
           questionType: QuestionType.ESSAY,
           title: candidate.case_label.trim().slice(0, 200),
-          questionText: this.composeQuestion(candidate.case_stem, candidate.question_text),
+          questionText: this.composeQuestion(candidate.case_stem, candidate.question_text, candidate.block_type),
           explanation: null,
           hint: null,
           reference: this.importReference(dto.original_filename, dto.file_sha256, candidate.source_page ?? null, candidate.case_label),
