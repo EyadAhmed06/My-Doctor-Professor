@@ -50,6 +50,7 @@ export class EssayQuestionImportService {
   async inspectPdf(
     copyrightConfirmed: boolean,
     file: UploadedResourceFile | undefined,
+    standaloneType: 'CASE' | 'LECTURE' = 'LECTURE',
   ) {
     if (!copyrightConfirmed) {
       throw new BadRequestException('Confirm that you have permission to use the uploaded question material');
@@ -135,7 +136,7 @@ export class EssayQuestionImportService {
     };
   }
 
-  async inspectJson(copyrightConfirmed: boolean, file: UploadedResourceFile | undefined) {
+  async inspectJson(copyrightConfirmed: boolean, file: UploadedResourceFile | undefined, standaloneType: 'CASE' | 'LECTURE' = 'LECTURE') {
     if (!copyrightConfirmed) throw new BadRequestException('Confirm permission to use this material');
     if (!file?.buffer?.length || !/\.(json|txt)$/i.test(file.originalname || '') || file.size > 2 * 1024 * 1024)
       throw new BadRequestException('Select a non-empty JSON or JSON text file up to 2 MB');
@@ -161,13 +162,15 @@ export class EssayQuestionImportService {
     };
     if (Array.isArray(payload)) {
       if (payload.some(row => record(row)?.questions !== undefined)) payload.forEach((row,i)=>ingest(row,'LECTURE',i));
-      else ingest({ title:'Standalone lecture',questions:payload },'LECTURE',0);
+      else ingest({ title:standaloneType === 'CASE' ? 'Standalone case' : 'Standalone lecture',questions:payload },standaloneType,0);
     } else if (root) {
-      if (Array.isArray(root.sections)) root.sections.forEach((row,i)=>ingest(row,'LECTURE',i));
+      if (Array.isArray(root.sections)) root.sections.forEach((row,i)=>ingest(row,standaloneType,i));
       else if (Array.isArray(root.cases) || Array.isArray(root.lectures)) {
         (root.cases as unknown[] | undefined)?.forEach((row,i)=>ingest(row,'CASE',i));
         (root.lectures as unknown[] | undefined)?.forEach((row,i)=>ingest(row,'LECTURE',i));
-      } else ingest(root, 'LECTURE', 0);
+      } else if (typeof root.question_text === 'string' || typeof root.question === 'string' || typeof root.prompt === 'string') {
+        ingest({ title: standaloneType === 'CASE' ? 'Standalone case' : 'Standalone lecture', questions: [root] }, standaloneType, 0);
+      } else ingest(root, standaloneType, 0);
     } else throw new BadRequestException('JSON must contain a question, questions, sections, cases or lectures');
     if (blocks.length > 100) throw new BadRequestException('Maximum 100 sections per import');
     const sha256 = createHash('sha256').update(file.buffer).digest('hex');
@@ -288,7 +291,8 @@ export class EssayQuestionImportService {
     // no "Lecture 1" heading. Give these an explicit editable review group.
     // Never infer a clinical case from an unlabelled passage.
     const containsBlocks = /(?:^|\n)[ \t]*(?:CASE[ \t]+\d{1,3}|Lecture[ \t]+\d{1,3}[ \t]*:)/im.test(rawStream);
-    const stream = containsBlocks ? rawStream : `\nLecture 1: Standalone lecture\n${rawStream}`;
+    const stream = containsBlocks ? rawStream : standaloneType === 'CASE'
+      ? `\nCASE 1:\n${rawStream}` : `\nLecture 1: Standalone lecture\n${rawStream}`;
 
     // Accept the essay formats we receive in practice:
     //   CASE 1
