@@ -274,6 +274,17 @@ Second answer
       .toContain('CASE\nA patient has fever.');
   });
 
+  it('accepts an individual SECTION JSON with a source answer', async () => {
+    const json={type:'SECTION',title:'Anatomy basics',
+      questions:[{prompt:'Name the two cell classes in nervous tissue.',model_answer:'Neurons and glia.'}]};
+    const buffer=Buffer.from(JSON.stringify(json));
+    const inspected=await service.inspectJson(true,{
+      originalname:'section.json',mimetype:'application/json',buffer,size:buffer.length,
+    } as any);
+    expect(inspected.summary).toMatchObject({lectures:1,cases:0,extracted:1});
+    expect(inspected.candidates[0]).toMatchObject({block_type:'LECTURE',model_answer:'Neurons and glia.'});
+  });
+
   it('leaves questions with no source answer invalid instead of calling an AI answer generator', () => {
     const candidates = parse(`
       Final 2028
