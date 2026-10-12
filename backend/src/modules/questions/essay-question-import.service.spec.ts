@@ -194,10 +194,10 @@ Second answer
   it('does not append a next-page running header to a lecture title', () => {
     const pages = [
       { page: 10, text: 'Lecture 1 : Anatomy nervous system' },
-      { page: 11, text: 'My Doctor& The Professor (Week Two) Page|11\\n1) List two types of neural cells.\\nAnswers of Lecture 1 : Anatomy nervous system\\n1)\\nNeurons and glial cells.' },
+      { page: 11, text: 'My Doctor& The Professor (Week Two) Page|11\n1) List two types of neural cells.\nAnswers of Lecture 1 : Anatomy nervous system\n1)\nNeurons and glial cells.' },
     ];
     const candidates = (service as any).parseEssayCases({
-      pages, pageCount: 2, text: pages.map(page => page.text).join('\\n'), extractionConfidence: 1,
+      pages, pageCount: 2, text: pages.map(page => page.text).join('\n'), extractionConfidence: 1,
     }, 'a'.repeat(64));
 
     expect(candidates).toHaveLength(1);
