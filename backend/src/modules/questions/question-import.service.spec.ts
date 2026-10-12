@@ -309,6 +309,38 @@ describe('QuestionImportService', () => {
     expect(inspection.extraction_method).toBe('JSON');
   });
 
+  it('inspects a single standalone MCQ JSON object', async () => {
+    const { service } = build();
+    const question = { question: 'Which chamber receives pulmonary venous blood?',
+      options: ['A','B','C','D'].map(label => ({
+        label, text: `Option ${label}`, isCorrect: label === 'B',
+      })) };
+    const inspection = await service.inspectJson(
+      { topic_id: topic.id, copyright_confirmed: true },
+      file(Buffer.from(JSON.stringify(question)), { originalname: 'one-question.json', mimetype: 'application/json' }),
+      actor,
+    );
+    expect(inspection.summary.extracted).toBe(1);
+    expect(inspection.candidates[0].answer_key_label).toBe('B');
+  });
+
+  it('preserves section names from a single nested lecture JSON', async () => {
+    const { service } = build();
+    const question = { question_text: 'Which chamber receives pulmonary venous blood?',
+      options: ['A','B','C','D','E'].map(label => ({
+        label, option_text: `Option ${label}`, is_correct: label === 'B',
+      })) };
+    const inspection = await service.inspectJson(
+      { topic_id: topic.id, copyright_confirmed: true },
+      file(Buffer.from(JSON.stringify({
+        title: 'Cardiac Anatomy', lectures: [{title: 'Heart chambers', sections: [{title: 'Pulmonary circulation', questions: [question]}]}],
+      })), { originalname: 'nested.json', mimetype: 'application/json' }),
+      actor,
+    );
+    expect(inspection.summary.extracted).toBe(1);
+    expect(inspection.candidates[0].source_section).toBe('Pulmonary circulation');
+  });
+
   it('rejects JSON with an ambiguous source answer key', async () => {
     const { service } = build();
     const questions = [{ question_text: 'Which chamber receives pulmonary venous blood?',
