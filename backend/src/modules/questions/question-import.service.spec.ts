@@ -350,7 +350,7 @@ describe('QuestionImportService', () => {
       'C) Right ventricle',
       'D) Left ventricle',
       'Answer: B',
-    ].join('\\n');
+    ].join('\n');
     const parsed = (service as any).parseSectionQuestions(
       {title:null,text:content,offset:0},content,new Map([[1,{label:'B',page:1}]]),
     );
