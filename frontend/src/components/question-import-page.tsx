@@ -1027,6 +1027,26 @@ export function QuestionImportPage() {
       sectionFilter,
       statusFilter,
     ]);
+  function approveVisible() {
+    if (inspection?.summary?.structurally_complete === false) {
+      notify({ title: "Incomplete extraction", description: "Resolve structural errors before bulk approval.", tone: "error" });
+      return;
+    }
+    const visibleIds = new Set(visibleCandidates.map(({ candidate }) => candidate.candidate_id));
+    setCandidates((current) => current.map((candidate) => {
+      if (!visibleIds.has(candidate.candidate_id)) return candidate;
+      const reviewed = { ...candidate, allow_topic_override:
+        candidate.topic_confidence < 0.08 ? true : candidate.allow_topic_override };
+      return { ...reviewed, approved: candidateIsPublishable(reviewed) };
+    }));
+  }
+
+  function clearVisible() {
+    const visibleIds = new Set(visibleCandidates.map(({ candidate }) => candidate.candidate_id));
+    setCandidates((current) => current.map((candidate) =>
+      visibleIds.has(candidate.candidate_id) ? { ...candidate, approved: false } : candidate));
+  }
+
   const sectionGroups = useMemo(() => {
     const groups = new Map<string, typeof visibleCandidates>();
     for (const item of visibleCandidates) {
@@ -1206,6 +1226,11 @@ export function QuestionImportPage() {
                   <div className="question-import-status-filters">{([ ["ALL", "All"], ["VALID", "Ready"], ["NEEDS_REVIEW", "Needs review"], ["INVALID", "Invalid"] ] as const).map(([value, label]) => <button type="button" key={value} className={statusFilter === value ? "active" : ""} onClick={() => setStatusFilter(value)}>{label} <span>{statusCounts[value]}</span></button>)}</div>
                 </div>
 
+                <div className="question-import-bulk-actions" role="group" aria-label="Select inspected section or questions">
+                  <button type="button" className="pp-button secondary" disabled={structurallyBlocked || visibleCandidates.length === 0} onClick={approveVisible}><FiCheckCircle /> Approve visible ({visibleCandidates.length})</button>
+                  <button type="button" className="pp-button secondary" disabled={visibleCandidates.length === 0} onClick={clearVisible}>Clear visible selection</button>
+                  <button type="button" className="pp-button secondary" disabled={structurallyBlocked || enrichingIds.size > 0 || visibleCandidates.length === 0} onClick={() => void generateExplanations(visibleCandidates.map(({candidate})=>candidate).filter(candidate=>!hasCompleteExplanations(candidate)||aiStatus(candidate)==="STALE"),false)}><FiRefreshCw /> Explain visible</button>
+                </div>
                 <div className="question-import-section-index" aria-label="Sections to review">{sectionTitles.map((title) => {
                   const items = candidates.filter((candidate) => (candidate.source_section?.trim() || "Unassigned") === title);
                   return <button type="button" key={title} className={sectionFilter === title ? "active" : ""} onClick={() => setSectionFilter(sectionFilter === title ? "ALL" : title)}><strong>{title}</strong><span>{items.length} questions · {items.filter((candidate) => candidate.status !== "VALID").length} need review</span></button>;
