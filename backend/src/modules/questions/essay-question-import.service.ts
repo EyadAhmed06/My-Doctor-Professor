@@ -137,10 +137,10 @@ export class EssayQuestionImportService {
 
   async inspectJson(copyrightConfirmed: boolean, file: UploadedResourceFile | undefined) {
     if (!copyrightConfirmed) throw new BadRequestException('Confirm permission to use this material');
-    if (!file?.buffer?.length || !/\\.(json|txt)$/i.test(file.originalname || '') || file.size > 2 * 1024 * 1024)
+    if (!file?.buffer?.length || !/\.(json|txt)$/i.test(file.originalname || '') || file.size > 2 * 1024 * 1024)
       throw new BadRequestException('Select a non-empty JSON or JSON text file up to 2 MB');
     let payload: unknown;
-    try { payload = JSON.parse(file.buffer.toString('utf8').replace(/^\\uFEFF/, '')); }
+    try { payload = JSON.parse(file.buffer.toString('utf8').replace(/^\uFEFF/, '')); }
     catch { throw new BadRequestException('File is not valid UTF-8 JSON'); }
     type JsonRow = Record<string, unknown>;
     const record = (value: unknown): JsonRow | null =>
