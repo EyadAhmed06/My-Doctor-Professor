@@ -1,0 +1,141 @@
+name: Production Deployment
+
+# Manual-only until the full production path is verified.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type DEPLOY to authorize an EC2 production release"
+        required: true
+        type: string
+      release_sha:
+        description: "Optional full commit SHA from agent/phase1-interactions (blank = branch HEAD)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+
+concurrency:
+  group: mdp-production-deployment
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: ${{ inputs.confirm == 'DEPLOY' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: production
+    steps:
+      - name: Resolve and gate the immutable release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REQUESTED_SHA: ${{ inputs.release_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re, subprocess, time
+          from urllib.request import Request, urlopen
+
+          repo = os.environ["GH_REPO"]
+          token = os.environ["GH_TOKEN"]
+          def api(url):
+              req = Request(f"https://api.github.com/repos/{repo}{url}", headers={
+                  "Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json",
+                  "X-GitHub-Api-Version": "2022-11-28"})
+              with urlopen(req, timeout=30) as r:
+                  return json.load(r)
+          branch = api("/branches/agent/phase1-interactions")
+          sha = branch["commit"]["sha"]
+          requested = os.environ.get("REQUESTED_SHA", "").strip()
+          if requested and (not re.fullmatch("[a-fA-F0-9]{40}", requested) or requested.lower() != sha):
+              raise SystemExit("Release must be the full current production-branch HEAD SHA; refusing stale or ambiguous release")
+          # Never use a green result from a previous commit or a pull_request event.
+          runs = api("/actions/runs?branch=agent%2Fphase1-interactions&per_page=100")["workflow_runs"]
+          for name in ("Security", "Browser Regression"):
+              matching = [run for run in runs if run["name"] == name and run["head_sha"] == sha
+                          and run["event"] == "push"]
+              if not matching or not any(run["status"] == "completed" and run["conclusion"] == "success" for run in matching):
+                  raise SystemExit(f"BLOCKED: {name} has no successful push run for {sha}")
+          print(f"Approved commit: {sha}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as stream:
+              stream.write(f"sha={sha}\n")
+          PY
+
+      - name: Authenticate to production AWS account using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_PRODUCTION_DEPLOY_ROLE_ARN }}
+          aws-region: eu-south-1
+
+      - name: Validate production target and installed SSM agent
+        env:
+          INSTANCE_ID: ${{ vars.AWS_PRODUCTION_INSTANCE_ID }}
+        run: |
+          set -euo pipefail
+          [[ "$INSTANCE_ID" =~ ^i-[0-9a-f]{8,17}$ ]] || { echo "Configure AWS_PRODUCTION_INSTANCE_ID in repository variables"; exit 1; }
+          aws ec2 describe-instances --instance-ids "$INSTANCE_ID" \
+            --query 'Reservations[0].Instances[0].State.Name' --output text | grep -qx running
+          aws ssm describe-instance-information \
+            --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
+            --query 'InstanceInformationList[0].PingStatus' --output text | grep -qx Online
+
+      - name: Deploy through SSM without opening a terminal
+        env:
+          INSTANCE_ID: ${{ vars.AWS_PRODUCTION_INSTANCE_ID }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+          CLOUDWATCH_GROUP: ${{ vars.AWS_PRODUCTION_DEPLOY_LOG_GROUP }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PARAM_FILE="$(mktemp)"
+          trap 'rm -f "$PARAM_FILE"' EXIT
+          python3 - "$RELEASE_SHA" "$PARAM_FILE" <<'PY'
+          import json, sys
+          sha, target = sys.argv[1:]
+          # AWS-RunShellScript is non-interactive; the deployment's flock remains
+          # authoritative on the host, including for concurrent manual runs.
+          commands = [
+              "set -eu",
+              "echo 'Starting pinned production release " + sha + "'",
+              "sudo /opt/mdp/update-ec2.sh " + sha,
+              "sudo docker inspect mdp-backend mdp-frontend --format '{{.Name}} {{.Config.Image}} {{.State.Health.Status}}'",
+              "echo 'PRODUCTION_RELEASE_SUCCESS " + sha + "'",
+          ]
+          with open(target, "w") as output:
+              json.dump({"commands": commands, "executionTimeout": ["4800"]}, output)
+          PY
+          args=(--instance-ids "$INSTANCE_ID" --document-name AWS-RunShellScript
+                --comment "My Doctor Professor production release $RELEASE_SHA"
+                --parameters "file://$PARAM_FILE"
+                --timeout-seconds 120 --query 'Command.CommandId' --output text)
+          if [[ -n "$CLOUDWATCH_GROUP" ]]; then
+            args+=(--cloud-watch-output-config "CloudWatchOutputEnabled=true,CloudWatchLogGroupName=$CLOUDWATCH_GROUP")
+          fi
+          COMMAND_ID="$(aws ssm send-command "${args[@]}")"
+          echo "SSM command ID: $COMMAND_ID"
+          echo "Deployment runs on EC2 independently of this GitHub job and any browser session."
+          deadline=$((SECONDS + 4900))
+          while (( SECONDS < deadline )); do
+            result="$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --output json 2>/dev/null || true)"
+            if [[ -z "$result" ]]; then sleep 10; continue; fi
+            status="$(printf '%s' "$result" | python3 -c 'import sys,json; print(json.load(sys.stdin)["Status"])')"
+            printf '[%s] SSM deployment: %s\n' "$(date -u +%FT%TZ)" "$status"
+            case "$status" in
+              Success|Failed|Cancelled|TimedOut|Cancelling|DeliveryTimedOut|ExecutionTimedOut|Undeliverable|Terminated)
+                printf '%s' "$result" | python3 -c 'import json,sys; r=json.load(sys.stdin); print("STDOUT (tail):\n"+r.get("StandardOutputContent","")[-12000:]); print("STDERR (tail):\n"+r.get("StandardErrorContent","")[-12000:])'
+                [[ "$status" == Success ]] || exit 1
+                # Verify the SSM command explicitly reached the final marker.
+                printf '%s' "$result" | python3 -c 'import json,os,sys; x=json.load(sys.stdin)["StandardOutputContent"]; assert "PRODUCTION_RELEASE_SUCCESS " + os.environ["RELEASE_SHA"] in x, "Release marker missing"'
+                exit 0
+                ;;
+            esac
+            sleep 20
+          done
+          echo "::error::Deployment exceeded observation deadline. Check SSM command $COMMAND_ID before retrying."
+          exit 1
