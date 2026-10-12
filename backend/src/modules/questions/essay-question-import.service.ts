@@ -151,8 +151,9 @@ export class EssayQuestionImportService {
     const ingest = (raw: unknown, defaultType: 'CASE'|'LECTURE', index: number) => {
       const obj = record(raw);
       if (!obj) throw new BadRequestException(`Section ${index + 1} must be an object`);
-      const kind = String(obj.type ?? obj.block_type ?? defaultType).toUpperCase();
-      if (kind !== 'CASE' && kind !== 'LECTURE') throw new BadRequestException('Section type must be CASE or LECTURE');
+      const declaredKind = String(obj.type ?? obj.block_type ?? defaultType).toUpperCase();
+      const kind = declaredKind === 'SECTION' ? 'LECTURE' : declaredKind;
+      if (kind !== 'CASE' && kind !== 'LECTURE') throw new BadRequestException('Section type must be CASE, LECTURE or SECTION');
       const number = Number(obj.number ?? obj.case_number ?? obj.lecture_number ?? index + 1);
       const title = String(obj.title ?? obj.name ?? `${kind === 'CASE' ? 'Case' : 'Lecture'} ${number}`).trim();
       const stem = String(obj.stem ?? obj.case_stem ?? (kind === 'LECTURE' ? title : '')).trim();
