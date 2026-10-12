@@ -749,15 +749,6 @@ export class QuestionImportService {
 
     for (const [index, candidate] of selected.entries()) {
       this.validatePublishCandidate(candidate, index);
-      const topicConfidence = this.topicConfidenceFromTokens(
-        candidate.question_text,
-        topicReferenceTokens,
-      );
-      if (topicConfidence < 0.08 && !candidate.allow_topic_override) {
-        throw new BadRequestException(
-          `Question ${index + 1} has a very low lexical match to ${topic.topicName}. Review it or explicitly confirm the topic override.`,
-        );
-      }
       if (candidate.reuse_question_id) {
         if (candidate.source_section?.trim() && (
           numberedSections.length
@@ -1706,9 +1697,6 @@ export class QuestionImportService {
       topicInput,
       topicReferenceTokens,
     );
-    if (topicConfidence < 0.08) {
-      issues.push({ code: 'TOPIC_MISMATCH', severity: 'WARNING', message: 'The extracted wording has a very weak lexical match to the selected topic. Instructor confirmation is required.' });
-    }
     const duplicate = this.bestDuplicate(candidate.questionText, existing);
     if (duplicate) {
       issues.push({
