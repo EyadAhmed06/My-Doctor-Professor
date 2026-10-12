@@ -897,10 +897,8 @@ export function QuestionImportPage() {
     }
     let approved = 0;
     setCandidates((current) => current.map((candidate) => {
-      const reviewedCandidate = {
-        ...candidate,
-        allow_topic_override: candidate.topic_confidence < 0.08 ? true : candidate.allow_topic_override,
-      };
+      // Bulk review must never silently accept an academic topic mismatch.
+      const reviewedCandidate = candidate;
       const ready = candidateIsPublishable(reviewedCandidate);
       if (ready) approved += 1;
       return { ...reviewedCandidate, approved: ready };
@@ -1047,8 +1045,8 @@ export function QuestionImportPage() {
     const visibleIds = new Set(visibleCandidates.map(({ candidate }) => candidate.candidate_id));
     setCandidates((current) => current.map((candidate) => {
       if (!visibleIds.has(candidate.candidate_id)) return candidate;
-      const reviewed = { ...candidate, allow_topic_override:
-        candidate.topic_confidence < 0.08 ? true : candidate.allow_topic_override };
+      // The instructor must explicitly confirm any low-confidence destination.
+      const reviewed = candidate;
       return { ...reviewed, approved: candidateIsPublishable(reviewed) };
     }));
   }
