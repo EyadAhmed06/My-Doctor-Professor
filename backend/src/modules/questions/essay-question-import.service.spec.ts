@@ -266,6 +266,14 @@ Second answer
     expect(inspected.candidates[0].model_answer).toBe('Fever and tachycardia.');
   });
 
+  it('publishes lecture prompts without falsely labeling them as clinical cases', () => {
+    const compose = (service as any).composeQuestion.bind(service);
+    expect(compose('Types of immunity', 'What are the primary lymphoid organs?', 'LECTURE'))
+      .toBe('What are the primary lymphoid organs?');
+    expect(compose('A patient has fever.', 'What is the diagnosis?', 'CASE'))
+      .toContain('CASE\\nA patient has fever.');
+  });
+
   it('leaves questions with no source answer invalid instead of calling an AI answer generator', () => {
     const candidates = parse(`
       Final 2028
