@@ -951,7 +951,7 @@ export function QuestionImportPage() {
           file_sha256: inspection.file_sha256,
           copyright_confirmed: copyrightConfirmed,
           candidates: approved.map((candidate) => ({
-            approved: Boolean(candidate.approved),
+            approved: true,
             question_text: candidate.question_text.trim(),
             explanation: candidate.explanation?.trim() || undefined,
             difficulty: candidate.difficulty,
@@ -1321,7 +1321,7 @@ export function QuestionImportPage() {
                             <button type="button" className="pp-button secondary" disabled={desktopPosition>=visibleCandidates.length-1} onClick={()=>setDesktopCandidateId(visibleCandidates[desktopPosition+1].candidate.candidate_id)}>Next</button>
                           </div>
                         </div>
-                        <div className="question-import-focused-direct-actions"><button type="button" className="pp-button" disabled={publishing || enrichingIds.size>0 || structurallyBlocked || !candidateIsPublishable(desktopSelected.candidate)} onClick={()=>void publishApproved([desktopSelected.candidate.candidate_id])}><FiCheck/>Publish this question only</button><button type="button" className="pp-button secondary" disabled={publishing || enrichingIds.size>0 || structurallyBlocked} onClick={()=>void publishApproved(candidates.filter((candidate)=>candidate.source_section===desktopSelected.candidate.source_section).map((candidate)=>candidate.candidate_id).filter((id)=>candidates.some((candidate)=>candidate.candidate_id===id&&candidateIsPublishable(candidate))))}>Publish ready questions in this lecture only</button></div>
+                        <div className="question-import-focused-direct-actions"><button type="button" className="pp-button" disabled={publishing || enrichingIds.size>0 || structurallyBlocked || !candidateIsPublishable(desktopSelected.candidate)} onClick={()=>void publishApproved([desktopSelected.candidate.candidate_id])}><FiCheck/>Publish this question only</button><button type="button" className="pp-button secondary" disabled={publishing || enrichingIds.size>0 || structurallyBlocked} onClick={()=>void publishApproved(candidates.filter((candidate)=>candidate.source_section===desktopSelected.candidate.source_section).map((candidate)=>candidate.candidate_id))}>Publish ready questions in this lecture only</button></div>
                         <CandidateEditor key={desktopSelected.candidate.candidate_id} candidate={desktopSelected.candidate} displayNumber={desktopSelected.index+1} topicName={inspection.topic.name} structurallyBlocked={structurallyBlocked} enriching={enrichingIds.has(desktopSelected.candidate.candidate_id)} onUpdate={updateCandidate} onEditSource={editSource} onAddChoice={addChoice} onRemoveChoice={removeChoice} onRemove={removeCandidate} onGenerate={generateExplanations}/>
                       </>:<div className="question-import-empty-filter">No questions match the current filter.</div>}
                     </div>
