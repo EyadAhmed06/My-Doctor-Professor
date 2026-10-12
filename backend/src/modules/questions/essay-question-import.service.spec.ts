@@ -271,7 +271,7 @@ Second answer
     expect(compose('Types of immunity', 'What are the primary lymphoid organs?', 'LECTURE'))
       .toBe('What are the primary lymphoid organs?');
     expect(compose('A patient has fever.', 'What is the diagnosis?', 'CASE'))
-      .toContain('CASE\\nA patient has fever.');
+      .toContain('CASE\nA patient has fever.');
   });
 
   it('leaves questions with no source answer invalid instead of calling an AI answer generator', () => {
