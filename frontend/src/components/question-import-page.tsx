@@ -939,7 +939,7 @@ export function QuestionImportPage() {
     }
 
     const releaseLabel = scopeIds ? `${approved.length} selected question(s)` : `${approved.length} approved question(s)`;
-    if (!window.confirm(`Publish ${releaseLabel} to the selected academic destination? Only these questions will be sent.`)) return;
+    if (scopeIds && !window.confirm(`Publish ${releaseLabel} to the selected academic destination? Only these questions will be sent.`)) return;
     setPublishing(true);
     setError(null);
     try {
