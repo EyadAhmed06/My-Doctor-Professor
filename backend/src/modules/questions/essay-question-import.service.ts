@@ -86,7 +86,7 @@ export class EssayQuestionImportService {
       throw new BadRequestException('This file contains MCQs, not essay cases. Use the MCQ PDF Inspector for this document.');
     }
 
-    const extracted = this.parseEssayCases(pdf, sha256).slice(0, MAX_CANDIDATES);
+    const extracted = this.parseEssayCases(pdf, sha256, standaloneType).slice(0, MAX_CANDIDATES);
     // Essay imports are source-grounded only. A missing answer is a parsing/source
     // issue to review, never a reason to synthesize medical content with an API.
     const parsed = extracted;
@@ -285,7 +285,7 @@ export class EssayQuestionImportService {
     };
   }
 
-  private parseEssayCases(pdf: ParsedPdf, sha256: string): EssayCandidate[] {
+  private parseEssayCases(pdf: ParsedPdf, sha256: string, standaloneType: 'CASE' | 'LECTURE' = 'LECTURE'): EssayCandidate[] {
     const rawStream = pdf.pages.map((page) => `\n[[PAGE:${page.page}]]\n${this.cleanPageText(page.text)}`).join('\n');
     // Standalone essay PDFs often have questions and an Answer section but
     // no "Lecture 1" heading. Give these an explicit editable review group.
