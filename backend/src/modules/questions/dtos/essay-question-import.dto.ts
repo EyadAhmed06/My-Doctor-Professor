@@ -32,6 +32,7 @@ export class InspectEssayQuestionImportDto {
 
 export class PublishEssayImportCandidateDto {
   @IsBoolean() approved: boolean;
+  @IsOptional() @IsIn(['CASE', 'LECTURE']) block_type?: 'CASE' | 'LECTURE';
   @IsUUID() topic_id: string;
   @IsString() @IsNotEmpty() case_label: string;
   @IsString() @IsNotEmpty() @MaxLength(30000) case_stem: string;
