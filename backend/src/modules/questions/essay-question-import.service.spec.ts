@@ -157,6 +157,38 @@ Second answer
     expect(cleaned).toContain('\n     2. Second detail');
   });
 
+  it('imports case and lecture sections with their own numbered answer keys', () => {
+    const candidates = parse(`
+      Case 1
+      A patient presents with a fever.
+      1) Mention two clinical observations.
+      Answers for case 1
+      1)
+      Fever and tachycardia.
+      Lecture 1 : Anatomy nervous system
+      1) List two types of cells that form the nervous system.
+      2) Mention two organelles in nerve cells.
+      Answers of Lecture 1 : Anatomy nervous system
+      1)
+      Neurons and supporting glial cells.
+      2)
+      Mitochondria and Golgi apparatus.
+      Lecture 2 : Types of immunity
+      1) List two primary lymphoid organs.
+      Answers of Lecture 2 : Types of immunity
+      1)
+      Bone marrow and thymus.
+    `);
+
+    expect(candidates).toHaveLength(4);
+    expect(candidates.map((candidate: any) => candidate.block_type)).toEqual(['CASE', 'LECTURE', 'LECTURE', 'LECTURE']);
+    expect(candidates[1].section).toContain('Anatomy nervous system');
+    expect(candidates[1].model_answer).toContain('Neurons');
+    expect(candidates[2].model_answer).toContain('Mitochondria');
+    expect(candidates[3].model_answer).toContain('Bone marrow');
+    expect(candidates.every((candidate: any) => candidate.status === 'VALID')).toBe(true);
+  });
+
   it('leaves questions with no source answer invalid instead of calling an AI answer generator', () => {
     const candidates = parse(`
       Final 2028
