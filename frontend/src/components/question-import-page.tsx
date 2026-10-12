@@ -255,7 +255,6 @@ function candidateIsPublishable(candidate: Candidate) {
     && new Set(candidate.options.map((option) => normalizedOptionText(option.option_text))).size === candidate.options.length
     && candidate.options.filter((option) => option.is_correct).length === 1
     && explanationStateReady
-    && (candidate.topic_confidence >= 0.08 || Boolean(candidate.allow_topic_override))
     && (!candidate.duplicate || Boolean(candidate.allow_duplicate));
 }
 
@@ -302,7 +301,6 @@ function recalculateCandidate(candidate: Candidate): Candidate {
 
   const hasError = issues.some((issue) => issue.severity === "ERROR");
   const hasWarning = issues.some((issue) => issue.severity === "WARNING")
-    || candidate.topic_confidence < 0.08
     || Boolean(candidate.duplicate);
   return {
     ...candidate,
@@ -510,13 +508,6 @@ const CandidateEditor = memo(function CandidateEditor({
         <label>Difficulty<select value={candidate.difficulty} onChange={(event) => onUpdate(candidate.candidate_id, (current) => ({ ...current, difficulty: event.target.value as Candidate["difficulty"] }))}><option value="EASY">Easy</option><option value="MEDIUM">Medium</option><option value="HARD">Hard</option></select></label>
         <label>Marks<input type="number" min="1" max="999" value={candidate.marks} onChange={(event) => onUpdate(candidate.candidate_id, (current) => ({ ...current, marks: Math.max(1, Math.round(Number(event.target.value) || 1)) }))} /></label>
       </div>
-
-      {candidate.topic_confidence < 0.08 && (
-        <label className="question-import-confirm">
-          <input type="checkbox" checked={Boolean(candidate.allow_topic_override)} onChange={(event) => onUpdate(candidate.candidate_id, (current) => ({ ...current, allow_topic_override: event.target.checked, approved: false }))} />
-          <span>I reviewed the topic mismatch and confirm this belongs to <strong>{topicName}</strong>.</span>
-        </label>
-      )}
 
       <footer>
         <label className="question-import-approve">
