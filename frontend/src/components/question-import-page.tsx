@@ -550,6 +550,7 @@ export function QuestionImportPage() {
   const [sectionFilter, setSectionFilter] = useState("ALL");
   const isMobileReview = useMobileQuestionReview();
   const [mobileCandidateId, setMobileCandidateId] = useState<string | null>(null);
+  const [desktopCandidateId, setDesktopCandidateId] = useState<string | null>(null);
 
   const loadCourses = useCallback(async () => {
     if (!user || user.role === "STUDENT") return;
@@ -1066,6 +1067,10 @@ export function QuestionImportPage() {
     });
   }, [isMobileReview, visibleCandidates]);
 
+  // Desktop uses one focused editor rather than mounting hundreds of long cards.
+  const desktopPosition = Math.max(0, visibleCandidates.findIndex(({ candidate }) => candidate.candidate_id === desktopCandidateId));
+  const desktopSelected = visibleCandidates[desktopPosition] ?? null;
+
   const mobileCandidatePosition = useMemo(() => {
     if (!isMobileReview || !mobileCandidateId) return -1;
     return visibleCandidates.findIndex(({ candidate }) => candidate.candidate_id === mobileCandidateId);
@@ -1295,22 +1300,29 @@ export function QuestionImportPage() {
                     )}
                   </div>
                 ) : (
-                  sectionGroups.map(({ title, items }) => <div className="question-import-section-group" key={title}><h3>{title} <small>{items.length} questions · {items.filter(({ candidate }) => candidate.status !== "VALID").length} need review</small></h3>{items.map(({ candidate, index }) => (
-                    <CandidateEditor
-                      key={candidate.candidate_id}
-                      candidate={candidate}
-                      displayNumber={index + 1}
-                      topicName={inspection.topic.name}
-                      structurallyBlocked={structurallyBlocked}
-                      enriching={enrichingIds.has(candidate.candidate_id)}
-                      onUpdate={updateCandidate}
-                      onEditSource={editSource}
-                      onAddChoice={addChoice}
-                      onRemoveChoice={removeChoice}
-                      onRemove={removeCandidate}
-                      onGenerate={generateExplanations}
-                    />
-                  ))}</div>)
+                  <div className="question-import-focused-workspace">
+                    <nav className="question-import-focused-sidebar" aria-label="Question navigator">
+                      <div className="question-import-focused-sidebar-title"><strong>Questions</strong><span>{visibleCandidates.length} shown</span></div>
+                      {sectionGroups.map(({title,items})=><div className="question-import-focused-section" key={title}>
+                        <strong>{title}</strong>
+                        <div className="question-import-focused-grid">{items.map(({candidate,index})=><button key={candidate.candidate_id} type="button" aria-label={`Open question ${candidate.question_number ?? index + 1}`} aria-current={desktopSelected?.candidate.candidate_id===candidate.candidate_id?"true":undefined} className={desktopSelected?.candidate.candidate_id===candidate.candidate_id?"active":""} onClick={()=>setDesktopCandidateId(candidate.candidate_id)} title={candidate.question_text}>
+                          {candidate.approved?"✓ ":""}{candidate.question_number??index+1}
+                        </button>)}</div>
+                      </div>)}
+                    </nav>
+                    <div className="question-import-focused-editor">
+                      {desktopSelected ? <>
+                        <div className="question-import-focused-navigation">
+                          <div><strong>Question {desktopPosition+1} of {visibleCandidates.length}</strong><span>{desktopSelected.candidate.source_section || "Unassigned"}</span></div>
+                          <div className="question-import-focused-buttons">
+                            <button type="button" className="pp-button secondary" disabled={desktopPosition===0} onClick={()=>setDesktopCandidateId(visibleCandidates[desktopPosition-1].candidate.candidate_id)}>Previous</button>
+                            <button type="button" className="pp-button secondary" disabled={desktopPosition>=visibleCandidates.length-1} onClick={()=>setDesktopCandidateId(visibleCandidates[desktopPosition+1].candidate.candidate_id)}>Next</button>
+                          </div>
+                        </div>
+                        <CandidateEditor key={desktopSelected.candidate.candidate_id} candidate={desktopSelected.candidate} displayNumber={desktopSelected.index+1} topicName={inspection.topic.name} structurallyBlocked={structurallyBlocked} enriching={enrichingIds.has(desktopSelected.candidate.candidate_id)} onUpdate={updateCandidate} onEditSource={editSource} onAddChoice={addChoice} onRemoveChoice={removeChoice} onRemove={removeCandidate} onGenerate={generateExplanations}/>
+                      </>:<div className="question-import-empty-filter">No questions match the current filter.</div>}
+                    </div>
+                  </div>
                 )}
 
                 <div className="question-import-publish-bar">
