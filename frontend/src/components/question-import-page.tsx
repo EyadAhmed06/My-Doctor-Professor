@@ -914,7 +914,7 @@ export function QuestionImportPage() {
     });
   }
 
-  async function publishApproved() {
+  async function publishApproved(scopeIds?: string[]) {
     if (!inspection) return;
     if (inspection.summary?.structurally_complete === false) {
       notify({
@@ -924,7 +924,7 @@ export function QuestionImportPage() {
       });
       return;
     }
-    const approved = candidates.filter((candidate) => candidate.approved);
+    const approved = scopeIds ? candidates.filter((candidate) => scopeIds.includes(candidate.candidate_id)) : candidates.filter((candidate) => candidate.approved);
     if (!approved.length) {
       notify({ title: "Nothing approved", description: "Approve at least one reviewed question first.", tone: "info" });
       return;
@@ -938,6 +938,8 @@ export function QuestionImportPage() {
       return;
     }
 
+    const releaseLabel = scopeIds ? `${approved.length} selected question(s)` : `${approved.length} approved question(s)`;
+    if (!window.confirm(`Publish ${releaseLabel} to the selected academic destination? Only these questions will be sent.`)) return;
     setPublishing(true);
     setError(null);
     try {
@@ -1319,6 +1321,7 @@ export function QuestionImportPage() {
                             <button type="button" className="pp-button secondary" disabled={desktopPosition>=visibleCandidates.length-1} onClick={()=>setDesktopCandidateId(visibleCandidates[desktopPosition+1].candidate.candidate_id)}>Next</button>
                           </div>
                         </div>
+                        <div className="question-import-focused-direct-actions"><button type="button" className="pp-button" disabled={publishing || enrichingIds.size>0 || structurallyBlocked || !candidateIsPublishable(desktopSelected.candidate)} onClick={()=>void publishApproved([desktopSelected.candidate.candidate_id])}><FiCheck/>Publish this question only</button><button type="button" className="pp-button secondary" disabled={publishing || enrichingIds.size>0 || structurallyBlocked} onClick={()=>void publishApproved(candidates.filter((candidate)=>candidate.source_section===desktopSelected.candidate.source_section).map((candidate)=>candidate.candidate_id).filter((id)=>candidates.some((candidate)=>candidate.candidate_id===id&&candidateIsPublishable(candidate))))}>Publish ready questions in this lecture only</button></div>
                         <CandidateEditor key={desktopSelected.candidate.candidate_id} candidate={desktopSelected.candidate} displayNumber={desktopSelected.index+1} topicName={inspection.topic.name} structurallyBlocked={structurallyBlocked} enriching={enrichingIds.has(desktopSelected.candidate.candidate_id)} onUpdate={updateCandidate} onEditSource={editSource} onAddChoice={addChoice} onRemoveChoice={removeChoice} onRemove={removeCandidate} onGenerate={generateExplanations}/>
                       </>:<div className="question-import-empty-filter">No questions match the current filter.</div>}
                     </div>
