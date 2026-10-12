@@ -363,7 +363,6 @@ function useMobileQuestionReview() {
 type CandidateEditorProps = {
   candidate: Candidate;
   displayNumber: number;
-  topicName: string;
   structurallyBlocked: boolean;
   enriching: boolean;
   onUpdate: (candidateId: string, updater: (candidate: Candidate) => Candidate) => void;
@@ -377,7 +376,6 @@ type CandidateEditorProps = {
 const CandidateEditor = memo(function CandidateEditor({
   candidate,
   displayNumber,
-  topicName,
   structurallyBlocked,
   enriching,
   onUpdate,
@@ -1319,7 +1317,7 @@ export function QuestionImportPage() {
                           </div>
                         </div>
                         <div className="question-import-focused-direct-actions"><button type="button" className="pp-button" disabled={publishing || enrichingIds.size>0 || structurallyBlocked || !candidateIsPublishable(desktopSelected.candidate)} onClick={()=>void publishApproved([desktopSelected.candidate.candidate_id])}><FiCheck/>Publish this question only</button><button type="button" className="pp-button secondary" disabled={publishing || enrichingIds.size>0 || structurallyBlocked} onClick={()=>void publishApproved(candidates.filter((candidate)=>candidate.source_section===desktopSelected.candidate.source_section).map((candidate)=>candidate.candidate_id))}>Publish ready questions in this lecture only</button></div>
-                        <CandidateEditor key={desktopSelected.candidate.candidate_id} candidate={desktopSelected.candidate} displayNumber={desktopSelected.index+1} topicName={inspection.topic.name} structurallyBlocked={structurallyBlocked} enriching={enrichingIds.has(desktopSelected.candidate.candidate_id)} onUpdate={updateCandidate} onEditSource={editSource} onAddChoice={addChoice} onRemoveChoice={removeChoice} onRemove={removeCandidate} onGenerate={generateExplanations}/>
+                        <CandidateEditor key={desktopSelected.candidate.candidate_id} candidate={desktopSelected.candidate} displayNumber={desktopSelected.index+1} structurallyBlocked={structurallyBlocked} enriching={enrichingIds.has(desktopSelected.candidate.candidate_id)} onUpdate={updateCandidate} onEditSource={editSource} onAddChoice={addChoice} onRemoveChoice={removeChoice} onRemove={removeCandidate} onGenerate={generateExplanations}/>
                       </>:<div className="question-import-empty-filter">No questions match the current filter.</div>}
                     </div>
                   </div>
