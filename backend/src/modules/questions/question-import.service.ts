@@ -737,14 +737,6 @@ export class QuestionImportService {
       select: { id: true, questionText: true, isActive: true, topicId: true },
       take: 1000,
     });
-    const topicCorpus = [
-      topic.topicName,
-      topic.description || '',
-      topic.lecture?.title || '',
-      topic.lecture?.description || '',
-      ...existing.slice(0, 100).map((question) => question.questionText),
-    ].join(' ');
-    const topicReferenceTokens = new Set(this.tokens(topicCorpus));
     const existingFingerprints = this.prepareExistingQuestions(existing);
 
     for (const [index, candidate] of selected.entries()) {
