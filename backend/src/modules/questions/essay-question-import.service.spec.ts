@@ -191,6 +191,20 @@ Second answer
     expect(candidates.every((candidate: any) => candidate.status === 'VALID')).toBe(true);
   });
 
+  it('does not append a next-page running header to a lecture title', () => {
+    const pages = [
+      { page: 10, text: 'Lecture 1 : Anatomy nervous system' },
+      { page: 11, text: 'My Doctor& The Professor (Week Two) Page|11\\n1) List two types of neural cells.\\nAnswers of Lecture 1 : Anatomy nervous system\\n1)\\nNeurons and glial cells.' },
+    ];
+    const candidates = (service as any).parseEssayCases({
+      pages, pageCount: 2, text: pages.map(page => page.text).join('\\n'), extractionConfidence: 1,
+    }, 'a'.repeat(64));
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].case_stem).toBe('Anatomy nervous system');
+    expect(candidates[0].model_answer).toContain('Neurons and glial cells');
+  });
+
   it('leaves questions with no source answer invalid instead of calling an AI answer generator', () => {
     const candidates = parse(`
       Final 2028
