@@ -190,8 +190,17 @@ export class QuestionImportService {
         return [{ ...item, source_section: item.source_section ?? item.source_lecture ?? inheritedTitle }];
       }
       const nested = item.questions ?? item.lectures ?? item.cases ?? item.sections ?? item.modules;
+      if (item.modules !== undefined && (!Array.isArray(item.modules) || !item.modules.length))
+        throw new BadRequestException('Modules must be a non-empty array');
       if (!Array.isArray(nested) || nested.length === 0)
         throw new BadRequestException('An import section needs questions, or a question needs an options array');
+      if (item.modules !== undefined) {
+        item.modules.forEach((mod, index) => {
+          const entry = record(mod);
+          if (!entry || typeof entry.title !== 'string' || !entry.title.trim() || !Array.isArray(entry.questions) || !entry.questions.length)
+            throw new BadRequestException(`Module ${index + 1} needs a title and a non-empty questions array`);
+        });
+      }
       const title = typeof item.title === 'string' && item.title.trim()
         ? item.title.trim()
         : typeof item.name === 'string' && item.name.trim() ? item.name.trim() : inheritedTitle;
