@@ -341,6 +341,25 @@ describe('QuestionImportService', () => {
     expect(inspection.candidates[0].source_section).toBe('Pulmonary circulation');
   });
 
+  it('parses a standalone PDF question using Q1: numbering', () => {
+    const service = Object.create(QuestionImportService.prototype) as QuestionImportService;
+    const content = [
+      'Q1: Which chamber receives oxygenated blood from pulmonary veins?',
+      'A) Right atrium',
+      'B) Left atrium',
+      'C) Right ventricle',
+      'D) Left ventricle',
+      'Answer: B',
+    ].join('\\n');
+    const parsed = (service as any).parseSectionQuestions(
+      {title:null,text:content,offset:0},content,new Map([[1,{label:'B',page:1}]]),
+    );
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].questionText).toContain('Which chamber');
+    expect(parsed[0].correctLabel).toBe('B');
+    expect(parsed[0].options).toHaveLength(4);
+  });
+
   it('rejects JSON with an ambiguous source answer key', async () => {
     const { service } = build();
     const questions = [{ question_text: 'Which chamber receives pulmonary venous blood?',
