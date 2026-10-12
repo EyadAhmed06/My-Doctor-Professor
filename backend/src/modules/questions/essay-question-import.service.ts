@@ -293,10 +293,11 @@ export class EssayQuestionImportService {
 
       const caseStemRaw = questionPart.slice(0, questionMatches[0].index ?? 0);
       const preQuestionText = this.cleanInline(this.removePageMarkers(caseStemRaw));
-      // Lecture headings may wrap onto a second line in the source PDF.
-      // Only treat short pre-question fragments as a title continuation.
+      // A lecture title can wrap within its own page, but the next page's
+      // running header must never become part of the lecture title.
+      const samePageTitleRemainder = this.cleanInline(caseStemRaw.split(/\[\[PAGE:\d+\]\]/)[0]);
       const caseStem = isLecture
-        ? ([lectureTitle, ...(preQuestionText.length > 0 && preQuestionText.length <= 60 ? [preQuestionText] : [])].filter(Boolean).join(' ') || `Lecture ${caseNumber}`)
+        ? ([lectureTitle, ...(samePageTitleRemainder.length > 0 && samePageTitleRemainder.length <= 60 ? [samePageTitleRemainder] : [])].filter(Boolean).join(' ') || `Lecture ${caseNumber}`)
         : preQuestionText;
       const questionNumbers = questionMatches.map((item) => Number(item[1]));
       const answerMap = this.parseAnswerMap(answerPart, questionNumbers);
