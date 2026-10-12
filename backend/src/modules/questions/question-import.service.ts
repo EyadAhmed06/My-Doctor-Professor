@@ -176,8 +176,6 @@ export class QuestionImportService {
     let payload: unknown;
     try { payload = JSON.parse(file.buffer.toString('utf8').replace(/^\uFEFF/, ''), (_key, value) => typeof value === 'string' ? value.replace(/\u0000/g, ' ') : value); }
     catch { throw new BadRequestException('The file does not contain valid UTF-8 JSON'); }
-    const root = payload && typeof payload === 'object' && !Array.isArray(payload)
-      ? payload as Record<string, unknown> : undefined;
     // Accept a single question, a flat list, or arbitrarily selected groups
     // (lecture/case/section/module), without requiring a complete collection.
     const record = (value: unknown): Record<string, unknown> | null =>
