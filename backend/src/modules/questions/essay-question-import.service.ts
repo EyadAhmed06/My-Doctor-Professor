@@ -135,6 +135,74 @@ export class EssayQuestionImportService {
     };
   }
 
+  async inspectJson(copyrightConfirmed: boolean, file: UploadedResourceFile | undefined) {
+    if (!copyrightConfirmed) throw new BadRequestException('Confirm permission to use this material');
+    if (!file?.buffer?.length || !/\\.(json|txt)$/i.test(file.originalname || '') || file.size > 2 * 1024 * 1024)
+      throw new BadRequestException('Select a non-empty JSON or JSON text file up to 2 MB');
+    let payload: unknown;
+    try { payload = JSON.parse(file.buffer.toString('utf8').replace(/^\\uFEFF/, '')); }
+    catch { throw new BadRequestException('File is not valid UTF-8 JSON'); }
+    type JsonRow = Record<string, unknown>;
+    const record = (value: unknown): JsonRow | null =>
+      value && typeof value === 'object' && !Array.isArray(value) ? value as JsonRow : null;
+    const root = record(payload);
+    const blocks: Array<{ type: 'CASE'|'LECTURE'; number: number; title: string; stem: string; questions: unknown[] }> = [];
+    const ingest = (raw: unknown, defaultType: 'CASE'|'LECTURE', index: number) => {
+      const obj = record(raw);
+      if (!obj) throw new BadRequestException(`Section ${index + 1} must be an object`);
+      const kind = String(obj.type ?? obj.block_type ?? defaultType).toUpperCase();
+      if (kind !== 'CASE' && kind !== 'LECTURE') throw new BadRequestException('Section type must be CASE or LECTURE');
+      const number = Number(obj.number ?? obj.case_number ?? obj.lecture_number ?? index + 1);
+      const title = String(obj.title ?? obj.name ?? `${kind === 'CASE' ? 'Case' : 'Lecture'} ${number}`).trim();
+      const stem = String(obj.stem ?? obj.case_stem ?? (kind === 'LECTURE' ? title : '')).trim();
+      if (!Number.isInteger(number) || number < 1 || number > 999 || !title || !Array.isArray(obj.questions))
+        throw new BadRequestException(`Section ${index + 1} needs a valid number, title and questions array`);
+      blocks.push({type:kind,number,title,stem,questions:obj.questions});
+    };
+    if (Array.isArray(payload)) {
+      if (payload.some(row => record(row)?.questions !== undefined)) payload.forEach((row,i)=>ingest(row,'LECTURE',i));
+      else ingest({ title:'Standalone lecture',questions:payload },'LECTURE',0);
+    } else if (root) {
+      if (Array.isArray(root.sections)) root.sections.forEach((row,i)=>ingest(row,'LECTURE',i));
+      else if (Array.isArray(root.cases) || Array.isArray(root.lectures)) {
+        (root.cases as unknown[] | undefined)?.forEach((row,i)=>ingest(row,'CASE',i));
+        (root.lectures as unknown[] | undefined)?.forEach((row,i)=>ingest(row,'LECTURE',i));
+      } else ingest(root, 'LECTURE', 0);
+    } else throw new BadRequestException('JSON must contain a question, questions, sections, cases or lectures');
+    if (blocks.length > 100) throw new BadRequestException('Maximum 100 sections per import');
+    const sha256 = createHash('sha256').update(file.buffer).digest('hex');
+    const candidates: EssayCandidate[] = [];
+    for (const block of blocks) {
+      for (let i=0; i<block.questions.length; i++) {
+        const question = record(block.questions[i]);
+        if (!question) throw new BadRequestException(`Invalid question in ${block.title}`);
+        const questionText = String(question.question_text ?? question.question ?? question.prompt ?? '').trim();
+        const answer = String(question.model_answer ?? question.answer ?? '').trim() || null;
+        const questionNumber = Number(question.question_number ?? question.number ?? i+1);
+        if (!questionText || questionText.length > 10000 || !Number.isInteger(questionNumber) || questionNumber < 1 || questionNumber > 999)
+          throw new BadRequestException(`Invalid question text or number in ${block.title}`);
+        const issues: EssayIssue[] = answer ? [] : [{code:'MODEL_ANSWER_MISSING',severity:'ERROR',message:'Provide a source model answer before publishing.'}];
+        const section = block.type === 'LECTURE' ? `Lecture ${block.number}: ${block.title}` : block.title;
+        candidates.push({
+          candidate_id:createHash('sha256').update(`${sha256}:${section}:${block.number}:${questionNumber}:${questionText}`).digest('hex').slice(0,24),
+          section,block_type:block.type,case_number:block.number,case_label:`${section} · Q${questionNumber}`,
+          case_stem:block.stem || block.title,question_number:questionNumber,question_text:questionText,
+          model_answer:answer,answer_origin:answer?'SOURCE':'MISSING',source_page:null,answer_page:null,
+          extraction_confidence:1,status:issues.length?'INVALID':'VALID',issues,
+        });
+      }
+    }
+    if (!candidates.length || candidates.length > MAX_CANDIDATES) throw new BadRequestException('JSON needs 1–500 essay questions');
+    return {
+      original_filename:this.safeFilename(file.originalname),file_sha256:sha256,file_size:file.size,page_count:0,
+      extraction_method:'JSON',extraction_confidence:1,status:'REVIEW_REQUIRED',
+      summary:{cases:blocks.filter(b=>b.type==='CASE').length,lectures:blocks.filter(b=>b.type==='LECTURE').length,
+        extracted:candidates.length,valid:candidates.filter(c=>c.status==='VALID').length,needs_review:0,invalid:candidates.filter(c=>c.status==='INVALID').length},
+      parser:{schema_version:'2.2',requested_document_type:'ESSAY',detected_document_type:'ESSAY',answer_key:{},mapped_answers:candidates.filter(c=>c.answer_origin==='SOURCE').length,generated_answers:0},
+      issues:[] as EssayIssue[],candidates,
+    };
+  }
+
   async publish(dto: PublishEssayQuestionImportDto, actor: AuthenticatedUser) {
     if (!dto.copyright_confirmed) {
       throw new BadRequestException('Publication requires confirmation that you have permission to use this material');
