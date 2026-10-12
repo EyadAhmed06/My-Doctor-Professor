@@ -292,7 +292,12 @@ export class EssayQuestionImportService {
       if (!questionMatches.length) continue;
 
       const caseStemRaw = questionPart.slice(0, questionMatches[0].index ?? 0);
-      const caseStem = isLecture ? (lectureTitle || `Lecture ${caseNumber}`) : this.cleanInline(this.removePageMarkers(caseStemRaw));
+      const preQuestionText = this.cleanInline(this.removePageMarkers(caseStemRaw));
+      // Lecture headings may wrap onto a second line in the source PDF.
+      // Only treat short pre-question fragments as a title continuation.
+      const caseStem = isLecture
+        ? ([lectureTitle, ...(preQuestionText.length > 0 && preQuestionText.length <= 60 ? [preQuestionText] : [])].filter(Boolean).join(' ') || `Lecture ${caseNumber}`)
+        : preQuestionText;
       const questionNumbers = questionMatches.map((item) => Number(item[1]));
       const answerMap = this.parseAnswerMap(answerPart, questionNumbers);
       const casePage = this.pageBefore(stream, start);
