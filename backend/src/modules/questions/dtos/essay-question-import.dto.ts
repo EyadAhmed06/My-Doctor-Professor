@@ -6,6 +6,7 @@ import {
   IsBoolean,
   IsEnum,
   IsInt,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -26,6 +27,7 @@ const BooleanForm = () => Transform(({ value }) => {
 
 export class InspectEssayQuestionImportDto {
   @BooleanForm() @IsBoolean() copyright_confirmed: boolean;
+  @IsOptional() @IsIn(['AUTO', 'CASE', 'LECTURE']) content_type?: 'AUTO' | 'CASE' | 'LECTURE';
 }
 
 export class PublishEssayImportCandidateDto {
