@@ -22,6 +22,7 @@ type EssayIssue = { code: string; severity: 'INFO' | 'WARNING' | 'ERROR'; messag
 type EssayCandidate = {
   candidate_id: string;
   section: string;
+  block_type: 'CASE' | 'LECTURE';
   case_number: number;
   case_label: string;
   case_stem: string;
@@ -66,7 +67,7 @@ export class EssayQuestionImportService {
         extraction_method: 'TEXT_LAYER',
         extraction_confidence: pdf.extractionConfidence,
         status: 'NEEDS_OCR',
-        summary: { cases: 0, extracted: 0, valid: 0, needs_review: 0, invalid: 0 },
+        summary: { cases: 0, lectures: 0, extracted: 0, valid: 0, needs_review: 0, invalid: 0 },
         parser: {
           schema_version: '2.1', requested_document_type: 'ESSAY_CASES',
           detected_document_type: 'UNKNOWN' as QuestionDocumentType, answer_key: {}, mapped_answers: 0,
@@ -91,12 +92,13 @@ export class EssayQuestionImportService {
     const valid = parsed.filter((item) => item.status === 'VALID').length;
     const needsReview = parsed.filter((item) => item.status === 'NEEDS_REVIEW').length;
     const invalid = parsed.filter((item) => item.status === 'INVALID').length;
-    const cases = new Set(parsed.map((item) => `${item.section}:${item.case_number}`)).size;
+    const cases = new Set(parsed.filter((item) => item.block_type === 'CASE').map((item) => `${item.section}:${item.case_number}`)).size;
+    const lectures = new Set(parsed.filter((item) => item.block_type === 'LECTURE').map((item) => `${item.section}:${item.case_number}`)).size;
     const issues: EssayIssue[] = [];
     if (parsed.length === 0) {
       issues.push({
         code: 'NO_ESSAY_QUESTIONS_DETECTED', severity: 'ERROR',
-        message: 'No case-based essay questions were detected. Supported formats include CASE N with numbered prompts (for example 1:, 1., Q1.) and Answer/Answers sections.',
+        message: 'No essay questions were detected. Supported formats include CASE N or Lecture N: Title with numbered prompts and corresponding answer sections.',
       });
     }
     if (parsed.length >= MAX_CANDIDATES) {
@@ -114,7 +116,7 @@ export class EssayQuestionImportService {
       extraction_method: pdf.extractionMethod ?? 'TEXT_LAYER',
       extraction_confidence: pdf.extractionConfidence,
       status: parsed.length ? 'REVIEW_REQUIRED' : 'NO_QUESTIONS',
-      summary: { cases, extracted: parsed.length, valid, needs_review: needsReview, invalid },
+      summary: { cases, lectures, extracted: parsed.length, valid, needs_review: needsReview, invalid },
       parser: {
         schema_version: '2.1', requested_document_type: 'ESSAY_CASES',
         detected_document_type: documentType,
@@ -220,8 +222,8 @@ export class EssayQuestionImportService {
     //   CASE 1:
     //   Case 1: stem on the same line
     // Anchoring at line start prevents "Answers of case 1" from being mistaken for a new case.
-    const casePattern = /(?:^|\n)\s*CASE\s*(\d{1,3})\s*:?\s*/gim;
-    const matches = [...stream.matchAll(casePattern)];
+    const blockPattern = /(?:^|\n)[ \t]*(?:CASE[ \t]+(\d{1,3})[ \t]*:?[ \t]*|Lecture[ \t]+(\d{1,3})[ \t]*:[ \t]*([^\n]*))/gim;
+    const matches = [...stream.matchAll(blockPattern)];
     const sectionPattern = /\b(Final\s+20\d{2}|Full\s+nephrology\s+exam(?:\s*\([^)]*\))?)/gi;
     const candidates: EssayCandidate[] = [];
     let section = 'Essay collection';
@@ -236,13 +238,15 @@ export class EssayQuestionImportService {
       if (preludeSections.length) section = this.cleanInline(preludeSections[preludeSections.length - 1][1]);
 
       const nextCaseStart = index + 1 < matches.length ? (matches[index + 1].index ?? stream.length) : stream.length;
-      const caseNumber = Number(match[1]);
+      const isLecture = Boolean(match[2]);
+      const caseNumber = Number(match[1] ?? match[2]);
+      const lectureTitle = isLecture ? this.cleanInline(match[3] || '') : '';
       const rawCaseBlock = stream.slice(contentStart, nextCaseStart);
 
       // Newer essay packs commonly keep each answer key directly inside its case and
       // label it simply "Answer:" or "Answers:". Legacy packs may use
       // "Answers of case N" later in the document. Support both deterministically.
-      const localAnswerPattern = /(?:^|\n)\s*(?:Answers?(?:\s+of\s+(?:[^\n]*?\s+)?case\s*\d{1,3})?|Model\s+Answers?)\s*:?\s*(?=\n|$)/im;
+      const localAnswerPattern = /(?:^|\n)[ \t]*(?:Answers?(?:[ \t]+(?:of|for)[ \t]+(?:[^\n]*?[ \t]+)?(?:case|lecture)[ \t]+\d{1,3}(?:[ \t]*:[^\n]*)?)?|Model[ \t]+Answers?)[ \t]*:?[ \t]*(?=\n|$)/im;
       const localAnswerMatch = localAnswerPattern.exec(rawCaseBlock);
 
       let questionPart = rawCaseBlock;
@@ -258,11 +262,11 @@ export class EssayQuestionImportService {
       } else {
         // Case numbers can restart in a later exam. Never allow an answer key from
         // the later exam to satisfy a question in the earlier one.
-        const nextSameCase = matches.slice(index + 1).find((item) => Number(item[1]) === caseNumber);
+        const nextSameCase = matches.slice(index + 1).find((item) => Number(item[1] ?? item[2]) === caseNumber && Boolean(item[2]) === isLecture);
         const answerScopeEnd = nextSameCase?.index ?? stream.length;
         const answerSearch = stream.slice(start, answerScopeEnd);
         const answerMarker = new RegExp(
-          `(?:^|\\n)\\s*Answers?\\s+of\\s+(?:[^\\n]*?\\s+)?case\\s*${caseNumber}\\s*:?\\s*(?=\\n|$)`,
+          `(?:^|\\n)[ \\t]*Answers?[ \\t]+(?:of|for)[ \\t]+(?:[^\\n]*?[ \\t]+)?${isLecture ? 'lecture' : 'case'}[ \\t]*${caseNumber}(?:[ \\t]*:[^\\n]*)?[ \\t]*(?=\\n|$)`,
           'im',
         );
         const answerMatch = answerMarker.exec(answerSearch);
@@ -271,7 +275,7 @@ export class EssayQuestionImportService {
           : null;
 
         const answerTail = answerStart === null ? '' : stream.slice(answerStart, answerScopeEnd);
-        const nextAnswerOffset = answerTail.search(/(?:^|\n)\s*Answers?\s+of\s+(?:[^\n]*?\s+)?case\s*\d{1,3}\s*:?\s*(?=\n|$)/im);
+        const nextAnswerOffset = answerTail.search(/(?:^|\n)[ \t]*Answers?[ \t]+(?:of|for)[ \t]+(?:[^\n]*?[ \t]+)?(?:case|lecture)[ \t]+\d{1,3}(?:[ \t]*:[^\n]*)?[ \t]*(?=\n|$)/im);
         answerEnd = answerStart === null
           ? null
           : nextAnswerOffset >= 0 ? answerStart + nextAnswerOffset : answerScopeEnd;
@@ -288,7 +292,7 @@ export class EssayQuestionImportService {
       if (!questionMatches.length) continue;
 
       const caseStemRaw = questionPart.slice(0, questionMatches[0].index ?? 0);
-      const caseStem = this.cleanInline(this.removePageMarkers(caseStemRaw));
+      const caseStem = isLecture ? (lectureTitle || `Lecture ${caseNumber}`) : this.cleanInline(this.removePageMarkers(caseStemRaw));
       const questionNumbers = questionMatches.map((item) => Number(item[1]));
       const answerMap = this.parseAnswerMap(answerPart, questionNumbers);
       const casePage = this.pageBefore(stream, start);
@@ -312,7 +316,7 @@ export class EssayQuestionImportService {
           : null;
 
         const issues: EssayIssue[] = [];
-        if (!caseStem) {
+        if (!isLecture && !caseStem) {
           issues.push({
             code: 'CASE_STEM_MISSING',
             severity: 'WARNING',
@@ -337,14 +341,16 @@ export class EssayQuestionImportService {
         const status: EssayCandidate['status'] = issues.some((issue) => issue.severity === 'ERROR')
           ? 'INVALID'
           : issues.length ? 'NEEDS_REVIEW' : 'VALID';
-        const caseLabel = `${section} · Case ${caseNumber} · Q${questionNumber}`;
+        const blockSection = isLecture ? `Lecture ${caseNumber}: ${caseStem}` : section;
+        const caseLabel = `${blockSection} · ${isLecture ? '' : `Case ${caseNumber} · `}Q${questionNumber}`;
 
         candidates.push({
           candidate_id: createHash('sha256')
-            .update(`${sha256}:${section}:${caseNumber}:${questionNumber}:${questionText}`)
+            .update(`${sha256}:${blockSection}:${isLecture ? 'LECTURE' : 'CASE'}:${caseNumber}:${questionNumber}:${questionText}`)
             .digest('hex')
             .slice(0, 24),
-          section,
+          section: blockSection,
+          block_type: isLecture ? 'LECTURE' : 'CASE',
           case_number: caseNumber,
           case_label: caseLabel,
           case_stem: caseStem,
