@@ -971,9 +971,18 @@ export function QuestionImportPage() {
         },
       });
       notify({ title: "Question bank updated", description: `${result.created} created · ${result.reused} reused · ${result.skipped} skipped.`, tone: "success" });
-      setInspection(null);
-      setCandidates([]);
-      setFile(null);
+      if (scopeIds) {
+        // Keep every unselected candidate in the current inspection so the
+        // instructor can continue reviewing and publishing other lectures.
+        const submitted = new Set(approved.map((candidate) => candidate.candidate_id));
+        setCandidates((current) => current.filter((candidate) => !submitted.has(candidate.candidate_id)));
+        setDesktopCandidateId(null);
+        setMobileCandidateId(null);
+      } else {
+        setInspection(null);
+        setCandidates([]);
+        setFile(null);
+      }
     } catch (cause) {
       const message = inspectionErrorMessage(cause);
       setError(message);
