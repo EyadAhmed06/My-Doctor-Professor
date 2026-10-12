@@ -283,7 +283,12 @@ export class EssayQuestionImportService {
   }
 
   private parseEssayCases(pdf: ParsedPdf, sha256: string): EssayCandidate[] {
-    const stream = pdf.pages.map((page) => `\n[[PAGE:${page.page}]]\n${this.cleanPageText(page.text)}`).join('\n');
+    const rawStream = pdf.pages.map((page) => `\n[[PAGE:${page.page}]]\n${this.cleanPageText(page.text)}`).join('\n');
+    // Standalone essay PDFs often have questions and an Answer section but
+    // no "Lecture 1" heading. Give these an explicit editable review group.
+    // Never infer a clinical case from an unlabelled passage.
+    const containsBlocks = /(?:^|\n)[ \t]*(?:CASE[ \t]+\d{1,3}|Lecture[ \t]+\d{1,3}[ \t]*:)/im.test(rawStream);
+    const stream = containsBlocks ? rawStream : `\nLecture 1: Standalone lecture\n${rawStream}`;
 
     // Accept the essay formats we receive in practice:
     //   CASE 1
