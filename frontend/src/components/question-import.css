@@ -400,3 +400,24 @@
     transition: none;
   }
 }
+
+
+/* Focused MCQ review: compact question navigator + single editor. */
+.question-import-focused-workspace { display:grid; grid-template-columns:minmax(190px,245px) minmax(0,1fr); gap:16px; align-items:start; }
+.question-import-focused-sidebar { position:sticky; top:82px; max-height:calc(100dvh - 110px); overflow:auto; border:1px solid var(--pp-border,#253352); border-radius:14px; padding:14px; background:var(--pp-surface,#10182d); overscroll-behavior:contain; }
+.question-import-focused-sidebar-title { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px; }
+.question-import-focused-sidebar-title span { font-size:12px; opacity:.7; }
+.question-import-focused-section { margin-bottom:14px; }
+.question-import-focused-section > strong { display:block; font-size:12px; margin-bottom:7px; overflow-wrap:anywhere; }
+.question-import-focused-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; }
+.question-import-focused-grid button { min-height:36px; border:1px solid var(--pp-border,#253352); border-radius:7px; background:transparent; color:inherit; cursor:pointer; font-size:12px; }
+.question-import-focused-grid button.active, .question-import-focused-grid button[aria-current="true"] { background:rgba(73,215,204,.15); border-color:rgba(73,215,204,.8); font-weight:800; }
+.question-import-focused-grid button:focus-visible { outline:2px solid #49d7cc; outline-offset:2px; }
+.question-import-focused-editor { min-width:0; }
+.question-import-focused-navigation { position:sticky; top:8px; z-index:5; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:12px; padding:10px 14px; border:1px solid var(--pp-border,#253352); border-radius:12px; background:var(--pp-surface,#10182d); }
+.question-import-focused-navigation > div:first-child { display:grid; gap:2px; }
+.question-import-focused-navigation span { font-size:12px; opacity:.7; }
+.question-import-focused-buttons { display:flex; gap:8px; }
+.question-import-focused-editor .question-import-candidate { content-visibility:visible; contain-intrinsic-size:auto; }
+@media(max-width:1000px){ .question-import-focused-workspace{ grid-template-columns:minmax(155px,200px) minmax(0,1fr); gap:10px; } .question-import-focused-sidebar{padding:10px;} }
+@media(max-width:720px){ .question-import-focused-workspace{display:block;} .question-import-focused-sidebar{position:static;max-height:230px;} }
