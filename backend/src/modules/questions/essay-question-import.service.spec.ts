@@ -285,6 +285,24 @@ Second answer
     expect(inspected.candidates[0]).toMatchObject({block_type:'LECTURE',model_answer:'Neurons and glia.'});
   });
 
+  it('preserves each bullet and merges wrapped lines within an answer', () => {
+    const candidates = parse(`
+      Case 1
+      Patient has progressive difficulty swallowing.
+      Q1. List the important clinical findings.
+      Answers for case 1
+      Q1.
+      • Dysphagia to solids and fluids.
+      • Progressive nocturnal regurgitation
+        of undigested food.
+      • Weight loss.
+    `);
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].model_answer).toBe(
+      '• Dysphagia to solids and fluids.\\n• Progressive nocturnal regurgitation of undigested food.\\n• Weight loss.',
+    );
+  });
+
   it('leaves questions with no source answer invalid instead of calling an AI answer generator', () => {
     const candidates = parse(`
       Final 2028
