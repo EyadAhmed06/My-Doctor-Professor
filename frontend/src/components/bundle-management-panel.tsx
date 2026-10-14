@@ -187,6 +187,25 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
     }, isFree ? "Bundle is now free" : "Paid bundle price saved");
   }
 
+  async function deleteBundle() {
+    if (busy || !data) return;
+    if (data.students.enrollments.length) {
+      notify({ title: "Cannot delete an enrolled bundle", description: "This bundle has enrollment or payment history. Archive it instead.", tone: "error" });
+      return;
+    }
+    const name = data.bundle.title;
+    if (!window.confirm(`Permanently delete bundle "${name}"? Curriculum courses, weeks and questions themselves will remain; only their bundle links are removed.`)) return;
+    if (window.prompt(`Type DELETE BUNDLE to permanently delete "${name}"`) !== "DELETE BUNDLE") return;
+    setBusy(true);
+    try {
+      await request(`/bundles/${bundleId}`, { method: "DELETE" });
+      notify({ title: "Bundle deleted", description: `"${name}" has been permanently removed.`, tone: "success" });
+      await onChanged?.();
+    } catch (cause) {
+      notify({ title: "Could not delete bundle", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
+    } finally { setBusy(false); }
+  }
+
   const enrollments = data?.students?.enrollments;
   const sortedEnrollments = useMemo(() => {
     if (!enrollments) return [];
@@ -208,6 +227,10 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
   }
 
   return <section className="bundle-management-stack">
+    <Panel title="Delete bundle">
+      <p>Delete this bundle and its membership links. Original courses, weeks, questions and tests are preserved. Bundles with enrollment or payment history cannot be deleted.</p>
+      <button type="button" className="pp-button secondary" disabled={busy} onClick={() => void deleteBundle()}><FiTrash2 /> Delete bundle permanently</button>
+    </Panel>
     <Panel
       title={data.bundle.semesterNumber || data.bundle.semester_number ? `Bundle access (Semester ${data.bundle.semesterNumber ?? data.bundle.semester_number})` : "Bundle access"}
       className="bundle-management-policy"
