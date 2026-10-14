@@ -20,7 +20,8 @@ import {
   FiUnlock,
   FiUserCheck,
   FiUsers,
-  FiX,, FiTrash2 } from "react-icons/fi";
+  FiX,
+} from "react-icons/fi";
 import type { IconType } from "react-icons";
 import { PageSkeleton } from "./async-state";
 import { useAuth, type UserRole } from "./auth-provider";
