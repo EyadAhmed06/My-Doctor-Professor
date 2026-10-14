@@ -205,6 +205,31 @@ export class BundlesService {
     }
   }
 
+  async deleteBundle(id: string, actor: AuthenticatedUser): Promise<void> {
+    await this.assertManager(id, actor);
+    await this.dataSource.transaction(async manager => {
+      const bundle = await manager.findOne(Bundle, { where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (!bundle) throw new NotFoundException('Bundle not found');
+      const [enrollments, grants] = await Promise.all([
+        manager.count(BundleEnrollment, { where: { bundleId: id } }),
+        manager.count(BundlePlanGrant, { where: { bundleId: id } }),
+      ]);
+      if (enrollments || grants) {
+        throw new ConflictException('This bundle has student enrollment or purchase history. Archive it instead of deleting it.');
+      }
+      await manager.delete(BundlePlanWeek, { bundleId: id });
+      await manager.delete(BundleTest, { bundleId: id });
+      await manager.delete(BundleWeek, { bundleId: id });
+      await manager.delete(BundleCourse, { bundleId: id });
+      await manager.delete(BundleInstructor, { bundleId: id });
+      try {
+        await manager.delete(Bundle, id);
+      } catch {
+        throw new ConflictException('This bundle has other linked records and cannot be deleted safely. No changes were applied.');
+      }
+    });
+  }
+
   async managed(actor: AuthenticatedUser) {
     let bundlesList: Bundle[] = [];
     if (actor.role === UserRole.SYSTEM_ADMIN) {
