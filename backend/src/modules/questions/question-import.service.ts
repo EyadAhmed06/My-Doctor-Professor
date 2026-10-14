@@ -777,9 +777,9 @@ export class QuestionImportService {
         const byNumber = new Map(existingLectures.map((lecture) => [lecture.lectureNumber, lecture]));
         for (const heading of numberedSections) {
           let lecture = byNumber.get(heading.number);
-          if (lecture && lecture.title.trim().toLocaleLowerCase() !== heading.title.toLocaleLowerCase()) {
-            throw new ConflictException(`Lecture ${heading.number} already exists in this week with a different title. Review its destination before publishing.`);
-          }
+          // Existing lecture numbers are stable curriculum identities. A PDF
+          // heading must never rename an existing lecture or block importing
+          // questions into it merely because its display title differs.
           if (!lecture) {
             lecture = await manager.save(Lecture, manager.create(Lecture, {
               weekId, lectureNumber: heading.number, title: heading.title,
