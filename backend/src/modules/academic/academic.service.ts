@@ -384,17 +384,37 @@ export class AcademicService {
     return saved;
   }
 
-  async deleteWeek(id: string, actor: AuthenticatedUser): Promise<void> {
+  async deleteWeek(id: string, actor: AuthenticatedUser, includeContent = false): Promise<void> {
     await this.assertWeekManager(id, actor);
     const week = await this.weeks.findOne({
       where: { id },
       relations: { lectures: true },
     });
     if (!week) throw new NotFoundException('Week not found');
-    if (week.lectures.length > 0) {
-      throw new ConflictException('Week cannot be deleted while it contains lectures');
+    if (!includeContent && week.lectures.length > 0) {
+      throw new ConflictException('Week contains lectures. Use the separate Delete week and content action to request a full deletion.');
     }
-    await this.removeProtected(() => this.weeks.remove(week));
+    if (!includeContent) {
+      await this.removeProtected(() => this.weeks.remove(week));
+      return;
+    }
+    // Everything succeeds atomically or is rolled back. Never disable FK
+    // constraints or remove protected student progress/attempt records.
+    try {
+      await this.dataSource.transaction(async (manager) => {
+        const current = await manager.findOne(Week, { where: { id }, lock: { mode: 'pessimistic_write' } });
+        if (!current) throw new NotFoundException('Week not found');
+        // Bundle membership is a direct RESTRICT reference to weeks and must
+        // be detached inside the same transaction as the week deletion.
+        await manager.query('DELETE FROM bundle_weeks WHERE week_id = $1', [id]);
+        await manager.delete(Week, id);
+      });
+    } catch (error) {
+      if (error instanceof QueryFailedError) {
+        throw new ConflictException('Week could not be deleted because dependent student history or protected content still references it. No changes were applied.');
+      }
+      throw error;
+    }
   }
 
   async createLecture(weekId: string, dto: CreateLectureDto, actor: AuthenticatedUser): Promise<Lecture> {
