@@ -204,9 +204,10 @@ export class AcademicController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteWeek(
     @Param('weekId', uuid) id: string,
+    @Query('include_content') includeContent: string | undefined,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<void> {
-    await this.academic.deleteWeek(id, user);
+    await this.academic.deleteWeek(id, user, includeContent === 'true');
   }
 
   @Post('weeks/:weekId/lectures')
