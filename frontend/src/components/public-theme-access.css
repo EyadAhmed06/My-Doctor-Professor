@@ -99,3 +99,48 @@ body:has(.public-home) .public-theme-access{display:flex !important;width:auto;h
    Override legacy app-shell language visibility rules on the landing page only. */
 body:has(.public-home) .public-theme-access .global-language-access,
 body:has(.public-home) .global-language-access{display:flex !important;visibility:visible !important;opacity:1 !important;align-items:center;gap:4px}
+
+
+/* The public home owns its language buttons inside the real header.
+   The legacy fixed overlay must never cover its dashboard/login CTA. */
+body:has(.public-home) .public-theme-access,
+body:has(.public-home) .public-theme-access:has(.global-language-access) {
+  display: none !important;
+}
+.public-home .public-nav-language {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  direction: ltr;
+}
+.public-home .public-nav-language button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  min-height: 42px;
+  padding: 7px 10px;
+  border: 1px solid var(--pub-line);
+  border-radius: 10px;
+  color: var(--pub-text);
+  background: var(--pub-panel);
+  cursor: pointer;
+}
+.public-home .public-nav-language button[aria-pressed="true"] {
+  border-color: var(--pub-teal);
+  box-shadow: inset 0 0 0 1px var(--pub-teal);
+}
+@media (max-width: 1000px) {
+  .public-home .public-nav {
+    height: auto;
+    min-height: 88px;
+    flex-wrap: wrap;
+    row-gap: 8px !important;
+    padding-block: 12px;
+  }
+  .public-home .public-nav-language {
+    flex-basis: 100%;
+    justify-content: flex-end;
+  }
+}
