@@ -96,9 +96,10 @@ function statusBadgeClass(status: StudentEnrollment["access_status"]): string {
   }
 }
 
-export function BundleManagementPanel({ bundleId, onChanged }: {
+export function BundleManagementPanel({ bundleId, onChanged, onDeleted }: {
   bundleId: string;
   onChanged?: () => void | Promise<void>;
+  onDeleted?: () => void | Promise<void>;
 }) {
   const { request } = useAuth();
   const { notify } = useUx();
@@ -200,7 +201,7 @@ export function BundleManagementPanel({ bundleId, onChanged }: {
     try {
       await request(`/bundles/${bundleId}`, { method: "DELETE" });
       notify({ title: "Bundle deleted", description: `"${name}" has been permanently removed.`, tone: "success" });
-      await onChanged?.();
+      await onDeleted?.();
     } catch (cause) {
       notify({ title: "Could not delete bundle", description: cause instanceof Error ? cause.message : undefined, tone: "error" });
     } finally { setBusy(false); }
