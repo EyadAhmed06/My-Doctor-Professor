@@ -86,6 +86,16 @@ export class BundlesController {
     return this.bundles.managed(actor);
   }
 
+  @Delete(':bundleId')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteBundle(
+    @Param('bundleId', uuid) id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ): Promise<void> {
+    await this.bundles.deleteBundle(id, actor);
+  }
+
   @Post('enroll')
   @Roles(UserRole.STUDENT)
   enroll(@CurrentUser() actor: AuthenticatedUser, @Body() dto: EnrollByCodeDto) {
