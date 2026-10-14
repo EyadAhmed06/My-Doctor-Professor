@@ -499,7 +499,7 @@ export class EssayQuestionImportService {
     for (let index = 0; index < selected.length; index += 1) {
       const current = selected[index];
       const end = index + 1 < selected.length ? selected[index + 1].index : normalized.length;
-      const answer = this.cleanInline(this.removePageMarkers(normalized.slice(current.contentStart, end)));
+      const answer = this.formatModelAnswer(this.removePageMarkers(normalized.slice(current.contentStart, end)));
       if (answer) {
         map.set(current.number, {
           text: answer,
@@ -534,6 +534,22 @@ export class EssayQuestionImportService {
       .replace(/\t/g, '    ')
       .replace(/[ \t]+$/gm, '')
       .replace(/\n{3,}/g, '\n\n');
+  }
+
+  private formatModelAnswer(text: string) {
+    // Preserve answer structure rather than flattening bullets and newlines.
+    // Source line wraps become spaces; real bullet/numbered entries remain
+    // distinct lines. Never change the clinical wording of the answer.
+    const lines = text.replace(/\r\n?/g, '\n').split('\n');
+    const result: string[] = [];
+    for (const raw of lines) {
+      const line = raw.replace(/[ \t]+/g, ' ').trim();
+      if (!line) continue;
+      const bullet = /^(?:[•●▪◦*\-]|\d+[.)])\s+/.test(line);
+      if (bullet || !result.length) result.push(line);
+      else result[result.length - 1] += ' ' + line;
+    }
+    return result.join('\n').trim();
   }
 
   private cleanInline(text: string) {
