@@ -404,6 +404,21 @@ export class AcademicService {
       await this.dataSource.transaction(async (manager) => {
         const current = await manager.findOne(Week, { where: { id }, lock: { mode: 'pessimistic_write' } });
         if (!current) throw new NotFoundException('Week not found');
+        // Deletion is not allowed if student progress or assessment attempts
+        // reference any part of this week. The transaction rolls back if an
+        // unforeseen FK constraint prevents the deletion as well.
+        const activity = await manager.query(`
+          SELECT (
+            (SELECT COUNT(*) FROM student_lecture_progress slp JOIN lectures l ON l.id=slp.lecture_id WHERE l.week_id=$1)
+            + (SELECT COUNT(*) FROM student_topic_progress stp JOIN topics t ON t.id=stp.topic_id JOIN lectures l ON l.id=t.lecture_id WHERE l.week_id=$1)
+            + (SELECT COUNT(*) FROM student_question_progress sqp JOIN questions q ON q.id=sqp.question_id JOIN topics t ON t.id=q.topic_id JOIN lectures l ON l.id=t.lecture_id WHERE l.week_id=$1)
+            + (SELECT COUNT(*) FROM student_answers sa JOIN questions q ON q.id=sa.question_id JOIN topics t ON t.id=q.topic_id JOIN lectures l ON l.id=t.lecture_id WHERE l.week_id=$1)
+            + (SELECT COUNT(*) FROM test_questions tq JOIN questions q ON q.id=tq.question_id JOIN topics t ON t.id=q.topic_id JOIN lectures l ON l.id=t.lecture_id WHERE l.week_id=$1)
+          ) AS records
+        `, [id]);
+        if (Number(activity[0]?.records || 0) > 0) {
+          throw new ConflictException('Week contains student progress, answers, or assessments. Deletion was cancelled to protect historical records.');
+        }
         // Bundle membership is a direct RESTRICT reference to weeks and must
         // be detached inside the same transaction as the week deletion.
         await manager.query('DELETE FROM bundle_weeks WHERE week_id = $1', [id]);
