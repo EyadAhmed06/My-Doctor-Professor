@@ -70,7 +70,7 @@ const reasons = [
 export function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, loading: authLoading } = useAuth();
-  const { locale } = useLocale();
+  const { locale, setLocale } = useLocale();
   const t = (en: string, ar: string) => locale === "ar" ? ar : en;
   const displayName = user?.fullName || user?.full_name || user?.email || "";
   const firstName = displayName.trim().split(/\s+/)[0] || t("your workspace", "مساحتك");
@@ -94,6 +94,10 @@ export function LandingPage() {
       <div className="public-actions">
         <ThemeToggle iconOnly />
         {authLoading ? <span className="public-session-copy">{t("Restoring session…", "جارٍ استعادة الجلسة…")}</span> : user ? <><span className="public-session-copy">{t(`Signed in as ${firstName}`, `تم تسجيل الدخول باسم ${firstName}`)}</span><Link className="public-button small" href={workspaceHref}>{t("Open dashboard", "فتح لوحة التحكم")} {arrow}</Link></> : <><Link href="/login">{t("Log in", "تسجيل الدخول")}</Link><Link className="public-button small" href="/register">{t("Create account", "إنشاء حساب")} {arrow}</Link></>}
+      </div>
+      <div className="public-nav-language" role="group" aria-label="Interface language">
+        <button type="button" aria-label="العربية" aria-pressed={locale === "ar"} onClick={() => setLocale("ar")}>ع</button>
+        <button type="button" aria-label="English" aria-pressed={locale === "en"} onClick={() => setLocale("en")}>EN</button>
       </div>
     </header>
 
