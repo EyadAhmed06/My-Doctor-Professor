@@ -264,8 +264,14 @@ test('highlight and pen drawings survive a full page reload via the annotation A
   await page.mouse.move(box.x + 25, box.y + 25);
   await page.mouse.down();
   await page.mouse.move(box.x + 70, box.y + 30, { steps: 4 });
+  const savedDrawing = page.waitForResponse(response =>
+    response.url().includes(`/tests/attempts/${attemptId}/annotations`) &&
+    response.request().method() === 'PUT' && response.ok() &&
+    Boolean((response.request().postDataJSON() as { payload?: { drawings?: Record<string, unknown[]> } }).payload?.drawings?.[q1]?.length),
+  );
   await page.mouse.up();
   await expect(page.locator('.exam-pen-layer polyline')).toHaveCount(1);
+  await savedDrawing;
   await expect(page.getByText('Annotations saved')).toBeVisible({ timeout: 10000 });
   await page.reload();
   await expect(page.locator('.exam-question-stem-text mark')).toHaveCount(1);
