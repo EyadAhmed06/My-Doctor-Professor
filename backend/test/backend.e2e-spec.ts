@@ -26,7 +26,7 @@ function signedTestDevice() {
   const deviceId = randomUUID();
   const message = Buffer.from(['MDP_DEVICE_BINDING_V1',deviceId,jwk.kty,jwk.crv,jwk.x,jwk.y].join('\n'));
   const signature = sign('sha256', message, {key:privateKey,dsaEncoding:'ieee-p1363'}).toString('base64url');
-  return { fields: {device_id:deviceId,device_public_key_jwk:jwk,device_registration_signature:signature}, signChallenge: (challenge:string) => sign('sha256',Buffer.from(challenge),{key:privateKey,dsaEncoding:'ieee-p1363'}).toString('base64url') };
+  return { fields: {device_id:deviceId,device_public_key_jwk:jwk,device_registration_signature:signature}, signChallenge: (challenge:string) => sign('sha256',Buffer.from(challenge,'base64url'),{key:privateKey,dsaEncoding:'ieee-p1363'}).toString('base64url') };
 }
 
 describe('Backend integration', () => {
