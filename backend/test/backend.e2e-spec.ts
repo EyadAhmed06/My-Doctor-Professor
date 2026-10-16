@@ -24,7 +24,7 @@ function signedTestDevice() {
   const {privateKey, publicKey} = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
   const jwk = publicKey.export({format:'jwk'}) as {kty:string;crv:string;x:string;y:string};
   const deviceId = randomUUID();
-  const message = Buffer.from(['MDP_DEVICE_BINDING_V1',deviceId,jwk.kty,jwk.crv,jwk.x,jwk.y].join('\\n'));
+  const message = Buffer.from(['MDP_DEVICE_BINDING_V1',deviceId,jwk.kty,jwk.crv,jwk.x,jwk.y].join('\n'));
   const signature = sign('sha256', message, {key:privateKey,dsaEncoding:'ieee-p1363'}).toString('base64url');
   return {device_id:deviceId,device_public_key_jwk:jwk,device_registration_signature:signature};
 }
