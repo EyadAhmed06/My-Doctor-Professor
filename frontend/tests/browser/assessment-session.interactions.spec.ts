@@ -69,6 +69,9 @@ async function installAssessmentMock(page: Page, mode: 'TUTOR' | 'TIMED', deadli
   let submitted = false;
   let savedNote = '';
   const flags = new Set<string>();
+  let annotationRevision = 0;
+  let annotations: Record<string, unknown> = {};
+
 
   await page.addInitScript(() => {
     localStorage.removeItem('mdp_access_token');
@@ -116,6 +119,16 @@ async function installAssessmentMock(page: Page, mode: 'TUTOR' | 'TIMED', deadli
         flagged_question_ids: [...flags],
         notes: savedNote ? [{ question_id: q1, note: savedNote }] : [],
       });
+    }
+    if (endpoint === `/tests/attempts/${attemptId}/annotations`) {
+      if (request.method() === 'GET') return respond({ payload: annotations, revision: annotationRevision });
+      if (request.method() === 'PUT') {
+        const body = request.postDataJSON() as { payload: Record<string, unknown>; revision: number };
+        if (body.revision !== annotationRevision) return respond({ message: 'Revision conflict' }, 409);
+        annotations = body.payload;
+        annotationRevision += 1;
+        return respond({ revision: annotationRevision });
+      }
     }
     if (endpoint === `/tests/${testId}/questions`) return respond(questions);
     if (endpoint === `/tests/attempts/${attemptId}/answers/${q1}` && request.method() === 'PUT') {
@@ -234,6 +247,29 @@ test('Tutor mode supports highlighter, strike-out, flags, notes, labs, and immed
   await expect(page.getByRole('menuitem', { name: 'Clear highlights' })).toBeEnabled();
   await page.getByRole('menuitem', { name: 'Clear highlights' }).click();
   await expect(page.locator('.exam-question-stem-text mark')).toHaveCount(0);
+});
+
+test('highlight and pen drawings survive a full page reload via the annotation API', async ({ page }) => {
+  await installAssessmentMock(page, 'TUTOR');
+  await page.goto(`/mock-exam/session?attempt=${attemptId}&test=${testId}&source=rounds`);
+  await page.getByRole('button', { name: 'Highlighter', exact: true }).click();
+  await highlightFirstWords(page);
+  await expect(page.locator('.exam-question-stem-text mark')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Highlighter', exact: true }).click();
+  await page.getByRole('button', { name: /^Pen$/ }).click();
+  const surface = page.locator('.exam-annotation-surface');
+  await surface.scrollIntoViewIfNeeded();
+  const box = await surface.boundingBox();
+  if (!box) throw new Error('Pen surface missing');
+  await page.mouse.move(box.x + 25, box.y + 25);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 70, box.y + 30, { steps: 4 });
+  await page.mouse.up();
+  await expect(page.locator('.exam-pen-layer polyline')).toHaveCount(1);
+  await expect(page.getByText('Annotations saved')).toBeVisible({ timeout: 10000 });
+  await page.reload();
+  await expect(page.locator('.exam-question-stem-text mark')).toHaveCount(1);
+  await expect(page.locator('.exam-pen-layer polyline')).toHaveCount(1);
 });
 
 test('Pen preserves every selected colour while a stroke grows', async ({ page }) => {
