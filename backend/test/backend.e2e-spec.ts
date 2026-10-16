@@ -32,6 +32,7 @@ function signedTestDevice() {
 describe('Backend integration', () => {
   let app: INestApplication;
   let dataSource: DataSource;
+  let bootstrappedInstructorEmail: string;
 
   beforeAll(async () => {
     process.env.ALLOW_ACCOUNT_BOOTSTRAP = 'true';
@@ -80,6 +81,7 @@ describe('Backend integration', () => {
         student_number: `BOOT-${suffix}`, current_semester: 1,
       },
     };
+    bootstrappedInstructorEmail = body.instructor.email;
     const responses = await Promise.all([
       request(app.getHttpServer()).post('/api/v1/admin/bootstrap/accounts')
         .set('X-Bootstrap-Token', process.env.ACCOUNT_BOOTSTRAP_TOKEN!).send(body),
@@ -94,6 +96,32 @@ describe('Backend integration', () => {
     )).toBe(true);
     await request(app.getHttpServer()).post('/api/v1/admin/bootstrap/accounts')
       .set('X-Bootstrap-Token', process.env.ACCOUNT_BOOTSTRAP_TOKEN!).send(body).expect(409);
+  });
+
+  it('instructor creates, lists, and deletes an unused draft bundle over real HTTP and PostgreSQL', async () => {
+    const login = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email: bootstrappedInstructorEmail, password: 'StrongPassword123' })
+      .expect(200);
+    const authorization = `Bearer ${login.body.access_token as string}`;
+    const suffix = Date.now().toString();
+    const created = await request(app.getHttpServer())
+      .post('/api/v1/bundles')
+      .set('Authorization', authorization)
+      .send({ title: 'Integration Test Bundle', slug: `e2e-bundle-${suffix}`, semester: 1, is_free: true })
+      .expect(201);
+    expect(created.body.title).toBe('Integration Test Bundle');
+    const bundleId = created.body.id as string;
+    const managed = await request(app.getHttpServer()).get('/api/v1/bundles/managed')
+      .set('Authorization', authorization).expect(200);
+    expect((managed.body as Array<{id:string}>).some(row => row.id === bundleId)).toBe(true);
+    // An instructor must not gain access to student-only personal enrollments.
+    await request(app.getHttpServer()).get('/api/v1/bundles/mine')
+      .set('Authorization', authorization).expect(403);
+    await request(app.getHttpServer()).delete(`/api/v1/bundles/${bundleId}`)
+      .set('Authorization', authorization).expect(204);
+    const deleted = await dataSource.query('SELECT id FROM bundles WHERE id=$1', [bundleId]) as unknown[];
+    expect(deleted).toHaveLength(0);
   });
 
   it('serializes duplicate student signup', async () => {
