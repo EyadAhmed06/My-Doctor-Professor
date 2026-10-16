@@ -54,6 +54,15 @@ describe('Backend integration', () => {
     await app.close();
   });
 
+  it('published MCQ integrity accepts both four and five choices at the database layer', async () => {
+    const rows = await dataSource.query(
+      "SELECT pg_get_functiondef('assert_published_test_mcq_shape(uuid)'::regprocedure) AS definition",
+    ) as Array<{ definition: string }>;
+    expect(rows).toHaveLength(1);
+    expect(rows[0].definition).toMatch(/NOT IN\\s*\\(4,\\s*5\\)/i);
+    expect(rows[0].definition).toMatch(/is_correct\\s*=\\s*true/i);
+  });
+
   it('reports liveness and database readiness', async () => {
     await request(app.getHttpServer()).get('/api/v1/health/live').expect(200);
     const readiness = await request(app.getHttpServer())
