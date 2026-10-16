@@ -1,0 +1,63 @@
+name: Full-stack Database Contract
+
+on:
+  push:
+    branches: [agent/phase1-interactions]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fullstack-database-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-database:
+    name: Real PostgreSQL migrations and API integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: integration_postgres_only
+          POSTGRES_DB: my_doctor_professor
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d my_doctor_professor"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      NODE_ENV: test
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: integration_postgres_only
+      DB_NAME: my_doctor_professor
+      JWT_SECRET: integration-access-secret-for-nonproduction-ci-only
+      JWT_REFRESH_SECRET: integration-refresh-secret-for-nonproduction-ci-only
+      FRONTEND_URL: http://localhost:3001
+      ALLOW_ACCOUNT_BOOTSTRAP: 'true'
+      ACCOUNT_BOOTSTRAP_TOKEN: integration-bootstrap-token-32-characters
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install frozen dependencies
+        run: npm ci --ignore-scripts
+      - name: Apply real TypeORM migrations to isolated database
+        run: npm run migration:run
+      - name: Verify readiness, authorization, account lifecycle and API invariants
+        run: npm run test:e2e -- --runInBand
+      - name: Check schema after integration tests
+        run: npm run migration:show
