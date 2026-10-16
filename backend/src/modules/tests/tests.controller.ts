@@ -72,6 +72,11 @@ export class TestsController {
  @RateLimit({ key: 'assessment-submit', maximum: 240, windowSeconds: 3600 })
  @Post('attempts/:attemptId/submit') @Roles(UserRole.STUDENT)
  submit(@Param('attemptId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.attempts.submit(id,actor);}
+ @Get('attempts/:attemptId/annotations') @Roles(UserRole.STUDENT)
+ getAnnotations(@Param('attemptId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.attempts.getAnnotations(id,actor);}
+ @Put('attempts/:attemptId/annotations') @Roles(UserRole.STUDENT)
+ @RateLimit({ key: 'assessment-annotations', maximum: 180, windowSeconds: 3600 })
+ putAnnotations(@Param('attemptId',uuid) id:string,@Body() body:{payload:unknown;revision:number},@CurrentUser() actor:AuthenticatedUser){return this.attempts.putAnnotations(id,body?.payload,body?.revision,actor);}
  @Get('attempts/:attemptId/workspace-state')
  getWorkspaceState(@Param('attemptId',uuid) id:string,@CurrentUser() actor:AuthenticatedUser){return this.tests.getWorkspaceState(id,actor);}
  @Get('attempts/:attemptId/answers')
