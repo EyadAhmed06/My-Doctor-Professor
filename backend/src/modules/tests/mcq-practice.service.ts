@@ -116,6 +116,8 @@ export class McqPracticeService {
       if (
         isSupportedMcqOptionCount(question.options.length)
         && question.options.filter((option) => option.isCorrect).length === 1
+        && question.options.every((option) => typeof option.optionText === 'string' && option.optionText.trim().length > 0)
+        && question.questionText.trim().length > 0
         && Number.isFinite(Number(question.marks))
         && Number(question.marks) > 0
       ) {
