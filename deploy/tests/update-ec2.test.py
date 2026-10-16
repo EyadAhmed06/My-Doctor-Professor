@@ -14,12 +14,12 @@ case "$1" in
  inspect)
   case "$*" in
    *Config.Env*) printf 'POSTGRES_DB=test\nPOSTGRES_USER=test\nPOSTGRES_PASSWORD=test\n' ;;
-   *State.Status*) echo exited ;;
+   *'Migration container:'*) echo 'Migration container: status=exited exit=1 oom=false started=2026-10-10T13:00:00Z finished=2026-10-10T13:00:01Z' ;;
+   *State.Health*) echo healthy ;;
+   *State.Running*) echo true ;;
    *State.ExitCode*) if [[ "${FAIL_STAGE:-}" == migration_exit ]]; then echo 1; else echo 0; fi ;;
    *State.OOMKilled*) echo false ;;
-   *State.Running*) echo true ;;
-   *State.Health*) echo healthy ;;
-   *'Migration container:'*) echo 'Migration container: status=exited exit=1 oom=false started=2026-10-10T13:00:00Z finished=2026-10-10T13:00:01Z' ;;
+   *State.Status*) echo exited ;;
    *) echo sha256:current ;;
   esac ;;
  info) echo "$TEST_ROOT" ;;
