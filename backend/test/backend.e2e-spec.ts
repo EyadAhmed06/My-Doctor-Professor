@@ -26,7 +26,7 @@ function signedTestDevice() {
   const deviceId = randomUUID();
   const message = Buffer.from(['MDP_DEVICE_BINDING_V1',deviceId,jwk.kty,jwk.crv,jwk.x,jwk.y].join('\n'));
   const signature = sign('sha256', message, {key:privateKey,dsaEncoding:'ieee-p1363'}).toString('base64url');
-  return {device_id:deviceId,device_public_key_jwk:jwk,device_registration_signature:signature};
+  return { fields: {device_id:deviceId,device_public_key_jwk:jwk,device_registration_signature:signature}, signChallenge: (challenge:string) => sign('sha256',Buffer.from(challenge),{key:privateKey,dsaEncoding:'ieee-p1363'}).toString('base64url') };
 }
 
 describe('Backend integration', () => {
@@ -105,13 +105,15 @@ describe('Backend integration', () => {
       phone_number: `+2010${suffix.slice(-8)}`,
       role: 'STUDENT',
       current_semester: 1,
-      ...signedTestDevice(),
+      ...signedTestDevice().fields,
     };
     const responses = await Promise.all([
       request(app.getHttpServer()).post('/api/v1/auth/signup').send(body),
       request(app.getHttpServer()).post('/api/v1/auth/signup').send(body),
     ]);
-    expectStatuses(responses, [201, 409]);
+    expectStatuses(responses, [201, 201]);
+    const rows = await dataSource.query('SELECT count(*)::int AS count FROM users WHERE email=$1', [body.email]) as Array<{count:number}>;
+    expect(rows[0].count).toBe(1);
   });
 
   it('rotates a refresh token once and rejects concurrent reuse', async () => {
@@ -126,16 +128,23 @@ describe('Backend integration', () => {
       phone_number: `+2015${suffix.slice(-8)}`,
       role: 'STUDENT',
       current_semester: 1,
-      ...device,
+      ...device.fields,
     }).expect(201);
 
     await dataSource.query(
       "UPDATE users SET email_verified=TRUE,status='ACTIVE' WHERE email=$1",
       [email],
     );
+    const challengeStart = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email, password, ...device.fields })
+      .expect(428);
     const login = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
-      .send({ email, password, device_id: device.device_id })
+      .send({ email, password, ...device.fields,
+        device_challenge_id: challengeStart.body.challenge_id,
+        device_signature: device.signChallenge(challengeStart.body.challenge as string),
+      })
       .expect(200);
 
     const token = login.body.refresh_token as string;
