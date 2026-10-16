@@ -299,7 +299,7 @@ Second answer
     `);
     expect(candidates).toHaveLength(1);
     expect(candidates[0].model_answer).toBe(
-      '• Dysphagia to solids and fluids.\\n• Progressive nocturnal regurgitation of undigested food.\\n• Weight loss.',
+      '• Dysphagia to solids and fluids.\n• Progressive nocturnal regurgitation of undigested food.\n• Weight loss.',
     );
   });
 
