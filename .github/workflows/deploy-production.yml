@@ -57,7 +57,7 @@ jobs:
               raise SystemExit("Release must be the full current production-branch HEAD SHA; refusing stale or ambiguous release")
           # Never use a green result from a previous commit or a pull_request event.
           runs = api("/actions/runs?branch=agent%2Fphase1-interactions&per_page=100")["workflow_runs"]
-          for name in ("Security", "Browser Regression"):
+          for name in ("Security", "Browser Regression", "Full-stack Database Contract"):
               matching = [run for run in runs if run["name"] == name and run["head_sha"] == sha
                           and run["event"] == "push"]
               if not matching or not any(run["status"] == "completed" and run["conclusion"] == "success" for run in matching):
