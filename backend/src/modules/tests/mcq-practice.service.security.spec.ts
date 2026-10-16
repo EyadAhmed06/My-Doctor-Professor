@@ -123,12 +123,14 @@ describe('McqPracticeService security', () => {
       where: jest.fn().mockReturnThis(),
       getMany: jest.fn().mockResolvedValue(lectures),
     };
-    const validOptions = Array.from({ length: 5 }, (_, index) => ({ isCorrect: index === 0 }));
+    const validOptions = Array.from({ length: 5 }, (_, index) => ({ isCorrect: index === 0, optionText: `Option ${index}` }));
     const counts = [39, 41, 40, 40, 40];
     const questions = counts.flatMap((count, courseIndex) => Array.from({ length: count }, (_, questionIndex) => ({
       id: `question-${courseIndex + 1}-${questionIndex + 1}`,
       topic: { lectureId: lectureIds[courseIndex] },
       options: validOptions,
+      questionText: 'A valid medical question',
+      marks: '1.00',
     })));
     expect(questions).toHaveLength(200);
     const questionBuilder = {
@@ -162,11 +164,13 @@ describe('McqPracticeService security', () => {
       where: jest.fn().mockReturnThis(),
       getMany: jest.fn().mockResolvedValue([{ id: lectureId, week: { courseId } }]),
     };
-    const validOptions = Array.from({ length: 5 }, (_, index) => ({ isCorrect: index === 0 }));
+    const validOptions = Array.from({ length: 5 }, (_, index) => ({ isCorrect: index === 0, optionText: `Option ${index}` }));
     const uniqueQuestions = Array.from({ length: 39 }, (_, index) => ({
       id: `question-${index}`,
       topic: { lectureId },
       options: validOptions,
+      questionText: 'A valid medical question',
+      marks: '1.00',
     }));
     const questions = [...uniqueQuestions, uniqueQuestions[0]];
     expect(questions).toHaveLength(40);
@@ -200,10 +204,12 @@ describe('McqPracticeService security', () => {
       where: jest.fn().mockReturnThis(),
       getMany: jest.fn().mockResolvedValue([{ id: lectureId, week: { courseId } }]),
     };
-    const validOptions = Array.from({ length: 5 }, (_, index) => ({ isCorrect: index === 0 }));
+    const validOptions = Array.from({ length: 5 }, (_, index) => ({ isCorrect: index === 0, optionText: `Option ${index}` }));
     const questions = Array.from({ length: 40 }, (_, index) => ({
       id: `question-${index}`,
       options: index === 39 ? validOptions.slice(0, 3) : index === 38 ? validOptions.slice(0, 4) : validOptions,
+      questionText: 'A valid medical question',
+      marks: '1.00',
     }));
     const questionBuilder = {
       innerJoinAndSelect: jest.fn().mockReturnThis(),
