@@ -14,6 +14,9 @@ case "$1" in
  inspect)
   case "$*" in
    *Config.Env*) printf 'POSTGRES_DB=test\nPOSTGRES_USER=test\nPOSTGRES_PASSWORD=test\n' ;;
+   *State.Status*) echo exited ;;
+   *State.ExitCode*) if [[ "${FAIL_STAGE:-}" == migration_exit ]]; then echo 1; else echo 0; fi ;;
+   *State.OOMKilled*) echo false ;;
    *State.Running*) echo true ;;
    *State.Health*) echo healthy ;;
    *'Migration container:'*) echo 'Migration container: status=exited exit=1 oom=false started=2026-10-10T13:00:00Z finished=2026-10-10T13:00:01Z' ;;
@@ -37,6 +40,7 @@ case "$1" in
    *mdp-candidate-frontend*)
      [[ "${FAIL_STAGE:-}" != frontend ]] || exit 1 ;;
   esac ;;
+ wait) if [[ "${FAIL_STAGE:-}" == migration_wait ]]; then exit 124; else echo 0; fi ;;
  run)
   if [[ "$*" == *--entrypoint* ]]; then
    cat >/dev/null
@@ -121,7 +125,7 @@ class DeploymentTests(unittest.TestCase):
         self.assertIn(" up -d ", calls)
 
     def test_pre_switch_failures_leave_application_running(self):
-        for failure in ("build", "restore", "rehearsal", "schema", "frontend", "production"):
+        for failure in ("build", "restore", "rehearsal", "schema", "frontend", "production", "migration_exit"):
             with self.subTest(failure=failure):
                 result, calls = self.run_deploy(failure)
                 self.assertNotEqual(result.returncode, 0)
@@ -138,6 +142,19 @@ class DeploymentTests(unittest.TestCase):
         self.assertNotIn("rm -f mdp-production-migrate-", calls)
         self.assertIn("Persisted migration log:", result.stderr)
         self.assertNotIn("run --rm --name mdp-production-migrate-", calls)
+
+    def test_migration_wait_timeout_with_confirmed_exit_zero_is_success(self):
+        result, calls = self.run_deploy("migration_wait")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("DEPLOYED abcdef12", result.stdout)
+        self.assertIn("docker wait mdp-production-migrate-", calls)
+        self.assertIn("independently confirms exit 0", result.stderr)
+
+    def test_migration_container_nonzero_exit_blocks_switch(self):
+        result, calls = self.run_deploy("migration_exit")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn(" up -d ", calls)
+        self.assertIn("Production migration not confirmed successful", result.stderr)
 
     def test_switch_failure_attempts_rollback(self):
         result, calls = self.run_deploy("switch")
