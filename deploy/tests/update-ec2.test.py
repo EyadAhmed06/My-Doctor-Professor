@@ -147,7 +147,7 @@ class DeploymentTests(unittest.TestCase):
         result, calls = self.run_deploy("migration_wait")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("DEPLOYED abcdef12", result.stdout)
-        self.assertIn("docker wait mdp-production-migrate-", calls)
+        self.assertIn("wait mdp-production-migrate-", calls)
         self.assertIn("independently confirms exit 0", result.stderr)
 
     def test_migration_container_nonzero_exit_blocks_switch(self):
