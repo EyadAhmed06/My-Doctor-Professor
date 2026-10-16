@@ -27,6 +27,13 @@ export class DatabaseExceptionFilter implements ExceptionFilter {
     const driver = typed.driverError;
     const code = driver?.code;
 
+    if (code === '23514') {
+      // Keep internal constraint details in server logs, not student-facing UI.
+      this.logger.error(`Database check constraint rejected request: ${JSON.stringify({
+        constraint: driver?.constraint, table: driver?.table,
+        detail: driver?.detail, message: driver?.message,
+      })}`);
+    }
     const mapped = this.map(code);
     if (!mapped) {
       this.logger.error(
