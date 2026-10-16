@@ -1,3 +1,4 @@
+import { generateKeyPairSync, randomUUID, sign } from 'crypto';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
@@ -18,6 +19,15 @@ const expectStatuses = (
     );
   }
 };
+
+function signedTestDevice() {
+  const {privateKey, publicKey} = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+  const jwk = publicKey.export({format:'jwk'}) as {kty:string;crv:string;x:string;y:string};
+  const deviceId = randomUUID();
+  const message = Buffer.from(['MDP_DEVICE_BINDING_V1',deviceId,jwk.kty,jwk.crv,jwk.x,jwk.y].join('\\n'));
+  const signature = sign('sha256', message, {key:privateKey,dsaEncoding:'ieee-p1363'}).toString('base64url');
+  return {device_id:deviceId,device_public_key_jwk:jwk,device_registration_signature:signature};
+}
 
 describe('Backend integration', () => {
   let app: INestApplication;
@@ -124,7 +134,7 @@ describe('Backend integration', () => {
     );
     const login = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
-      .send({ email, password })
+      .send({ email, password, device_id: device.device_id })
       .expect(200);
 
     const token = login.body.refresh_token as string;
