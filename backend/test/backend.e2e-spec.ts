@@ -152,7 +152,7 @@ describe('Backend integration', () => {
       request(app.getHttpServer()).post('/api/v1/auth/refresh').send({ refresh_token: token }),
       request(app.getHttpServer()).post('/api/v1/auth/refresh').send({ refresh_token: token }),
     ]);
-    expectStatuses(responses, [200, 401]);
+    expectStatuses(responses, [200, 409]);
     const rotatedToken = responses.find((response) => response.status === 200)!
       .body.refresh_token as string;
     await request(app.getHttpServer())
