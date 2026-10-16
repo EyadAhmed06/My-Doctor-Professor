@@ -545,7 +545,7 @@ export class EssayQuestionImportService {
     for (const raw of lines) {
       const line = raw.replace(/[ \t]+/g, ' ').trim();
       if (!line) continue;
-      const bullet = /^(?:[•●▪◦*\-]|\d+[.)])\s+/.test(line);
+      const bullet = /^(?:[•●▪◦*-]|\d+[.)])\s+/.test(line);
       if (bullet || !result.length) result.push(line);
       else result[result.length - 1] += ' ' + line;
     }
