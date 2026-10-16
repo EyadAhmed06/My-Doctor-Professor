@@ -27,6 +27,38 @@ export class AssessmentAttemptService {
     private readonly bundleAccess: BundleAccessService,
   ) {}
 
+  async getAnnotations(attemptId: string, actor: AuthenticatedUser) {
+    const attempt = await this.attempts.findOne({ where: { id: attemptId } });
+    if (!attempt) throw new NotFoundException('Test attempt not found');
+    if (attempt.studentId !== actor.userId) throw new ForbiddenException('You can access only your annotations');
+    const rows: Array<{ payload: Record<string, unknown>; revision: number }> =
+      await this.dataSource.query('SELECT payload, revision FROM assessment_annotations WHERE attempt_id = $1', [attemptId]);
+    return rows[0] || { payload: {}, revision: 0 };
+  }
+
+  async putAnnotations(attemptId: string, payload: unknown, revision: number, actor: AuthenticatedUser) {
+    if (!Number.isInteger(revision) || revision < 0) throw new BadRequestException('Invalid annotation revision');
+    if (!payload || Array.isArray(payload) || typeof payload !== 'object') throw new BadRequestException('Invalid annotation content');
+    const content = JSON.stringify(payload);
+    if (Buffer.byteLength(content, 'utf8') > 256 * 1024) throw new BadRequestException('Annotation data exceeds the 256 KB limit');
+    return this.dataSource.transaction(async manager => {
+      const attempt = await manager.findOne(TestAttempt, { where: { id: attemptId }, lock: { mode: 'pessimistic_write' } });
+      if (!attempt) throw new NotFoundException('Test attempt not found');
+      if (attempt.studentId !== actor.userId) throw new ForbiddenException('You can change only your annotations');
+      if (attempt.status !== TestAttemptStatus.IN_PROGRESS) throw new ConflictException('Closed exams cannot be edited');
+      await manager.query(
+        "INSERT INTO assessment_annotations (attempt_id) VALUES ($1) ON CONFLICT (attempt_id) DO NOTHING",
+        [attemptId],
+      );
+      const updated: Array<{ revision: number }> = await manager.query(
+        'UPDATE assessment_annotations SET payload=$2::jsonb, revision=revision+1, updated_at=now() WHERE attempt_id=$1 AND revision=$3 RETURNING revision',
+        [attemptId, content, revision],
+      );
+      if (!updated.length) throw new ConflictException('Annotations changed in another session. Reload to avoid overwriting newer work.');
+      return { revision: updated[0].revision };
+    });
+  }
+
   async startAttempt(testId: string, dto: StartTestAttemptDto, actor: AuthenticatedUser) {
     const test = await this.requireTest(testId);
     this.assertAvailable(test);
