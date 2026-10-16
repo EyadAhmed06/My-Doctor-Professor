@@ -104,8 +104,8 @@ describe('Backend integration', () => {
       password: 'StrongPassword123',
       phone_number: `+2010${suffix.slice(-8)}`,
       role: 'STUDENT',
-      student_number: `ST-${suffix}`,
       current_semester: 1,
+      ...signedTestDevice(),
     };
     const responses = await Promise.all([
       request(app.getHttpServer()).post('/api/v1/auth/signup').send(body),
@@ -118,14 +118,15 @@ describe('Backend integration', () => {
     const suffix = (Date.now() + 1).toString();
     const email = `refresh-${suffix}@example.test`;
     const password = 'StrongPassword123';
+    const device = signedTestDevice();
     await request(app.getHttpServer()).post('/api/v1/auth/signup').send({
       full_name: 'Refresh Student',
       email,
       password,
       phone_number: `+2015${suffix.slice(-8)}`,
       role: 'STUDENT',
-      student_number: `RF-${suffix}`,
       current_semester: 1,
+      ...device,
     }).expect(201);
 
     await dataSource.query(
