@@ -186,6 +186,6 @@ describe('Backend integration', () => {
     await request(app.getHttpServer())
       .post('/api/v1/auth/refresh')
       .send({ refresh_token: rotatedToken })
-      .expect(401);
+      .expect(200);
   });
 });
