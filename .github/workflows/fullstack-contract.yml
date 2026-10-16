@@ -41,6 +41,12 @@ jobs:
       JWT_SECRET: integration-access-secret-for-nonproduction-ci-only
       JWT_REFRESH_SECRET: integration-refresh-secret-for-nonproduction-ci-only
       FRONTEND_URL: http://localhost:3001
+      EMAIL_OUTBOX_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      SMTP_HOST: 127.0.0.1
+      SMTP_PORT: 2525
+      SMTP_USER: ci-not-real
+      SMTP_PASSWORD: ci-not-real
+      SMTP_FROM: noreply@example.test
       ALLOW_ACCOUNT_BOOTSTRAP: 'true'
       ACCOUNT_BOOTSTRAP_TOKEN: integration-bootstrap-token-32-characters
     defaults:
