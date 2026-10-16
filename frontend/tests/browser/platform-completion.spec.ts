@@ -60,13 +60,13 @@ async function routeApi(page: Page, handler: (requestEndpoint: string, method: s
 
 test('language switcher persists Arabic RTL and can return to English LTR without reloading', async ({ page }) => {
   await page.goto('/');
-  const language = page.locator('.global-language-access');
+  const language = page.locator('.public-nav-language');
   await expect(language).toBeVisible();
-  await language.getByRole('button', { name: 'ع' }).click();
+  await language.getByRole('button', { name: 'العربية' }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'ar');
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
 
-  await page.locator('.global-language-access').getByRole('button', { name: 'EN' }).click();
+  await language.getByRole('button', { name: 'English' }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
 });
