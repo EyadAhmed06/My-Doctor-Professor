@@ -137,6 +137,13 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   const [hideTime, setHideTime] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [localToolsLoaded, setLocalToolsLoaded] = useState(false);
+  const [serverAnnotationsReady, setServerAnnotationsReady] = useState(false);
+  const [annotationSaveStatus, setAnnotationSaveStatus] = useState<"saving"|"saved"|"error"|"">("");
+  const annotationRevision = useRef(0);
+  const annotationCommitted = useRef("");
+  const annotationInFlight = useRef(false);
+  const annotationLatest = useRef("");
+
   const [loading, setLoading] = useState(true);
   const [savingQuestionId, setSavingQuestionId] = useState<string | null>(null);
   const [savingNoteId, setSavingNoteId] = useState<string | null>(null);
@@ -161,6 +168,38 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
       setHighlights({}); setStruck({}); setDrawings({});
     } finally { setLocalToolsLoaded(true); }
   }, [attemptId]);
+
+  useEffect(() => {
+    if (!attemptId || !localToolsLoaded) return;
+    let active = true;
+    setServerAnnotationsReady(false);
+    void (async () => {
+      try {
+        const result = await request<{payload: {highlights?: HighlightState; struck?: Record<string,string[]>; drawings?: DrawingState}; revision:number}>(`/tests/attempts/${attemptId}/annotations`);
+        if (!active) return;
+        annotationRevision.current = result.revision;
+        const payload = result.payload || {};
+        // Existing browser annotations are retained for the first migration if
+        // the server has no saved annotations yet.
+        if (Object.keys(payload).length) {
+          setHighlights(payload.highlights || {});
+          setStruck(payload.struck || {});
+          setDrawings(payload.drawings || {});
+          annotationCommitted.current = JSON.stringify({
+            highlights: payload.highlights || {}, struck: payload.struck || {}, drawings: payload.drawings || {},
+          });
+        } else {
+          annotationCommitted.current = "";
+        }
+        setAnnotationSaveStatus("saved");
+      } catch {
+        if (active) setAnnotationSaveStatus("error");
+      } finally {
+        if (active) setServerAnnotationsReady(true);
+      }
+    })();
+    return () => { active = false; };
+  }, [attemptId, localToolsLoaded, request]);
 
   useEffect(() => {
     if (!attemptId || !testId) return;
@@ -205,8 +244,39 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
     } catch { /* best effort */ }
   }, [attemptId, drawings, highlights, localToolsLoaded, struck]);
 
+  useEffect(() => {
+    if (!serverAnnotationsReady || !localToolsLoaded || attempt?.status !== "IN_PROGRESS") return;
+    const snapshot = JSON.stringify({ highlights, struck, drawings });
+    annotationLatest.current = snapshot;
+    if (snapshot === annotationCommitted.current) return;
+    const timer = window.setTimeout(() => {
+      if (annotationInFlight.current) return;
+      annotationInFlight.current = true;
+      void (async () => {
+        try {
+          while (annotationLatest.current !== annotationCommitted.current) {
+            setAnnotationSaveStatus("saving");
+            const sent = annotationLatest.current;
+            const result = await request<{revision:number}>(`/tests/attempts/${attemptId}/annotations`, {
+              method: "PUT", body: {payload: JSON.parse(sent),revision:annotationRevision.current},
+            });
+            annotationRevision.current = result.revision;
+            annotationCommitted.current = sent;
+          }
+          setAnnotationSaveStatus("saved");
+        } catch {
+          // Keep the local recovery copy. Never claim unsaved annotations reached the server.
+          setAnnotationSaveStatus("error");
+        } finally { annotationInFlight.current = false; }
+      })();
+    }, 650);
+    return () => window.clearTimeout(timer);
+  }, [attempt?.status, attemptId, drawings, highlights, localToolsLoaded, request, serverAnnotationsReady, struck]);
+
+
   useEffect(() => { setMoreOpen(false); setHighlightMode(false); setStrikeMode(false); setPenMode(false); setEraserMode(null); setSavedNoteId(null); }, [index]);
 
+  // The save indicator distinguishes server persistence from local recovery data.
   const current = items[index];
   const totalAnswered = useMemo(() => items.filter((item) => Boolean(answers[item.question.id])).length, [answers, items]);
   const blockCount = Math.max(1, Math.ceil(items.length / BLOCK_SIZE));
@@ -408,7 +478,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
       })}
       <button className="pp-button" type="button" onClick={() => router.push(exitPath)}>Back</button>
     </Panel> : current ? <>
-      <section className="exam-command-strip" aria-label="Exam status"><button className="exam-exit" type="button" onClick={() => router.push(exitPath)}><FiArrowLeft /> Exit {tutor ? "practice" : "exam"}</button><div><small>Exam</small><b>{attempt?.test?.title || (tutor ? "40 Question Practice" : "Mock Exam")}</b></div><div><small>Mode</small><b>{tutor ? "Tutor" : "Timed"}</b></div><div><small>Scope</small><b>{source === "rounds" ? "Selected lectures" : attempt?.test?.testType || "Configured exam"}</b></div><div><small>Block</small><b>Block {blockIndex + 1} of {blockCount}</b></div><div className="exam-time-cell"><small>Time remaining</small><b><FiClock /> {hideTime ? "••:••:••" : clock}</b></div><div><small>Progress</small><b>{showOverallProgress ? `${totalAnswered} answered of ${items.length}` : `${blockAnswered} answered of ${blockItems.length}`}</b><Progress value={showOverallProgress ? overallProgress : progress} /></div></section>
+      <section className="exam-command-strip" aria-label="Exam status"><span role="status" aria-live="polite">{annotationSaveStatus === "saving" ? "Saving annotations…" : annotationSaveStatus === "error" ? "Annotations not synced — kept on this device" : annotationSaveStatus === "saved" ? "Annotations saved" : ""}</span><button className="exam-exit" type="button" onClick={() => router.push(exitPath)}><FiArrowLeft /> Exit {tutor ? "practice" : "exam"}</button><div><small>Exam</small><b>{attempt?.test?.title || (tutor ? "40 Question Practice" : "Mock Exam")}</b></div><div><small>Mode</small><b>{tutor ? "Tutor" : "Timed"}</b></div><div><small>Scope</small><b>{source === "rounds" ? "Selected lectures" : attempt?.test?.testType || "Configured exam"}</b></div><div><small>Block</small><b>Block {blockIndex + 1} of {blockCount}</b></div><div className="exam-time-cell"><small>Time remaining</small><b><FiClock /> {hideTime ? "••:••:••" : clock}</b></div><div><small>Progress</small><b>{showOverallProgress ? `${totalAnswered} answered of ${items.length}` : `${blockAnswered} answered of ${blockItems.length}`}</b><Progress value={showOverallProgress ? overallProgress : progress} /></div></section>
       <div className="exam-workspace-grid">
         <aside className="exam-navigator-card"><header><FiFileText /><b>Question Navigator</b></header>{blockCount > 1 && <nav className="exam-block-pager" aria-label="Question groups">{Array.from({ length: blockCount }, (_, groupIndex) => { const start = groupIndex * BLOCK_SIZE + 1; const end = Math.min(items.length, start + BLOCK_SIZE - 1); return <button type="button" key={groupIndex} className={groupIndex === blockIndex ? "active" : ""} aria-current={groupIndex === blockIndex ? "page" : undefined} onClick={() => jumpToQuestion(groupIndex * BLOCK_SIZE)}>{start}–{end}</button>; })}</nav>}<div className="exam-mini-legend"><span className="answered">Answered</span><span className="unanswered">Unanswered</span><span className="current">Current</span><span className="normal-flagged">Flagged</span><span className="flagged">Hard</span></div><div className="exam-number-grid">{blockItems.map((item, i) => { const globalIndex = blockStart + i; const isCurrent = globalIndex === index; const isAnswered = Boolean(answers[item.question.id]); const isFlagged = flags.includes(item.question.id); const isHard = hardFlags.includes(item.question.id); return <button type="button" className={`${isAnswered ? "answered" : "unanswered"} ${isCurrent ? "current" : ""} ${isFlagged ? "normal-flagged" : ""} ${isHard ? "hard-flagged" : ""}`} onClick={() => jumpToQuestion(globalIndex)} key={item.question.id} aria-label={`Question ${globalIndex + 1}${isAnswered ? ", answered" : ", unanswered"}${isFlagged ? ", flagged" : ""}${isHard ? ", marked hard" : ""}`}>{globalIndex + 1}{isFlagged && <FiFlag className="normal-flag-icon" />}{isHard && <FiFlag className="hard-flag-icon" />}</button>; })}</div><footer><b>Block progress</b><Progress value={progress} /><span><small>{blockAnswered}/{blockItems.length} answered</small><strong>{progress}%</strong></span></footer></aside>
         <section className="exam-main-column"><article id="exam-active-question" className="exam-question-card">
