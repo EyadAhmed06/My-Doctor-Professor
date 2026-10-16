@@ -345,7 +345,27 @@ else
   printf 'Running migrations from %s\n' "$BACKEND_IMAGE"
   # Preserve the named container until its outcome is known.
   printf 'Production migration deadline: 4 minutes. Persistent log: %s\n' "$MIGRATION_LOG"
-  DEPLOY_COMPOSE_TIMEOUT=240s compose run --name "$PRODUCTION_MIGRATE" --no-deps --pull never -e PGOPTIONS="-c lock_timeout=10000 -c statement_timeout=600000" migrate 2>&1 | tee "$MIGRATION_LOG"
+  # Compose 'run' can remain attached after a successfully exited migration
+  # container (observed exit 124 from Compose but Docker exit 0). Start it
+  # detached and make the Docker container state the authoritative result.
+  DEPLOY_COMPOSE_TIMEOUT=60s compose run -d --name "$PRODUCTION_MIGRATE" --no-deps --pull never \
+    -e PGOPTIONS="-c lock_timeout=10000 -c statement_timeout=600000" migrate >/dev/null
+  migration_wait_code=0
+  timeout --kill-after=10s 240s docker wait "$PRODUCTION_MIGRATE" >/dev/null || migration_wait_code=$?
+  # Capture output even if docker wait timed out. Never accept a running or
+  # missing container, and never confuse the Docker wait result with its exit code.
+  docker logs "$PRODUCTION_MIGRATE" 2>&1 | tee "$MIGRATION_LOG" || true
+  migration_state="$(docker inspect "$PRODUCTION_MIGRATE" --format '{{.State.Status}}')"
+  migration_exit="$(docker inspect "$PRODUCTION_MIGRATE" --format '{{.State.ExitCode}}')"
+  migration_oom="$(docker inspect "$PRODUCTION_MIGRATE" --format '{{.State.OOMKilled}}')"
+  if [[ "$migration_state" != exited || "$migration_exit" != 0 || "$migration_oom" != false ]]; then
+    printf 'Production migration not confirmed successful: wait=%s state=%s exit=%s oom=%s\\n' \
+      "$migration_wait_code" "$migration_state" "$migration_exit" "$migration_oom" >&2
+    false
+  fi
+  if (( migration_wait_code != 0 )); then
+    printf 'WARNING: Docker wait returned %s, but the migration container independently confirms exit 0.\\n' "$migration_wait_code" >&2
+  fi
   docker rm "$PRODUCTION_MIGRATE" >/dev/null
 fi
 
