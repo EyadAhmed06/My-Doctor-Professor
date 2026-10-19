@@ -216,7 +216,7 @@ Second answer
       Answers for case 1:
       1) • Fever • Tachycardia • Fatigue
     `);
-    expect(candidates[0].model_answer).toBe('• Fever\\n• Tachycardia\\n• Fatigue');
+    expect(candidates[0].model_answer).toBe('• Fever\n• Tachycardia\n• Fatigue');
     const json = { type: 'LECTURE', title: 'Example', questions: [
       { prompt: 'Mention three items.', answer: '-girls -mohamed fady -money' },
     ] };
@@ -226,7 +226,7 @@ Second answer
     } as any);
     expect(result.candidates[0].model_answer).toBe('- girls\n- mohamed fady\n- money');
     const explicit = (service as any).formatModelAnswer('• girls • money • Mohamed fady');
-    expect(explicit).toBe('• girls\\n• money\\n• Mohamed fady');
+    expect(explicit).toBe('• girls\n• money\n• Mohamed fady');
   });
 
   it('does not append a next-page running header to a lecture title', () => {
