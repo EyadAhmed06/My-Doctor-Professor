@@ -199,6 +199,25 @@ async function highlightFirstWords(page: Page) {
   });
 }
 
+test('highlighter captures delayed native touch-style selection without mouseup', async ({ page }) => {
+  await installAssessmentMock(page, 'TUTOR');
+  await page.goto(`/mock-exam/session?attempt=${attemptId}&test=${testId}&source=rounds`);
+  await page.getByRole('button', { name: 'Highlighter', exact: true }).click();
+  const stem = page.locator('.exam-question-stem-text');
+  await stem.evaluate((element) => {
+    const node = element.firstChild;
+    if (!node) throw new Error('Missing question text');
+    const range = document.createRange();
+    range.setStart(node, 0);
+    range.setEnd(node, Math.min(12, node.textContent?.length || 0));
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    document.dispatchEvent(new Event('selectionchange'));
+  });
+  await expect(stem.locator('mark')).toHaveCount(1, { timeout: 5000 });
+});
+
 test('Tutor mode supports highlighter, strike-out, flags, notes, labs, and immediate explanations', async ({ page }) => {
   test.setTimeout(90_000); // WebKit touch interactions and full workflow exceed the global 45s budget.
   const state = await installAssessmentMock(page, 'TUTOR');
