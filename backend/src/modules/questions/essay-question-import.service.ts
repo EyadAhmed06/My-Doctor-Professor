@@ -550,7 +550,8 @@ export class EssayQuestionImportService {
     // Require whitespace around dash markers so hyphenated clinical terms stay intact.
     const expanded = text.replace(/\r\n?/g, '\n')
       .replace(/([^\n])\s+([•●▪◦])\s*/g, '$1\n$2 ')
-      .replace(/([^\n])\s+-\s+(?=\S)/g, '$1\n- ');
+      .replace(/([^\n])\s+-(?=\S)/g, '$1\n- ')
+      .replace(/(^|\n)-(?=\S)/gm, '$1- ');
     const lines = expanded.split('\n');
     const result: string[] = [];
     for (const raw of lines) {
