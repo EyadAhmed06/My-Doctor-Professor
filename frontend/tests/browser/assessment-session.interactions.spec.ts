@@ -216,6 +216,19 @@ test('highlighter captures delayed native touch-style selection without mouseup'
     document.dispatchEvent(new Event('selectionchange'));
   });
   await expect(stem.locator('mark')).toHaveCount(1, { timeout: 5000 });
+  const option = page.locator('.exam-option-highlight-text').first();
+  await option.evaluate((element) => {
+    const node = element.firstChild;
+    if (!node) throw new Error('Missing option text');
+    const range = document.createRange();
+    range.setStart(node, 0);
+    range.setEnd(node, Math.min(8, node.textContent?.length || 0));
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    document.dispatchEvent(new Event('selectionchange'));
+  });
+  await expect(option.locator('mark')).toHaveCount(1, { timeout: 5000 });
 });
 
 test('Tutor mode supports highlighter, strike-out, flags, notes, labs, and immediate explanations', async ({ page }) => {
