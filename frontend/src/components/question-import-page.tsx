@@ -1277,6 +1277,10 @@ export function QuestionImportPage() {
                           </button>
                         </div>
 
+                        <div className="question-import-focused-direct-actions">
+                          <button type="button" className="pp-button" disabled={publishing || enrichingIds.size>0 || structurallyBlocked || !candidateIsPublishable(mobileCandidate.candidate)} onClick={()=>void publishApproved([mobileCandidate.candidate.candidate_id])}><FiCheck/>Publish this question only</button>
+                          <button type="button" className="pp-button secondary" disabled={publishing || enrichingIds.size>0 || structurallyBlocked} onClick={()=>void publishApproved(candidates.filter(candidate=>candidate.source_section===mobileCandidate.candidate.source_section).map(candidate=>candidate.candidate_id))}>Publish ready questions in this lecture only</button>
+                        </div>
                         <CandidateEditor
                           key={mobileCandidate.candidate.candidate_id}
                           candidate={mobileCandidate.candidate}
