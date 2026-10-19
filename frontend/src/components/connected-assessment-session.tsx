@@ -84,54 +84,100 @@ function normalizeRanges(ranges: HighlightRange[], textLength: number) {
 function HighlightableText({ text, ranges, enabled, eraserEnabled = false, onHighlight, onErase, className }: { text: string; ranges: HighlightRange[]; enabled: boolean; eraserEnabled?: boolean; onHighlight: (start: number, end: number) => void; onErase?: (start: number, end: number) => void; className?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const touchCaptureTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingTouchSelection = useRef<{ start: number; end: number } | null>(null);
+
   // Keep the latest callback without restarting pending selection timers on every
-  // countdown/annotation render. Unstable inline callbacks previously cancelled
-  // the 650ms selection timer before option highlights could be applied.
+  // countdown/annotation render.
   const highlightCallbackRef = useRef(onHighlight);
   useEffect(() => { highlightCallbackRef.current = onHighlight; }, [onHighlight]);
-  useEffect(() => {
-    if (!enabled) return;
-    // Mobile Safari/Chrome finalize long-press selections asynchronously.
-    // Wait until the selection settles, including drag-handle adjustments.
-    const schedule = () => {
-      if (touchCaptureTimer.current) clearTimeout(touchCaptureTimer.current);
-      touchCaptureTimer.current = setTimeout(() => {
-        const selection = window.getSelection();
-        if (!selection || selection.isCollapsed || !selection.rangeCount || !ref.current) return;
-        const range = selection.getRangeAt(0);
-        if (!ref.current.contains(range.startContainer) || !ref.current.contains(range.endContainer)) return;
-        const prefix = document.createRange();
-        prefix.selectNodeContents(ref.current);
-        prefix.setEnd(range.startContainer, range.startOffset);
-        const start = prefix.toString().length;
-        const end = start + range.toString().length;
-        if (range.toString().trim() && end > start) {
-          highlightCallbackRef.current(start, end);
-          selection.removeAllRanges();
-        }
-      }, 650);
-    };
-    document.addEventListener("selectionchange", schedule);
-    return () => {
-      document.removeEventListener("selectionchange", schedule);
-      if (touchCaptureTimer.current) clearTimeout(touchCaptureTimer.current);
-    };
-  }, [enabled]);
-  const normalized = useMemo(() => normalizeRanges(ranges, text.length), [ranges, text.length]);
-  function captureSelection() {
-    if (!enabled || !ref.current) return;
+
+  const readSelectionOffsets = useCallback(() => {
     const selection = window.getSelection();
-    if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0 || !ref.current) return null;
     const range = selection.getRangeAt(0);
-    if (!ref.current.contains(range.commonAncestorContainer)) return;
+    if (!ref.current.contains(range.startContainer) || !ref.current.contains(range.endContainer)) return null;
+    const selectedText = range.toString();
+    if (!selectedText.trim()) return null;
+
     const prefix = document.createRange();
     prefix.selectNodeContents(ref.current);
     prefix.setEnd(range.startContainer, range.startOffset);
     const start = prefix.toString().length;
-    const end = start + range.toString().length;
-    if (range.toString().trim() && end > start) onHighlight(start, end);
-    selection.removeAllRanges();
+    const end = start + selectedText.length;
+    return end > start ? { start, end } : null;
+  }, []);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    // Mobile Safari/Chrome can emit several selectionchange events while a
+    // long-press selection settles. Snapshot only valid selections that belong
+    // to this text node. Collapsed/noisy events must not cancel the last valid
+    // snapshot, otherwise a delayed native selection can disappear before the
+    // 650 ms capture fires.
+    const schedule = () => {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed || selection.rangeCount === 0 || !ref.current) return;
+
+      const liveRange = selection.getRangeAt(0);
+      const belongsHere = ref.current.contains(liveRange.startContainer) && ref.current.contains(liveRange.endContainer);
+      if (!belongsHere) {
+        if (touchCaptureTimer.current) {
+          clearTimeout(touchCaptureTimer.current);
+          touchCaptureTimer.current = null;
+        }
+        pendingTouchSelection.current = null;
+        return;
+      }
+
+      const offsets = readSelectionOffsets();
+      if (!offsets) return;
+      pendingTouchSelection.current = offsets;
+
+      if (touchCaptureTimer.current) clearTimeout(touchCaptureTimer.current);
+      touchCaptureTimer.current = setTimeout(() => {
+        touchCaptureTimer.current = null;
+        const pending = pendingTouchSelection.current;
+        pendingTouchSelection.current = null;
+        if (!pending) return;
+
+        highlightCallbackRef.current(pending.start, pending.end);
+
+        const currentSelection = window.getSelection();
+        if (currentSelection && !currentSelection.isCollapsed && currentSelection.rangeCount && ref.current) {
+          const currentRange = currentSelection.getRangeAt(0);
+          if (ref.current.contains(currentRange.startContainer) && ref.current.contains(currentRange.endContainer)) {
+            currentSelection.removeAllRanges();
+          }
+        }
+      }, 650);
+    };
+
+    document.addEventListener("selectionchange", schedule);
+    return () => {
+      document.removeEventListener("selectionchange", schedule);
+      if (touchCaptureTimer.current) clearTimeout(touchCaptureTimer.current);
+      touchCaptureTimer.current = null;
+      pendingTouchSelection.current = null;
+    };
+  }, [enabled, readSelectionOffsets]);
+
+  const normalized = useMemo(() => normalizeRanges(ranges, text.length), [ranges, text.length]);
+
+  function captureSelection() {
+    if (!enabled) return;
+    const offsets = readSelectionOffsets();
+    if (!offsets) return;
+
+    if (touchCaptureTimer.current) {
+      clearTimeout(touchCaptureTimer.current);
+      touchCaptureTimer.current = null;
+    }
+    pendingTouchSelection.current = null;
+    highlightCallbackRef.current(offsets.start, offsets.end);
+    window.getSelection()?.removeAllRanges();
   }
+
   const content: ReactNode[] = [];
   let cursor = 0;
   normalized.forEach((range, index) => {
@@ -140,6 +186,7 @@ function HighlightableText({ text, ranges, enabled, eraserEnabled = false, onHig
     cursor = range.end;
   });
   if (cursor < text.length) content.push(text.slice(cursor));
+
   return <span ref={ref} className={`${className || ""} exam-highlightable ${enabled ? "is-highlight-mode" : ""} ${eraserEnabled ? "is-eraser-mode" : ""}`.trim()} onMouseUp={captureSelection} onTouchEnd={() => { /* selectionchange fires after native touch selection */ }} title={enabled ? "Select text to highlight it" : undefined}>{content.length ? content : text}</span>;
 }
 
