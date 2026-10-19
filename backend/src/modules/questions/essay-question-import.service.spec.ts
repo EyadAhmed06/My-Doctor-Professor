@@ -224,7 +224,7 @@ Second answer
     const result = await service.inspectJson(true, {
       originalname: 'mixed.json', mimetype: 'application/json', buffer, size: buffer.length,
     } as any);
-    expect(result.candidates[0].model_answer).toBe('-girls -mohamed fady -money');
+    expect(result.candidates[0].model_answer).toBe('- girls\n- mohamed fady\n- money');
     const explicit = (service as any).formatModelAnswer('• girls • money • Mohamed fady');
     expect(explicit).toBe('• girls\\n• money\\n• Mohamed fady');
   });
