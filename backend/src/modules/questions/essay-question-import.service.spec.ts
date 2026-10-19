@@ -191,6 +191,44 @@ Second answer
     expect(candidates.every((candidate: any) => candidate.status === 'VALID')).toBe(true);
   });
 
+  it('imports mixed spelled-out case and lecture headings in one PDF', () => {
+    const candidates = parse(`
+      Case One:
+      A patient presents with cough and fever.
+      Q1. State two symptoms.
+      Answers for Case One:
+      1) Cough and fever.
+      Lecture Two: Immunology fundamentals
+      Q1. List two lymphocyte categories.
+      Answers of Lecture Two:
+      1) T cells and B cells.
+    `);
+    expect(candidates).toHaveLength(2);
+    expect(candidates.map((item: any) => item.block_type)).toEqual(['CASE', 'LECTURE']);
+    expect(candidates.map((item: any) => item.model_answer)).toEqual(['Cough and fever.', 'T cells and B cells.']);
+  });
+
+  it('retains separate bullets in run-together PDF and JSON answer sources', async () => {
+    const candidates = parse(`
+      Case 1:
+      A patient has an infection.
+      1) List three findings.
+      Answers for case 1:
+      1) • Fever • Tachycardia • Fatigue
+    `);
+    expect(candidates[0].model_answer).toBe('• Fever\\n• Tachycardia\\n• Fatigue');
+    const json = { type: 'LECTURE', title: 'Example', questions: [
+      { prompt: 'Mention three items.', answer: '-girls -mohamed fady -money' },
+    ] };
+    const buffer = Buffer.from(JSON.stringify(json));
+    const result = await service.inspectJson(true, {
+      originalname: 'mixed.json', mimetype: 'application/json', buffer, size: buffer.length,
+    } as any);
+    expect(result.candidates[0].model_answer).toBe('-girls -mohamed fady -money');
+    const explicit = (service as any).formatModelAnswer('• girls • money • Mohamed fady');
+    expect(explicit).toBe('• girls\\n• money\\n• Mohamed fady');
+  });
+
   it('does not append a next-page running header to a lecture title', () => {
     const pages = [
       { page: 10, text: 'Lecture 1 : Anatomy nervous system' },
