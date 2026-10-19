@@ -83,6 +83,35 @@ function normalizeRanges(ranges: HighlightRange[], textLength: number) {
 
 function HighlightableText({ text, ranges, enabled, eraserEnabled = false, onHighlight, onErase, className }: { text: string; ranges: HighlightRange[]; enabled: boolean; eraserEnabled?: boolean; onHighlight: (start: number, end: number) => void; onErase?: (start: number, end: number) => void; className?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
+  const touchCaptureTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    // Mobile Safari/Chrome finalize long-press selections asynchronously.
+    // Wait until the selection settles, including drag-handle adjustments.
+    const schedule = () => {
+      if (touchCaptureTimer.current) clearTimeout(touchCaptureTimer.current);
+      touchCaptureTimer.current = setTimeout(() => {
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed || !selection.rangeCount || !ref.current) return;
+        const range = selection.getRangeAt(0);
+        if (!ref.current.contains(range.startContainer) || !ref.current.contains(range.endContainer)) return;
+        const prefix = document.createRange();
+        prefix.selectNodeContents(ref.current);
+        prefix.setEnd(range.startContainer, range.startOffset);
+        const start = prefix.toString().length;
+        const end = start + range.toString().length;
+        if (range.toString().trim() && end > start) {
+          onHighlight(start, end);
+          selection.removeAllRanges();
+        }
+      }, 650);
+    };
+    document.addEventListener("selectionchange", schedule);
+    return () => {
+      document.removeEventListener("selectionchange", schedule);
+      if (touchCaptureTimer.current) clearTimeout(touchCaptureTimer.current);
+    };
+  }, [enabled, onHighlight]);
   const normalized = useMemo(() => normalizeRanges(ranges, text.length), [ranges, text.length]);
   function captureSelection() {
     if (!enabled || !ref.current) return;
@@ -106,7 +135,7 @@ function HighlightableText({ text, ranges, enabled, eraserEnabled = false, onHig
     cursor = range.end;
   });
   if (cursor < text.length) content.push(text.slice(cursor));
-  return <span ref={ref} className={`${className || ""} exam-highlightable ${enabled ? "is-highlight-mode" : ""} ${eraserEnabled ? "is-eraser-mode" : ""}`.trim()} onMouseUp={captureSelection} title={enabled ? "Select text to highlight it" : undefined}>{content.length ? content : text}</span>;
+  return <span ref={ref} className={`${className || ""} exam-highlightable ${enabled ? "is-highlight-mode" : ""} ${eraserEnabled ? "is-eraser-mode" : ""}`.trim()} onMouseUp={captureSelection} onTouchEnd={() => { /* selectionchange fires after native touch selection */ }} title={enabled ? "Select text to highlight it" : undefined}>{content.length ? content : text}</span>;
 }
 
 export function ConnectedAssessmentSession({ attemptId, testId, source = "assessments" }: { attemptId: string; testId: string; source?: string }) {
