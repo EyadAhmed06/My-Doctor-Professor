@@ -84,6 +84,11 @@ function normalizeRanges(ranges: HighlightRange[], textLength: number) {
 function HighlightableText({ text, ranges, enabled, eraserEnabled = false, onHighlight, onErase, className }: { text: string; ranges: HighlightRange[]; enabled: boolean; eraserEnabled?: boolean; onHighlight: (start: number, end: number) => void; onErase?: (start: number, end: number) => void; className?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const touchCaptureTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Keep the latest callback without restarting pending selection timers on every
+  // countdown/annotation render. Unstable inline callbacks previously cancelled
+  // the 650ms selection timer before option highlights could be applied.
+  const highlightCallbackRef = useRef(onHighlight);
+  highlightCallbackRef.current = onHighlight;
   useEffect(() => {
     if (!enabled) return;
     // Mobile Safari/Chrome finalize long-press selections asynchronously.
@@ -101,7 +106,7 @@ function HighlightableText({ text, ranges, enabled, eraserEnabled = false, onHig
         const start = prefix.toString().length;
         const end = start + range.toString().length;
         if (range.toString().trim() && end > start) {
-          onHighlight(start, end);
+          highlightCallbackRef.current(start, end);
           selection.removeAllRanges();
         }
       }, 650);
@@ -111,7 +116,7 @@ function HighlightableText({ text, ranges, enabled, eraserEnabled = false, onHig
       document.removeEventListener("selectionchange", schedule);
       if (touchCaptureTimer.current) clearTimeout(touchCaptureTimer.current);
     };
-  }, [enabled, onHighlight]);
+  }, [enabled]);
   const normalized = useMemo(() => normalizeRanges(ranges, text.length), [ranges, text.length]);
   function captureSelection() {
     if (!enabled || !ref.current) return;
