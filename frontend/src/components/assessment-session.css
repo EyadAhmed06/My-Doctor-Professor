@@ -50,3 +50,12 @@ html[data-theme=light] .exam-session-page{background:#f7f8fb}html[data-theme=lig
   .exam-navigator-card > footer { margin-top: 10px; }
   #exam-active-question { scroll-margin-top: 12px; }
 }
+
+/* Native text-selection handles must remain available while highlighting on iOS/Android. */
+.exam-highlightable.is-highlight-mode,
+.exam-highlightable.is-highlight-mode * {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default;
+  touch-action: auto;
+}
