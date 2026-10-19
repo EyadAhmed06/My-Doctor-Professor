@@ -181,7 +181,7 @@ export class EssayQuestionImportService {
         const question = record(block.questions[i]);
         if (!question) throw new BadRequestException(`Invalid question in ${block.title}`);
         const questionText = String(question.question_text ?? question.question ?? question.prompt ?? '').trim();
-        const answer = String(question.model_answer ?? question.answer ?? '').trim() || null;
+        const answer = this.formatModelAnswer(String(question.model_answer ?? question.answer ?? '')) || null;
         const questionNumber = Number(question.question_number ?? question.number ?? i+1);
         if (!questionText || questionText.length > 10000 || !Number.isInteger(questionNumber) || questionNumber < 1 || questionNumber > 999)
           throw new BadRequestException(`Invalid question text or number in ${block.title}`);
@@ -540,7 +540,13 @@ export class EssayQuestionImportService {
     // Preserve answer structure rather than flattening bullets and newlines.
     // Source line wraps become spaces; real bullet/numbered entries remain
     // distinct lines. Never change the clinical wording of the answer.
-    const lines = text.replace(/\r\n?/g, '\n').split('\n');
+    // Some PDF extractors collapse list items onto the same physical line.
+    // Restore *explicit* bullet delimiters without guessing where prose belongs.
+    // Require whitespace around dash markers so hyphenated clinical terms stay intact.
+    const expanded = text.replace(/\r\n?/g, '\n')
+      .replace(/([^\n])\s+([•●▪◦])\s*/g, '$1\n$2 ')
+      .replace(/([^\n])\s+-\s+(?=\S)/g, '$1\n- ');
+    const lines = expanded.split('\n');
     const result: string[] = [];
     for (const raw of lines) {
       const line = raw.replace(/[ \t]+/g, ' ').trim();
