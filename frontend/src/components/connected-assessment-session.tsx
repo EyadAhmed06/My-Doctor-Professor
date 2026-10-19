@@ -88,7 +88,7 @@ function HighlightableText({ text, ranges, enabled, eraserEnabled = false, onHig
   // countdown/annotation render. Unstable inline callbacks previously cancelled
   // the 650ms selection timer before option highlights could be applied.
   const highlightCallbackRef = useRef(onHighlight);
-  highlightCallbackRef.current = onHighlight;
+  useEffect(() => { highlightCallbackRef.current = onHighlight; }, [onHighlight]);
   useEffect(() => {
     if (!enabled) return;
     // Mobile Safari/Chrome finalize long-press selections asynchronously.
