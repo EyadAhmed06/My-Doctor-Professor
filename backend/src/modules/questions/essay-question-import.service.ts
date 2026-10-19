@@ -287,7 +287,12 @@ export class EssayQuestionImportService {
   }
 
   private parseEssayCases(pdf: ParsedPdf, sha256: string, standaloneType: 'CASE' | 'LECTURE' = 'LECTURE'): EssayCandidate[] {
-    const rawStream = pdf.pages.map((page) => `\n[[PAGE:${page.page}]]\n${this.cleanPageText(page.text)}`).join('\n');
+    const normalizeHeadingNumbers = (value: string) => value.replace(
+      /(^|\n)([ \t]*(?:(?:Answers?[ \t]+(?:of|for)[ \t]+)|(?:Answers?[ \t]+of[ \t]+[^\n]*?[ \t]+))?)(Case|Lecture)[ \t]+(One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten)(?=[ \t]*:|[ \t]*\n)/gim,
+      (_match, prefix: string, lead: string, type: string, word: string) =>
+        `${prefix}${lead}${type} ${['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'].indexOf(word.toLowerCase()) + 1}`,
+    );
+    const rawStream = pdf.pages.map((page) => `\n[[PAGE:${page.page}]]\n${normalizeHeadingNumbers(this.cleanPageText(page.text))}`).join('\n');
     // Standalone essay PDFs often have questions and an Answer section but
     // no "Lecture 1" heading. Give these an explicit editable review group.
     // Never infer a clinical case from an unlabelled passage.
