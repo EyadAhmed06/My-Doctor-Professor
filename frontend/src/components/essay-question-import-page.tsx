@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FiArrowLeft, FiCheck, FiFileText, FiRefreshCw, FiSearch, FiUploadCloud } from "react-icons/fi";
 import { EssayWindowedQuestionList } from "./essay-windowed-question-list";
 import { useEssayReviewHistory } from "./use-essay-review-history";
@@ -19,6 +19,27 @@ type Topic = { id: string; topicName: string };
 type Lecture = { id: string; title: string; topics?: Topic[] };
 type Week = { id: string; weekNumber: number; title: string | null; lectures?: Lecture[] };
 type Course = { id: string; courseCode: string; courseName: string; weeks?: Week[] };
+type StoredEssayReview = {
+  courseId?: string;
+  candidates?: Array<Partial<ReviewCandidate> & { candidate_id: string }>;
+  groupTopics?: Record<string,string>;
+  caseWeeks?: Record<string,string>;
+  globalTopicId?: string;
+  published?: string[];
+};
+type EssaySessionSummary = {
+  session_id: string;
+  original_filename: string;
+  total: number;
+  revision?: number;
+  updated_at?: string;
+};
+type EssaySessionInspection = Inspection & {
+  session_id: string;
+  total: number;
+  revision: number;
+  review?: StoredEssayReview;
+};
 type ExistingCaseCurriculum = { weeks: Array<{ id:string; cases:Array<{ weekId:string; sourceCaseNumber:number|null; section:string|null; stem:string; id:string; isPublished:boolean }> }> };
 
 function topicsFor(course: Course | null) {
@@ -32,7 +53,12 @@ function normalizedSubject(value: string) {
 export function EssayQuestionImportPage() {
   const { user, loading: authLoading, request } = useAuth();
   const { notify } = useUx();
-  const [courses, setCourses] = useState<Course[]>([]); const [courseId,setCourseId]=useState(""); const [course,setCourse]=useState<Course|null>(null);
+  const [savedSessions, setSavedSessions] = useState<EssaySessionSummary[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const sessionRevision = useRef(0);
+  const lastSavedReview = useRef("");
+  const [savingReview, setSavingReview] = useState(false);
+    const [courses, setCourses] = useState<Course[]>([]); const [courseId,setCourseId]=useState(""); const [course,setCourse]=useState<Course|null>(null);
   const [file,setFile]=useState<File|null>(null); const [standaloneType,setStandaloneType]=useState<'LECTURE'|'CASE'>('LECTURE'); const [rights,setRights]=useState(false); const [inspection,setInspection]=useState<Inspection|null>(null); const {items:candidates,setItems:setCandidates,resetItems:resetCandidates,undo,redo,canUndo,canRedo}=useEssayReviewHistory<ReviewCandidate>([]);
   const [loading,setLoading]=useState(true); const [inspecting,setInspecting]=useState(false); const [publishing,setPublishing]=useState(false); const [error,setError]=useState<string|null>(null);
   const [candidateSearch,setCandidateSearch]=useState(""); const [statusFilter,setStatusFilter]=useState<"ALL"|Candidate["status"]>("ALL"); const [globalTopicId,setGlobalTopicId]=useState(""); const [groupTopics,setGroupTopics]=useState<Record<string,string>>({});
@@ -65,32 +91,76 @@ export function EssayQuestionImportPage() {
   }, [reviewStorageKey, candidates, courseId, groupTopics, caseWeeks, globalTopicId, publishedQuestionIds]);
 
 
-  const load = useCallback(async()=>{ if(!user||user.role==="STUDENT")return; setLoading(true); try{setCourses((await request<PageResponse<Course>>("/academic/courses?limit=100")).data);}catch(c){setError(c instanceof Error?c.message:"Unable to load courses.");}finally{setLoading(false)}},[request,user]);
+  const load = useCallback(async()=>{ if(!user||user.role==="STUDENT")return; setLoading(true);
+    try { setCourses((await request<PageResponse<Course>>("/academic/courses?limit=100")).data); }
+    catch(c) { setError(c instanceof Error?c.message:"Unable to load courses."); }
+    try { setSavedSessions(await request<EssaySessionSummary[]>("/questions/imports/essay/sessions")); }
+    catch { /* The importer remains usable if saved-session listing is unavailable. */ }
+    setLoading(false);
+  },[request,user]);
   useEffect(()=>{void load()},[load]);
   async function chooseCourse(id:string){setCourseId(id);setCourse(null);setGlobalTopicId("");setGroupTopics({});setCaseWeeks({}); if(!id)return; try{setCourse(await request<Course>(`/academic/courses/${id}`));}catch(c){setError(c instanceof Error?c.message:"Unable to load course structure.")}}
+
+  async function fetchSavedSession(id:string): Promise<EssaySessionInspection> {
+    const meta=await request<EssaySessionInspection>(`/questions/imports/essay/sessions/${id}`);
+    const all:Candidate[]=[];
+    for(let offset=0;offset<meta.total;offset+=200) {
+      const page=await request<{candidates:Candidate[]}>(`/questions/imports/essay/sessions/${id}/candidates?offset=${offset}&limit=200`);
+      all.push(...page.candidates);
+    }
+    if(all.length!==meta.total)throw new Error("The saved essay import is incomplete. Please reopen it.");
+    return {...meta,candidates:all};
+  }
+
+  function reviewedCandidates(result:Inspection, restored:StoredEssayReview|null):ReviewCandidate[] {
+    const overrides=new Map((restored?.candidates||[]).map(item=>[item.candidate_id,item]));
+    return result.candidates.map(item=>{
+      const prior=overrides.get(item.candidate_id);
+      const question_text=prior?.question_text ?? item.question_text;
+      const model_answer=prior?.model_answer ?? item.model_answer;
+      const case_stem=prior?.case_stem ?? item.case_stem;
+      const issues=item.issues.filter(issue=>!["MODEL_ANSWER_MISSING","QUESTION_TOO_SHORT","CASE_STEM_MISSING"].includes(issue.code));
+      if(!model_answer?.trim())issues.push({code:"MODEL_ANSWER_MISSING",severity:"ERROR",message:"A model answer is required before publication."});
+      if(question_text.trim().length<8)issues.push({code:"QUESTION_TOO_SHORT",severity:"ERROR",message:"The essay question must contain at least 8 characters."});
+      if(item.block_type==="CASE"&&!case_stem.trim())issues.push({code:"CASE_STEM_MISSING",severity:"WARNING",message:"Provide the clinical case stem."});
+      const status=issues.some(issue=>issue.severity==="ERROR")?"INVALID":issues.length?"NEEDS_REVIEW":"VALID";
+      return {...item,approved:(prior?.approved ?? item.status==="VALID")&&status!=="INVALID",
+        model_answer,question_text,case_stem,issues,status,
+        answer_origin:model_answer?.trim()&&item.answer_origin==="MISSING"?"MANUAL":item.answer_origin,
+        difficulty:prior?.difficulty ?? "MEDIUM",marks:prior?.marks ?? 1};
+    });
+  }
+
+  async function resumeSession(id:string) {
+    setInspecting(true);setError(null);
+    try {
+      const result=await fetchSavedSession(id);
+      sessionRevision.current=result.revision;
+      lastSavedReview.current="";
+      setSessionId(id);
+      if(result.review?.courseId) await chooseCourse(result.review.courseId);
+      setInspection(result);
+      resetCandidates(reviewedCandidates(result,result.review||null));
+      setGroupTopics(result.review?.groupTopics||{});
+      setCaseWeeks(result.review?.caseWeeks||{});
+      setGlobalTopicId(result.review?.globalTopicId||"");
+      setPublishedQuestionIds(new Set(result.review?.published||[]));
+      setStage("REVIEW");setRights(true);setCollapsed({});setActiveGroup("ALL");
+      notify({title:"Essay review restored",description:`${result.total} questions loaded from your saved import.`,tone:"success"});
+    } catch(c) { setError(c instanceof Error?c.message:"Could not resume saved import."); }
+    finally {setInspecting(false);}
+  }
 
   async function inspect(event:FormEvent){event.preventDefault(); if(!file){notify({title:"Choose an essay file",tone:"info"});return} if(!rights){notify({title:"Permission confirmation required",tone:"info"});return}
     const json=/\.(json|txt)$/i.test(file.name);
     if(!(/\.pdf$/i.test(file.name)||json)||!file.size||file.size>(json?2:50)*1024*1024){notify({title:"Unsupported essay file",description:"Choose a non-empty PDF (50 MB), JSON or JSON text (2 MB).",tone:"error"});return}
-    setInspecting(true);setError(null);setInspection(null);resetCandidates([]);setCollapsed({});setActiveGroup("ALL");setGlobalTopicId("");setGroupTopics({});setCaseWeeks({});setPublishedQuestionIds(new Set());setPublishDestination("QUESTION_BANK");setStage("UPLOAD"); try{const body=new FormData();body.append("file",file);body.append("copyright_confirmed","true");body.append("content_type",standaloneType); const result=await request<Inspection>("/questions/imports/essay/inspect",{method:"POST",body,signal:AbortSignal.timeout(60000)}); let restored: null | { courseId?:string; candidates?:Array<Partial<ReviewCandidate>&{candidate_id:string}>; groupTopics?:Record<string,string>; caseWeeks?:Record<string,string>; globalTopicId?:string; published?:string[] } = null;
+    setInspecting(true);setError(null);setInspection(null);resetCandidates([]);setCollapsed({});setActiveGroup("ALL");setGlobalTopicId("");setGroupTopics({});setCaseWeeks({});setPublishedQuestionIds(new Set());setPublishDestination("QUESTION_BANK");setStage("UPLOAD"); try{const body=new FormData();body.append("file",file);body.append("copyright_confirmed","true");body.append("content_type",standaloneType); const created=await request<{session_id:string}>("/questions/imports/essay/sessions/inspect",{method:"POST",body,signal:AbortSignal.timeout(60000)});
+      const result=await fetchSavedSession(created.session_id);
+      setSessionId(created.session_id);sessionRevision.current=result.revision;lastSavedReview.current="";
+      setSavedSessions(previous=>[{session_id:created.session_id,original_filename:result.original_filename,total:result.total},...previous].slice(0,10)); let restored: StoredEssayReview|null = null;
       try { const raw=sessionStorage.getItem(`mdp:essay-review:v2:${user?.id}:${result.file_sha256}`); if(raw) restored=JSON.parse(raw); } catch { /* corrupt or unavailable saved review */ }
-      const overrides=new Map((restored?.candidates||[]).map(item=>[item.candidate_id,item]));
       setInspection(result);setStage("REVIEW");
-      resetCandidates(result.candidates.map(item=>{
-        const prior=overrides.get(item.candidate_id);
-        const question_text=prior?.question_text ?? item.question_text;
-        const model_answer=prior?.model_answer ?? item.model_answer;
-        const case_stem=prior?.case_stem ?? item.case_stem;
-        const issues=item.issues.filter(issue=>!["MODEL_ANSWER_MISSING","QUESTION_TOO_SHORT","CASE_STEM_MISSING"].includes(issue.code));
-        if(!model_answer?.trim())issues.push({code:"MODEL_ANSWER_MISSING",severity:"ERROR",message:"A model answer is required before publication."});
-        if(question_text.trim().length<8)issues.push({code:"QUESTION_TOO_SHORT",severity:"ERROR",message:"The essay question must contain at least 8 characters."});
-        if(item.block_type==="CASE"&&!case_stem.trim())issues.push({code:"CASE_STEM_MISSING",severity:"WARNING",message:"Provide the clinical case stem."});
-        const status=issues.some(issue=>issue.severity==="ERROR")?"INVALID":issues.length?"NEEDS_REVIEW":"VALID";
-        return {...item,approved:(prior?.approved ?? item.status==="VALID")&&status!=="INVALID",
-          model_answer, question_text, case_stem, issues, status,
-          answer_origin:model_answer?.trim()&&item.answer_origin==="MISSING"?"MANUAL":item.answer_origin,
-          difficulty:prior?.difficulty ?? "MEDIUM", marks:prior?.marks ?? 1};
-      }));
+      resetCandidates(reviewedCandidates(result,restored));
       if(restored && restored.courseId===courseId){setGroupTopics(restored.groupTopics||{});setCaseWeeks(restored.caseWeeks||{});setGlobalTopicId(restored.globalTopicId||"");}
       if(restored?.published)setPublishedQuestionIds(new Set(restored.published)); notify({title:"Essay file inspected",description:`${result.summary.cases} cases · ${result.summary.lectures ?? 0} lectures · ${result.summary.extracted} essay questions detected.`,tone:"success"});}catch(c){const msg=c instanceof Error?c.message:"Unable to inspect essay PDF.";setError(msg);notify({title:"Essay inspection failed",description:msg,tone:"error"});}finally{setInspecting(false)}}
 
