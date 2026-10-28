@@ -6,6 +6,8 @@ on:
       - agent/phase1-interactions
     paths:
       - .github/workflows/refresh-security-lockfiles.yml
+      - backend/package.json
+      - frontend/package.json
   workflow_dispatch:
 
 permissions:
