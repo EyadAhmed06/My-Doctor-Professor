@@ -494,3 +494,67 @@
 .essay-v2-saved-sessions { display:flex;flex-wrap:wrap;gap:.7rem;max-height:260px;overflow:auto;padding:.4rem 0; }
 .essay-v2-saved-sessions .pp-button { max-width:100%;overflow-wrap:anywhere;white-space:normal;text-align:left; }
 .essay-v2-save-status { font-size:.8rem; opacity:.8; margin:.45rem 0; }
+
+
+/* Essay review: keep section decisions near the questions they affect. */
+.essay-v2-groups .essay-v2-section-head {
+  display:grid;
+  grid-template-columns:minmax(0, 1fr);
+  align-items:start;
+  gap:14px;
+  margin:12px 0 18px;
+  padding:16px;
+  border:1px solid rgba(151,174,226,.2);
+  border-radius:14px;
+}
+.essay-v2-section-head .essay-v2-include-toggle {
+  display:inline-flex !important;
+  flex-direction:row !important;
+  align-items:center !important;
+  gap:10px !important;
+  width:fit-content;
+  min-height:36px;
+  font-weight:600;
+}
+.essay-v2-include-toggle input[type="checkbox"] {
+  appearance:auto;
+  flex:0 0 auto;
+  width:18px !important;
+  height:18px !important;
+  margin:0;
+  accent-color:#38d5c5;
+}
+.essay-v2-section-head .essay-v2-stem-field {
+  display:flex;
+  flex-direction:column;
+  width:100%;
+  min-width:0;
+  gap:8px;
+  font-weight:600;
+}
+.essay-v2-stem-field textarea {
+  box-sizing:border-box;
+  width:100%;
+  min-height:92px;
+  max-height:290px;
+  resize:vertical;
+  line-height:1.5;
+  font-weight:400;
+  padding:12px 14px;
+}
+.essay-v2-section-tools {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 4px;}
+.essay-v2-section-count {font-size:.86rem;font-weight:600;opacity:.82;}
+.essay-v2-save-status {display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:9px 12px;border:1px solid rgba(146,168,207,.28);border-radius:10px;width:fit-content;max-width:100%;font-size:.875rem;}
+.essay-v2-save-status.is-error {border-color:rgba(244,115,115,.68);}
+.essay-v2-save-status.is-saving {opacity:.85;}
+.essay-v2-save-status small {flex-basis:100%;line-height:1.4;overflow-wrap:anywhere;}
+.essay-v2-review-toolbar .question-import-bulk-actions {display:flex;flex-wrap:wrap;gap:8px;}
+.essay-v2-groups .essay-v2-windowed-list {scrollbar-gutter:stable;}
+@media(min-width:960px) {
+  .essay-v2-groups .essay-v2-section-head {grid-template-columns:minmax(0, 1fr);}
+  .essay-v2-stem-field textarea {max-width:100%;}
+}
+@media(max-width:640px) {
+  .essay-v2-groups .essay-v2-section-head {padding:12px;}
+  .essay-v2-section-tools .pp-button {width:auto;}
+}
