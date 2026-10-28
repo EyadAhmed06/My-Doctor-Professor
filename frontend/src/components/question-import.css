@@ -617,3 +617,11 @@
   .essay-v2-import-summary > * {min-width:125px;flex:1 1 42% !important;}
   .essay-v2-groups .essay-import-question textarea {font-size:1rem;}
 }
+
+
+.essay-v2-review-help {margin-top:12px;font-size:.95rem;}
+.essay-v2-review-help summary {cursor:pointer;font-weight:650;text-decoration:underline;text-underline-offset:3px;min-height:32px;}
+.essay-v2-review-help dl {display:grid;grid-template-columns:minmax(140px,1fr) minmax(0,3fr);gap:8px 14px;padding:12px;margin:8px 0 0;border:1px solid var(--pp-border,#253352);border-radius:10px;}
+.essay-v2-review-help dt {font-weight:700;}
+.essay-v2-review-help dd {margin:0;line-height:1.5;}
+@media(max-width:640px){.essay-v2-review-help dl {grid-template-columns:1fr;gap:3px;}.essay-v2-review-help dd {margin-bottom:10px;}}
