@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FiArrowLeft, FiCheck, FiFileText, FiRefreshCw, FiSearch, FiUploadCloud } from "react-icons/fi";
-import { EssayWindowedQuestionList } from "./essay-windowed-question-list";
+import { EssayV3Organize } from "./essay-v3-organize";
+import { EssayV3Publish } from "./essay-v3-publish";
 import { EssayHybridWorkspace } from "./essay-hybrid-workspace";
 import { useEssayReviewHistory } from "./use-essay-review-history";
 import { splitEssayPublishBatches } from "@/lib/essay-import-batching";
@@ -386,56 +387,35 @@ export function EssayQuestionImportPage() {
     {error&&<p className="form-error" role="alert">{error}</p>}
     {inspection&&stage!=="UPLOAD"&&<><section className="question-import-summary essay-v2-import-summary"><Panel><small>CASES</small><strong>{inspection.summary.cases}</strong><span>detected case blocks</span></Panel><Panel><small>LECTURES</small><strong>{inspection.summary.lectures ?? 0}</strong><span>detected lecture blocks</span></Panel><Panel><small>ESSAYS</small><strong>{inspection.summary.extracted}</strong><span>{statusCounts.VALID} ready · {statusCounts.NEEDS_REVIEW} review · {statusCounts.INVALID} invalid</span></Panel><Panel><small>PAGES</small><strong>{inspection.page_count}</strong><span>{inspection.original_filename}</span></Panel><Panel><small>READY TO PUBLISH</small><strong>{publishable}</strong><span>{stage==="REVIEW"?"Select questions, then assign a destination in Organize":stage==="ORGANIZE"?"Select questions and assign a topic or week":"Approved questions with a valid destination and answer"}</span></Panel></section>
       {inspection.issues.length>0&&<Panel title="Batch checks">{inspection.issues.map((issue)=><p key={issue.code}>{issue.severity}: {issue.message}</p>)}</Panel>}
-      {(stage==="ORGANIZE"||stage==="PUBLISH")&&<Panel title="Default destination topic (optional when assigned per group)"><div className="question-import-bulk-actions"><button className="pp-button secondary" type="button" onClick={suggestTopicMatches} disabled={!courseId||!topics.length}>Suggest exact lecture-to-topic matches</button></div><div className="question-import-fields"><label><span>Destination course</span><select value={courseId} onChange={event=>void chooseCourse(event.target.value)}><option value="">Choose course…</option>{courses.map(item=><option key={item.id} value={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label></div><div className="question-import-fields"><label><span>Destination lecture topic</span><select value={globalTopicId} onChange={(e)=>setGlobalTopicId(e.target.value)}><option value="">Choose lecture topic…</option>{topics.map((topic)=><option key={topic.id} value={topic.id}>{topic.label}</option>)}</select><small>{courseId?"Use this as the default for all groups, or choose a separate destination topic for each case and lecture below.":"Choose a destination course above to load its weeks and lecture topics. You can inspect and review before choosing."}</small></label></div></Panel>}
       {stage==="REVIEW"&&<EssayHybridWorkspace items={candidates} publishedIds={publishedQuestionIds} onUpdate={update} onGroupStem={updateStem} onGroupApproval={setGroupApproved}/>}
-      {stage==="ORGANIZE"&&<div className="essay-v2-review-toolbar"><Panel title="Review workspace">
-        <p>Select a case or lecture, review its questions, and make edits if needed. Use the question jump control in each section instead of scrolling through every question. Destination assignment happens in Organize.</p>
-        <div className="question-import-bulk-actions">
-          <button className="pp-button secondary" type="button" disabled={!canUndo||publishing||creatingCases} onClick={undo} aria-label="Undo review edit" title="Revert your last question edit or selection">Undo</button>
-          <button className="pp-button secondary" type="button" disabled={!canRedo||publishing||creatingCases} onClick={redo} aria-label="Redo review edit" title="Restore the last undone edit">Redo</button>
-          <button className="pp-button secondary" type="button" onClick={()=>setCandidates(items=>items.map(item=>({...item,approved:item.status!=="INVALID"})))} title="Select every valid or reviewable question in this file">Select all ready</button>
-          <button className="pp-button secondary" type="button" onClick={()=>setCandidates(items=>items.map(item=>({...item,approved:false})))} title="Deselect every question without deleting anything">Deselect all</button>
-          <button className="pp-button secondary" type="button" onClick={()=>setCollapsed(Object.fromEntries(candidates.map(item=>[groupKey(item),true])))}>Collapse all</button>
-          <button className="pp-button secondary" type="button" onClick={()=>setCollapsed({})}>Expand all</button>
-        </div>
-        <label>Jump to a case or lecture
-          <select value={activeGroup} onChange={event=>setActiveGroup(event.target.value)}>
-            <option value="ALL">All cases and lectures</option>
-            {[...new Map(candidates.map(item=>[groupKey(item),item])).entries()].map(([key,item])=><option key={key} value={key}>{item.block_type==="LECTURE"?item.section:`Case ${item.case_number} · ${item.section}`}</option>)}
-          </select>
-        </label>
-        <details className="essay-v2-review-help"><summary>What do these review actions do?</summary><dl><dt>Undo / Redo</dt><dd>Reverse or restore a recent local review edit.</dd><dt>Select all ready</dt><dd>Select valid questions for publication; this does not publish them.</dd><dt>Deselect all</dt><dd>Remove selections without deleting any question.</dd><dt>Collapse / Expand all</dt><dd>Hide or show the question sections without losing edits.</dd><dt>Jump to a case or lecture</dt><dd>Display one section. Within it, use Go to question or Previous/Next instead of scrolling.</dd><dt>Organize</dt><dd>Assign the destination topic or week before publishing.</dd></dl></details>
-      </Panel></div>}
-      {stage==="PUBLISH"&&<Panel title="Choose where to publish">
-        <p><b>Question Bank</b> saves individual essay questions in lecture topics. <b>Case Studio</b> saves complete clinical cases under weeks. They are separate destinations; select the one you need.</p>
-        <div className="question-import-bulk-actions" role="group" aria-label="Publishing destination">
-          <button type="button" className={`pp-button ${publishDestination==="QUESTION_BANK"?"":"secondary"}`} aria-pressed={publishDestination==="QUESTION_BANK"} onClick={()=>setPublishDestination("QUESTION_BANK")}>Question Bank · Essays</button>
-          {user.role==="INSTRUCTOR"&&<button type="button" className={`pp-button ${publishDestination==="CASE_STUDIO"?"":"secondary"}`} aria-pressed={publishDestination==="CASE_STUDIO"} onClick={()=>setPublishDestination("CASE_STUDIO")}>Case Studio · Clinical cases</button>}
-        </div>
-        {publishDestination==="QUESTION_BANK"?
-          <p>Assign a <b>Question Bank topic</b> to each selected group, then publish the selected questions. Lecture questions and case questions are both supported.</p>
-          :<p>Assign a <b>Case Studio week</b> to each selected clinical case. Lecture questions are not published through Case Studio.</p>}
-      </Panel>}
-      {stage==="ORGANIZE"&&<><div className="question-import-filterbar essay-v2-filters">
-        <label className="question-import-search"><FiSearch/><input type="search" value={candidateSearch} onChange={(e)=>setCandidateSearch(e.target.value)} placeholder="Search case, question number, text, answer, issue…" aria-label="Search inspected essay questions"/></label>
-        <div className="question-import-status-filters" role="group" aria-label="Filter by review status">{([["ALL","All"],["VALID","Ready"],["NEEDS_REVIEW","Needs review"],["INVALID","Invalid"]] as const).map(([value,label])=><button type="button" key={value} className={statusFilter===value?"active":""} onClick={()=>setStatusFilter(value)}>{label} <span>{statusCounts[value]}</span></button>)}</div>
-      </div>
-      {groups.length===0&&<div className="question-import-empty-filter">No essay questions match this search and status filter.</div>}
-      <section className="essay-import-groups essay-v2-groups">{groups.map(([key,items])=>{const first=items[0];return <Panel key={key} title={first.block_type==="LECTURE"?first.section:`${first.section} · Case ${first.case_number}`}><div className="essay-v2-section-tools"><span className="essay-v2-section-count">{items.length} questions · {items.filter(item=>item.approved).length} selected</span><button type="button" className="pp-button secondary" onClick={()=>setCollapsed(current=>({...current,[key]:!current[key]}))} aria-expanded={!collapsed[key]}>{collapsed[key]?"Expand questions":"Collapse questions"}</button></div>{!collapsed[key]&&<div className="essay-case-import-head essay-v2-section-head"><label className="essay-v2-include-toggle"><input type="checkbox" aria-label={`Include all questions from ${first.section} ${first.case_number}`} checked={items.every(item=>item.approved)} onChange={event=>setGroupApproved(key,event.target.checked)}/><span>Include this {first.block_type==="LECTURE"?"lecture":"case"} in publication</span></label><label className="essay-v2-stem-field"><span>{first.block_type==="LECTURE"?"Lecture title":"Clinical case stem"}</span><textarea rows={first.block_type==="CASE"?4:2} aria-label={`Edit ${first.block_type==="LECTURE"?"lecture title":"case stem"} for group ${first.case_number}`} value={first.case_stem} onChange={e=>updateStem(key,e.target.value)}/></label>{stage==="ORGANIZE"&&first.block_type==="CASE"&&user.role==="INSTRUCTOR"&&<label>Case Studio destination week <select aria-label={`Destination Case Studio week for Case ${first.case_number}`} value={caseWeeks[key]??""} onChange={(e)=>setCaseWeeks((previous)=>({...previous,[key]:e.target.value}))}><option value="">Choose week for draft case…</option>{(course?.weeks||[]).map((week)=><option key={week.id} value={week.id}>Week {week.weekNumber}{week.title?` · ${week.title}`:""}</option>)}</select></label>}{stage==="ORGANIZE"&&<label>Question Bank topic <select aria-label={`Destination topic for ${first.section} ${first.block_type === "LECTURE" ? "lecture" : "case"} ${first.case_number}`} value={groupTopics[key] ?? ""} onChange={(e)=>setGroupTopics((existing)=>({...existing,[key]:e.target.value}))}><option value="">Use default topic</option>{topics.map((topic)=><option key={topic.id} value={topic.id}>{topic.label}</option>)}</select></label>}<div className="question-import-bulk-actions" role="group" aria-label={`Select ${first.block_type === "LECTURE" ? "lecture" : "case"} questions`}><button type="button" className="pp-button secondary" onClick={()=>setCandidates((current)=>current.map((item)=>groupKey(item)===key&&item.status!=="INVALID"?{...item,approved:true}:item))}>Select ready questions</button><button type="button" className="pp-button secondary" onClick={()=>setCandidates((current)=>current.map((item)=>groupKey(item)===key?{...item,approved:false}:item))}>Clear section selection</button></div></div>}{!collapsed[key]&&<EssayWindowedQuestionList items={items} publishedQuestionIds={publishedQuestionIds} onUpdate={update}/>}</Panel>})}</section><div role="status" className="question-import-empty-filter">{filteredCandidates.length} questions available · Scroll inside each section to review its questions.</div>
-      <div className="question-import-bulk-actions essay-v2-next-step">
-        <button className="pp-button" type="button" onClick={()=>setStage("PUBLISH")}>Review publication summary →</button>
-      </div>
-      </>}
+
+      {stage==="ORGANIZE"&&<EssayV3Organize
+        items={candidates} courses={courses} courseId={courseId} course={course} topics={topics}
+        groupTopics={groupTopics} globalTopicId={globalTopicId} caseWeeks={caseWeeks}
+        busy={publishing||creatingCases}
+        onChooseCourse={id=>void chooseCourse(id)}
+        onDefaultTopic={setGlobalTopicId}
+        onGroupTopic={(id,topic)=>setGroupTopics(current=>({...current,[id]:topic}))}
+        onCaseWeek={(id,week)=>setCaseWeeks(current=>({...current,[id]:week}))}
+        onSuggest={suggestTopicMatches}
+        onSelectGroup={setGroupApproved}
+        onBack={()=>setStage("REVIEW")}
+        onContinue={()=>setStage("PUBLISH")}
+      />}
       {stage==="REVIEW"&&<div className="essay-v3-stage-next"><button type="button" className="pp-button" onClick={()=>setStage("ORGANIZE")}>Continue to organize →</button></div>}
-      {stage==="PUBLISH"&&publishDestination==="QUESTION_BANK"&&<Panel title="Final publication preview">
-        <p><b>{publishable} ready</b> · {unassignedApproved} need a topic · {invalidApproved} contain errors. Only approved questions are included. Review the exact destinations below before publishing.</p>
-        <div className="essay-v2-preview-list">{publicationPreview.map((group,index)=><div key={index} className="essay-v2-preview-row">
-          <strong>{group.label}</strong><span>{group.count} selected question(s)</span>
-          <small>{group.topicLabel}</small>
-          {(group.missingTopic>0||group.invalid>0)&&<small role="status">{group.missingTopic} without a topic · {group.invalid} invalid</small>}
-        </div>)}</div>
-        {!publicationPreview.length&&<p>No unpublished approved questions are selected.</p>}
-      </Panel>}
-      {stage==="PUBLISH"&&publishDestination==="QUESTION_BANK"&&<div className="question-import-publish-bar"><div><b>{publishable} essay questions ready for Question Bank</b><small>{unassignedApproved?`${unassignedApproved} approved questions still need a destination topic. `:""}{invalidApproved?` ${invalidApproved} selected questions contain validation errors. `:""}{publishedQuestionIds.size?`${publishedQuestionIds.size} question(s) published in this review. `:""}Each approved question retains its source case or lecture and model answer.</small></div><button className="pp-button" type="button" disabled={!publishable||unassignedApproved>0||invalidApproved>0||publishing||creatingCases} onClick={()=>void publish()}><FiFileText/>{publishing&&publishProgress?`Publishing ${publishProgress.done}/${publishProgress.total}…`:`Publish ${publishable} to Question Bank`}</button></div>}{stage==="PUBLISH"&&publishDestination==="CASE_STUDIO"&&user.role==="INSTRUCTOR"&&caseDraftGroups.length>0&&<div className="question-import-publish-bar"><div><b>{mappedCaseDraftGroups.length} of {caseDraftGroups.length} cases ready for Case Studio</b><small>Assign each case to a week. Create unpublished drafts with the inspected questions and model answers; existing matching cases are skipped on retry.</small></div><button className="pp-button" type="button" disabled={!mappedCaseDraftGroups.length||creatingCases||publishing} onClick={()=>void createCaseDrafts()}><FiFileText/>{creatingCases?"Creating case drafts…":`Create ${mappedCaseDraftGroups.length} Case Studio drafts`}</button><button className="pp-button" type="button" disabled={!mappedCaseDraftGroups.length||creatingCases||publishing||!rights} onClick={()=>void createCaseDrafts(true)}><FiCheck/>{creatingCases?"Processing…":`Publish ${mappedCaseDraftGroups.length} selected clinical cases`}</button></div>}</>}
+      {stage==="PUBLISH"&&<EssayV3Publish
+        items={candidates} destination={publishDestination} onDestination={setPublishDestination}
+        allowedCaseStudio={user.role==="INSTRUCTOR"} readyCount={publishable}
+        unassignedCount={unassignedApproved} invalidCount={invalidApproved}
+        rows={publicationPreview} caseGroups={caseDraftGroups.length}
+        validCaseGroups={mappedCaseDraftGroups.length}
+        publishedIds={publishedQuestionIds} progress={publishProgress}
+        busy={publishing||creatingCases}
+        onPublishQuestions={()=>void publish()}
+        onCreateCases={()=>void createCaseDrafts()}
+        onPublishCases={()=>void createCaseDrafts(true)}
+        onBack={()=>setStage("ORGANIZE")}
+        onReturnToReview={()=>setStage("REVIEW")}
+      />}</>}
   </main></ProductShell>;
 }
