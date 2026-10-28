@@ -402,7 +402,7 @@ export function EssayQuestionImportPage() {
             {[...new Map(candidates.map(item=>[groupKey(item),item])).entries()].map(([key,item])=><option key={key} value={key}>{item.block_type==="LECTURE"?item.section:`Case ${item.case_number} · ${item.section}`}</option>)}
           </select>
         </label>
-        <small>Questions are windowed within their sections: only nearby editors are mounted as you scroll. Your selections and edits remain intact when questions leave the viewport.</small>
+        <details className="essay-v2-review-help"><summary>What do these review actions do?</summary><dl><dt>Undo / Redo</dt><dd>Reverse or restore a recent local review edit.</dd><dt>Select all ready</dt><dd>Select valid questions for publication; this does not publish them.</dd><dt>Deselect all</dt><dd>Remove selections without deleting any question.</dd><dt>Collapse / Expand all</dt><dd>Hide or show the question sections without losing edits.</dd><dt>Jump to a case or lecture</dt><dd>Display one section. Within it, use Go to question or Previous/Next instead of scrolling.</dd><dt>Organize</dt><dd>Assign the destination topic or week before publishing.</dd></dl></details>
       </Panel></div>}
       {stage==="PUBLISH"&&<Panel title="Choose where to publish">
         <p><b>Question Bank</b> saves individual essay questions in lecture topics. <b>Case Studio</b> saves complete clinical cases under weeks. They are separate destinations; select the one you need.</p>
