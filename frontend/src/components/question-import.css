@@ -475,3 +475,9 @@
 .essay-v2-stepper button:focus-visible { outline: 3px solid var(--pp-primary,#49d7cc); outline-offset: 3px; }
 .essay-v2-next-step { justify-content: flex-end; padding: 1rem 0; }
 @media(max-width:600px) { .essay-v2-stepper { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+
+.essay-v2-question-options { display: grid; grid-template-columns: minmax(0,1fr) minmax(130px,180px); gap: 12px; margin: .6rem 0; }
+.essay-v2-question-options label { display: grid; gap: .35rem; }
+.essay-v2-question-options select, .essay-v2-question-options input { width: 100%; min-height: 42px; border: 1px solid var(--pp-border,#253352); border-radius: 8px; padding: .45rem .7rem; background: var(--pp-surface,#10182d); color: inherit; }
+@media(max-width: 520px) { .essay-v2-question-options { grid-template-columns: 1fr; } }
