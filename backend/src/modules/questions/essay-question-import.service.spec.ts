@@ -28,6 +28,18 @@ describe('EssayQuestionImportService PDF parsing', () => {
     expect(result.candidates).toHaveLength(501);
   });
 
+  it('preserves four-digit question numbering in a large standalone JSON lecture', async () => {
+    const questions = Array.from({ length: 1002 }, (_, index) => ({
+      question_text: `Explain finding number ${index + 1} in the study material.`,
+      model_answer: `Finding number ${index + 1}.`,
+      question_number: index + 1,
+    }));
+    const buffer = Buffer.from(JSON.stringify({ sections: [{ type: 'LECTURE', number: 1, title: 'Lecture review', questions }] }));
+    const result = await service.inspectJson(true, { buffer, size: buffer.length, originalname: 'large-lecture.json' } as never);
+    expect(result.summary.extracted).toBe(1002);
+    expect(result.candidates.at(-1)?.question_number).toBe(1002);
+  });
+
   it('matches answer keys placed after all case question blocks', () => {
     const candidates = parse(`
       Final 2028
