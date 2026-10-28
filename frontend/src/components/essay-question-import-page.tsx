@@ -6,7 +6,7 @@ import { FiArrowLeft, FiFileText } from "react-icons/fi";
 import { EssayV3Organize } from "./essay-v3-organize";
 import { EssayV3Upload } from "./essay-v3-upload";
 import { EssayV3Publish } from "./essay-v3-publish";
-import { EssayHybridWorkspace } from "./essay-hybrid-workspace";
+import { EssayHybridWorkspace, type EssayReviewPosition } from "./essay-hybrid-workspace";
 import { useEssayReviewHistory } from "./use-essay-review-history";
 import { splitEssayPublishBatches } from "@/lib/essay-import-batching";
 import type { Candidate, Inspection, ReviewCandidate } from "./essay-import-model";
@@ -70,6 +70,7 @@ export function EssayQuestionImportPage() {
   const [globalTopicId,setGlobalTopicId]=useState(""); const [groupTopics,setGroupTopics]=useState<Record<string,string>>({});
   const [caseWeeks,setCaseWeeks]=useState<Record<string,string>>({}); const [creatingCases,setCreatingCases]=useState(false);
   const [stage,setStage]=useState<"UPLOAD"|"REVIEW"|"ORGANIZE"|"PUBLISH">("UPLOAD");
+  const [reviewPosition,setReviewPosition]=useState<EssayReviewPosition>({mode:"REVIEW",groupId:"",questionId:""});
   const [publishDestination,setPublishDestination]=useState<"QUESTION_BANK"|"CASE_STUDIO">("QUESTION_BANK");
   const [publishProgress,setPublishProgress]=useState<{done:number;total:number}|null>(null);
   const [publishedQuestionIds,setPublishedQuestionIds]=useState<Set<string>>(new Set());
@@ -385,7 +386,7 @@ export function EssayQuestionImportPage() {
     {error&&<p className="form-error" role="alert">{error}</p>}
     {inspection&&stage!=="UPLOAD"&&<><section className="essay-v31-summary" aria-label="Import overview"><span><b>{inspection.summary.cases}</b> cases</span><span><b>{inspection.summary.lectures??0}</b> lectures</span><span><b>{inspection.summary.extracted}</b> questions</span><span><b>{inspection.page_count}</b> pages</span><span><b>{candidates.filter(item=>item.approved).length}</b> selected</span><span className="essay-v31-ready"><b>{publishable}</b> publishable</span><details><summary>Source details</summary><p>{inspection.original_filename}</p><p>{statusCounts.VALID} valid · {statusCounts.NEEDS_REVIEW} need review · {statusCounts.INVALID} invalid</p></details></section>
       {inspection.issues.length>0&&<Panel title="Batch checks">{inspection.issues.map((issue)=><p key={issue.code}>{issue.severity}: {issue.message}</p>)}</Panel>}
-      {stage==="REVIEW"&&<EssayHybridWorkspace items={candidates} publishedIds={publishedQuestionIds} onUpdate={update} onGroupStem={updateStem} onGroupApproval={setGroupApproved}/>}
+      {stage==="REVIEW"&&<EssayHybridWorkspace items={candidates} publishedIds={publishedQuestionIds} onUpdate={update} onGroupStem={updateStem} onGroupApproval={setGroupApproved} position={reviewPosition} onPositionChange={setReviewPosition}/>}
 
       {stage==="ORGANIZE"&&<EssayV3Organize
         items={candidates} courses={courses} courseId={courseId} course={course} topics={topics}
