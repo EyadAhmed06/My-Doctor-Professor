@@ -313,3 +313,40 @@
     padding: 12px;
   }
 }
+
+
+/* Platform fluidity v1: inexpensive interaction feedback, without decorative motion. */
+.product-app :is(.pp-button, .pp-topbar button, .pp-topbar nav a, .pp-panel button, .phase5-mobile-dock a, .phase5-mobile-dock button) {
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) and (pointer: fine) {
+  .product-app :is(.pp-button, .pp-topbar button, .pp-topbar nav a, .pp-panel button):not(:disabled):hover {
+    filter: brightness(1.07);
+  }
+}
+.product-app :is(.pp-button, .pp-topbar button, .pp-panel button):not(:disabled):active {
+  filter: brightness(.94);
+}
+.product-app :is(button, a, input, select, textarea, [role="button"]):focus-visible {
+  outline: 2px solid var(--teal, #48d2c7);
+  outline-offset: 3px;
+}
+.product-app :is(button, input, select, textarea):disabled {
+  cursor: not-allowed;
+}
+.product-app :is(.pp-topbar nav a, .phase5-mobile-dock a)[aria-current="page"] {
+  font-weight: 750;
+  text-underline-offset: 5px;
+}
+.product-app :is(.pp-panel, .dash-card, .phase5-workspace-main) {
+  scroll-margin-top: 88px;
+}
+@media (prefers-reduced-motion: reduce) {
+  html, body, body *:not([data-allow-essential-motion]) {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
