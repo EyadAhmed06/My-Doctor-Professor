@@ -62,6 +62,7 @@ export function EssayQuestionImportPage() {
   const lastSavedReview = useRef("");
   const [savingReview, setSavingReview] = useState(false);
   const [reviewSaveError, setReviewSaveError] = useState<string | null>(null);
+  const [saveRetryCount,setSaveRetryCount] = useState(0);
   const [reviewSavedAt, setReviewSavedAt] = useState<number | null>(null);
   const [courses, setCourses] = useState<Course[]>([]); const [courseId,setCourseId]=useState(""); const [course,setCourse]=useState<Course|null>(null);
   const [file,setFile]=useState<File|null>(null); const [standaloneType,setStandaloneType]=useState<'LECTURE'|'CASE'>('LECTURE'); const [rights,setRights]=useState(false); const [inspection,setInspection]=useState<Inspection|null>(null); const {items:candidates,setItems:setCandidates,resetItems:resetCandidates}=useEssayReviewHistory<ReviewCandidate>([]);
@@ -75,7 +76,7 @@ export function EssayQuestionImportPage() {
   const topics = useMemo(() => topicsFor(course), [course]);
   const saveInFlight = useRef(false);
   useEffect(() => {
-    if (!sessionId || !candidates.length || saveInFlight.current) return;
+    if (!sessionId || !candidates.length || saveInFlight.current || reviewSaveError) return;
     if(!inspection)return;
     const originals = new Map(inspection.candidates.map(item=>[item.candidate_id,item]));
     const changes:Array<Partial<ReviewCandidate>&{candidate_id:string}>=[];
@@ -111,7 +112,7 @@ export function EssayQuestionImportPage() {
       }).finally(()=>{saveInFlight.current=false;setSavingReview(false);});
     },1800);
     return ()=>window.clearTimeout(timer);
-  },[sessionId,inspection,candidates,courseId,groupTopics,caseWeeks,globalTopicId,publishedQuestionIds,request,savingReview]);
+  },[sessionId,inspection,candidates,courseId,groupTopics,caseWeeks,globalTopicId,publishedQuestionIds,request,savingReview,reviewSaveError,saveRetryCount]);
 
   // Store the in-progress review in this tab only. The uploaded source itself
   // is never persisted, and another instructor cannot load this tab's snapshot.
@@ -379,7 +380,7 @@ export function EssayQuestionImportPage() {
     {inspection&&sessionId&&<div role="status" className={`essay-v2-save-status ${reviewSaveError?"is-error":savingReview?"is-saving":"is-saved"}`}>
       <span aria-hidden="true">{reviewSaveError?"⚠":savingReview?"◌":reviewSavedAt?"✓":"◌"}</span>
       <span>{reviewSaveError?"Review not saved — your edits remain in this tab.":savingReview?"Saving changes…":reviewSavedAt?"Changes saved to your account":"Review autosave is ready"}</span>
-      {reviewSaveError&&<small>{reviewSaveError}</small>}
+      {reviewSaveError&&<><small>{reviewSaveError}</small><button type="button" className="essay-v3-secondary" onClick={()=>{setReviewSaveError(null);setSaveRetryCount(n=>n+1);}}>Retry saving</button></>}
     </div>}
     {error&&<p className="form-error" role="alert">{error}</p>}
     {inspection&&stage!=="UPLOAD"&&<><section className="question-import-summary essay-v2-import-summary"><Panel><small>CASES</small><strong>{inspection.summary.cases}</strong><span>detected case blocks</span></Panel><Panel><small>LECTURES</small><strong>{inspection.summary.lectures ?? 0}</strong><span>detected lecture blocks</span></Panel><Panel><small>ESSAYS</small><strong>{inspection.summary.extracted}</strong><span>{statusCounts.VALID} ready · {statusCounts.NEEDS_REVIEW} review · {statusCounts.INVALID} invalid</span></Panel><Panel><small>PAGES</small><strong>{inspection.page_count}</strong><span>{inspection.original_filename}</span></Panel><Panel><small>READY TO PUBLISH</small><strong>{publishable}</strong><span>{stage==="REVIEW"?"Select questions, then assign a destination in Organize":stage==="ORGANIZE"?"Select questions and assign a topic or week":"Approved questions with a valid destination and answer"}</span></Panel></section>
