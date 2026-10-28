@@ -219,9 +219,9 @@ export function AdvancedBundlesPage() {
           .filter((item) => !ownedIds.has(item.id))
           .map((item) => ({
             ...item,
-            accessible: false,
+            accessible: item.isFree,
             payment_required: !item.isFree,
-            access_status: "LOCKED",
+            access_status: item.isFree ? "ACTIVE" : "LOCKED",
           }));
         setBundles([...scopedOwned, ...lockedCatalog]);
       }
