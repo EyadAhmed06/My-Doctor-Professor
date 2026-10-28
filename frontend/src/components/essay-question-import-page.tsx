@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FiArrowLeft, FiCheck, FiFileText, FiRefreshCw, FiSearch, FiUploadCloud } from "react-icons/fi";
+import { FiArrowLeft, FiRefreshCw, FiUploadCloud } from "react-icons/fi";
 import { EssayV3Organize } from "./essay-v3-organize";
 import { EssayV3Publish } from "./essay-v3-publish";
 import { EssayHybridWorkspace } from "./essay-hybrid-workspace";
@@ -63,7 +63,7 @@ export function EssayQuestionImportPage() {
   const [reviewSaveError, setReviewSaveError] = useState<string | null>(null);
   const [reviewSavedAt, setReviewSavedAt] = useState<number | null>(null);
   const [courses, setCourses] = useState<Course[]>([]); const [courseId,setCourseId]=useState(""); const [course,setCourse]=useState<Course|null>(null);
-  const [file,setFile]=useState<File|null>(null); const [standaloneType,setStandaloneType]=useState<'LECTURE'|'CASE'>('LECTURE'); const [rights,setRights]=useState(false); const [inspection,setInspection]=useState<Inspection|null>(null); const {items:candidates,setItems:setCandidates,resetItems:resetCandidates,undo,redo,canUndo,canRedo}=useEssayReviewHistory<ReviewCandidate>([]);
+  const [file,setFile]=useState<File|null>(null); const [standaloneType,setStandaloneType]=useState<'LECTURE'|'CASE'>('LECTURE'); const [rights,setRights]=useState(false); const [inspection,setInspection]=useState<Inspection|null>(null); const {items:candidates,setItems:setCandidates,resetItems:resetCandidates}=useEssayReviewHistory<ReviewCandidate>([]);
   const [loading,setLoading]=useState(true); const [inspecting,setInspecting]=useState(false); const [publishing,setPublishing]=useState(false); const [error,setError]=useState<string|null>(null);
   const [candidateSearch,setCandidateSearch]=useState(""); const [statusFilter,setStatusFilter]=useState<"ALL"|Candidate["status"]>("ALL"); const [globalTopicId,setGlobalTopicId]=useState(""); const [groupTopics,setGroupTopics]=useState<Record<string,string>>({});
   const [caseWeeks,setCaseWeeks]=useState<Record<string,string>>({}); const [creatingCases,setCreatingCases]=useState(false);
@@ -71,8 +71,6 @@ export function EssayQuestionImportPage() {
   const [publishDestination,setPublishDestination]=useState<"QUESTION_BANK"|"CASE_STUDIO">("QUESTION_BANK");
   const [publishProgress,setPublishProgress]=useState<{done:number;total:number}|null>(null);
   const [publishedQuestionIds,setPublishedQuestionIds]=useState<Set<string>>(new Set());
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [activeGroup, setActiveGroup] = useState<string>("ALL");
   const topics = useMemo(() => topicsFor(course), [course]);
   const saveInFlight = useRef(false);
   useEffect(() => {
@@ -189,7 +187,7 @@ export function EssayQuestionImportPage() {
       setCaseWeeks(result.review?.caseWeeks||{});
       setGlobalTopicId(result.review?.globalTopicId||"");
       setPublishedQuestionIds(new Set(result.review?.published||[]));
-      setStage("REVIEW");setRights(true);setCollapsed({});setActiveGroup("ALL");
+      setStage("REVIEW");setRights(true);
       notify({title:"Essay review restored",description:`${result.total} questions loaded from your saved import.`,tone:"success"});
     } catch(c) { setError(c instanceof Error?c.message:"Could not resume saved import."); }
     finally {setInspecting(false);}
@@ -198,7 +196,7 @@ export function EssayQuestionImportPage() {
   async function inspect(event:FormEvent){event.preventDefault(); if(!file){notify({title:"Choose an essay file",tone:"info"});return} if(!rights){notify({title:"Permission confirmation required",tone:"info"});return}
     const json=/\.(json|txt)$/i.test(file.name);
     if(!(/\.pdf$/i.test(file.name)||json)||!file.size||file.size>(json?2:50)*1024*1024){notify({title:"Unsupported essay file",description:"Choose a non-empty PDF (50 MB), JSON or JSON text (2 MB).",tone:"error"});return}
-    setInspecting(true);setError(null);setSessionId(null);setReviewSaveError(null);setReviewSavedAt(null);setInspection(null);resetCandidates([]);setCollapsed({});setActiveGroup("ALL");setGlobalTopicId("");setGroupTopics({});setCaseWeeks({});setPublishedQuestionIds(new Set());setPublishDestination("QUESTION_BANK");setStage("UPLOAD"); try{const body=new FormData();body.append("file",file);body.append("copyright_confirmed","true");body.append("content_type",standaloneType); const created=await request<{session_id:string}>("/questions/imports/essay/sessions/inspect",{method:"POST",body,signal:AbortSignal.timeout(60000)});
+    setInspecting(true);setError(null);setSessionId(null);setReviewSaveError(null);setReviewSavedAt(null);setInspection(null);resetCandidates([]);setGlobalTopicId("");setGroupTopics({});setCaseWeeks({});setPublishedQuestionIds(new Set());setPublishDestination("QUESTION_BANK");setStage("UPLOAD"); try{const body=new FormData();body.append("file",file);body.append("copyright_confirmed","true");body.append("content_type",standaloneType); const created=await request<{session_id:string}>("/questions/imports/essay/sessions/inspect",{method:"POST",body,signal:AbortSignal.timeout(60000)});
       const result=await fetchSavedSession(created.session_id);
       setSessionId(created.session_id);sessionRevision.current=result.revision;lastSavedReview.current="";
       setSavedSessions(previous=>[{session_id:created.session_id,original_filename:result.original_filename,total:result.total},...previous].slice(0,10)); let restored: StoredEssayReview|null = null;
@@ -254,8 +252,6 @@ export function EssayQuestionImportPage() {
 
   function setGroupApproved(key:string,approved:boolean){setCandidates(items=>items.map(item=>`${item.section}::${item.case_number}`===key?{...item,approved:approved&&item.status!=="INVALID"}:item))}
   const statusCounts=useMemo(()=>({ALL:candidates.length,VALID:candidates.filter((item)=>item.status==="VALID").length,NEEDS_REVIEW:candidates.filter((item)=>item.status==="NEEDS_REVIEW").length,INVALID:candidates.filter((item)=>item.status==="INVALID").length}),[candidates]);
-  const filteredCandidates=useMemo(()=>{const query=candidateSearch.trim().toLowerCase();return candidates.filter((item)=>{if(statusFilter!=="ALL"&&item.status!==statusFilter)return false;if(activeGroup!=="ALL"&&`${item.section}::${item.case_number}`!==activeGroup)return false;if(!query)return true;return [item.section,item.case_number,item.question_number,item.case_stem,item.question_text,item.model_answer,item.status,item.answer_origin,...item.issues.flatMap((issue)=>[issue.code,issue.message])].some((value)=>String(value??"").toLowerCase().includes(query))})},[candidateSearch,candidates,statusFilter,activeGroup]);
-  const groups=useMemo(()=>{const map=new Map<string,ReviewCandidate[]>();for(const item of filteredCandidates){const key=`${item.section}::${item.case_number}`;if(!map.has(key))map.set(key,[]);map.get(key)!.push(item)}return [...map.entries()]},[filteredCandidates]);
   const groupKey=(item:Candidate)=>`${item.section}::${item.case_number}`;
   const topicFor=(item:Candidate)=>groupTopics[groupKey(item)] || globalTopicId;
   const publishable=candidates.filter((item)=>item.approved&&item.status!=="INVALID"&&item.model_answer?.trim()&&Number.isFinite(item.marks)&&item.marks>0&&topicFor(item)&&!publishedQuestionIds.has(item.candidate_id)).length;
