@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FiArrowLeft, FiCheck, FiFileText, FiRefreshCw, FiSearch, FiUploadCloud } from "react-icons/fi";
 import { EssayReviewQuestion } from "./essay-review-question";
+import { useEssayReviewHistory } from "./use-essay-review-history";
 import { splitEssayPublishBatches } from "@/lib/essay-import-batching";
 import type { Candidate, Inspection, ReviewCandidate } from "./essay-import-model";
 import { useAuth } from "./auth-provider";
@@ -32,7 +33,7 @@ export function EssayQuestionImportPage() {
   const { user, loading: authLoading, request } = useAuth();
   const { notify } = useUx();
   const [courses, setCourses] = useState<Course[]>([]); const [courseId,setCourseId]=useState(""); const [course,setCourse]=useState<Course|null>(null);
-  const [file,setFile]=useState<File|null>(null); const [standaloneType,setStandaloneType]=useState<'LECTURE'|'CASE'>('LECTURE'); const [rights,setRights]=useState(false); const [inspection,setInspection]=useState<Inspection|null>(null); const [candidates,setCandidates]=useState<ReviewCandidate[]>([]);
+  const [file,setFile]=useState<File|null>(null); const [standaloneType,setStandaloneType]=useState<'LECTURE'|'CASE'>('LECTURE'); const [rights,setRights]=useState(false); const [inspection,setInspection]=useState<Inspection|null>(null); const {items:candidates,setItems:setCandidates,resetItems:resetCandidates,undo,redo,canUndo,canRedo}=useEssayReviewHistory<ReviewCandidate>([]);
   const [loading,setLoading]=useState(true); const [inspecting,setInspecting]=useState(false); const [publishing,setPublishing]=useState(false); const [error,setError]=useState<string|null>(null);
   const [candidateSearch,setCandidateSearch]=useState(""); const [statusFilter,setStatusFilter]=useState<"ALL"|Candidate["status"]>("ALL"); const [globalTopicId,setGlobalTopicId]=useState(""); const [groupTopics,setGroupTopics]=useState<Record<string,string>>({});
   const [caseWeeks,setCaseWeeks]=useState<Record<string,string>>({}); const [creatingCases,setCreatingCases]=useState(false);
@@ -73,11 +74,11 @@ export function EssayQuestionImportPage() {
   async function inspect(event:FormEvent){event.preventDefault(); if(!file){notify({title:"Choose an essay file",tone:"info"});return} if(!rights){notify({title:"Permission confirmation required",tone:"info"});return}
     const json=/\.(json|txt)$/i.test(file.name);
     if(!(/\.pdf$/i.test(file.name)||json)||!file.size||file.size>(json?2:50)*1024*1024){notify({title:"Unsupported essay file",description:"Choose a non-empty PDF (50 MB), JSON or JSON text (2 MB).",tone:"error"});return}
-    setInspecting(true);setError(null);setInspection(null);setCandidates([]);setCollapsed({});setActiveGroup("ALL");setVisibleLimit(30);setGlobalTopicId("");setGroupTopics({});setCaseWeeks({});setPublishedQuestionIds(new Set());setPublishDestination("QUESTION_BANK");setStage("UPLOAD"); try{const body=new FormData();body.append("file",file);body.append("copyright_confirmed","true");body.append("content_type",standaloneType); const result=await request<Inspection>("/questions/imports/essay/inspect",{method:"POST",body,signal:AbortSignal.timeout(60000)}); let restored: null | { courseId?:string; candidates?:Array<Partial<ReviewCandidate>&{candidate_id:string}>; groupTopics?:Record<string,string>; caseWeeks?:Record<string,string>; globalTopicId?:string; published?:string[] } = null;
+    setInspecting(true);setError(null);setInspection(null);resetCandidates([]);setCollapsed({});setActiveGroup("ALL");setVisibleLimit(30);setGlobalTopicId("");setGroupTopics({});setCaseWeeks({});setPublishedQuestionIds(new Set());setPublishDestination("QUESTION_BANK");setStage("UPLOAD"); try{const body=new FormData();body.append("file",file);body.append("copyright_confirmed","true");body.append("content_type",standaloneType); const result=await request<Inspection>("/questions/imports/essay/inspect",{method:"POST",body,signal:AbortSignal.timeout(60000)}); let restored: null | { courseId?:string; candidates?:Array<Partial<ReviewCandidate>&{candidate_id:string}>; groupTopics?:Record<string,string>; caseWeeks?:Record<string,string>; globalTopicId?:string; published?:string[] } = null;
       try { const raw=sessionStorage.getItem(`mdp:essay-review:v2:${user?.id}:${result.file_sha256}`); if(raw) restored=JSON.parse(raw); } catch { /* corrupt or unavailable saved review */ }
       const overrides=new Map((restored?.candidates||[]).map(item=>[item.candidate_id,item]));
       setInspection(result);setStage("REVIEW");
-      setCandidates(result.candidates.map(item=>{
+      resetCandidates(result.candidates.map(item=>{
         const prior=overrides.get(item.candidate_id);
         const question_text=prior?.question_text ?? item.question_text;
         const model_answer=prior?.model_answer ?? item.model_answer;
@@ -276,6 +277,8 @@ export function EssayQuestionImportPage() {
       {(stage==="REVIEW"||stage==="ORGANIZE")&&<div className="essay-v2-review-toolbar"><Panel title="Review workspace">
         <p>Review the extracted questions and model answers. Use the section selector, filters, and bulk actions to work through large files; you can organize destinations in the next step.</p>
         <div className="question-import-bulk-actions">
+          <button className="pp-button secondary" type="button" disabled={!canUndo||publishing||creatingCases} onClick={undo}>Undo review edit</button>
+          <button className="pp-button secondary" type="button" disabled={!canRedo||publishing||creatingCases} onClick={redo}>Redo review edit</button>
           <button className="pp-button secondary" type="button" onClick={()=>setCandidates(items=>items.map(item=>({...item,approved:item.status!=="INVALID"})))}>Approve all ready questions</button>
           <button className="pp-button secondary" type="button" onClick={()=>setCandidates(items=>items.map(item=>({...item,approved:false})))}>Clear all selections</button>
           <button className="pp-button secondary" type="button" onClick={()=>setCollapsed(Object.fromEntries(candidates.map(item=>[groupKey(item),true])))}>Collapse all</button>
