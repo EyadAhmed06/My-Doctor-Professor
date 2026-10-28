@@ -23,7 +23,7 @@ type Candidate = {
 };
 type Inspection = { original_filename: string; file_sha256: string; page_count: number; file_size: number; status: string; summary: { cases:number; lectures?:number; extracted:number; valid:number; needs_review:number; invalid:number }; issues: Issue[]; candidates: Candidate[] };
 type ReviewCandidate = Candidate & { approved: boolean; difficulty: "EASY"|"MEDIUM"|"HARD"; marks: number };
-type ExistingCaseCurriculum = { weeks: Array<{ id:string; cases:Array<{ weekId:string; sourceCaseNumber:number|null; section:string|null; stem:string }> }> };
+type ExistingCaseCurriculum = { weeks: Array<{ id:string; cases:Array<{ weekId:string; sourceCaseNumber:number|null; section:string|null; stem:string; id:string; isPublished:boolean }> }> };
 
 function topicsFor(course: Course | null) {
   return (course?.weeks || []).flatMap((week) => (week.lectures || []).flatMap((lecture) => (lecture.topics || []).map((topic) => ({ ...topic, label: `Week ${week.weekNumber} · ${lecture.title} · ${topic.topicName}` }))));
@@ -158,18 +158,23 @@ export function EssayQuestionImportPage() {
     if(!inspection||!courseId||!mappedCaseDraftGroups.length||creatingCases||publishing||user?.role!=="INSTRUCTOR")return;
     if(publishNow&&!window.confirm(`Publish ${mappedCaseDraftGroups.length} selected clinical case(s) to students in their assigned weeks? Existing matching cases will be skipped, not changed.`))return;
     setCreatingCases(true);setError(null);
-    let created=0,skipped=0;
+    let created=0,skipped=0,publishedExisting=0;
     try{
       // Retry-safe preflight: do not duplicate an existing case with matching
       // source case number, section, stem and destination week.
       const current=await request<ExistingCaseCurriculum>(`/essay-cases?course_id=${encodeURIComponent(courseId)}`);
-      const existing=new Set(current.weeks.flatMap((week)=>week.cases.map((item)=>
-        JSON.stringify([item.weekId,item.sourceCaseNumber,item.section||"",item.stem.trim()]))));
+      const existing=new Map(current.weeks.flatMap((week)=>week.cases.map((item)=>[
+        JSON.stringify([item.weekId,item.sourceCaseNumber,item.section||"",item.stem.trim()]),item] as const)));
       for(const [key,items] of mappedCaseDraftGroups){
         const first=items[0];
         const weekId=caseWeeks[key];
         const dedupKey=JSON.stringify([weekId,first.case_number,first.section||"",first.case_stem.trim()]);
-        if(existing.has(dedupKey)){skipped++;continue;}
+        const prior=existing.get(dedupKey);
+        if(prior){
+          if(publishNow&&!prior.isPublished){ await request(`/essay-cases/${prior.id}`,{method:"PUT",body:{is_published:true}}); publishedExisting++; }
+          else skipped++;
+          continue;
+        }
         await request("/essay-cases",{method:"POST",body:{
           week_id:weekId,title:`Case ${first.case_number}`,stem:first.case_stem,
           section:first.section.slice(0,120),source_case_number:first.case_number,
@@ -177,9 +182,9 @@ export function EssayQuestionImportPage() {
             prompt:item.question_text,model_answer:item.model_answer!.trim(),
           })),
         }});
-        existing.add(dedupKey);created++;
+        existing.set(dedupKey,{id:"",isPublished:publishNow,weekId,sourceCaseNumber:first.case_number,section:first.section,stem:first.case_stem});created++;
       }
-      notify({title:publishNow?"Clinical cases published":"Case Studio drafts created",description:`${created} ${publishNow?"published":"created as unpublished drafts"} · ${skipped} matching cases already existed and were left unchanged.`,tone:"success"});
+      notify({title:publishNow?"Clinical cases published":"Case Studio drafts created",description:`${created} new cases · ${publishedExisting} existing drafts published · ${skipped} matching cases unchanged.`,tone:"success"});
     }catch(c){
       const message=c instanceof Error?c.message:"Unable to create Case Studio drafts.";
       setError(`${message} (${created} case drafts created before the error; retry will skip existing drafts.)`);
