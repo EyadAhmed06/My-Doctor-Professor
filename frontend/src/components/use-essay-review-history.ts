@@ -19,6 +19,7 @@ export function useEssayReviewHistory<T>(initial: T[], maxHistory = 30): {
   const currentRef = useRef(items);
   const pastRef = useRef<T[][]>([]);
   const futureRef = useRef<T[][]>([]);
+  const [availability, setAvailability] = useState({ canUndo: false, canRedo: false });
 
   const setItems = useCallback<Dispatch<SetStateAction<T[]>>>((action) => {
     const previous = currentRef.current;
@@ -29,6 +30,7 @@ export function useEssayReviewHistory<T>(initial: T[], maxHistory = 30): {
     futureRef.current = [];
     currentRef.current = next;
     updateItems(next);
+    setAvailability({canUndo: pastRef.current.length > 0, canRedo: false});
   }, [maxHistory]);
 
   const resetItems = useCallback((next: T[]) => {
@@ -36,6 +38,7 @@ export function useEssayReviewHistory<T>(initial: T[], maxHistory = 30): {
     futureRef.current = [];
     currentRef.current = next;
     updateItems(next);
+    setAvailability({canUndo: false, canRedo: false});
   }, []);
 
   const undo = useCallback(() => {
@@ -44,6 +47,7 @@ export function useEssayReviewHistory<T>(initial: T[], maxHistory = 30): {
     futureRef.current.push(currentRef.current);
     currentRef.current = previous;
     updateItems(previous);
+    setAvailability({canUndo: pastRef.current.length > 0, canRedo: futureRef.current.length > 0});
   }, []);
 
   const redo = useCallback(() => {
@@ -52,9 +56,9 @@ export function useEssayReviewHistory<T>(initial: T[], maxHistory = 30): {
     pastRef.current.push(currentRef.current);
     currentRef.current = next;
     updateItems(next);
+    setAvailability({canUndo: pastRef.current.length > 0, canRedo: futureRef.current.length > 0});
   }, []);
 
   return { items, setItems, resetItems, undo, redo,
-    canUndo: pastRef.current.length > 0,
-    canRedo: futureRef.current.length > 0 };
+    ...availability };
 }
