@@ -304,7 +304,7 @@ export class EssayQuestionImportService {
         .filter((name) => name.length >= 4 && name.length <= 100 && !/^(?:case|lecture)\s+\d+/i.test(name));
       let result = source;
       let number = 900;
-      const quote = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\    const rawStream = pdf.pages.map((page) => `\n[[PAGE:${page.page}]]\n${normalizeHeadingNumbers(this.cleanPageText(page.text))}`).join('\n');');
+      const quote = (value: string) => value.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
       for (const name of [...new Set(names)]) {
         const heading = new RegExp(`(^|\\n)([ \\t]*)${quote(name)}[ \\t]*(?=\\n)`, 'gim');
         // Only a matching standalone source heading qualifies.
