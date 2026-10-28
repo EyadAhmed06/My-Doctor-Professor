@@ -58,6 +58,7 @@ export function EssayHybridWorkspace({items, publishedIds, onUpdate, onGroupStem
             <span>{rows[0].section} {type==="CASE"?`· Case ${rows[0].case_number}`:""}</span><small>{rows.length} questions · {rows.filter(i=>i.approved).length} selected</small>
           </button>)}
         </div>)}
+        {activeGroup&&<div className="essay-v31-quick-questions"><h4>Questions in this section</h4><div>{groupItems.map(item=><button key={item.candidate_id} type="button" className={active?.candidate_id===item.candidate_id?"active":""} onClick={()=>selectQuestion(item)} aria-current={active?.candidate_id===item.candidate_id?"true":undefined}><span>Q{item.question_number}</span><small>{item.approved?"Included":"Not selected"}{item.status==="INVALID"?" · Invalid":""}</small></button>)}</div></div>}
       </nav>
       <main className="essay-v3-detail">
         {active&&<><section className="essay-v3-context">
