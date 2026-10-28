@@ -43,12 +43,25 @@ test('essay importer reviews mixed cases and lectures without requiring course b
     if (path === '/notifications/unread/count') body = { count: 0 };
     if (path === '/notifications') body = { data: [] };
     if (path.startsWith('/academic/courses')) body = { data: [] };
-    if (path === '/questions/imports/essay/inspect') body = {
+    const sessionId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const inspection = {
       original_filename: 'mixed.pdf', file_sha256: 'a'.repeat(64), file_size: 100,
       page_count: 5, status: 'REVIEW_REQUIRED', issues: [],
       summary: { cases: 1, lectures: 1, extracted: 45, valid: 45, needs_review: 0, invalid: 0 },
-      candidates,
     };
+    if (path === '/questions/imports/essay/sessions') body = [];
+    if (path === '/questions/imports/essay/sessions/inspect') body = {
+      session_id:sessionId,total:45,summary:inspection.summary,
+    };
+    if (path === `/questions/imports/essay/sessions/${sessionId}`) body = {
+      ...inspection, session_id:sessionId,total:45,revision:0,review:{},
+    };
+    if (path === `/questions/imports/essay/sessions/${sessionId}/candidates`) {
+      const offset = Number(url.searchParams.get('offset') || 0);
+      const limit = Number(url.searchParams.get('limit') || 100);
+      body = { total: 45, offset, limit, candidates:candidates.slice(offset,offset+limit) };
+    }
+    if (path === `/questions/imports/essay/sessions/${sessionId}/review`) body = { revision:1 };
     if (path === '/questions/imports/essay/publish') {
       publishPayload = request.postDataJSON();
       body = { created: 45, reused: 0, skipped: 0 };
