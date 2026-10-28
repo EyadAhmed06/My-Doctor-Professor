@@ -110,7 +110,7 @@ export function EssayQuestionImportPage() {
       }
       return next;
     }));
-  },[]);
+  },[setCandidates]);
   function updateStem(key:string,stem:string){
     setCandidates(items=>items.map(item=>{
       if(`${item.section}::${item.case_number}`!==key)return item;
