@@ -54,6 +54,7 @@ export function EssayQuestionImportPage() {
   const reviewStorageKey = inspection && user?.id ? `mdp:essay-review:v2:${user.id}:${inspection.file_sha256}` : null;
   useEffect(() => {
     if (!reviewStorageKey || !candidates.length) return;
+    const timer=window.setTimeout(()=>{
     try {
       sessionStorage.setItem(reviewStorageKey, JSON.stringify({
         version: 2, courseId, updatedAt: Date.now(),
@@ -64,6 +65,8 @@ export function EssayQuestionImportPage() {
         groupTopics, caseWeeks, globalTopicId, published: [...publishedQuestionIds],
       }));
     } catch { /* quota exceeded or storage restricted: imports remain usable in memory */ }
+    }, 500);
+    return ()=>window.clearTimeout(timer);
   }, [reviewStorageKey, candidates, courseId, groupTopics, caseWeeks, globalTopicId, publishedQuestionIds]);
 
 
