@@ -293,11 +293,38 @@ export class EssayQuestionImportService {
         `${prefix}${lead}${type} ${['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'].indexOf(word.toLowerCase()) + 1}`,
     );
     const rawStream = pdf.pages.map((page) => `\n[[PAGE:${page.page}]]\n${normalizeHeadingNumbers(this.cleanPageText(page.text))}`).join('\n');
+    // Some essay booklets identify lectures by their subject heading alone
+    // (e.g. "Protein chemistry") and finish with "Answers for Protein chemistry".
+    // Convert these paired headings into the numbered structure understood below.
+    // Require an exact standalone heading AND its named answer key to avoid
+    // interpreting arbitrary prose as a lecture.
+    const recognizeNamedLectures = (source: string) => {
+      const names = [...source.matchAll(/(?:^|\n)[ \t]*Answers?[ \t]+(?:for|of)[ \t]+([^\n:]+?)[ \t]*:?[ \t]*(?=\n|$)/gim)]
+        .map((match) => match[1].trim())
+        .filter((name) => name.length >= 4 && name.length <= 100 && !/^(?:case|lecture)\s+\d+/i.test(name));
+      let result = source;
+      let number = 900;
+      const quote = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\    const rawStream = pdf.pages.map((page) => `\n[[PAGE:${page.page}]]\n${normalizeHeadingNumbers(this.cleanPageText(page.text))}`).join('\n');');
+      for (const name of [...new Set(names)]) {
+        const heading = new RegExp(`(^|\\n)([ \\t]*)${quote(name)}[ \\t]*(?=\\n)`, 'gim');
+        // Only a matching standalone source heading qualifies.
+        if (!heading.test(result)) continue;
+        number += 1;
+        result = result.replace(heading, (_match, boundary: string, spaces: string) =>
+          `${boundary}${spaces}Lecture ${number}: ${name}`);
+        const answer = new RegExp(`(^|\\n)([ \\t]*)Answers?[ \\t]+(?:for|of)[ \\t]+${quote(name)}[ \\t]*:?[ \\t]*(?=\\n|$)`, 'gim');
+        result = result.replace(answer, (_match, boundary: string, spaces: string) =>
+          `${boundary}${spaces}Answers for Lecture ${number}`);
+      }
+      return result;
+    };
+
     // Standalone essay PDFs often have questions and an Answer section but
     // no "Lecture 1" heading. Give these an explicit editable review group.
     // Never infer a clinical case from an unlabelled passage.
     const containsBlocks = /(?:^|\n)[ \t]*(?:CASE[ \t]+\d{1,3}|Lecture[ \t]+\d{1,3}[ \t]*:)/im.test(rawStream);
-    const stream = containsBlocks ? rawStream : standaloneType === 'CASE'
+    const structuredStream = recognizeNamedLectures(rawStream);
+    const stream = containsBlocks || structuredStream !== rawStream ? structuredStream : standaloneType === 'CASE'
       ? `\nCASE 1:\n${rawStream}` : `\nLecture 1: Standalone lecture\n${rawStream}`;
 
     // Accept the essay formats we receive in practice:
