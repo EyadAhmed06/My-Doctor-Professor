@@ -6,17 +6,26 @@ import type { ReviewCandidate } from "./essay-import-model";
 type Mode = "REVIEW" | "MANAGE";
 const keyFor = (item:ReviewCandidate) => `${item.section}::${item.case_number}`;
 
-export function EssayHybridWorkspace({items, publishedIds, onUpdate, onGroupStem, onGroupApproval}:{
+export type EssayReviewPosition = {mode:"REVIEW"|"MANAGE";groupId:string;questionId:string};
+export function EssayHybridWorkspace({items, publishedIds, onUpdate, onGroupStem, onGroupApproval, position, onPositionChange}:{
   items:ReviewCandidate[];
   publishedIds:Set<string>;
   onUpdate:(id:string,patch:Partial<ReviewCandidate>)=>void;
   onGroupStem:(group:string,stem:string)=>void;
   onGroupApproval:(group:string,approved:boolean)=>void;
+  position?:EssayReviewPosition;
+  onPositionChange?:(next:EssayReviewPosition)=>void;
 }) {
-  const [mode,setMode]=useState<Mode>("REVIEW");
-  const [groupId,setGroupId]=useState("");
+  const [localMode,setLocalMode]=useState<Mode>("REVIEW");
+  const [localGroupId,setLocalGroupId]=useState("");
+  const [localQuestionId,setLocalQuestionId]=useState("");
+  const mode=position?.mode??localMode;
+  const groupId=position?.groupId??localGroupId;
+  const questionId=position?.questionId??localQuestionId;
+  const setMode=(next:Mode)=>{setLocalMode(next);onPositionChange?.({mode:next,groupId,questionId});};
+  const setGroupId=(next:string)=>{setLocalGroupId(next);onPositionChange?.({mode,groupId:next,questionId:lastQuestionByGroup[next]??""});};
+  const setQuestionId=(next:string)=>{setLocalQuestionId(next);onPositionChange?.({mode,groupId,questionId:next});};
   const [lastQuestionByGroup,setLastQuestionByGroup]=useState<Record<string,string>>({});
-  const [questionId,setQuestionId]=useState("");
   const [query,setQuery]=useState("");
   const [problemOnly,setProblemOnly]=useState(false);
   const [editing,setEditing]=useState(false);
