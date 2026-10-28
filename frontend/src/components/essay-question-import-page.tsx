@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FiArrowLeft } from "react-icons/fi";
+import { FiArrowLeft, FiFileText } from "react-icons/fi";
 import { EssayV3Organize } from "./essay-v3-organize";
 import { EssayV3Upload } from "./essay-v3-upload";
 import { EssayV3Publish } from "./essay-v3-publish";
