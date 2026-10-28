@@ -28,16 +28,16 @@ export const EssayReviewQuestion = memo(function EssayReviewQuestion({
       <textarea aria-label={`Essay question Q${item.question_number}`} disabled={published}
         value={item.question_text} onChange={event=>onUpdate(item.candidate_id,{question_text:event.target.value})}/>
     </label>
-    <div className="essay-v2-question-options">
+    <div className="essay-v2-question-options" aria-label="Question settings">
       <label>Difficulty
-        <select value={item.difficulty} disabled={published}
+        <select aria-label={`Difficulty Q${item.question_number}`} value={item.difficulty} disabled={published}
           onChange={event=>onUpdate(item.candidate_id,{difficulty:event.target.value as ReviewCandidate["difficulty"]})}>
           <option value="EASY">Easy</option><option value="MEDIUM">Medium</option><option value="HARD">Hard</option>
         </select>
       </label>
       <label>Marks
-        <input type="number" min="0.1" step="0.1" disabled={published} value={item.marks}
-          onChange={event=>onUpdate(item.candidate_id,{marks:Number(event.target.value)})}/>
+        <input aria-label={`Marks Q${item.question_number}`} type="number" inputMode="decimal" min="0.5" max="100" step="0.5" disabled={published} value={item.marks}
+          onChange={event=>{const value=Number(event.target.value);if(Number.isFinite(value)&&value>0&&value<=100)onUpdate(item.candidate_id,{marks:value});}}/>
       </label>
     </div>
     <label>Model answer
