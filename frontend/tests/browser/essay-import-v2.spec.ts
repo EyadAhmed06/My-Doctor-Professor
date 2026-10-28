@@ -90,11 +90,15 @@ test('essay importer reviews mixed cases and lectures without requiring course b
   await expect(page.getByRole('combobox',{name:'Go to question'})).toHaveValue('candidate-44');
 
   await page.getByRole('button', { name: /Continue to organize/ }).click();
-  await page.getByRole('button', { name: /Review publication summary/ }).click();
-  await page.getByRole('button', { name: /Case Studio · Clinical cases/ }).click();
-  await expect(page.getByText(/Assign a Case Studio week/)).toBeVisible();
-  await page.getByRole('button', { name: /Question Bank · Essays/ }).click();
-  await expect(page.getByText(/Assign a Question Bank topic/)).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Organize your questions'})).toBeVisible();
+  await expect(page.getByRole('table')).toContainText('Protein chemistry');
+  await page.getByRole('button', { name: /Review publication/ }).click();
+  await expect(page.getByRole('heading',{name:'Ready to publish?'})).toBeVisible();
+  await page.getByRole('button', { name: 'Case Studio', exact:true }).click();
+  await expect(page.getByText(/Clinical cases are saved under their assigned/)).toBeVisible();
+  await page.getByRole('button', { name: 'Question Bank', exact:true }).click();
+  await expect(page.getByText(/Individual essay questions are published into/)).toBeVisible();
+  await expect(page.getByText(/Publication is blocked/)).toBeVisible();
   expect(publishPayload).toBeNull();
 });
 
