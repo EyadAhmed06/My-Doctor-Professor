@@ -253,7 +253,35 @@ export class BundlesService {
     });
   }
 
+  // Published, public free bundles are available without an explicit Subscribe click.
+  // Keep an enrollment row internally so all existing curriculum, quiz and resource
+  // access predicates continue to enforce the same week/lecture restrictions.
+  private async ensureFreeBundleEnrollments(studentId: string) {
+    const student = await this.findStudentSafe(studentId);
+    const now = new Date();
+    const freeBundles = await this.bundles.find({
+      where: { isFree: true, status: BundleStatus.PUBLISHED, accessMode: BundleAccessMode.PUBLIC },
+    });
+    const eligible = freeBundles.filter((bundle) =>
+      (!bundle.availableFrom || bundle.availableFrom <= now)
+      && (!bundle.availableUntil || bundle.availableUntil > now));
+    if (!eligible.length) return;
+    const semesters = await this.resolveBundleSemesters(eligible.map((bundle) => bundle.id), eligible);
+    const existing = await this.enrollments.find({ where: { studentId, bundleId: In(eligible.map((bundle) => bundle.id)) } });
+    const byBundle = new Map(existing.map((row) => [row.bundleId, row]));
+    for (const bundle of eligible) {
+      const semester = semesters.get(bundle.id) ?? (bundle.academicYear * 2 - 1);
+      if (student?.currentSemester && semester !== student.currentSemester) continue;
+      const row = byBundle.get(bundle.id);
+      if (row && row.status === BundleEnrollmentStatus.ACTIVE
+        && row.paymentStatus === BundlePaymentStatus.NOT_REQUIRED
+        && (!row.expiresAt || row.expiresAt > now)) continue;
+      await this.upsertEnrollment(bundle, studentId, BundleEnrollmentSource.PUBLIC, null, null, false);
+    }
+  }
+
   async mine(studentId: string) {
+    await this.ensureFreeBundleEnrollments(studentId);
     const enrollmentRows = await this.enrollments.find({
       where: { studentId },
       relations: { bundle: true },
@@ -319,6 +347,9 @@ export class BundlesService {
       throw new ForbiddenException('This bundle has expired');
     }
 
+    if (bundle.isFree && bundle.accessMode === BundleAccessMode.PUBLIC) {
+      await this.ensureFreeBundleEnrollments(actor.userId);
+    }
     const enrollment = await this.requireEnrollment(id, actor.userId);
     if (!bundle.isFree && enrollment.paymentStatus !== BundlePaymentStatus.PAID) {
       throw new ForbiddenException('This bundle is locked until you subscribe in it');
