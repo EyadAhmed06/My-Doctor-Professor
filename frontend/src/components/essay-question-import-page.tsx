@@ -122,7 +122,7 @@ export function EssayQuestionImportPage() {
   const filteredCandidates=useMemo(()=>{const query=candidateSearch.trim().toLowerCase();return candidates.filter((item)=>{if(statusFilter!=="ALL"&&item.status!==statusFilter)return false;if(activeGroup!=="ALL"&&`${item.section}::${item.case_number}`!==activeGroup)return false;if(!query)return true;return [item.section,item.case_number,item.question_number,item.case_stem,item.question_text,item.model_answer,item.status,item.answer_origin,...item.issues.flatMap((issue)=>[issue.code,issue.message])].some((value)=>String(value??"").toLowerCase().includes(query))})},[candidateSearch,candidates,statusFilter,activeGroup]);
   useEffect(() => { setVisibleLimit(30); }, [candidateSearch, statusFilter, activeGroup]);
   useEffect(() => {
-    if (!inspection || visibleLimit >= filteredCandidates.length || typeof IntersectionObserver === "undefined") return;
+    if (!inspection || (stage!=="REVIEW"&&stage!=="ORGANIZE") || visibleLimit >= filteredCandidates.length || typeof IntersectionObserver === "undefined") return;
     const node = sentinelRef.current;
     if (!node) return;
     const observer = new IntersectionObserver((entries) => {
@@ -130,8 +130,8 @@ export function EssayQuestionImportPage() {
     }, { rootMargin: "500px" });
     observer.observe(node);
     return () => observer.disconnect();
-  }, [inspection, visibleLimit, candidateSearch, statusFilter, activeGroup, filteredCandidates.length]);
-  const groups=useMemo(()=>{const map=new Map<string,ReviewCandidate[]>();for(const item of filteredCandidates){const key=`${item.section}::${item.case_number}`;map.set(key,[...(map.get(key)||[]),item])}return [...map.entries()]},[filteredCandidates]);
+  }, [inspection, stage, visibleLimit, candidateSearch, statusFilter, activeGroup, filteredCandidates.length]);
+  const groups=useMemo(()=>{const map=new Map<string,ReviewCandidate[]>();for(const item of filteredCandidates){const key=`${item.section}::${item.case_number}`;if(!map.has(key))map.set(key,[]);map.get(key)!.push(item)}return [...map.entries()]},[filteredCandidates]);
   const visibleQuestionIds = useMemo(() => new Set(filteredCandidates.slice(0, visibleLimit).map(item => item.candidate_id)), [filteredCandidates, visibleLimit]);
   const groupKey=(item:Candidate)=>`${item.section}::${item.case_number}`;
   const topicFor=(item:Candidate)=>groupTopics[groupKey(item)] || globalTopicId;
@@ -153,7 +153,7 @@ export function EssayQuestionImportPage() {
     }
     return [...grouped.values()];
   }, [candidates, publishedQuestionIds, groupTopics, globalTopicId, topics]);
-  const caseDraftGroups=useMemo(()=>{const grouped=new Map<string,ReviewCandidate[]>();for(const item of candidates){if(item.block_type!=="CASE"||!item.approved||!item.model_answer?.trim())continue;const key=`${item.section}::${item.case_number}`;grouped.set(key,[...(grouped.get(key)||[]),item]);}return [...grouped.entries()]},[candidates]);
+  const caseDraftGroups=useMemo(()=>{const grouped=new Map<string,ReviewCandidate[]>();for(const item of candidates){if(item.block_type!=="CASE"||!item.approved||!item.model_answer?.trim())continue;const key=`${item.section}::${item.case_number}`;if(!grouped.has(key))grouped.set(key,[]);grouped.get(key)!.push(item);}return [...grouped.entries()]},[candidates]);
   const mappedCaseDraftGroups=caseDraftGroups.filter(([key])=>caseWeeks[key] && course?.weeks?.some((week)=>week.id===caseWeeks[key]));
 
   async function publish(scopeIds?: string[]){
