@@ -558,3 +558,62 @@
   .essay-v2-groups .essay-v2-section-head {padding:12px;}
   .essay-v2-section-tools .pp-button {width:auto;}
 }
+
+
+/* Dense, readable essay review: reserve width for clinical information, not dropdowns. */
+.essay-v2-groups .essay-v2-section-head .essay-v2-stem-field textarea {
+  min-height:130px;max-height:420px;font-size:1rem;line-height:1.6;padding:14px 16px;
+}
+.essay-v2-groups .essay-import-question {
+  display:grid;gap:10px;padding:14px 16px;border-radius:12px;
+}
+.essay-v2-groups .essay-import-question header {
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;
+}
+.essay-v2-groups .essay-import-question header label {font-size:1.02rem;}
+.essay-v2-groups .essay-import-question header small {font-size:.85rem;line-height:1.4;}
+.essay-v2-groups .essay-import-question > label {font-size:.94rem;gap:6px;}
+.essay-v2-groups .essay-import-question textarea {
+  min-height:72px;padding:10px 13px;font-size:1rem;line-height:1.52;
+  overflow-wrap:anywhere;resize:vertical;
+}
+.essay-v2-groups .essay-import-question > label:last-of-type textarea {min-height:86px;}
+.essay-v2-groups .essay-v2-question-options {
+  display:flex;align-items:end;flex-wrap:wrap;gap:12px;margin:0;
+}
+.essay-v2-question-options label {width:150px;max-width:100%;font-size:.88rem;}
+.essay-v2-question-options label:last-child {width:96px;}
+.essay-v2-question-options select,.essay-v2-question-options input {
+  min-height:40px;font-size:.95rem;
+}
+.essay-v2-question-options input[type="number"] {-moz-appearance:textfield;appearance:textfield;}
+.essay-v2-question-options input[type="number"]::-webkit-inner-spin-button,
+.essay-v2-question-options input[type="number"]::-webkit-outer-spin-button {-webkit-appearance:none;margin:0;}
+.essay-v2-question-nav {display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:10px 12px;background:var(--pp-surface,#10182d);border:1px solid var(--pp-border,#253352);
+  border-radius:12px 12px 0 0;}
+.essay-v2-question-nav label {display:flex;align-items:center;gap:10px;font-size:.92rem;font-weight:650;}
+.essay-v2-question-nav select {min-height:38px;width:auto;max-width:220px;font:inherit;padding:4px 9px;
+  border-radius:8px;background:var(--pp-surface,#10182d);color:inherit;border:1px solid var(--pp-border,#253352);}
+.essay-v2-question-nav button {font:inherit;font-weight:650;padding:8px 12px;min-height:38px;
+  border:1px solid var(--pp-border,#253352);border-radius:8px;background:transparent;color:inherit;cursor:pointer;}
+.essay-v2-question-nav button:disabled {opacity:.45;cursor:not-allowed;}
+.essay-v2-question-nav button:focus-visible,.essay-v2-question-nav select:focus-visible {outline:3px solid var(--pp-primary,#49d7cc);outline-offset:2px;}
+.essay-v2-list-shell .essay-v2-windowed-list {border-radius:0 0 12px 12px;height:min(58dvh,500px);}
+.essay-v2-review-toolbar .question-import-bulk-actions button {min-height:38px;padding:8px 12px;font-size:.92rem;}
+.essay-v2-review-toolbar p,.essay-v2-review-toolbar label,.essay-v2-filters {font-size:1rem;}
+.essay-v2-groups .pp-panel,.essay-v2-review-toolbar .pp-panel {min-width:0;}
+.essay-v2-import-summary,.essay-v2-import-summary.question-import-summary {
+  display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 18px;
+}
+.essay-v2-import-summary > * {flex:0 1 auto !important;min-width:126px;max-width:240px;padding:12px 14px !important;}
+.essay-v2-import-summary strong {font-size:1.5rem !important;}
+.essay-v2-import-summary span {font-size:.82rem !important;line-height:1.35;overflow-wrap:anywhere;}
+.essay-v2-import-summary > *:nth-child(4){max-width:185px;}
+@media(max-width:640px) {
+  .essay-v2-question-nav {justify-content:space-between;}
+  .essay-v2-question-nav label {order:3;width:100%;}
+  .essay-v2-question-nav select {flex:1;max-width:none;}
+  .essay-v2-import-summary > * {min-width:125px;flex:1 1 42% !important;}
+  .essay-v2-groups .essay-import-question textarea {font-size:1rem;}
+}
