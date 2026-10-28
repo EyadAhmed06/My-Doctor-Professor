@@ -45,6 +45,23 @@ export function EssayQuestionImportPage() {
   const [activeGroup, setActiveGroup] = useState<string>("ALL");
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const topics = useMemo(() => topicsFor(course), [course]);
+  // Store the in-progress review in this tab only. The uploaded source itself
+  // is never persisted, and another instructor cannot load this tab's snapshot.
+  const reviewStorageKey = inspection && user?.id ? `mdp:essay-review:v2:${user.id}:${inspection.file_sha256}` : null;
+  useEffect(() => {
+    if (!reviewStorageKey || !candidates.length) return;
+    try {
+      sessionStorage.setItem(reviewStorageKey, JSON.stringify({
+        version: 2, courseId, updatedAt: Date.now(),
+        candidates: candidates.map(item => ({
+          candidate_id: item.candidate_id, approved: item.approved, model_answer: item.model_answer,
+          question_text: item.question_text, case_stem: item.case_stem, marks: item.marks, difficulty: item.difficulty,
+        })),
+        groupTopics, caseWeeks, globalTopicId, published: [...publishedQuestionIds],
+      }));
+    } catch { /* quota exceeded or storage restricted: imports remain usable in memory */ }
+  }, [reviewStorageKey, candidates, courseId, groupTopics, caseWeeks, globalTopicId, publishedQuestionIds]);
+
 
   const load = useCallback(async()=>{ if(!user||user.role==="STUDENT")return; setLoading(true); try{setCourses((await request<PageResponse<Course>>("/academic/courses?limit=100")).data);}catch(c){setError(c instanceof Error?c.message:"Unable to load courses.");}finally{setLoading(false)}},[request,user]);
   useEffect(()=>{void load()},[load]);
@@ -53,7 +70,19 @@ export function EssayQuestionImportPage() {
   async function inspect(event:FormEvent){event.preventDefault(); if(!file){notify({title:"Choose an essay file",tone:"info"});return} if(!rights){notify({title:"Permission confirmation required",tone:"info"});return}
     const json=/\.(json|txt)$/i.test(file.name);
     if(!(/\.pdf$/i.test(file.name)||json)||!file.size||file.size>(json?2:50)*1024*1024){notify({title:"Unsupported essay file",description:"Choose a non-empty PDF (50 MB), JSON or JSON text (2 MB).",tone:"error"});return}
-    setInspecting(true);setError(null);setInspection(null);setCandidates([]);setCollapsed({});setActiveGroup("ALL");setVisibleLimit(30);setGlobalTopicId("");setGroupTopics({});setCaseWeeks({});setPublishedQuestionIds(new Set());setPublishDestination("QUESTION_BANK");setStage("UPLOAD"); try{const body=new FormData();body.append("file",file);body.append("copyright_confirmed","true");body.append("content_type",standaloneType); const result=await request<Inspection>("/questions/imports/essay/inspect",{method:"POST",body,signal:AbortSignal.timeout(60000)}); setInspection(result);setStage("REVIEW");setCandidates(result.candidates.map((item)=>({...item,approved:item.status==="VALID",difficulty:"MEDIUM",marks:1}))); notify({title:"Essay file inspected",description:`${result.summary.cases} cases · ${result.summary.lectures ?? 0} lectures · ${result.summary.extracted} essay questions detected.`,tone:"success"});}catch(c){const msg=c instanceof Error?c.message:"Unable to inspect essay PDF.";setError(msg);notify({title:"Essay inspection failed",description:msg,tone:"error"});}finally{setInspecting(false)}}
+    setInspecting(true);setError(null);setInspection(null);setCandidates([]);setCollapsed({});setActiveGroup("ALL");setVisibleLimit(30);setGlobalTopicId("");setGroupTopics({});setCaseWeeks({});setPublishedQuestionIds(new Set());setPublishDestination("QUESTION_BANK");setStage("UPLOAD"); try{const body=new FormData();body.append("file",file);body.append("copyright_confirmed","true");body.append("content_type",standaloneType); const result=await request<Inspection>("/questions/imports/essay/inspect",{method:"POST",body,signal:AbortSignal.timeout(60000)}); let restored: null | { courseId?:string; candidates?:Array<Partial<ReviewCandidate>&{candidate_id:string}>; groupTopics?:Record<string,string>; caseWeeks?:Record<string,string>; globalTopicId?:string; published?:string[] } = null;
+      try { const raw=sessionStorage.getItem(`mdp:essay-review:v2:${user?.id}:${result.file_sha256}`); if(raw) restored=JSON.parse(raw); } catch { /* corrupt or unavailable saved review */ }
+      const overrides=new Map((restored?.candidates||[]).map(item=>[item.candidate_id,item]));
+      setInspection(result);setStage("REVIEW");
+      setCandidates(result.candidates.map(item=>{
+        const prior=overrides.get(item.candidate_id);
+        return {...item,approved:prior?.approved ?? item.status==="VALID",
+          model_answer:prior?.model_answer ?? item.model_answer, question_text:prior?.question_text ?? item.question_text,
+          case_stem:prior?.case_stem ?? item.case_stem,
+          difficulty:prior?.difficulty ?? "MEDIUM", marks:prior?.marks ?? 1};
+      }));
+      if(restored && restored.courseId===courseId){setGroupTopics(restored.groupTopics||{});setCaseWeeks(restored.caseWeeks||{});setGlobalTopicId(restored.globalTopicId||"");}
+      if(restored?.published)setPublishedQuestionIds(new Set(restored.published)); notify({title:"Essay file inspected",description:`${result.summary.cases} cases · ${result.summary.lectures ?? 0} lectures · ${result.summary.extracted} essay questions detected.`,tone:"success"});}catch(c){const msg=c instanceof Error?c.message:"Unable to inspect essay PDF.";setError(msg);notify({title:"Essay inspection failed",description:msg,tone:"error"});}finally{setInspecting(false)}}
 
   function update(id:string, patch:Partial<ReviewCandidate>){
     setCandidates(items=>items.map(item=>{
