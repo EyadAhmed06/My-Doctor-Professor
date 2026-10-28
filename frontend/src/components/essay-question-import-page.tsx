@@ -389,8 +389,8 @@ export function EssayQuestionImportPage() {
       {(stage==="REVIEW"||stage==="ORGANIZE")&&<div className="essay-v2-review-toolbar"><Panel title="Review workspace">
         <p>Select a case or lecture, review its questions, and make edits if needed. Use the question jump control in each section instead of scrolling through every question. Destination assignment happens in Organize.</p>
         <div className="question-import-bulk-actions">
-          <button className="pp-button secondary" type="button" disabled={!canUndo||publishing||creatingCases} onClick={undo} title="Revert your last question edit or selection">Undo</button>
-          <button className="pp-button secondary" type="button" disabled={!canRedo||publishing||creatingCases} onClick={redo} title="Restore the last undone edit">Redo</button>
+          <button className="pp-button secondary" type="button" disabled={!canUndo||publishing||creatingCases} onClick={undo} aria-label="Undo review edit" title="Revert your last question edit or selection">Undo</button>
+          <button className="pp-button secondary" type="button" disabled={!canRedo||publishing||creatingCases} onClick={redo} aria-label="Redo review edit" title="Restore the last undone edit">Redo</button>
           <button className="pp-button secondary" type="button" onClick={()=>setCandidates(items=>items.map(item=>({...item,approved:item.status!=="INVALID"})))} title="Select every valid or reviewable question in this file">Select all ready</button>
           <button className="pp-button secondary" type="button" onClick={()=>setCandidates(items=>items.map(item=>({...item,approved:false})))} title="Deselect every question without deleting anything">Deselect all</button>
           <button className="pp-button secondary" type="button" onClick={()=>setCollapsed(Object.fromEntries(candidates.map(item=>[groupKey(item),true])))}>Collapse all</button>
