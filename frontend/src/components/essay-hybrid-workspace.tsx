@@ -23,7 +23,7 @@ export function EssayHybridWorkspace({items, publishedIds, onUpdate, onGroupStem
   const groupId=position?.groupId??localGroupId;
   const questionId=position?.questionId??localQuestionId;
   const setMode=(next:Mode)=>{setLocalMode(next);onPositionChange?.({mode:next,groupId,questionId});};
-  const setGroupId=(next:string)=>{setLocalGroupId(next);onPositionChange?.({mode,groupId:next,questionId:lastQuestionByGroup[next]??""});};
+  const setGroupId=(next:string)=>{const remembered=lastQuestionByGroup[next]??"";setLocalGroupId(next);setLocalQuestionId(remembered);onPositionChange?.({mode,groupId:next,questionId:remembered});};
   const setQuestionId=(next:string)=>{setLocalQuestionId(next);onPositionChange?.({mode,groupId,questionId:next});};
   const [lastQuestionByGroup,setLastQuestionByGroup]=useState<Record<string,string>>({});
   const [query,setQuery]=useState("");
@@ -46,7 +46,7 @@ export function EssayHybridWorkspace({items, publishedIds, onUpdate, onGroupStem
   }),[items,problemOnly,query]);
   const byType=(type:"CASE"|"LECTURE")=>groups.filter(([,values])=>(values[0].block_type??"CASE")===type);
   const selectQuestion=(item:ReviewCandidate)=>{setQuestionId(item.candidate_id);setLastQuestionByGroup(prev=>({...prev,[keyFor(item)]:item.candidate_id}));setEditing(false);};
-  const open=(item:ReviewCandidate)=>{setGroupId(keyFor(item));selectQuestion(item);setMode("REVIEW");};
+  const open=(item:ReviewCandidate)=>{const id=keyFor(item);setLocalGroupId(id);setLocalQuestionId(item.candidate_id);setLocalMode("REVIEW");setLastQuestionByGroup(prev=>({...prev,[id]:item.candidate_id}));onPositionChange?.({mode:"REVIEW",groupId:id,questionId:item.candidate_id});setEditing(false);};
   const go=(delta:number)=>{const next=groupItems[currentIndex+delta];if(next){selectQuestion(next);}};
   return <div className="essay-v3-workspace">
     <header className="essay-v3-toolbar">
@@ -59,11 +59,11 @@ export function EssayHybridWorkspace({items, publishedIds, onUpdate, onGroupStem
     {mode==="REVIEW"?<div className="essay-v3-review">
       <nav className="essay-v3-navigator" aria-label="Essay cases and lectures">
         <h3>Content</h3>
-        <label>Jump to section<select value={activeGroup?.[0]??""} onChange={e=>{setGroupId(e.target.value);setQuestionId(lastQuestionByGroup[e.target.value]??"");setEditing(false);}}>
+        <label>Jump to section<select value={activeGroup?.[0]??""} onChange={e=>{setGroupId(e.target.value);setEditing(false);}}>
           {groups.map(([id,rows])=><option key={id} value={id}>{rows[0].block_type==="LECTURE"?"Lecture":"Case"} {rows[0].case_number} · {rows.length} Q</option>)}
         </select></label>
         {(["CASE","LECTURE"] as const).map(type=><div key={type}><h4>{type==="CASE"?"Clinical cases":"Lectures"}</h4>
-          {byType(type).map(([id,rows])=><button key={id} type="button" className={activeGroup?.[0]===id?"active":""} onClick={()=>{setGroupId(id);setQuestionId(lastQuestionByGroup[id]??"");setEditing(false);}}>
+          {byType(type).map(([id,rows])=><button key={id} type="button" className={activeGroup?.[0]===id?"active":""} onClick={()=>{setGroupId(id);setEditing(false);}}>
             <span>{rows[0].section} {type==="CASE"?`· Case ${rows[0].case_number}`:""}</span><small>{rows.length} questions · {rows.filter(i=>i.approved).length} selected</small>
           </button>)}
         </div>)}
