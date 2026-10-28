@@ -37,6 +37,7 @@ export function EssayQuestionImportPage() {
   const [caseWeeks,setCaseWeeks]=useState<Record<string,string>>({}); const [creatingCases,setCreatingCases]=useState(false);
   const [stage,setStage]=useState<"UPLOAD"|"REVIEW"|"ORGANIZE"|"PUBLISH">("UPLOAD");
   const [publishDestination,setPublishDestination]=useState<"QUESTION_BANK"|"CASE_STUDIO">("QUESTION_BANK");
+  const [publishProgress,setPublishProgress]=useState<{done:number;total:number}|null>(null);
   const [publishedQuestionIds,setPublishedQuestionIds]=useState<Set<string>>(new Set());
   const [visibleLimit, setVisibleLimit] = useState(30);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -183,33 +184,42 @@ export function EssayQuestionImportPage() {
     const blocked = selected.find(item=>item.status==="INVALID"||!item.question_text.trim()||!item.model_answer?.trim()||!topicFor(item)||!Number.isFinite(item.marks)||item.marks<=0);
     if(blocked){setError("Selected essay questions need a valid source answer and an assigned destination topic before publication.");return;}
     if(!window.confirm(`Publish ${selected.length} selected essay question(s) to the Question Bank? Each question will be placed in its assigned topic. Review the destination first.`))return;
-    setPublishing(true);setError(null);
+    setPublishing(true);setError(null);setPublishProgress({done:0,total:selected.length});
+    let processed=0, created=0, reused=0, skipped=0;
+    const batchSize=100;
     try{
-      const result=await request<{created:number;reused:number;skipped:number}>("/questions/imports/essay/publish",{
-        method:"POST",
-        body:{
-          original_filename:inspection.original_filename,
-          file_sha256:inspection.file_sha256,
-          copyright_confirmed:rights,
-          candidates:selected.map(item=>({
-            approved:true,
-            block_type:item.block_type||"CASE",
-            topic_id:topicFor(item),
-            case_label:item.case_label,
-            case_stem:item.case_stem,
-            question_text:item.question_text,
-            model_answer:item.model_answer||"",
-            difficulty:item.difficulty,
-            marks:Number(item.marks),
-            source_page:item.source_page||undefined,
-            answer_page:item.answer_page||undefined,
-          })),
-        },
-      });
-      setPublishedQuestionIds(previous=>new Set([...previous,...selected.map(item=>item.candidate_id)]));
-      notify({title:"Essay question bank updated",description:`${result.created} created · ${result.reused} reused · ${result.skipped} skipped. Only the selected essays were submitted.`,tone:"success"});
-    }catch(c){setError(c instanceof Error?c.message:"Unable to publish essay questions.");}
-    finally{setPublishing(false);}
+      for(let offset=0;offset<selected.length;offset+=batchSize){
+        const batch=selected.slice(offset,offset+batchSize);
+        const result=await request<{created:number;reused:number;skipped:number}>("/questions/imports/essay/publish",{
+          method:"POST",
+          body:{
+            original_filename:inspection.original_filename,
+            file_sha256:inspection.file_sha256,
+            copyright_confirmed:rights,
+            candidates:batch.map(item=>({
+              approved:true,
+              block_type:item.block_type||"CASE",
+              topic_id:topicFor(item),
+              case_label:item.case_label,
+              case_stem:item.case_stem,
+              question_text:item.question_text,
+              model_answer:item.model_answer||"",
+              difficulty:item.difficulty,
+              marks:Number(item.marks),
+              source_page:item.source_page||undefined,
+              answer_page:item.answer_page||undefined,
+            })),
+          },
+        });
+        processed+=batch.length;created+=result.created;reused+=result.reused;skipped+=result.skipped;
+        setPublishedQuestionIds(previous=>new Set([...previous,...batch.map(item=>item.candidate_id)]));
+        setPublishProgress({done:processed,total:selected.length});
+      }
+      notify({title:"Essay question bank updated",description:`${created} created · ${reused} reused · ${skipped} skipped across ${Math.ceil(selected.length/batchSize)} batches.`,tone:"success"});
+    }catch(c){
+      setError(`${c instanceof Error?c.message:"Unable to publish essay questions."} ${processed} of ${selected.length} questions were submitted successfully. Those selections are marked as published; retry to submit the remaining questions only.`);
+    }
+    finally{setPublishing(false);setPublishProgress(null);}
   }
 
   async function createCaseDrafts(publishNow=false){
@@ -308,6 +318,6 @@ export function EssayQuestionImportPage() {
         </div>)}</div>
         {!publicationPreview.length&&<p>No unpublished approved questions are selected.</p>}
       </Panel>}
-      {stage==="PUBLISH"&&publishDestination==="QUESTION_BANK"&&<div className="question-import-publish-bar"><div><b>{publishable} essay questions ready for Question Bank</b><small>{unassignedApproved?`${unassignedApproved} approved questions still need a destination topic. `:""}{invalidApproved?` ${invalidApproved} selected questions contain validation errors. `:""}{publishedQuestionIds.size?`${publishedQuestionIds.size} question(s) published in this review. `:""}Each approved question retains its source case or lecture and model answer.</small></div><button className="pp-button" type="button" disabled={!publishable||unassignedApproved>0||invalidApproved>0||publishing||creatingCases} onClick={()=>void publish()}><FiFileText/>{publishing?"Publishing…":`Publish ${publishable} to Question Bank`}</button></div>}{stage==="PUBLISH"&&publishDestination==="CASE_STUDIO"&&user.role==="INSTRUCTOR"&&caseDraftGroups.length>0&&<div className="question-import-publish-bar"><div><b>{mappedCaseDraftGroups.length} of {caseDraftGroups.length} cases ready for Case Studio</b><small>Assign each case to a week. Create unpublished drafts with the inspected questions and model answers; existing matching cases are skipped on retry.</small></div><button className="pp-button" type="button" disabled={!mappedCaseDraftGroups.length||creatingCases||publishing} onClick={()=>void createCaseDrafts()}><FiFileText/>{creatingCases?"Creating case drafts…":`Create ${mappedCaseDraftGroups.length} Case Studio drafts`}</button><button className="pp-button" type="button" disabled={!mappedCaseDraftGroups.length||creatingCases||publishing||!rights} onClick={()=>void createCaseDrafts(true)}><FiCheck/>{creatingCases?"Processing…":`Publish ${mappedCaseDraftGroups.length} selected clinical cases`}</button></div>}</>}
+      {stage==="PUBLISH"&&publishDestination==="QUESTION_BANK"&&<div className="question-import-publish-bar"><div><b>{publishable} essay questions ready for Question Bank</b><small>{unassignedApproved?`${unassignedApproved} approved questions still need a destination topic. `:""}{invalidApproved?` ${invalidApproved} selected questions contain validation errors. `:""}{publishedQuestionIds.size?`${publishedQuestionIds.size} question(s) published in this review. `:""}Each approved question retains its source case or lecture and model answer.</small></div><button className="pp-button" type="button" disabled={!publishable||unassignedApproved>0||invalidApproved>0||publishing||creatingCases} onClick={()=>void publish()}><FiFileText/>{publishing&&publishProgress?`Publishing ${publishProgress.done}/${publishProgress.total}…`:`Publish ${publishable} to Question Bank`}</button></div>}{stage==="PUBLISH"&&publishDestination==="CASE_STUDIO"&&user.role==="INSTRUCTOR"&&caseDraftGroups.length>0&&<div className="question-import-publish-bar"><div><b>{mappedCaseDraftGroups.length} of {caseDraftGroups.length} cases ready for Case Studio</b><small>Assign each case to a week. Create unpublished drafts with the inspected questions and model answers; existing matching cases are skipped on retry.</small></div><button className="pp-button" type="button" disabled={!mappedCaseDraftGroups.length||creatingCases||publishing} onClick={()=>void createCaseDrafts()}><FiFileText/>{creatingCases?"Creating case drafts…":`Create ${mappedCaseDraftGroups.length} Case Studio drafts`}</button><button className="pp-button" type="button" disabled={!mappedCaseDraftGroups.length||creatingCases||publishing||!rights} onClick={()=>void createCaseDrafts(true)}><FiCheck/>{creatingCases?"Processing…":`Publish ${mappedCaseDraftGroups.length} selected clinical cases`}</button></div>}</>}
   </main></ProductShell>;
 }
