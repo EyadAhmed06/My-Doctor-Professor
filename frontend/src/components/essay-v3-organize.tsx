@@ -1,15 +1,15 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { ReviewCandidate } from "./essay-import-model";
 
 type Topic={id:string;label:string};
 type Course={id:string;courseCode:string;courseName:string;weeks?:Array<{id:string;weekNumber:number;title:string|null}>};
 const groupId=(q:ReviewCandidate)=>`${q.section}::${q.case_number}`;
-export function EssayV3Organize({items,courses,courseId,course,topics,groupTopics,globalTopicId,caseWeeks,busy,onChooseCourse,onDefaultTopic,onGroupTopic,onCaseWeek,onSuggest,onSelectGroup,onContinue,onBack}:{
-items:ReviewCandidate[];courses:Course[];courseId:string;course:Course|null;topics:Topic[];groupTopics:Record<string,string>;globalTopicId:string;caseWeeks:Record<string,string>;busy:boolean;
+export function EssayV3Organize({items,courses,courseId,course,topics,groupTopics,globalTopicId,caseWeeks,busy,destination,allowCaseStudio,onDestination,onChooseCourse,onDefaultTopic,onGroupTopic,onCaseWeek,onSuggest,onSelectGroup,onContinue,onBack}:{
+items:ReviewCandidate[];courses:Course[];courseId:string;course:Course|null;topics:Topic[];groupTopics:Record<string,string>;globalTopicId:string;caseWeeks:Record<string,string>;busy:boolean;destination:"QUESTION_BANK"|"CASE_STUDIO";allowCaseStudio:boolean;onDestination:(value:"QUESTION_BANK"|"CASE_STUDIO")=>void;
 onChooseCourse:(id:string)=>void;onDefaultTopic:(id:string)=>void;onGroupTopic:(id:string,topic:string)=>void;onCaseWeek:(id:string,week:string)=>void;onSuggest:()=>void;onSelectGroup:(id:string,approved:boolean)=>void;onContinue:()=>void;onBack:()=>void;
 }){
-const [scope,setScope]=useState<"QUESTION_BANK"|"CASE_STUDIO">("QUESTION_BANK");
+const scope=destination;
 const groups=useMemo(()=>{const map=new Map<string,ReviewCandidate[]>();for(const q of items){const id=groupId(q);if(!map.has(id))map.set(id,[]);map.get(id)!.push(q);}return [...map];},[items]);
 const selected=items.filter(q=>q.approved);
 const pending=groups.filter(([id,rows])=>rows.some(q=>q.approved)&&!(scope==="QUESTION_BANK"?(groupTopics[id]||globalTopicId):(rows[0].block_type==="CASE"&&caseWeeks[id]))).length;
@@ -18,8 +18,8 @@ return <section className="essay-v3-organization" aria-label="Organize essay pub
   <div className="essay-v3-organization-controls">
     <label>Destination course<select value={courseId} disabled={busy} onChange={e=>onChooseCourse(e.target.value)}><option value="">Choose course…</option>{courses.map(c=><option key={c.id} value={c.id}>{c.courseCode} · {c.courseName}</option>)}</select></label>
     <div className="essay-v3-destination-switch" role="group" aria-label="Destination type">
-      <button type="button" aria-pressed={scope==="QUESTION_BANK"} onClick={()=>setScope("QUESTION_BANK")}>Question Bank topics</button>
-      <button type="button" aria-pressed={scope==="CASE_STUDIO"} onClick={()=>setScope("CASE_STUDIO")}>Clinical Case Studio</button>
+      <button type="button" aria-pressed={scope==="QUESTION_BANK"} onClick={()=>onDestination("QUESTION_BANK")}>Question Bank topics</button>
+      {allowCaseStudio&&<button type="button" aria-pressed={scope==="CASE_STUDIO"} onClick={()=>onDestination("CASE_STUDIO")}>Clinical Case Studio</button>}
     </div>
     {scope==="QUESTION_BANK"&&<label>Default lecture topic<select value={globalTopicId} disabled={busy||!courseId} onChange={e=>onDefaultTopic(e.target.value)}><option value="">No default topic</option>{topics.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}</select></label>}
     {scope==="QUESTION_BANK"&&<button type="button" className="essay-v3-secondary" disabled={!topics.length||busy} onClick={onSuggest}>Suggest exact topic matches</button>}
