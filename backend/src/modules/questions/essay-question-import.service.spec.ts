@@ -16,6 +16,18 @@ describe('EssayQuestionImportService PDF parsing', () => {
     }, 'a'.repeat(64));
   }
 
+  it('does not truncate JSON imports after the former 500-question cap', async () => {
+    const questions = Array.from({ length: 501 }, (_, index) => ({
+      question_text: `State a clinically relevant finding number ${index + 1}.`,
+      model_answer: `Finding ${index + 1}.`,
+      question_number: index + 1,
+    }));
+    const buffer = Buffer.from(JSON.stringify({ sections: [{ type: 'LECTURE', number: 1, title: 'Sample lecture', questions }] }));
+    const result = await service.inspectJson(true, { buffer, size: buffer.length, originalname: 'large.json' } as never);
+    expect(result.summary.extracted).toBe(501);
+    expect(result.candidates).toHaveLength(501);
+  });
+
   it('matches answer keys placed after all case question blocks', () => {
     const candidates = parse(`
       Final 2028
