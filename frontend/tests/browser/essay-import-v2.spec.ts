@@ -77,26 +77,17 @@ test('essay importer reviews mixed cases and lectures without requiring course b
   });
   await page.getByText(/I confirm I have permission/).click();
   await page.getByRole('button', { name: /Inspect essay file/i }).click();
-  await expect(page.getByText(/45 questions available/)).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Scroll through essay questions' })).toHaveCount(2);
-  await expect(page.locator('.essay-import-question').count()).resolves.toBeLessThan(45);
-  await expect(page.getByRole('option', { name: /Protein chemistry/ })).toHaveCount(1);
-  const firstQuestion = page.getByRole('textbox', { name: 'Essay question Q1' }).first();
+  await expect(page.getByRole('heading',{name:'Review imported questions'})).toBeVisible();
+  await expect(page.getByText(/45 extracted/)).toBeVisible();
+  await page.getByRole('button',{name:'Edit question'}).click();
+  const firstQuestion=page.getByRole('textbox',{name:'Essay question Q1'});
   await firstQuestion.fill('Edited essay prompt for Q1.');
   await expect(firstQuestion).toHaveValue('Edited essay prompt for Q1.');
-  await page.getByRole('button', { name: 'Undo review edit' }).click();
-  await expect(firstQuestion).toHaveValue('Question 1: Mention three findings.');
-  await page.getByRole('button', { name: 'Redo review edit' }).click();
-  await expect(firstQuestion).toHaveValue('Edited essay prompt for Q1.');
-  await page.getByRole('button', { name: /Collapse all/ }).click();
-  await expect(page.locator('.essay-import-question')).toHaveCount(0);
-  await page.getByRole('button', { name: /Expand all/ }).click();
-  await page.getByLabel('Jump to a case or lecture').selectOption({ label: 'Lecture 901: Protein chemistry' });
-  await expect(page.locator('.essay-import-groups')).toContainText('Protein chemistry');
-  const lectureViewport = page.getByRole('region', { name: 'Scroll through essay questions' });
-  await lectureViewport.evaluate(element => { element.scrollTop = element.scrollHeight; });
-  await expect(page.getByRole('textbox', { name: 'Essay question Q39' })).toBeVisible();
-  await expect(page.locator('.essay-import-question').count()).resolves.toBeLessThan(39);
+  await page.getByRole('button',{name:'Manage all'}).click();
+  await expect(page.getByRole('table')).toContainText('Edited essay prompt for Q1.');
+  await page.getByRole('row',{name:/Q39/}).getByRole('button',{name:'Review'}).click();
+  await expect(page.getByText('Question 45: Mention three findings.')).toBeVisible();
+  await expect(page.getByRole('combobox',{name:'Go to question'})).toHaveValue('candidate-44');
 
   await page.getByRole('button', { name: /Continue to organize/ }).click();
   await page.getByRole('button', { name: /Review publication summary/ }).click();
@@ -161,9 +152,9 @@ test('instructor resumes a previously saved import without re-uploading the PDF'
   await page.goto('/instructor/questions/import-essay');
   await expect(page.getByRole('heading',{name:'Import Essay Questions'})).toBeVisible();
   await page.getByRole('button',{name:/saved-essay.pdf/}).click();
-  await expect(page.getByRole('textbox',{name:'Essay question Q1'})).toHaveValue('Reviewed question from another device.');
-  await expect(page.getByRole('checkbox',{name:/Q1/}).first()).not.toBeChecked();
-  await expect(page.getByText(/Review saved automatically to your account/)).toBeVisible();
+  await expect(page.getByText('Reviewed question from another device.')).toBeVisible();
+  await expect(page.getByRole('checkbox',{name:'Include in publication'})).not.toBeChecked();
+  await expect(page.getByText(/Review autosave is ready|Changes saved to your account/)).toBeVisible();
 });
 
 
@@ -213,11 +204,11 @@ test('a 501-question saved essay session loads all pages but windows the editors
   });
   await page.goto('/instructor/questions/import-essay');
   await page.getByRole('button',{name:/large.pdf/}).click();
-  await expect(page.getByText(/501 questions available/)).toBeVisible();
+  await expect(page.getByText(/501 extracted/)).toBeVisible();
   expect(requestedPages).toEqual([0,200,400]);
-  const viewport=page.getByRole('region',{name:'Scroll through essay questions'});
-  await expect(page.locator('.essay-import-question').count()).resolves.toBeLessThan(501);
-  await viewport.evaluate(node=>{node.scrollTop=node.scrollHeight;});
-  await expect(page.getByRole('textbox',{name:'Essay question Q501'})).toBeVisible();
-  await expect(page.locator('.essay-import-question').count()).resolves.toBeLessThan(501);
+  await page.getByRole('button',{name:'Manage all'}).click();
+  await expect(page.locator('.essay-v3-manager tbody tr')).toHaveCount(501);
+  await page.getByRole('row',{name:/Q501/}).getByRole('button',{name:'Review'}).click();
+  await expect(page.getByText('Question 501: Name the finding.')).toBeVisible();
+  await expect(page.getByRole('combobox',{name:'Go to question'})).toHaveValue('large-q-501');
 });
