@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FiArrowLeft, FiCheck, FiFileText, FiRefreshCw, FiSearch, FiUploadCloud } from "react-icons/fi";
 import { EssayWindowedQuestionList } from "./essay-windowed-question-list";
+import { EssayHybridWorkspace } from "./essay-hybrid-workspace";
 import { useEssayReviewHistory } from "./use-essay-review-history";
 import { splitEssayPublishBatches } from "@/lib/essay-import-batching";
 import type { Candidate, Inspection, ReviewCandidate } from "./essay-import-model";
@@ -386,7 +387,8 @@ export function EssayQuestionImportPage() {
     {inspection&&stage!=="UPLOAD"&&<><section className="question-import-summary essay-v2-import-summary"><Panel><small>CASES</small><strong>{inspection.summary.cases}</strong><span>detected case blocks</span></Panel><Panel><small>LECTURES</small><strong>{inspection.summary.lectures ?? 0}</strong><span>detected lecture blocks</span></Panel><Panel><small>ESSAYS</small><strong>{inspection.summary.extracted}</strong><span>{statusCounts.VALID} ready · {statusCounts.NEEDS_REVIEW} review · {statusCounts.INVALID} invalid</span></Panel><Panel><small>PAGES</small><strong>{inspection.page_count}</strong><span>{inspection.original_filename}</span></Panel><Panel><small>READY TO PUBLISH</small><strong>{publishable}</strong><span>{stage==="REVIEW"?"Select questions, then assign a destination in Organize":stage==="ORGANIZE"?"Select questions and assign a topic or week":"Approved questions with a valid destination and answer"}</span></Panel></section>
       {inspection.issues.length>0&&<Panel title="Batch checks">{inspection.issues.map((issue)=><p key={issue.code}>{issue.severity}: {issue.message}</p>)}</Panel>}
       {(stage==="ORGANIZE"||stage==="PUBLISH")&&<Panel title="Default destination topic (optional when assigned per group)"><div className="question-import-bulk-actions"><button className="pp-button secondary" type="button" onClick={suggestTopicMatches} disabled={!courseId||!topics.length}>Suggest exact lecture-to-topic matches</button></div><div className="question-import-fields"><label><span>Destination course</span><select value={courseId} onChange={event=>void chooseCourse(event.target.value)}><option value="">Choose course…</option>{courses.map(item=><option key={item.id} value={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label></div><div className="question-import-fields"><label><span>Destination lecture topic</span><select value={globalTopicId} onChange={(e)=>setGlobalTopicId(e.target.value)}><option value="">Choose lecture topic…</option>{topics.map((topic)=><option key={topic.id} value={topic.id}>{topic.label}</option>)}</select><small>{courseId?"Use this as the default for all groups, or choose a separate destination topic for each case and lecture below.":"Choose a destination course above to load its weeks and lecture topics. You can inspect and review before choosing."}</small></label></div></Panel>}
-      {(stage==="REVIEW"||stage==="ORGANIZE")&&<div className="essay-v2-review-toolbar"><Panel title="Review workspace">
+      {stage==="REVIEW"&&<EssayHybridWorkspace items={candidates} publishedIds={publishedQuestionIds} onUpdate={update} onGroupStem={updateStem} onGroupApproval={setGroupApproved}/>}
+      {stage==="ORGANIZE"&&<div className="essay-v2-review-toolbar"><Panel title="Review workspace">
         <p>Select a case or lecture, review its questions, and make edits if needed. Use the question jump control in each section instead of scrolling through every question. Destination assignment happens in Organize.</p>
         <div className="question-import-bulk-actions">
           <button className="pp-button secondary" type="button" disabled={!canUndo||publishing||creatingCases} onClick={undo} aria-label="Undo review edit" title="Revert your last question edit or selection">Undo</button>
@@ -414,7 +416,7 @@ export function EssayQuestionImportPage() {
           <p>Assign a <b>Question Bank topic</b> to each selected group, then publish the selected questions. Lecture questions and case questions are both supported.</p>
           :<p>Assign a <b>Case Studio week</b> to each selected clinical case. Lecture questions are not published through Case Studio.</p>}
       </Panel>}
-      {(stage==="REVIEW"||stage==="ORGANIZE")&&<><div className="question-import-filterbar essay-v2-filters">
+      {stage==="ORGANIZE"&&<><div className="question-import-filterbar essay-v2-filters">
         <label className="question-import-search"><FiSearch/><input type="search" value={candidateSearch} onChange={(e)=>setCandidateSearch(e.target.value)} placeholder="Search case, question number, text, answer, issue…" aria-label="Search inspected essay questions"/></label>
         <div className="question-import-status-filters" role="group" aria-label="Filter by review status">{([["ALL","All"],["VALID","Ready"],["NEEDS_REVIEW","Needs review"],["INVALID","Invalid"]] as const).map(([value,label])=><button type="button" key={value} className={statusFilter===value?"active":""} onClick={()=>setStatusFilter(value)}>{label} <span>{statusCounts[value]}</span></button>)}</div>
       </div>
@@ -424,6 +426,7 @@ export function EssayQuestionImportPage() {
         {stage==="REVIEW"?<button className="pp-button" type="button" onClick={()=>setStage("ORGANIZE")}>Continue to organize →</button>:<button className="pp-button" type="button" onClick={()=>setStage("PUBLISH")}>Review publication summary →</button>}
       </div>
       </>}
+      {stage==="REVIEW"&&<div className="essay-v3-stage-next"><button type="button" className="pp-button" onClick={()=>setStage("ORGANIZE")}>Continue to organize →</button></div>}
       {stage==="PUBLISH"&&publishDestination==="QUESTION_BANK"&&<Panel title="Final publication preview">
         <p><b>{publishable} ready</b> · {unassignedApproved} need a topic · {invalidApproved} contain errors. Only approved questions are included. Review the exact destinations below before publishing.</p>
         <div className="essay-v2-preview-list">{publicationPreview.map((group,index)=><div key={index} className="essay-v2-preview-row">
