@@ -181,7 +181,7 @@ export class EssayQuestionImportService {
         const questionText = String(question.question_text ?? question.question ?? question.prompt ?? '').trim();
         const answer = this.formatModelAnswer(String(question.model_answer ?? question.answer ?? '')) || null;
         const questionNumber = Number(question.question_number ?? question.number ?? i+1);
-        if (!questionText || questionText.length > 10000 || !Number.isInteger(questionNumber) || questionNumber < 1 || questionNumber > 999)
+        if (!questionText || questionText.length > 10000 || !Number.isInteger(questionNumber) || questionNumber < 1 || questionNumber > 10000)
           throw new BadRequestException(`Invalid question text or number in ${block.title}`);
         const issues: EssayIssue[] = answer ? [] : [{code:'MODEL_ANSWER_MISSING',severity:'ERROR',message:'Provide a source model answer before publishing.'}];
         const section = block.type === 'LECTURE' ? `Lecture ${block.number}: ${block.title}` : block.title;
