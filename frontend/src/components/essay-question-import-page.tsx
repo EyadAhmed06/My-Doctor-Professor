@@ -99,7 +99,6 @@ export function EssayQuestionImportPage() {
   const publishable=candidates.filter((item)=>item.approved&&item.status!=="INVALID"&&item.model_answer?.trim()&&topicFor(item)&&!publishedQuestionIds.has(item.candidate_id)).length;
   const unassignedApproved=candidates.filter((item)=>item.approved&&item.status!=="INVALID"&&item.model_answer?.trim()&&!topicFor(item)&&!publishedQuestionIds.has(item.candidate_id)).length;
   const invalidApproved=candidates.filter(item=>item.approved&&item.status==="INVALID").length;
-  const selectedCount=candidates.filter(item=>item.approved).length;
   const caseDraftGroups=useMemo(()=>{const grouped=new Map<string,ReviewCandidate[]>();for(const item of candidates){if(item.block_type!=="CASE"||!item.approved||!item.model_answer?.trim())continue;const key=`${item.section}::${item.case_number}`;grouped.set(key,[...(grouped.get(key)||[]),item]);}return [...grouped.entries()]},[candidates]);
   const mappedCaseDraftGroups=caseDraftGroups.filter(([key])=>caseWeeks[key] && course?.weeks?.some((week)=>week.id===caseWeeks[key]));
 
