@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FiArrowLeft, FiFileText, FiRefreshCw, FiSearch, FiUploadCloud } from "react-icons/fi";
 import { EssayReviewQuestion } from "./essay-review-question";
-import type { Candidate, Inspection, Issue, ReviewCandidate } from "./essay-import-model";
+import type { Candidate, Inspection, ReviewCandidate } from "./essay-import-model";
 import { useAuth } from "./auth-provider";
 import { PageSkeleton } from "./async-state";
 import { Panel, ProductShell } from "./product-shell";
