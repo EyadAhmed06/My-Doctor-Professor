@@ -106,3 +106,62 @@ test('essay importer reviews mixed cases and lectures without requiring course b
   await expect(page.getByText(/Assign a Question Bank topic/)).toBeVisible();
   expect(publishPayload).toBeNull();
 });
+
+
+test('instructor resumes a previously saved import without re-uploading the PDF', async ({ page }) => {
+  const owner = {
+    id: '11111111-1111-4111-8111-111111111111', email: 'teacher@example.test',
+    full_name: 'Test Instructor', role: 'INSTRUCTOR', status: 'ACTIVE', emailVerified: true,
+  };
+  const sessionId='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  await page.addInitScript(() => {
+    localStorage.removeItem('mdp_access_token');
+    sessionStorage.removeItem('mdp_access_token');
+    localStorage.removeItem('mdp_logged_out_at');
+    localStorage.setItem('mdp-theme','dark');
+    localStorage.setItem('mdp-locale','en');
+  });
+  await page.route('**/*', async route => {
+    const request=route.request(),url=new URL(request.url());
+    if(!url.pathname.includes('/api/v1')&&url.port!=='3000')return route.fallback();
+    const path=url.pathname.split('/api/v1')[1]||url.pathname;
+    const headers={
+      'access-control-allow-origin':request.headers().origin||'http://127.0.0.1:3001',
+      'access-control-allow-credentials':'true','access-control-allow-headers':'authorization,content-type',
+      'access-control-allow-methods':'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+    };
+    if(request.method()==='OPTIONS')return route.fulfill({status:204,headers});
+    let body:unknown={};
+    if(path==='/auth/refresh')body={access_token:'saved-essay-token',user:owner};
+    if(path==='/auth/me')body=owner;
+    if(path==='/notifications/unread/count')body={count:0};
+    if(path==='/notifications')body={data:[]};
+    if(path.startsWith('/academic/courses'))body={data:[]};
+    if(path==='/questions/imports/essay/sessions')body=[{
+      session_id:sessionId,original_filename:'saved-essay.pdf',total:1,revision:2,
+    }];
+    if(path===`/questions/imports/essay/sessions/${sessionId}`)body={
+      session_id:sessionId,revision:2,total:1,original_filename:'saved-essay.pdf',
+      file_sha256:'b'.repeat(64),page_count:2,file_size:128,status:'REVIEW_REQUIRED',
+      summary:{cases:0,lectures:1,extracted:1,valid:1,needs_review:0,invalid:0},issues:[],
+      review:{candidates:[{candidate_id:'saved-q1',approved:false,question_text:'Reviewed question from another device.'}]},
+    };
+    if(path===`/questions/imports/essay/sessions/${sessionId}/candidates`)body={
+      total:1,offset:0,limit:200,candidates:[{
+        candidate_id:'saved-q1',section:'Lecture 1: Cardiology',block_type:'LECTURE',
+        case_number:1,case_label:'Lecture 1',case_stem:'Cardiology',
+        question_number:1,question_text:'Original question text.',model_answer:'Answer from source.',
+        answer_origin:'SOURCE',source_page:1,answer_page:2,extraction_confidence:1,
+        status:'VALID',issues:[],
+      }],
+    };
+    if(path===`/questions/imports/essay/sessions/${sessionId}/review`)body={revision:3};
+    await route.fulfill({status:200,headers,contentType:'application/json',body:JSON.stringify(body)});
+  });
+  await page.goto('/instructor/questions/import-essay');
+  await expect(page.getByRole('heading',{name:'Import Essay Questions'})).toBeVisible();
+  await page.getByRole('button',{name:/saved-essay.pdf/}).click();
+  await expect(page.getByRole('textbox',{name:'Essay question Q1'})).toHaveValue('Reviewed question from another device.');
+  await expect(page.getByRole('checkbox',{name:/Q1/}).first()).not.toBeChecked();
+  await expect(page.getByText(/Review saved automatically to your account/)).toBeVisible();
+});
