@@ -489,3 +489,8 @@
 .essay-v2-measured-question { padding: 0 0 12px; box-sizing: border-box; }
 .essay-v2-measured-question .essay-import-question { content-visibility: visible; contain-intrinsic-size: auto; }
 @media(max-width:720px) { .essay-v2-windowed-list { height: min(65dvh, 520px); } }
+
+
+.essay-v2-saved-sessions { display:flex;flex-wrap:wrap;gap:.7rem;max-height:260px;overflow:auto;padding:.4rem 0; }
+.essay-v2-saved-sessions .pp-button { max-width:100%;overflow-wrap:anywhere;white-space:normal;text-align:left; }
+.essay-v2-save-status { font-size:.8rem; opacity:.8; margin:.45rem 0; }
