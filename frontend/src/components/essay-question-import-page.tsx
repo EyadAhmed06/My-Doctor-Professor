@@ -76,9 +76,17 @@ export function EssayQuestionImportPage() {
       setInspection(result);setStage("REVIEW");
       setCandidates(result.candidates.map(item=>{
         const prior=overrides.get(item.candidate_id);
-        return {...item,approved:prior?.approved ?? item.status==="VALID",
-          model_answer:prior?.model_answer ?? item.model_answer, question_text:prior?.question_text ?? item.question_text,
-          case_stem:prior?.case_stem ?? item.case_stem,
+        const question_text=prior?.question_text ?? item.question_text;
+        const model_answer=prior?.model_answer ?? item.model_answer;
+        const case_stem=prior?.case_stem ?? item.case_stem;
+        const issues=item.issues.filter(issue=>!["MODEL_ANSWER_MISSING","QUESTION_TOO_SHORT","CASE_STEM_MISSING"].includes(issue.code));
+        if(!model_answer?.trim())issues.push({code:"MODEL_ANSWER_MISSING",severity:"ERROR",message:"A model answer is required before publication."});
+        if(question_text.trim().length<8)issues.push({code:"QUESTION_TOO_SHORT",severity:"ERROR",message:"The essay question must contain at least 8 characters."});
+        if(item.block_type==="CASE"&&!case_stem.trim())issues.push({code:"CASE_STEM_MISSING",severity:"WARNING",message:"Provide the clinical case stem."});
+        const status=issues.some(issue=>issue.severity==="ERROR")?"INVALID":issues.length?"NEEDS_REVIEW":"VALID";
+        return {...item,approved:(prior?.approved ?? item.status==="VALID")&&status!=="INVALID",
+          model_answer, question_text, case_stem, issues, status,
+          answer_origin:model_answer?.trim()&&item.answer_origin==="MISSING"?"MANUAL":item.answer_origin,
           difficulty:prior?.difficulty ?? "MEDIUM", marks:prior?.marks ?? 1};
       }));
       if(restored && restored.courseId===courseId){setGroupTopics(restored.groupTopics||{});setCaseWeeks(restored.caseWeeks||{});setGlobalTopicId(restored.globalTopicId||"");}
