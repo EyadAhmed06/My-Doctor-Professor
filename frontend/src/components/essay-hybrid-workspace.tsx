@@ -15,6 +15,7 @@ export function EssayHybridWorkspace({items, publishedIds, onUpdate, onGroupStem
 }) {
   const [mode,setMode]=useState<Mode>("REVIEW");
   const [groupId,setGroupId]=useState("");
+  const [lastQuestionByGroup,setLastQuestionByGroup]=useState<Record<string,string>>({});
   const [questionId,setQuestionId]=useState("");
   const [query,setQuery]=useState("");
   const [problemOnly,setProblemOnly]=useState(false);
@@ -27,7 +28,7 @@ export function EssayHybridWorkspace({items, publishedIds, onUpdate, onGroupStem
   },[items]);
   const activeGroup=groups.find(([id])=>id===groupId) ?? groups[0];
   const groupItems=activeGroup?.[1]??[];
-  const active=groupItems.find(item=>item.candidate_id===questionId) ?? groupItems[0];
+  const active=groupItems.find(item=>item.candidate_id===(questionId||lastQuestionByGroup[activeGroup?.[0]??""])) ?? groupItems[0];
   const currentIndex=active?groupItems.findIndex(item=>item.candidate_id===active.candidate_id):0;
   const allFiltered=useMemo(()=>items.filter(item=>{
     if(problemOnly && item.status==="VALID")return false;
@@ -35,8 +36,9 @@ export function EssayHybridWorkspace({items, publishedIds, onUpdate, onGroupStem
     return text.includes(query.trim().toLowerCase());
   }),[items,problemOnly,query]);
   const byType=(type:"CASE"|"LECTURE")=>groups.filter(([,values])=>(values[0].block_type??"CASE")===type);
-  const open=(item:ReviewCandidate)=>{setGroupId(keyFor(item));setQuestionId(item.candidate_id);setEditing(false);setMode("REVIEW");};
-  const go=(delta:number)=>{const next=groupItems[currentIndex+delta];if(next){setQuestionId(next.candidate_id);setEditing(false);}};
+  const selectQuestion=(item:ReviewCandidate)=>{setQuestionId(item.candidate_id);setLastQuestionByGroup(prev=>({...prev,[keyFor(item)]:item.candidate_id}));setEditing(false);};
+  const open=(item:ReviewCandidate)=>{setGroupId(keyFor(item));selectQuestion(item);setMode("REVIEW");};
+  const go=(delta:number)=>{const next=groupItems[currentIndex+delta];if(next){selectQuestion(next);}};
   return <div className="essay-v3-workspace">
     <header className="essay-v3-toolbar">
       <div><h2>Review imported questions</h2><p>{items.length} extracted · {items.filter(i=>i.approved).length} selected · {items.filter(i=>i.status==="INVALID").length} invalid</p></div>
@@ -48,11 +50,11 @@ export function EssayHybridWorkspace({items, publishedIds, onUpdate, onGroupStem
     {mode==="REVIEW"?<div className="essay-v3-review">
       <nav className="essay-v3-navigator" aria-label="Essay cases and lectures">
         <h3>Content</h3>
-        <label>Jump to section<select value={activeGroup?.[0]??""} onChange={e=>{setGroupId(e.target.value);setQuestionId("");setEditing(false);}}>
+        <label>Jump to section<select value={activeGroup?.[0]??""} onChange={e=>{setGroupId(e.target.value);setQuestionId(lastQuestionByGroup[e.target.value]??"");setEditing(false);}}>
           {groups.map(([id,rows])=><option key={id} value={id}>{rows[0].block_type==="LECTURE"?"Lecture":"Case"} {rows[0].case_number} · {rows.length} Q</option>)}
         </select></label>
         {(["CASE","LECTURE"] as const).map(type=><div key={type}><h4>{type==="CASE"?"Clinical cases":"Lectures"}</h4>
-          {byType(type).map(([id,rows])=><button key={id} type="button" className={activeGroup?.[0]===id?"active":""} onClick={()=>{setGroupId(id);setQuestionId("");setEditing(false);}}>
+          {byType(type).map(([id,rows])=><button key={id} type="button" className={activeGroup?.[0]===id?"active":""} onClick={()=>{setGroupId(id);setQuestionId(lastQuestionByGroup[id]??"");setEditing(false);}}>
             <span>{rows[0].section} {type==="CASE"?`· Case ${rows[0].case_number}`:""}</span><small>{rows.length} questions · {rows.filter(i=>i.approved).length} selected</small>
           </button>)}
         </div>)}
@@ -64,20 +66,20 @@ export function EssayHybridWorkspace({items, publishedIds, onUpdate, onGroupStem
           {showContextEditor?<textarea rows={5} value={active.case_stem} onChange={e=>onGroupStem(activeGroup![0],e.target.value)} aria-label="Edit clinical case or lecture context"/>:<p>{active.case_stem||"No clinical context provided in source."}</p>}
         </section>
         <section className="essay-v3-question">
-          <div className="essay-v3-section-heading"><div><strong>Question {active.question_number}</strong><small> {currentIndex+1} of {groupItems.length} · Source p. {active.source_page??"?"} · Answer p. {active.answer_page??"?"}</small></div><button type="button" onClick={()=>setEditing(v=>!v)}>{editing?"View":"Edit question"}</button></div>
+          <div className="essay-v3-section-heading essay-v31-question-heading"><div><strong>Question {active.question_number}</strong><small> {currentIndex+1} of {groupItems.length} · Source p. {active.source_page??"?"} · Answer p. {active.answer_page??"?"}</small></div><div className="essay-v31-heading-actions"><label className="essay-v3-include"><input type="checkbox" checked={active.approved} disabled={active.status==="INVALID"||publishedIds.has(active.candidate_id)} onChange={e=>onUpdate(active.candidate_id,{approved:e.target.checked})}/>Include</label><button type="button" onClick={()=>setEditing(v=>!v)}>{editing?"View":"Edit question"}</button></div></div>
           {editing?<><label>Question text<textarea rows={3} aria-label={`Essay question Q${active.question_number}`} value={active.question_text} onChange={e=>onUpdate(active.candidate_id,{question_text:e.target.value})}/></label><label>Model answer<textarea rows={5} value={active.model_answer??""} onChange={e=>onUpdate(active.candidate_id,{model_answer:e.target.value})}/></label></>:<>
             <div className="essay-v3-prompt">{active.question_text}</div><h4>Model answer</h4><div className="essay-v3-answer">{active.model_answer||"Missing model answer"}</div>
           </>}
           <div className="essay-v3-settings">
             <label>Difficulty<select value={active.difficulty} disabled={publishedIds.has(active.candidate_id)} onChange={e=>onUpdate(active.candidate_id,{difficulty:e.target.value as ReviewCandidate["difficulty"]})}><option value="EASY">Easy</option><option value="MEDIUM">Medium</option><option value="HARD">Hard</option></select></label>
             <label>Marks<input type="number" min="0.1" max="100" step="any" value={active.marks} disabled={publishedIds.has(active.candidate_id)} onChange={e=>{const n=Number(e.target.value);if(n>0&&n<=100)onUpdate(active.candidate_id,{marks:n});}}/></label>
-            <label className="essay-v3-include"><input type="checkbox" checked={active.approved} disabled={active.status==="INVALID"||publishedIds.has(active.candidate_id)} onChange={e=>onUpdate(active.candidate_id,{approved:e.target.checked})}/>Include in publication</label>
+
           </div>
           {active.issues.length>0&&<div role="status" className="essay-v3-issues">{active.issues.map(issue=><p key={issue.code}>{issue.message}</p>)}</div>}
         </section>
         <nav className="essay-v3-question-nav" aria-label="Navigate essay questions">
           <button type="button" disabled={currentIndex===0} onClick={()=>go(-1)}>← Previous</button>
-          <label>Go to question<select value={active.candidate_id} onChange={e=>{setQuestionId(e.target.value);setEditing(false);}}>{groupItems.map(row=><option key={row.candidate_id} value={row.candidate_id}>Q{row.question_number}</option>)}</select></label>
+          <label>Go to question<select value={active.candidate_id} onChange={e=>{const row=groupItems.find(x=>x.candidate_id===e.target.value);if(row)selectQuestion(row);}}>{groupItems.map(row=><option key={row.candidate_id} value={row.candidate_id}>Q{row.question_number}</option>)}</select></label>
           <button type="button" disabled={currentIndex>=groupItems.length-1} onClick={()=>go(1)}>Next →</button>
         </nav></>}
       </main>
