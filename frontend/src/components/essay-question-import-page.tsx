@@ -179,8 +179,8 @@ export function EssayQuestionImportPage() {
     }
     return [...grouped.values()];
   }, [candidates, publishedQuestionIds, groupTopics, globalTopicId, topics]);
-  const caseDraftGroups=useMemo(()=>{const grouped=new Map<string,ReviewCandidate[]>();for(const item of candidates){if(item.block_type!=="CASE"||!item.approved||!item.model_answer?.trim())continue;const key=`${item.section}::${item.case_number}`;if(!grouped.has(key))grouped.set(key,[]);grouped.get(key)!.push(item);}return [...grouped.entries()]},[candidates]);
-  const mappedCaseDraftGroups=caseDraftGroups.filter(([key])=>caseWeeks[key] && course?.weeks?.some((week)=>week.id===caseWeeks[key]));
+  const caseDraftGroups=useMemo(()=>{const grouped=new Map<string,ReviewCandidate[]>();for(const item of candidates){if(item.block_type!=="CASE"||!item.approved)continue;const key=`${item.section}::${item.case_number}`;if(!grouped.has(key))grouped.set(key,[]);grouped.get(key)!.push(item);}return [...grouped.entries()]},[candidates]);
+  const mappedCaseDraftGroups=caseDraftGroups.filter(([key,items])=>caseWeeks[key] && course?.weeks?.some((week)=>week.id===caseWeeks[key]) && items.every(item=>item.status!=="INVALID"&&Boolean(item.model_answer?.trim())&&item.question_text.trim().length>=8));
 
   async function publish(scopeIds?: string[]){
     if(!inspection||publishing||creatingCases)return;
