@@ -108,7 +108,7 @@ function guardPatchedProductionDependencies() {
     ['@nestjs/platform-express', '11.2.8'],
     ['multer', '2.5.0'],
     ['qs', '6.16.1'],
-    ['body-parser', '2.3.1'],
+    ['body-parser', '2.4.0'],
   ];
   // Check the actually installed versions, not historical exact patch pins.
   // The npm production audit separately checks newly disclosed advisories.
