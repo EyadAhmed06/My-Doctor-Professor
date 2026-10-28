@@ -1,0 +1,58 @@
+name: Refresh patched dependency lockfiles
+
+on:
+  push:
+    branches:
+      - agent/phase1-interactions
+    paths:
+      - .github/workflows/refresh-security-lockfiles.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: security-lockfiles-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  refresh-lockfiles:
+    if: github.ref == 'refs/heads/agent/phase1-interactions'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend/package-lock.json
+      - name: Refresh frontend lockfile
+        working-directory: frontend
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Refresh backend lockfile
+        working-directory: backend
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Check production dependency advisories
+        run: |
+          (cd frontend && npm audit --omit=dev --audit-level=high)
+          (cd backend && npm audit --omit=dev --audit-level=high)
+      - name: Verify clean installation
+        run: |
+          (cd frontend && npm ci --ignore-scripts --no-audit --no-fund)
+          (cd backend && npm ci --ignore-scripts --no-audit --no-fund)
+      - name: Commit generated lockfiles
+        run: |
+          if git diff --quiet -- frontend/package-lock.json backend/package-lock.json; then
+            echo "Lockfiles unchanged."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/package-lock.json backend/package-lock.json
+          git commit -m "fix(security): refresh patched npm dependency lockfiles"
+          git push origin HEAD:agent/phase1-interactions
