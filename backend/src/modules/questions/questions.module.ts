@@ -10,6 +10,7 @@ import { Topic } from '../../common/entities/topic.entity';
 import { AcademicModule } from '../academic/academic.module';
 import { BundleAccessModule } from '../bundle-access/bundle-access.module';
 import { EssayQuestionImportController } from './essay-question-import.controller';
+import { EssayImportSessionsService } from './essay-import-sessions.service';
 import { EssayQuestionImportService } from './essay-question-import.service';
 import { InstructorQuestionAccessService } from './instructor-question-access.service';
 import { OpenRouterQuestionEnrichmentService } from './openrouter-question-enrichment.service';
@@ -53,6 +54,7 @@ import { UnicodeQuestionImportService } from './unicode-question-import.service'
     QuestionImportEnrichmentService,
     QuestionExplanationLifecycleService,
     EssayQuestionImportService,
+    EssayImportSessionsService,
   ],
   exports: [
     QuestionsService,
