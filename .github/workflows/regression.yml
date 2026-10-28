@@ -144,6 +144,7 @@ jobs:
           tests/browser/assessment-final-200-review.spec.ts
           tests/browser/bundle-entitlements.spec.ts
           tests/browser/essay-import-v2.spec.ts
+          tests/browser/essay-batching.spec.ts
           tests/browser/bundle-quiz-availability.regression.spec.ts
           tests/browser/flashcard-sync-regression.spec.ts
           tests/browser/pearl-workflow.spec.ts
