@@ -58,7 +58,7 @@ export function EssayQuestionImportPage() {
   const sessionRevision = useRef(0);
   const lastSavedReview = useRef("");
   const [savingReview, setSavingReview] = useState(false);
-    const [courses, setCourses] = useState<Course[]>([]); const [courseId,setCourseId]=useState(""); const [course,setCourse]=useState<Course|null>(null);
+  const [courses, setCourses] = useState<Course[]>([]); const [courseId,setCourseId]=useState(""); const [course,setCourse]=useState<Course|null>(null);
   const [file,setFile]=useState<File|null>(null); const [standaloneType,setStandaloneType]=useState<'LECTURE'|'CASE'>('LECTURE'); const [rights,setRights]=useState(false); const [inspection,setInspection]=useState<Inspection|null>(null); const {items:candidates,setItems:setCandidates,resetItems:resetCandidates,undo,redo,canUndo,canRedo}=useEssayReviewHistory<ReviewCandidate>([]);
   const [loading,setLoading]=useState(true); const [inspecting,setInspecting]=useState(false); const [publishing,setPublishing]=useState(false); const [error,setError]=useState<string|null>(null);
   const [candidateSearch,setCandidateSearch]=useState(""); const [statusFilter,setStatusFilter]=useState<"ALL"|Candidate["status"]>("ALL"); const [globalTopicId,setGlobalTopicId]=useState(""); const [groupTopics,setGroupTopics]=useState<Record<string,string>>({});
@@ -73,13 +73,24 @@ export function EssayQuestionImportPage() {
   const saveInFlight = useRef(false);
   useEffect(() => {
     if (!sessionId || !candidates.length || saveInFlight.current) return;
+    if(!inspection)return;
+    const originals = new Map(inspection.candidates.map(item=>[item.candidate_id,item]));
+    const changes:Array<Partial<ReviewCandidate>&{candidate_id:string}>=[];
+    for(const item of candidates){
+      const base=originals.get(item.candidate_id);
+      if(!base)continue;
+      const change:Partial<ReviewCandidate>&{candidate_id:string}={candidate_id:item.candidate_id};
+      if(item.approved!==(base.status==="VALID"))change.approved=item.approved;
+      if(item.model_answer!==base.model_answer)change.model_answer=item.model_answer;
+      if(item.question_text!==base.question_text)change.question_text=item.question_text;
+      if(item.case_stem!==base.case_stem)change.case_stem=item.case_stem;
+      if(item.difficulty!=="MEDIUM")change.difficulty=item.difficulty;
+      if(item.marks!==1)change.marks=item.marks;
+      if(Object.keys(change).length>1)changes.push(change);
+    }
     const review:StoredEssayReview = {
-      courseId, groupTopics, caseWeeks, globalTopicId, published:[...publishedQuestionIds],
-      candidates:candidates.map(item=>({
-        candidate_id:item.candidate_id,approved:item.approved,
-        model_answer:item.model_answer,question_text:item.question_text,case_stem:item.case_stem,
-        difficulty:item.difficulty,marks:item.marks,
-      })),
+      courseId,groupTopics,caseWeeks,globalTopicId,published:[...publishedQuestionIds],
+      candidates:changes,
     };
     const serialized=JSON.stringify(review);
     if(serialized===lastSavedReview.current)return;
@@ -96,7 +107,7 @@ export function EssayQuestionImportPage() {
       }).finally(()=>{saveInFlight.current=false;setSavingReview(false);});
     },1800);
     return ()=>window.clearTimeout(timer);
-  },[sessionId,candidates,courseId,groupTopics,caseWeeks,globalTopicId,publishedQuestionIds,request,savingReview]);
+  },[sessionId,inspection,candidates,courseId,groupTopics,caseWeeks,globalTopicId,publishedQuestionIds,request,savingReview]);
 
   // Store the in-progress review in this tab only. The uploaded source itself
   // is never persisted, and another instructor cannot load this tab's snapshot.
