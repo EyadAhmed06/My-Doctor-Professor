@@ -39,6 +39,9 @@ jobs:
       - name: Refresh backend lockfile
         working-directory: backend
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Apply non-breaking dependency security fixes
+        working-directory: backend
+        run: npm audit fix --package-lock-only --ignore-scripts --no-fund
       - name: Check production dependency advisories
         run: |
           (cd frontend && npm audit --omit=dev --audit-level=high)
