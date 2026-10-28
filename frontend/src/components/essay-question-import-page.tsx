@@ -98,7 +98,7 @@ export function EssayQuestionImportPage() {
   const visibleQuestionIds = useMemo(() => new Set(filteredCandidates.slice(0, visibleLimit).map(item => item.candidate_id)), [filteredCandidates, visibleLimit]);
   const groupKey=(item:Candidate)=>`${item.section}::${item.case_number}`;
   const topicFor=(item:Candidate)=>groupTopics[groupKey(item)] || globalTopicId;
-  const publishable=candidates.filter((item)=>item.approved&&item.status!=="INVALID"&&item.model_answer?.trim()&&topicFor(item)&&!publishedQuestionIds.has(item.candidate_id)).length;
+  const publishable=candidates.filter((item)=>item.approved&&item.status!=="INVALID"&&item.model_answer?.trim()&&Number.isFinite(item.marks)&&item.marks>0&&topicFor(item)&&!publishedQuestionIds.has(item.candidate_id)).length;
   const unassignedApproved=candidates.filter((item)=>item.approved&&item.status!=="INVALID"&&item.model_answer?.trim()&&!topicFor(item)&&!publishedQuestionIds.has(item.candidate_id)).length;
   const invalidApproved=candidates.filter(item=>item.approved&&item.status==="INVALID").length;
   const publicationPreview = useMemo(() => {
@@ -111,7 +111,7 @@ export function EssayQuestionImportPage() {
         count: 0, missingTopic: 0, invalid: 0, topicLabel: topics.find(topic=>topic.id===destinationId)?.label || "Not assigned" };
       current.count++;
       if (!destinationId) current.missingTopic++;
-      if (item.status==="INVALID" || !item.model_answer?.trim()) current.invalid++;
+      if (item.status==="INVALID" || !item.model_answer?.trim() || !Number.isFinite(item.marks) || item.marks<=0) current.invalid++;
       grouped.set(key,current);
     }
     return [...grouped.values()];
