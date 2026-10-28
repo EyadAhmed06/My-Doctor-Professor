@@ -80,6 +80,11 @@ test('essay importer reviews mixed cases and lectures without requiring course b
   await page.getByRole('button', { name: /Expand all/ }).click();
   await page.getByLabel('Jump to a case or lecture').selectOption({ label: 'Lecture 901: Protein chemistry' });
   await expect(page.locator('.essay-import-groups')).toContainText('Protein chemistry');
+  const lectureViewport = page.getByRole('region', { name: 'Scroll through essay questions' });
+  await lectureViewport.evaluate(element => { element.scrollTop = element.scrollHeight; });
+  await expect(page.getByRole('textbox', { name: 'Essay question Q39' })).toBeVisible();
+  await expect(page.locator('.essay-import-question').count()).resolves.toBeLessThan(39);
+
   await page.getByRole('button', { name: /Continue to organize/ }).click();
   await page.getByRole('button', { name: /Review publication summary/ }).click();
   await page.getByRole('button', { name: /Case Studio · Clinical cases/ }).click();
