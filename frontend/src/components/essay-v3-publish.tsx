@@ -31,6 +31,6 @@ return <section className="essay-v3-publication" aria-label="Publication review"
     <div className="essay-v3-readiness" role="status"><p>{validCaseGroups} of {caseGroups} selected clinical cases have a valid week assignment and answers. Other sections will not be submitted.</p></div>
     <div className="essay-v3-publish-actions"><button type="button" disabled={busy||!validCaseGroups} onClick={onCreateCases}>{busy?"Processing…":`Create ${validCaseGroups} draft cases`}</button><button type="button" disabled={busy||!validCaseGroups} onClick={onPublishCases}>{busy?"Processing…":`Publish ${validCaseGroups} cases to students`}</button></div>
   </>}
-  <footer className="essay-v3-step-footer"><button type="button" className="essay-v3-secondary" onClick={onBack} disabled={busy}>← Edit destinations</button><button type="button" className="essay-v3-secondary" onClick={onReturnToReview} disabled={busy}>Review questions</button></footer>
+
 </section>;
 }
