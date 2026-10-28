@@ -199,8 +199,8 @@ export function EssayQuestionImportPage() {
     {error&&<p className="form-error" role="alert">{error}</p>}
     {inspection&&stage!=="UPLOAD"&&<><section className="question-import-summary"><Panel><small>CASES</small><strong>{inspection.summary.cases}</strong><span>detected case blocks</span></Panel><Panel><small>LECTURES</small><strong>{inspection.summary.lectures ?? 0}</strong><span>detected lecture blocks</span></Panel><Panel><small>ESSAYS</small><strong>{inspection.summary.extracted}</strong><span>{inspection.summary.valid} valid · {inspection.summary.needs_review} review · {inspection.summary.invalid} invalid</span></Panel><Panel><small>PAGES</small><strong>{inspection.page_count}</strong><span>{inspection.original_filename}</span></Panel><Panel><small>READY TO PUBLISH</small><strong>{publishable}</strong><span>approved + topic assigned + answer present</span></Panel></section>
       {inspection.issues.length>0&&<Panel title="Batch checks">{inspection.issues.map((issue)=><p key={issue.code}>{issue.severity}: {issue.message}</p>)}</Panel>}
-      {(stage==="ORGANIZE"||stage==="PUBLISH")&&<Panel title="Default destination topic (optional when assigned per group)"><div className="question-import-fields"><label><span>Destination lecture topic</span><select value={globalTopicId} onChange={(e)=>setGlobalTopicId(e.target.value)}><option value="">Choose lecture topic…</option>{topics.map((topic)=><option key={topic.id} value={topic.id}>{topic.label}</option>)}</select><small>{courseId?"Use this as the default for all groups, or choose a separate destination topic for each case and lecture below.":"Choose a destination course above to load its weeks and lecture topics. You can inspect and review before choosing."}</small></label></div></Panel>}
-      {(stage==="REVIEW"||stage==="ORGANIZE")&&<><div className="essay-v2-review-toolbar"><Panel title="Review workspace">
+      {(stage==="ORGANIZE"||stage==="PUBLISH")&&<Panel title="Default destination topic (optional when assigned per group)"><div className="question-import-fields"><label><span>Destination course</span><select value={courseId} onChange={event=>void chooseCourse(event.target.value)}><option value="">Choose course…</option>{courses.map(item=><option key={item.id} value={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label></div><div className="question-import-fields"><label><span>Destination lecture topic</span><select value={globalTopicId} onChange={(e)=>setGlobalTopicId(e.target.value)}><option value="">Choose lecture topic…</option>{topics.map((topic)=><option key={topic.id} value={topic.id}>{topic.label}</option>)}</select><small>{courseId?"Use this as the default for all groups, or choose a separate destination topic for each case and lecture below.":"Choose a destination course above to load its weeks and lecture topics. You can inspect and review before choosing."}</small></label></div></Panel>}
+      {(stage==="REVIEW"||stage==="ORGANIZE")&&<div className="essay-v2-review-toolbar"><Panel title="Review workspace">
         <p>Step 1: Upload and inspect · Step 2: Review cases and lectures · Step 3: Assign topics or weeks · Step 4: Publish. Only approved content is published.</p>
         <div className="question-import-bulk-actions">
           <button className="pp-button secondary" type="button" onClick={()=>setCandidates(items=>items.map(item=>({...item,approved:item.status!=="INVALID"})))}>Approve all ready questions</button>
@@ -215,8 +215,8 @@ export function EssayQuestionImportPage() {
           </select>
         </label>
         <small>Questions are progressively rendered as you scroll to keep large imports responsive. Your selections remain in memory even when questions are not visible.</small>
-      </Panel></div>
-      <Panel title="Choose where to publish">
+      </Panel></div>}
+      {stage==="PUBLISH"&&<Panel title="Choose where to publish">
         <p><b>Question Bank</b> saves individual essay questions in lecture topics. <b>Case Studio</b> saves complete clinical cases under weeks. They are separate destinations; select the one you need.</p>
         <div className="question-import-bulk-actions" role="group" aria-label="Publishing destination">
           <button type="button" className={`pp-button ${publishDestination==="QUESTION_BANK"?"":"secondary"}`} aria-pressed={publishDestination==="QUESTION_BANK"} onClick={()=>setPublishDestination("QUESTION_BANK")}>Question Bank · Essays</button>
@@ -225,7 +225,7 @@ export function EssayQuestionImportPage() {
         {publishDestination==="QUESTION_BANK"?
           <p>Assign a <b>Question Bank topic</b> to each selected group, then publish the selected questions. Lecture questions and case questions are both supported.</p>
           :<p>Assign a <b>Case Studio week</b> to each selected clinical case. Lecture questions are not published through Case Studio.</p>}
-      </Panel>
+      </Panel>}
       {(stage==="REVIEW"||stage==="ORGANIZE")&&<><div className="question-import-filterbar essay-v2-filters">
         <label className="question-import-search"><FiSearch/><input type="search" value={candidateSearch} onChange={(e)=>setCandidateSearch(e.target.value)} placeholder="Search case, question number, text, answer, issue…" aria-label="Search inspected essay questions"/></label>
         <div className="question-import-status-filters" role="group" aria-label="Filter by review status">{([["ALL","All"],["VALID","Ready"],["NEEDS_REVIEW","Needs review"],["INVALID","Invalid"]] as const).map(([value,label])=><button type="button" key={value} className={statusFilter===value?"active":""} onClick={()=>setStatusFilter(value)}>{label} <span>{statusCounts[value]}</span></button>)}</div>
