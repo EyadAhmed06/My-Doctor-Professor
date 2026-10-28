@@ -68,6 +68,12 @@ export function InstructorDashboardPage() {
       <div><small className="page-eyebrow">TEACHING CONTROL CENTER</small><h1>Welcome back, {doctorName(fullName)}</h1><p>Plan content, publish learning material, assess students, and close the grading loop from one workspace.</p></div>
       <div className="role-heading-actions"><button className="pp-button secondary" type="button" disabled={loading} onClick={() => void load()}><FiRefreshCw /> {loading ? "Refreshing…" : "Refresh"}</button></div>
     </div>
+    <nav className="role-fluid-shortcuts" aria-label="Quick instructor actions">
+      <Link href="/instructor/questions/import-essay"><FiFileText/> Import essay questions</Link>
+      <Link href="/instructor/questions/import"><FiEdit3/> Import MCQs</Link>
+      <Link href="/instructor/assessments"><FiClipboard/> Build assessment</Link>
+      <Link href="/instructor/courses"><FiBookOpen/> Manage course content</Link>
+    </nav>
     {error && <p className="form-error" role="alert">{error}</p>}
     {loading && !data ? <Panel><PageSkeleton variant="list" label="Loading live instructor totals" /></Panel> : <>
       <div className="role-metric-grid">{Object.entries(data || {}).filter(([label]) => label !== "pending_essay_answers").map(([label, value]) => <Panel className="role-metric-card" key={label}><span><FiActivity /></span><div><b>{value}</b><small>{humanize(label)}</small></div></Panel>)}</div>
