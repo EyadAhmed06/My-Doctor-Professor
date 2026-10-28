@@ -11,7 +11,7 @@ test('essay importer reviews mixed cases and lectures without requiring course b
     localStorage.setItem('mdp-theme', 'dark');
     localStorage.setItem('mdp-locale', 'en');
   });
-  let publishPayload: any = null;
+  let publishPayload: unknown = null;
   const candidates = Array.from({ length: 45 }, (_, index) => {
     const isCase = index < 6;
     return {
