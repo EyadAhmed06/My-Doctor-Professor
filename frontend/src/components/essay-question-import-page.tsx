@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FiArrowLeft, FiFileText, FiRefreshCw, FiUploadCloud } from "react-icons/fi";
+import { FiArrowLeft } from "react-icons/fi";
 import { EssayV3Organize } from "./essay-v3-organize";
+import { EssayV3Upload } from "./essay-v3-upload";
 import { EssayV3Publish } from "./essay-v3-publish";
 import { EssayHybridWorkspace } from "./essay-hybrid-workspace";
 import { useEssayReviewHistory } from "./use-essay-review-history";
@@ -365,7 +366,7 @@ export function EssayQuestionImportPage() {
         <button type="button" key={value} className={stage===value?"active":""} aria-current={stage===value?"step":undefined} disabled={value!=="UPLOAD"&&!inspection} onClick={()=>setStage(value)}>{label}</button>)}
     </nav>
     {inspection&&stage!=="UPLOAD"&&<div className="question-import-bulk-actions"><button className="pp-button secondary" type="button" onClick={()=>setStage("UPLOAD")}>Change source file</button><small>{inspection.original_filename} · {inspection.summary.extracted} questions found</small></div>}
-    {stage==="UPLOAD"&&<Panel><form onSubmit={inspect} className="question-import-upload-form"><div className="question-import-fields"><label><span>Destination course (can be chosen after inspection)</span><select value={courseId} onChange={(e)=>void chooseCourse(e.target.value)}><option value="">Select course…</option>{courses.map((item)=><option key={item.id} value={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label><label className="question-import-file"><span>Essay PDF or JSON</span><input type="file" accept="application/pdf,.pdf,application/json,.json,.txt" onChange={(e)=>setFile(e.target.files?.[0]||null)}/><small>Recognizes CASE N and Lecture N: Title, numbered questions, and their source answers. Standalone or multi-section JSON is supported; PDFs require an extractable text layer.</small></label><label><span>When the file has no Case/Lecture heading</span><select aria-label="Standalone essay content type" value={standaloneType} onChange={e=>setStandaloneType(e.target.value as 'LECTURE'|'CASE')}><option value="LECTURE">Treat as a lecture or section</option><option value="CASE">Treat as one clinical case</option></select></label></div><label className="question-import-rights"><input type="checkbox" checked={rights} onChange={(e)=>setRights(e.target.checked)}/><span>I confirm I have permission to use and publish this material.</span></label><button className="pp-button" disabled={inspecting} type="submit">{inspecting?<><FiRefreshCw className="spin"/>Inspecting essay file…</>:<><FiUploadCloud/>Inspect essay file</>}</button></form></Panel>}
+    {stage==="UPLOAD"&&<EssayV3Upload courses={courses} courseId={courseId} onCourse={id=>void chooseCourse(id)} fileName={file?.name??null} onFile={setFile} standaloneType={standaloneType} onType={setStandaloneType} rights={rights} onRights={setRights} inspecting={inspecting} onInspect={inspect}/>}
     {stage==="UPLOAD"&&savedSessions.length>0&&<Panel title="Resume a saved essay review">
       <p>Your recent imports are saved securely for seven days. Open one to continue reviewing on this device or another device.</p>
       <div className="essay-v2-saved-sessions">
