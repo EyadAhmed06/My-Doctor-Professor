@@ -80,7 +80,7 @@ export function EssayQuestionImportPage() {
   const statusCounts=useMemo(()=>({ALL:candidates.length,VALID:candidates.filter((item)=>item.status==="VALID").length,NEEDS_REVIEW:candidates.filter((item)=>item.status==="NEEDS_REVIEW").length,INVALID:candidates.filter((item)=>item.status==="INVALID").length}),[candidates]);
   useEffect(() => { setVisibleLimit(30); }, [candidateSearch, statusFilter, activeGroup]);
   useEffect(() => {
-    if (!inspection || typeof IntersectionObserver === "undefined") return;
+    if (!inspection || visibleLimit >= filteredCandidates.length || typeof IntersectionObserver === "undefined") return;
     const node = sentinelRef.current;
     if (!node) return;
     const observer = new IntersectionObserver((entries) => {
@@ -88,7 +88,7 @@ export function EssayQuestionImportPage() {
     }, { rootMargin: "500px" });
     observer.observe(node);
     return () => observer.disconnect();
-  }, [inspection, visibleLimit, candidateSearch, statusFilter, activeGroup]);
+  }, [inspection, visibleLimit, candidateSearch, statusFilter, activeGroup, filteredCandidates.length]);
   const filteredCandidates=useMemo(()=>{const query=candidateSearch.trim().toLowerCase();return candidates.filter((item)=>{if(statusFilter!=="ALL"&&item.status!==statusFilter)return false;if(activeGroup!=="ALL"&&`${item.section}::${item.case_number}`!==activeGroup)return false;if(!query)return true;return [item.section,item.case_number,item.question_number,item.case_stem,item.question_text,item.model_answer,item.status,item.answer_origin,...item.issues.flatMap((issue)=>[issue.code,issue.message])].some((value)=>String(value??"").toLowerCase().includes(query))})},[candidateSearch,candidates,statusFilter,activeGroup]);
   const groups=useMemo(()=>{const map=new Map<string,ReviewCandidate[]>();for(const item of filteredCandidates.slice(0,visibleLimit)){const key=`${item.section}::${item.case_number}`;map.set(key,[...(map.get(key)||[]),item])}return [...map.entries()]},[filteredCandidates,visibleLimit]);
   const groupKey=(item:Candidate)=>`${item.section}::${item.case_number}`;
