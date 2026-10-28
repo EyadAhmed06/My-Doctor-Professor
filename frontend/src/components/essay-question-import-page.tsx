@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FiArrowLeft, FiCheck, FiFileText, FiRefreshCw, FiSearch, FiUploadCloud } from "react-icons/fi";
 import { EssayReviewQuestion } from "./essay-review-question";
+import { splitEssayPublishBatches } from "@/lib/essay-import-batching";
 import type { Candidate, Inspection, ReviewCandidate } from "./essay-import-model";
 import { useAuth } from "./auth-provider";
 import { PageSkeleton } from "./async-state";
@@ -186,10 +187,9 @@ export function EssayQuestionImportPage() {
     if(!window.confirm(`Publish ${selected.length} selected essay question(s) to the Question Bank? Each question will be placed in its assigned topic. Review the destination first.`))return;
     setPublishing(true);setError(null);setPublishProgress({done:0,total:selected.length});
     let processed=0, created=0, reused=0, skipped=0;
-    const batchSize=100;
+    const batches=splitEssayPublishBatches(selected);
     try{
-      for(let offset=0;offset<selected.length;offset+=batchSize){
-        const batch=selected.slice(offset,offset+batchSize);
+      for(const batch of batches){
         const result=await request<{created:number;reused:number;skipped:number}>("/questions/imports/essay/publish",{
           method:"POST",
           body:{
@@ -215,7 +215,7 @@ export function EssayQuestionImportPage() {
         setPublishedQuestionIds(previous=>new Set([...previous,...batch.map(item=>item.candidate_id)]));
         setPublishProgress({done:processed,total:selected.length});
       }
-      notify({title:"Essay question bank updated",description:`${created} created · ${reused} reused · ${skipped} skipped across ${Math.ceil(selected.length/batchSize)} batches.`,tone:"success"});
+      notify({title:"Essay question bank updated",description:`${created} created · ${reused} reused · ${skipped} skipped across ${batches.length} batches.`,tone:"success"});
     }catch(c){
       setError(`${c instanceof Error?c.message:"Unable to publish essay questions."} ${processed} of ${selected.length} questions were submitted successfully. Those selections are marked as published; retry to submit the remaining questions only.`);
     }
