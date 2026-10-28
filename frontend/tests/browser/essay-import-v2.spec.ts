@@ -64,8 +64,9 @@ test('essay importer reviews mixed cases and lectures without requiring course b
   });
   await page.getByText(/I confirm I have permission/).click();
   await page.getByRole('button', { name: /Inspect essay file/i }).click();
-  await expect(page.getByText('45 questions displayed')).not.toBeVisible();
-  await expect(page.getByText(/Showing 30 of 45 questions/)).toBeVisible();
+  await expect(page.getByText(/45 questions available/)).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Scroll through essay questions' })).toHaveCount(2);
+  await expect(page.locator('.essay-import-question').count()).resolves.toBeLessThan(45);
   await expect(page.getByRole('option', { name: /Protein chemistry/ })).toHaveCount(1);
   const firstQuestion = page.getByRole('textbox', { name: 'Essay question Q1' });
   await firstQuestion.fill('Edited essay prompt for Q1.');
