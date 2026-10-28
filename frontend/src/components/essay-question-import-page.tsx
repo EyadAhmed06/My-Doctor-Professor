@@ -29,6 +29,10 @@ function topicsFor(course: Course | null) {
   return (course?.weeks || []).flatMap((week) => (week.lectures || []).flatMap((lecture) => (lecture.topics || []).map((topic) => ({ ...topic, label: `Week ${week.weekNumber} · ${lecture.title} · ${topic.topicName}` }))));
 }
 
+function normalizedSubject(value: string) {
+  return value.toLowerCase().replace(/^lecture\\s+\\d+\\s*[:.-]?\\s*/,"").replace(/[^a-z0-9]+/g," ").trim();
+}
+
 export function EssayQuestionImportPage() {
   const { user, loading: authLoading, request } = useAuth();
   const { notify } = useUx();
@@ -117,6 +121,25 @@ export function EssayQuestionImportPage() {
       return {...item,case_stem:stem,issues,status:issues.some(issue=>issue.severity==="ERROR")?"INVALID":issues.length?"NEEDS_REVIEW":"VALID"};
     }));
   }
+  function suggestTopicMatches() {
+    const updates: Record<string,string> = {};
+    const representatives = new Map<string,ReviewCandidate>();
+    for (const item of candidates) if (!representatives.has(groupKey(item))) representatives.set(groupKey(item),item);
+    for (const [key,item] of representatives) {
+      if (groupTopics[key] || item.block_type!=="LECTURE") continue;
+      const subject=normalizedSubject(item.case_stem||item.section);
+      if (!subject) continue;
+      const matches=topics.filter(topic=>normalizedSubject(topic.topicName)===subject);
+      if (matches.length===1) updates[key]=matches[0].id;
+    }
+    if (!Object.keys(updates).length) {
+      notify({title:"No unambiguous matches",description:"Assign destination topics manually. No topics were changed.",tone:"info"});
+      return;
+    }
+    setGroupTopics(existing=>({...updates,...existing}));
+    notify({title:"Topic suggestions applied",description:`${Object.keys(updates).length} lecture group(s) matched exactly. Review their destinations before publishing.`,tone:"success"});
+  }
+
   function setGroupApproved(key:string,approved:boolean){setCandidates(items=>items.map(item=>`${item.section}::${item.case_number}`===key?{...item,approved:approved&&item.status!=="INVALID"}:item))}
   const statusCounts=useMemo(()=>({ALL:candidates.length,VALID:candidates.filter((item)=>item.status==="VALID").length,NEEDS_REVIEW:candidates.filter((item)=>item.status==="NEEDS_REVIEW").length,INVALID:candidates.filter((item)=>item.status==="INVALID").length}),[candidates]);
   const filteredCandidates=useMemo(()=>{const query=candidateSearch.trim().toLowerCase();return candidates.filter((item)=>{if(statusFilter!=="ALL"&&item.status!==statusFilter)return false;if(activeGroup!=="ALL"&&`${item.section}::${item.case_number}`!==activeGroup)return false;if(!query)return true;return [item.section,item.case_number,item.question_number,item.case_stem,item.question_text,item.model_answer,item.status,item.answer_origin,...item.issues.flatMap((issue)=>[issue.code,issue.message])].some((value)=>String(value??"").toLowerCase().includes(query))})},[candidateSearch,candidates,statusFilter,activeGroup]);
@@ -242,7 +265,7 @@ export function EssayQuestionImportPage() {
     {error&&<p className="form-error" role="alert">{error}</p>}
     {inspection&&stage!=="UPLOAD"&&<><section className="question-import-summary"><Panel><small>CASES</small><strong>{inspection.summary.cases}</strong><span>detected case blocks</span></Panel><Panel><small>LECTURES</small><strong>{inspection.summary.lectures ?? 0}</strong><span>detected lecture blocks</span></Panel><Panel><small>ESSAYS</small><strong>{inspection.summary.extracted}</strong><span>{statusCounts.VALID} ready · {statusCounts.NEEDS_REVIEW} review · {statusCounts.INVALID} invalid</span></Panel><Panel><small>PAGES</small><strong>{inspection.page_count}</strong><span>{inspection.original_filename}</span></Panel><Panel><small>READY TO PUBLISH</small><strong>{publishable}</strong><span>approved + topic assigned + answer present</span></Panel></section>
       {inspection.issues.length>0&&<Panel title="Batch checks">{inspection.issues.map((issue)=><p key={issue.code}>{issue.severity}: {issue.message}</p>)}</Panel>}
-      {(stage==="ORGANIZE"||stage==="PUBLISH")&&<Panel title="Default destination topic (optional when assigned per group)"><div className="question-import-fields"><label><span>Destination course</span><select value={courseId} onChange={event=>void chooseCourse(event.target.value)}><option value="">Choose course…</option>{courses.map(item=><option key={item.id} value={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label></div><div className="question-import-fields"><label><span>Destination lecture topic</span><select value={globalTopicId} onChange={(e)=>setGlobalTopicId(e.target.value)}><option value="">Choose lecture topic…</option>{topics.map((topic)=><option key={topic.id} value={topic.id}>{topic.label}</option>)}</select><small>{courseId?"Use this as the default for all groups, or choose a separate destination topic for each case and lecture below.":"Choose a destination course above to load its weeks and lecture topics. You can inspect and review before choosing."}</small></label></div></Panel>}
+      {(stage==="ORGANIZE"||stage==="PUBLISH")&&<Panel title="Default destination topic (optional when assigned per group)"><div className="question-import-bulk-actions"><button className="pp-button secondary" type="button" onClick={suggestTopicMatches} disabled={!courseId||!topics.length}>Suggest exact lecture-to-topic matches</button></div><div className="question-import-fields"><label><span>Destination course</span><select value={courseId} onChange={event=>void chooseCourse(event.target.value)}><option value="">Choose course…</option>{courses.map(item=><option key={item.id} value={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label></div><div className="question-import-fields"><label><span>Destination lecture topic</span><select value={globalTopicId} onChange={(e)=>setGlobalTopicId(e.target.value)}><option value="">Choose lecture topic…</option>{topics.map((topic)=><option key={topic.id} value={topic.id}>{topic.label}</option>)}</select><small>{courseId?"Use this as the default for all groups, or choose a separate destination topic for each case and lecture below.":"Choose a destination course above to load its weeks and lecture topics. You can inspect and review before choosing."}</small></label></div></Panel>}
       {(stage==="REVIEW"||stage==="ORGANIZE")&&<div className="essay-v2-review-toolbar"><Panel title="Review workspace">
         <p>Review the extracted questions and model answers. Use the section selector, filters, and bulk actions to work through large files; you can organize destinations in the next step.</p>
         <div className="question-import-bulk-actions">
