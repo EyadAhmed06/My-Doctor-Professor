@@ -89,7 +89,7 @@ test('essay importer reviews mixed cases and lectures without requiring course b
   await expect(page.getByText('Question 45: Mention three findings.')).toBeVisible();
   await expect(page.getByRole('combobox',{name:'Go to question'})).toHaveValue('candidate-44');
 
-  await page.getByRole('button', { name: /Continue to organize/ }).click();
+  await page.getByRole('button', { name: /Organize questions/ }).click();
   await expect(page.getByRole('heading',{name:'Organize your questions'})).toBeVisible();
   await expect(page.getByRole('table')).toContainText('Protein chemistry');
   await page.getByRole('button', { name: /Review publication/ }).click();
