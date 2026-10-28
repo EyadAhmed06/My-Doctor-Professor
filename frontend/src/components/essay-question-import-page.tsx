@@ -93,7 +93,7 @@ export function EssayQuestionImportPage() {
       if(restored && restored.courseId===courseId){setGroupTopics(restored.groupTopics||{});setCaseWeeks(restored.caseWeeks||{});setGlobalTopicId(restored.globalTopicId||"");}
       if(restored?.published)setPublishedQuestionIds(new Set(restored.published)); notify({title:"Essay file inspected",description:`${result.summary.cases} cases · ${result.summary.lectures ?? 0} lectures · ${result.summary.extracted} essay questions detected.`,tone:"success"});}catch(c){const msg=c instanceof Error?c.message:"Unable to inspect essay PDF.";setError(msg);notify({title:"Essay inspection failed",description:msg,tone:"error"});}finally{setInspecting(false)}}
 
-  function update(id:string, patch:Partial<ReviewCandidate>){
+  const update=useCallback((id:string, patch:Partial<ReviewCandidate>)=>{
     setCandidates(items=>items.map(item=>{
       if(item.candidate_id!==id)return item;
       const next={...item,...patch};
@@ -109,7 +109,7 @@ export function EssayQuestionImportPage() {
       }
       return next;
     }));
-  }
+  },[]);
   function updateStem(key:string,stem:string){
     setCandidates(items=>items.map(item=>{
       if(`${item.section}::${item.case_number}`!==key)return item;
