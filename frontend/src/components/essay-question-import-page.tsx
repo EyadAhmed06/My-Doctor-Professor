@@ -388,7 +388,7 @@ export function EssayQuestionImportPage() {
       {stage==="ORGANIZE"&&<EssayV3Organize
         items={candidates} courses={courses} courseId={courseId} course={course} topics={topics}
         groupTopics={groupTopics} globalTopicId={globalTopicId} caseWeeks={caseWeeks}
-        busy={publishing||creatingCases}
+        busy={publishing||creatingCases} destination={publishDestination} allowCaseStudio={user.role==="INSTRUCTOR"} onDestination={setPublishDestination}
         onChooseCourse={id=>void chooseCourse(id)}
         onDefaultTopic={setGlobalTopicId}
         onGroupTopic={(id,topic)=>setGroupTopics(current=>({...current,[id]:topic}))}
