@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { ReviewCandidate } from "./essay-import-model";
 
 type Mode = "REVIEW" | "MANAGE";
@@ -37,7 +37,6 @@ export function EssayHybridWorkspace({items, publishedIds, onUpdate, onGroupStem
   const byType=(type:"CASE"|"LECTURE")=>groups.filter(([,values])=>(values[0].block_type??"CASE")===type);
   const open=(item:ReviewCandidate)=>{setGroupId(keyFor(item));setQuestionId(item.candidate_id);setEditing(false);setMode("REVIEW");};
   const go=(delta:number)=>{const next=groupItems[currentIndex+delta];if(next){setQuestionId(next.candidate_id);setEditing(false);}};
-  useEffect(()=>{setEditing(false);},[active?.candidate_id]);
   return <div className="essay-v3-workspace">
     <header className="essay-v3-toolbar">
       <div><h2>Review imported questions</h2><p>{items.length} extracted · {items.filter(i=>i.approved).length} selected · {items.filter(i=>i.status==="INVALID").length} invalid</p></div>
