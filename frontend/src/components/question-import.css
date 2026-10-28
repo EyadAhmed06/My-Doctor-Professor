@@ -421,3 +421,40 @@
 .question-import-focused-editor .question-import-candidate { content-visibility:visible; contain-intrinsic-size:auto; }
 @media(max-width:1000px){ .question-import-focused-workspace{ grid-template-columns:minmax(155px,200px) minmax(0,1fr); gap:10px; } .question-import-focused-sidebar{padding:10px;} }
 @media(max-width:720px){ .question-import-focused-workspace{display:block;} .question-import-focused-sidebar{position:static;max-height:230px;} }
+
+
+/* Essay Import V2: predictable review controls and large-batch rendering. */
+.question-import-page .essay-v2-review-toolbar {
+  position: sticky;
+  top: 72px;
+  z-index: 12;
+  backdrop-filter: blur(14px);
+  max-height: min(42dvh, 340px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.question-import-page .essay-v2-review-toolbar > * { margin: 0; }
+.question-import-page .essay-v2-filters { position: sticky; top: 72px; z-index: 11; }
+.question-import-page .essay-v2-groups { min-width: 0; }
+.question-import-page .essay-v2-groups .essay-import-question {
+  content-visibility: auto;
+  contain-intrinsic-size: 260px;
+}
+.question-import-page .essay-v2-groups textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+.question-import-page .essay-v2-groups button:focus-visible,
+.question-import-page .essay-v2-review-toolbar button:focus-visible {
+  outline: 3px solid var(--pp-primary, #49d7cc);
+  outline-offset: 2px;
+}
+@media(max-width: 720px) {
+  .question-import-page .essay-v2-review-toolbar,
+  .question-import-page .essay-v2-filters { position: static; max-height: none; backdrop-filter: none; }
+  .question-import-page .essay-v2-groups .essay-import-question { content-visibility: visible; contain-intrinsic-size: auto; }
+}
+@media(prefers-reduced-motion: reduce) {
+  .question-import-page .essay-v2-groups *,
+  .question-import-page .essay-v2-review-toolbar * { scroll-behavior: auto; transition: none; }
+}
