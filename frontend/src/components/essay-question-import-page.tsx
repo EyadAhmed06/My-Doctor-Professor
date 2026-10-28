@@ -65,7 +65,7 @@ export function EssayQuestionImportPage() {
   const [courses, setCourses] = useState<Course[]>([]); const [courseId,setCourseId]=useState(""); const [course,setCourse]=useState<Course|null>(null);
   const [file,setFile]=useState<File|null>(null); const [standaloneType,setStandaloneType]=useState<'LECTURE'|'CASE'>('LECTURE'); const [rights,setRights]=useState(false); const [inspection,setInspection]=useState<Inspection|null>(null); const {items:candidates,setItems:setCandidates,resetItems:resetCandidates}=useEssayReviewHistory<ReviewCandidate>([]);
   const [loading,setLoading]=useState(true); const [inspecting,setInspecting]=useState(false); const [publishing,setPublishing]=useState(false); const [error,setError]=useState<string|null>(null);
-  const [candidateSearch,setCandidateSearch]=useState(""); const [statusFilter,setStatusFilter]=useState<"ALL"|Candidate["status"]>("ALL"); const [globalTopicId,setGlobalTopicId]=useState(""); const [groupTopics,setGroupTopics]=useState<Record<string,string>>({});
+  const [globalTopicId,setGlobalTopicId]=useState(""); const [groupTopics,setGroupTopics]=useState<Record<string,string>>({});
   const [caseWeeks,setCaseWeeks]=useState<Record<string,string>>({}); const [creatingCases,setCreatingCases]=useState(false);
   const [stage,setStage]=useState<"UPLOAD"|"REVIEW"|"ORGANIZE"|"PUBLISH">("UPLOAD");
   const [publishDestination,setPublishDestination]=useState<"QUESTION_BANK"|"CASE_STUDIO">("QUESTION_BANK");
