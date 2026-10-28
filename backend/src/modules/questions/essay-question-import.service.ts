@@ -13,7 +13,7 @@ import { PdfTextExtractionService, type UnicodeParsedPdf } from './pdf-text-extr
 import { detectQuestionDocumentType, QuestionDocumentType } from './question-document-type';
 
 const MAX_PDF_BYTES = 50 * 1024 * 1024;
-const MAX_CANDIDATES = 500;
+const MAX_CANDIDATES = 2000;
 const MIN_TEXT_LENGTH = 80;
 const REFERENCE_PREFIX = 'MDP_ESSAY_PDF_IMPORT';
 
@@ -86,7 +86,11 @@ export class EssayQuestionImportService {
       throw new BadRequestException('This file contains MCQs, not essay cases. Use the MCQ PDF Inspector for this document.');
     }
 
-    const extracted = this.parseEssayCases(pdf, sha256, standaloneType).slice(0, MAX_CANDIDATES);
+    const allExtracted = this.parseEssayCases(pdf, sha256, standaloneType);
+    if (allExtracted.length > MAX_CANDIDATES) {
+      throw new BadRequestException(`The PDF contains ${allExtracted.length} essay questions. The safe import limit is ${MAX_CANDIDATES}; split the file into smaller documents so no questions are silently omitted.`);
+    }
+    const extracted = allExtracted;
     // Essay imports are source-grounded only. A missing answer is a parsing/source
     // issue to review, never a reason to synthesize medical content with an API.
     const parsed = extracted;
@@ -102,14 +106,7 @@ export class EssayQuestionImportService {
         message: 'No essay questions were detected. Supported formats include CASE N or Lecture N: Title with numbered prompts and corresponding answer sections.',
       });
     }
-    if (parsed.length >= MAX_CANDIDATES) {
-      issues.push({
-        code: 'IMPORT_LIMIT_REACHED', severity: 'WARNING',
-        message: `Only the first ${MAX_CANDIDATES} extracted essay questions are shown in one import batch.`,
-      });
-    }
-
-    return {
+\n    return {
       original_filename: this.safeFilename(safeFile.originalname),
       file_sha256: sha256,
       file_size: safeFile.size,
@@ -196,7 +193,7 @@ export class EssayQuestionImportService {
         });
       }
     }
-    if (!candidates.length || candidates.length > MAX_CANDIDATES) throw new BadRequestException('JSON needs 1–500 essay questions');
+    if (!candidates.length || candidates.length > MAX_CANDIDATES) throw new BadRequestException(`JSON needs 1–${MAX_CANDIDATES} essay questions; split larger documents before importing`);
     return {
       original_filename:this.safeFilename(file.originalname),file_sha256:sha256,file_size:file.size,page_count:0,
       extraction_method:'JSON',extraction_confidence:1,status:'REVIEW_REQUIRED',
