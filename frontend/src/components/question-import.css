@@ -458,3 +458,11 @@
   .question-import-page .essay-v2-groups *,
   .question-import-page .essay-v2-review-toolbar * { scroll-behavior: auto; transition: none; }
 }
+
+
+.essay-v2-preview-list { display: grid; gap: .6rem; margin-top: .9rem; max-height: 370px; overflow: auto; }
+.essay-v2-preview-row { display: grid; grid-template-columns: minmax(160px, 1.3fr) auto minmax(180px, 1fr); gap: .55rem 1rem; align-items: center; padding: .8rem 1rem; border: 1px solid var(--pp-border,#253352); border-radius: 10px; }
+.essay-v2-preview-row strong { overflow-wrap: anywhere; }
+.essay-v2-preview-row small { opacity: .85; overflow-wrap: anywhere; }
+.essay-v2-preview-row [role="status"] { grid-column: 1 / -1; }
+@media(max-width: 800px) { .essay-v2-preview-row { grid-template-columns: minmax(0,1fr); } .essay-v2-preview-row [role="status"] { grid-column: auto; } }
