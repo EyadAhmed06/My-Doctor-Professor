@@ -32,7 +32,9 @@ export class EssayQuestionImportController {
       : this.imports.inspectPdf(dto.copyright_confirmed, file, standaloneType);
   }
 
-  @RateLimit({ key: 'essay-import-publish', maximum: 20, windowSeconds: 3600 })
+  // Large essay imports are safely split into 100-question requests. Allow multiple
+  // imports and retry batches without exhausting an hourly allowance after one file.
+  @RateLimit({ key: 'essay-import-publish', maximum: 60, windowSeconds: 3600 })
   @Post('publish')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   publish(@Body() dto: PublishEssayQuestionImportDto, @CurrentUser() actor: AuthenticatedUser) {
