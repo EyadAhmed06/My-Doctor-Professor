@@ -57,7 +57,7 @@ test('essay importer reviews mixed cases and lectures without requiring course b
   });
   page.on('dialog', dialog => void dialog.accept());
   await page.goto('/instructor/questions/import-essay');
-  await expect(page.getByRole('heading', { name: 'Essay & JSON Inspector' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Import Essay Questions' })).toBeVisible();
   await page.locator('input[type="file"]').setInputFiles({
     name: 'mixed.pdf', mimeType: 'application/pdf',
     buffer: Buffer.from('%PDF-1.4\\n%%EOF'),
