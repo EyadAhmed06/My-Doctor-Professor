@@ -262,7 +262,7 @@ export class BundlesService {
     const freeBundles = await this.bundles.find({
       where: { isFree: true, status: BundleStatus.PUBLISHED, accessMode: BundleAccessMode.PUBLIC },
     });
-    const eligible = freeBundles.filter((bundle) =>
+    const eligible = (freeBundles ?? []).filter((bundle) =>
       (!bundle.availableFrom || bundle.availableFrom <= now)
       && (!bundle.availableUntil || bundle.availableUntil > now));
     if (!eligible.length) return;
