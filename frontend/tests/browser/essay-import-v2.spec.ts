@@ -67,6 +67,13 @@ test('essay importer reviews mixed cases and lectures without requiring course b
   await expect(page.getByText('45 questions displayed')).not.toBeVisible();
   await expect(page.getByText(/Showing 30 of 45 questions/)).toBeVisible();
   await expect(page.getByRole('option', { name: /Protein chemistry/ })).toHaveCount(1);
+  const firstQuestion = page.getByRole('textbox', { name: 'Essay question Q1' });
+  await firstQuestion.fill('Edited essay prompt for Q1.');
+  await expect(firstQuestion).toHaveValue('Edited essay prompt for Q1.');
+  await page.getByRole('button', { name: 'Undo review edit' }).click();
+  await expect(firstQuestion).toHaveValue('Question 1: Mention three findings.');
+  await page.getByRole('button', { name: 'Redo review edit' }).click();
+  await expect(firstQuestion).toHaveValue('Edited essay prompt for Q1.');
   await page.getByRole('button', { name: /Collapse all/ }).click();
   await expect(page.locator('.essay-import-question')).toHaveCount(0);
   await page.getByRole('button', { name: /Expand all/ }).click();
