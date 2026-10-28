@@ -58,6 +58,8 @@ export function EssayQuestionImportPage() {
   const sessionRevision = useRef(0);
   const lastSavedReview = useRef("");
   const [savingReview, setSavingReview] = useState(false);
+  const [reviewSaveError, setReviewSaveError] = useState<string | null>(null);
+  const [reviewSavedAt, setReviewSavedAt] = useState<number | null>(null);
   const [courses, setCourses] = useState<Course[]>([]); const [courseId,setCourseId]=useState(""); const [course,setCourse]=useState<Course|null>(null);
   const [file,setFile]=useState<File|null>(null); const [standaloneType,setStandaloneType]=useState<'LECTURE'|'CASE'>('LECTURE'); const [rights,setRights]=useState(false); const [inspection,setInspection]=useState<Inspection|null>(null); const {items:candidates,setItems:setCandidates,resetItems:resetCandidates,undo,redo,canUndo,canRedo}=useEssayReviewHistory<ReviewCandidate>([]);
   const [loading,setLoading]=useState(true); const [inspecting,setInspecting]=useState(false); const [publishing,setPublishing]=useState(false); const [error,setError]=useState<string|null>(null);
@@ -96,14 +98,15 @@ export function EssayQuestionImportPage() {
     if(serialized===lastSavedReview.current)return;
     const timer=window.setTimeout(()=>{
       if(saveInFlight.current)return;
-      saveInFlight.current=true;setSavingReview(true);
+      saveInFlight.current=true;setSavingReview(true);setReviewSaveError(null);
       void request<{revision:number}>(`/questions/imports/essay/sessions/${sessionId}/review`,{
         method:"PUT",body:{revision:sessionRevision.current,review},
       }).then(response=>{
         sessionRevision.current=response.revision;
         lastSavedReview.current=serialized;
+        setReviewSavedAt(Date.now());
       }).catch(c=>{
-        setError(c instanceof Error?`Could not save review: ${c.message}`:"Could not save review.");
+        setReviewSaveError(c instanceof Error ? c.message : "Review could not be saved.");
       }).finally(()=>{saveInFlight.current=false;setSavingReview(false);});
     },1800);
     return ()=>window.clearTimeout(timer);
@@ -174,7 +177,7 @@ export function EssayQuestionImportPage() {
     setInspecting(true);setError(null);
     try {
       const result=await fetchSavedSession(id);
-      sessionRevision.current=result.revision;
+      sessionRevision.current=result.revision;setReviewSaveError(null);setReviewSavedAt(null);
       lastSavedReview.current="";
       setSessionId(id);
       if(result.review?.courseId) await chooseCourse(result.review.courseId);
@@ -193,7 +196,7 @@ export function EssayQuestionImportPage() {
   async function inspect(event:FormEvent){event.preventDefault(); if(!file){notify({title:"Choose an essay file",tone:"info"});return} if(!rights){notify({title:"Permission confirmation required",tone:"info"});return}
     const json=/\.(json|txt)$/i.test(file.name);
     if(!(/\.pdf$/i.test(file.name)||json)||!file.size||file.size>(json?2:50)*1024*1024){notify({title:"Unsupported essay file",description:"Choose a non-empty PDF (50 MB), JSON or JSON text (2 MB).",tone:"error"});return}
-    setInspecting(true);setError(null);setSessionId(null);setInspection(null);resetCandidates([]);setCollapsed({});setActiveGroup("ALL");setGlobalTopicId("");setGroupTopics({});setCaseWeeks({});setPublishedQuestionIds(new Set());setPublishDestination("QUESTION_BANK");setStage("UPLOAD"); try{const body=new FormData();body.append("file",file);body.append("copyright_confirmed","true");body.append("content_type",standaloneType); const created=await request<{session_id:string}>("/questions/imports/essay/sessions/inspect",{method:"POST",body,signal:AbortSignal.timeout(60000)});
+    setInspecting(true);setError(null);setSessionId(null);setReviewSaveError(null);setReviewSavedAt(null);setInspection(null);resetCandidates([]);setCollapsed({});setActiveGroup("ALL");setGlobalTopicId("");setGroupTopics({});setCaseWeeks({});setPublishedQuestionIds(new Set());setPublishDestination("QUESTION_BANK");setStage("UPLOAD"); try{const body=new FormData();body.append("file",file);body.append("copyright_confirmed","true");body.append("content_type",standaloneType); const created=await request<{session_id:string}>("/questions/imports/essay/sessions/inspect",{method:"POST",body,signal:AbortSignal.timeout(60000)});
       const result=await fetchSavedSession(created.session_id);
       setSessionId(created.session_id);sessionRevision.current=result.revision;lastSavedReview.current="";
       setSavedSessions(previous=>[{session_id:created.session_id,original_filename:result.original_filename,total:result.total},...previous].slice(0,10)); let restored: StoredEssayReview|null = null;
@@ -374,9 +377,11 @@ export function EssayQuestionImportPage() {
         </button>)}
       </div>
     </Panel>}
-    {inspection&&sessionId&&<p role="status" className="essay-v2-save-status">
-      {savingReview?"Saving review…":"Review saved automatically to your account."}
-    </p>}
+    {inspection&&sessionId&&<div role="status" className={`essay-v2-save-status ${reviewSaveError?"is-error":savingReview?"is-saving":"is-saved"}`}>
+      <span aria-hidden="true">{reviewSaveError?"⚠":savingReview?"◌":reviewSavedAt?"✓":"◌"}</span>
+      <span>{reviewSaveError?"Review not saved — your edits remain in this tab.":savingReview?"Saving changes…":reviewSavedAt?"Changes saved to your account":"Review autosave is ready"}</span>
+      {reviewSaveError&&<small>{reviewSaveError}</small>}
+    </div>}
     {error&&<p className="form-error" role="alert">{error}</p>}
     {inspection&&stage!=="UPLOAD"&&<><section className="question-import-summary"><Panel><small>CASES</small><strong>{inspection.summary.cases}</strong><span>detected case blocks</span></Panel><Panel><small>LECTURES</small><strong>{inspection.summary.lectures ?? 0}</strong><span>detected lecture blocks</span></Panel><Panel><small>ESSAYS</small><strong>{inspection.summary.extracted}</strong><span>{statusCounts.VALID} ready · {statusCounts.NEEDS_REVIEW} review · {statusCounts.INVALID} invalid</span></Panel><Panel><small>PAGES</small><strong>{inspection.page_count}</strong><span>{inspection.original_filename}</span></Panel><Panel><small>READY TO PUBLISH</small><strong>{publishable}</strong><span>approved + topic assigned + answer present</span></Panel></section>
       {inspection.issues.length>0&&<Panel title="Batch checks">{inspection.issues.map((issue)=><p key={issue.code}>{issue.severity}: {issue.message}</p>)}</Panel>}
@@ -414,7 +419,7 @@ export function EssayQuestionImportPage() {
         <div className="question-import-status-filters" role="group" aria-label="Filter by review status">{([["ALL","All"],["VALID","Ready"],["NEEDS_REVIEW","Needs review"],["INVALID","Invalid"]] as const).map(([value,label])=><button type="button" key={value} className={statusFilter===value?"active":""} onClick={()=>setStatusFilter(value)}>{label} <span>{statusCounts[value]}</span></button>)}</div>
       </div>
       {groups.length===0&&<div className="question-import-empty-filter">No essay questions match this search and status filter.</div>}
-      <section className="essay-import-groups essay-v2-groups">{groups.map(([key,items])=>{const first=items[0];return <Panel key={key} title={first.block_type==="LECTURE"?first.section:`${first.section} · Case ${first.case_number}`}><div className="question-import-bulk-actions"><button type="button" className="pp-button secondary" onClick={()=>setCollapsed(current=>({...current,[key]:!current[key]}))} aria-expanded={!collapsed[key]}>{collapsed[key]?"Expand questions":"Collapse questions"} · {items.length} total</button></div>{!collapsed[key]&&<div className="essay-case-import-head"><label><input type="checkbox" aria-label={`Include all questions from ${first.section} ${first.case_number}`} checked={items.every(item=>item.approved)} onChange={event=>setGroupApproved(key,event.target.checked)}/> Include this {first.block_type==="LECTURE"?"lecture":"case"}</label><label>{first.block_type==="LECTURE"?"Lecture title":"Clinical case stem"}<textarea aria-label={`Edit ${first.block_type==="LECTURE"?"lecture title":"case stem"} for group ${first.case_number}`} value={first.case_stem} onChange={e=>updateStem(key,e.target.value)}/></label>{stage==="ORGANIZE"&&first.block_type==="CASE"&&user.role==="INSTRUCTOR"&&<label>Case Studio destination week <select aria-label={`Destination Case Studio week for Case ${first.case_number}`} value={caseWeeks[key]??""} onChange={(e)=>setCaseWeeks((previous)=>({...previous,[key]:e.target.value}))}><option value="">Choose week for draft case…</option>{(course?.weeks||[]).map((week)=><option key={week.id} value={week.id}>Week {week.weekNumber}{week.title?` · ${week.title}`:""}</option>)}</select></label>}{stage==="ORGANIZE"&&<label>Question Bank topic <select aria-label={`Destination topic for ${first.section} ${first.block_type === "LECTURE" ? "lecture" : "case"} ${first.case_number}`} value={groupTopics[key] ?? ""} onChange={(e)=>setGroupTopics((existing)=>({...existing,[key]:e.target.value}))}><option value="">Use default topic</option>{topics.map((topic)=><option key={topic.id} value={topic.id}>{topic.label}</option>)}</select></label>}<div className="question-import-bulk-actions" role="group" aria-label={`Select ${first.block_type === "LECTURE" ? "lecture" : "case"} questions`}><button type="button" className="pp-button secondary" onClick={()=>setCandidates((current)=>current.map((item)=>groupKey(item)===key&&item.status!=="INVALID"?{...item,approved:true}:item))}>Select ready questions</button><button type="button" className="pp-button secondary" onClick={()=>setCandidates((current)=>current.map((item)=>groupKey(item)===key?{...item,approved:false}:item))}>Clear section selection</button></div></div>}{!collapsed[key]&&<EssayWindowedQuestionList items={items} publishedQuestionIds={publishedQuestionIds} onUpdate={update}/>}</Panel>})}</section><div role="status" className="question-import-empty-filter">{filteredCandidates.length} questions available · Scroll inside each section to review its questions.</div>
+      <section className="essay-import-groups essay-v2-groups">{groups.map(([key,items])=>{const first=items[0];return <Panel key={key} title={first.block_type==="LECTURE"?first.section:`${first.section} · Case ${first.case_number}`}><div className="essay-v2-section-tools"><span className="essay-v2-section-count">{items.length} questions · {items.filter(item=>item.approved).length} selected</span><button type="button" className="pp-button secondary" onClick={()=>setCollapsed(current=>({...current,[key]:!current[key]}))} aria-expanded={!collapsed[key]}>{collapsed[key]?"Expand questions":"Collapse questions"}</button></div>{!collapsed[key]&&<div className="essay-case-import-head essay-v2-section-head"><label className="essay-v2-include-toggle"><input type="checkbox" aria-label={`Include all questions from ${first.section} ${first.case_number}`} checked={items.every(item=>item.approved)} onChange={event=>setGroupApproved(key,event.target.checked)}/><span>Include this {first.block_type==="LECTURE"?"lecture":"case"} in publication</span></label><label className="essay-v2-stem-field"><span>{first.block_type==="LECTURE"?"Lecture title":"Clinical case stem"}</span><textarea rows={first.block_type==="CASE"?4:2} aria-label={`Edit ${first.block_type==="LECTURE"?"lecture title":"case stem"} for group ${first.case_number}`} value={first.case_stem} onChange={e=>updateStem(key,e.target.value)}/></label>{stage==="ORGANIZE"&&first.block_type==="CASE"&&user.role==="INSTRUCTOR"&&<label>Case Studio destination week <select aria-label={`Destination Case Studio week for Case ${first.case_number}`} value={caseWeeks[key]??""} onChange={(e)=>setCaseWeeks((previous)=>({...previous,[key]:e.target.value}))}><option value="">Choose week for draft case…</option>{(course?.weeks||[]).map((week)=><option key={week.id} value={week.id}>Week {week.weekNumber}{week.title?` · ${week.title}`:""}</option>)}</select></label>}{stage==="ORGANIZE"&&<label>Question Bank topic <select aria-label={`Destination topic for ${first.section} ${first.block_type === "LECTURE" ? "lecture" : "case"} ${first.case_number}`} value={groupTopics[key] ?? ""} onChange={(e)=>setGroupTopics((existing)=>({...existing,[key]:e.target.value}))}><option value="">Use default topic</option>{topics.map((topic)=><option key={topic.id} value={topic.id}>{topic.label}</option>)}</select></label>}<div className="question-import-bulk-actions" role="group" aria-label={`Select ${first.block_type === "LECTURE" ? "lecture" : "case"} questions`}><button type="button" className="pp-button secondary" onClick={()=>setCandidates((current)=>current.map((item)=>groupKey(item)===key&&item.status!=="INVALID"?{...item,approved:true}:item))}>Select ready questions</button><button type="button" className="pp-button secondary" onClick={()=>setCandidates((current)=>current.map((item)=>groupKey(item)===key?{...item,approved:false}:item))}>Clear section selection</button></div></div>}{!collapsed[key]&&<EssayWindowedQuestionList items={items} publishedQuestionIds={publishedQuestionIds} onUpdate={update}/>}</Panel>})}</section><div role="status" className="question-import-empty-filter">{filteredCandidates.length} questions available · Scroll inside each section to review its questions.</div>
       <div className="question-import-bulk-actions essay-v2-next-step">
         {stage==="REVIEW"?<button className="pp-button" type="button" onClick={()=>setStage("ORGANIZE")}>Continue to organize →</button>:<button className="pp-button" type="button" onClick={()=>setStage("PUBLISH")}>Review publication summary →</button>}
       </div>
