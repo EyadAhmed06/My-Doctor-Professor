@@ -70,6 +70,34 @@ export function EssayQuestionImportPage() {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [activeGroup, setActiveGroup] = useState<string>("ALL");
   const topics = useMemo(() => topicsFor(course), [course]);
+  const saveInFlight = useRef(false);
+  useEffect(() => {
+    if (!sessionId || !candidates.length || saveInFlight.current) return;
+    const review:StoredEssayReview = {
+      courseId, groupTopics, caseWeeks, globalTopicId, published:[...publishedQuestionIds],
+      candidates:candidates.map(item=>({
+        candidate_id:item.candidate_id,approved:item.approved,
+        model_answer:item.model_answer,question_text:item.question_text,case_stem:item.case_stem,
+        difficulty:item.difficulty,marks:item.marks,
+      })),
+    };
+    const serialized=JSON.stringify(review);
+    if(serialized===lastSavedReview.current)return;
+    const timer=window.setTimeout(()=>{
+      if(saveInFlight.current)return;
+      saveInFlight.current=true;setSavingReview(true);
+      void request<{revision:number}>(`/questions/imports/essay/sessions/${sessionId}/review`,{
+        method:"PUT",body:{revision:sessionRevision.current,review},
+      }).then(response=>{
+        sessionRevision.current=response.revision;
+        lastSavedReview.current=serialized;
+      }).catch(c=>{
+        setError(c instanceof Error?`Could not save review: ${c.message}`:"Could not save review.");
+      }).finally(()=>{saveInFlight.current=false;setSavingReview(false);});
+    },1800);
+    return ()=>window.clearTimeout(timer);
+  },[sessionId,candidates,courseId,groupTopics,caseWeeks,globalTopicId,publishedQuestionIds,request,savingReview]);
+
   // Store the in-progress review in this tab only. The uploaded source itself
   // is never persisted, and another instructor cannot load this tab's snapshot.
   const reviewStorageKey = inspection && user?.id ? `mdp:essay-review:v2:${user.id}:${inspection.file_sha256}` : null;
@@ -154,7 +182,7 @@ export function EssayQuestionImportPage() {
   async function inspect(event:FormEvent){event.preventDefault(); if(!file){notify({title:"Choose an essay file",tone:"info"});return} if(!rights){notify({title:"Permission confirmation required",tone:"info"});return}
     const json=/\.(json|txt)$/i.test(file.name);
     if(!(/\.pdf$/i.test(file.name)||json)||!file.size||file.size>(json?2:50)*1024*1024){notify({title:"Unsupported essay file",description:"Choose a non-empty PDF (50 MB), JSON or JSON text (2 MB).",tone:"error"});return}
-    setInspecting(true);setError(null);setInspection(null);resetCandidates([]);setCollapsed({});setActiveGroup("ALL");setGlobalTopicId("");setGroupTopics({});setCaseWeeks({});setPublishedQuestionIds(new Set());setPublishDestination("QUESTION_BANK");setStage("UPLOAD"); try{const body=new FormData();body.append("file",file);body.append("copyright_confirmed","true");body.append("content_type",standaloneType); const created=await request<{session_id:string}>("/questions/imports/essay/sessions/inspect",{method:"POST",body,signal:AbortSignal.timeout(60000)});
+    setInspecting(true);setError(null);setSessionId(null);setInspection(null);resetCandidates([]);setCollapsed({});setActiveGroup("ALL");setGlobalTopicId("");setGroupTopics({});setCaseWeeks({});setPublishedQuestionIds(new Set());setPublishDestination("QUESTION_BANK");setStage("UPLOAD"); try{const body=new FormData();body.append("file",file);body.append("copyright_confirmed","true");body.append("content_type",standaloneType); const created=await request<{session_id:string}>("/questions/imports/essay/sessions/inspect",{method:"POST",body,signal:AbortSignal.timeout(60000)});
       const result=await fetchSavedSession(created.session_id);
       setSessionId(created.session_id);sessionRevision.current=result.revision;lastSavedReview.current="";
       setSavedSessions(previous=>[{session_id:created.session_id,original_filename:result.original_filename,total:result.total},...previous].slice(0,10)); let restored: StoredEssayReview|null = null;
@@ -326,6 +354,18 @@ export function EssayQuestionImportPage() {
     </nav>
     {inspection&&stage!=="UPLOAD"&&<div className="question-import-bulk-actions"><button className="pp-button secondary" type="button" onClick={()=>setStage("UPLOAD")}>Change source file</button><small>{inspection.original_filename} · {inspection.summary.extracted} questions found</small></div>}
     {stage==="UPLOAD"&&<Panel><form onSubmit={inspect} className="question-import-upload-form"><div className="question-import-fields"><label><span>Destination course (can be chosen after inspection)</span><select value={courseId} onChange={(e)=>void chooseCourse(e.target.value)}><option value="">Select course…</option>{courses.map((item)=><option key={item.id} value={item.id}>{item.courseCode} · {item.courseName}</option>)}</select></label><label className="question-import-file"><span>Essay PDF or JSON</span><input type="file" accept="application/pdf,.pdf,application/json,.json,.txt" onChange={(e)=>setFile(e.target.files?.[0]||null)}/><small>Recognizes CASE N and Lecture N: Title, numbered questions, and their source answers. Standalone or multi-section JSON is supported; PDFs require an extractable text layer.</small></label><label><span>When the file has no Case/Lecture heading</span><select aria-label="Standalone essay content type" value={standaloneType} onChange={e=>setStandaloneType(e.target.value as 'LECTURE'|'CASE')}><option value="LECTURE">Treat as a lecture or section</option><option value="CASE">Treat as one clinical case</option></select></label></div><label className="question-import-rights"><input type="checkbox" checked={rights} onChange={(e)=>setRights(e.target.checked)}/><span>I confirm I have permission to use and publish this material.</span></label><button className="pp-button" disabled={inspecting} type="submit">{inspecting?<><FiRefreshCw className="spin"/>Inspecting essay file…</>:<><FiUploadCloud/>Inspect essay file</>}</button></form></Panel>}
+    {stage==="UPLOAD"&&savedSessions.length>0&&<Panel title="Resume a saved essay review">
+      <p>Your recent imports are saved securely for seven days. Open one to continue reviewing on this device or another device.</p>
+      <div className="essay-v2-saved-sessions">
+        {savedSessions.map(saved=><button key={saved.session_id} type="button" className="pp-button secondary" disabled={inspecting}
+          onClick={()=>void resumeSession(saved.session_id)}>
+          <FiFileText/> {saved.original_filename} · {saved.total} questions
+        </button>)}
+      </div>
+    </Panel>}
+    {inspection&&sessionId&&<p role="status" className="essay-v2-save-status">
+      {savingReview?"Saving review…":"Review saved automatically to your account."}
+    </p>}
     {error&&<p className="form-error" role="alert">{error}</p>}
     {inspection&&stage!=="UPLOAD"&&<><section className="question-import-summary"><Panel><small>CASES</small><strong>{inspection.summary.cases}</strong><span>detected case blocks</span></Panel><Panel><small>LECTURES</small><strong>{inspection.summary.lectures ?? 0}</strong><span>detected lecture blocks</span></Panel><Panel><small>ESSAYS</small><strong>{inspection.summary.extracted}</strong><span>{statusCounts.VALID} ready · {statusCounts.NEEDS_REVIEW} review · {statusCounts.INVALID} invalid</span></Panel><Panel><small>PAGES</small><strong>{inspection.page_count}</strong><span>{inspection.original_filename}</span></Panel><Panel><small>READY TO PUBLISH</small><strong>{publishable}</strong><span>approved + topic assigned + answer present</span></Panel></section>
       {inspection.issues.length>0&&<Panel title="Batch checks">{inspection.issues.map((issue)=><p key={issue.code}>{issue.severity}: {issue.message}</p>)}</Panel>}
