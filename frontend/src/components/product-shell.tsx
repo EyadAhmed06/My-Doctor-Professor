@@ -326,7 +326,7 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
       {open && <button className="pp-mobile-overlay" type="button" aria-label={translate("Close navigation")} onClick={() => setOpen(false)} />}
       <nav id="product-navigation" className={open ? "open" : ""} style={open ? { display: "flex", visibility: "visible", transform: "translateX(0)", pointerEvents: "auto" } : undefined} aria-label="Primary navigation">
         <button className="pp-nav-close" type="button" onClick={() => setOpen(false)} aria-label={translate("Close menu")}><FiX /></button>
-        {nav.map(item => <Link key={item.href} prefetch={true} className={isNavActive(path, item.href) ? "active" : ""} href={item.href} onClick={() => { if (open) setOpen(false); }}>{translate(item.label)}</Link>)}
+        {nav.map(item => <Link key={item.href} prefetch={true} aria-current={isNavActive(path, item.href) ? "page" : undefined} className={isNavActive(path, item.href) ? "active" : ""} href={item.href} onClick={() => { if (open) setOpen(false); }}>{translate(item.label)}</Link>)}
         {!nav.some(item => item.href === "/notifications") && <Link className={`pp-mobile-nav-link${path.startsWith("/notifications") ? " active" : ""}`} href="/notifications" prefetch={true} onClick={() => setOpen(false)}>{translate("Notifications")}{unread > 0 && <span>{unread > 99 ? "99+" : unread}</span>}</Link>}
         {!nav.some(item => item.href === "/settings") && <Link href="/settings" prefetch={true} className={path.startsWith("/settings") ? "active" : ""} onClick={() => { if (open) setOpen(false); }}>{translate("Settings")}</Link>}
         <div className="pp-mobile-tools" aria-label={translate("Workspace tools")}>
