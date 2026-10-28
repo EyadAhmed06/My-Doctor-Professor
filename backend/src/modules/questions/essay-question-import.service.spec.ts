@@ -191,6 +191,43 @@ Second answer
     expect(candidates.every((candidate: any) => candidate.status === 'VALID')).toBe(true);
   });
 
+  it('imports unnumbered subject lectures with named answer keys after clinical cases', () => {
+    const candidates = parse(`
+      Case 1
+      A patient presents with fatigue.
+      Q1. What symptom is present?
+      Answers for case 1
+      Q1. Fatigue.
+
+      Protein chemistry
+      Q1. List three basic amino acids.
+      Q2. Mention two ketogenic amino acids.
+      Answers for Protein chemistry
+      Q1.
+      • Arginine.
+      • Histidine.
+      • Lysine.
+      Q2.
+      • Leucine.
+      • Lysine.
+
+      Protein digestion
+      Q1. Mention functions of gastric hydrochloric acid.
+      Answers for Protein digestion
+      Q1.
+      • It activates pepsinogen to pepsin.
+      • It provides an acidic medium.
+    `);
+    expect(candidates).toHaveLength(4);
+    expect(candidates.map((item: any) => item.block_type)).toEqual(['CASE', 'LECTURE', 'LECTURE', 'LECTURE']);
+    expect(candidates[1].section).toContain('Protein chemistry');
+    expect(candidates[1].model_answer).toContain('Arginine');
+    expect(candidates[2].model_answer).toContain('Leucine');
+    expect(candidates[3].section).toContain('Protein digestion');
+    expect(candidates[3].model_answer).toContain('pepsinogen');
+    expect(candidates.every((item: any) => item.status === 'VALID')).toBe(true);
+  });
+
   it('imports mixed spelled-out case and lecture headings in one PDF', () => {
     const candidates = parse(`
       Case One:
