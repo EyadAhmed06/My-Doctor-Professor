@@ -106,7 +106,8 @@ export class EssayQuestionImportService {
         message: 'No essay questions were detected. Supported formats include CASE N or Lecture N: Title with numbered prompts and corresponding answer sections.',
       });
     }
-\n    return {
+
+    return {
       original_filename: this.safeFilename(safeFile.originalname),
       file_sha256: sha256,
       file_size: safeFile.size,
