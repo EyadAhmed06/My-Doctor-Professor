@@ -103,28 +103,29 @@ function guardPatchedProductionDependencies() {
   const packageLock = JSON.parse(readFileSync(join(root, 'package-lock.json'), 'utf8'));
   const locked = packageLock.packages ?? {};
 
-  if (packageJson.dependencies?.nodemailer !== '10.0.13') {
-    failures.push('package.json [nodemailer must stay pinned to patched 10.0.13]');
+  const requirements = [
+    ['nodemailer', '10.2.1'],
+    ['@nestjs/platform-express', '11.2.8'],
+    ['multer', '2.5.0'],
+    ['qs', '6.16.1'],
+    ['body-parser', '2.3.1'],
+  ];
+  // Check the actually installed versions, not historical exact patch pins.
+  // The npm production audit separately checks newly disclosed advisories.
+  for (const [name, minimum] of requirements) {
+    const installed = locked[`node_modules/${name}`]?.version;
+    if (!installed || compareSemver(installed, minimum) < 0) {
+      failures.push(`package-lock.json [${name} must resolve to ${minimum} or newer]`);
+    }
   }
-  if (packageJson.dependencies?.['@nestjs/platform-express'] !== '^11.2.6') {
-    failures.push('package.json [@nestjs/platform-express must keep the secure ^11.2.6 floor]');
+  if (packageJson.dependencies?.nodemailer !== '10.2.1') {
+    failures.push('package.json [nodemailer must remain pinned to 10.2.1 or be deliberately upgraded]');
   }
-  if (packageJson.overrides && Object.prototype.hasOwnProperty.call(packageJson.overrides, 'multer')) {
-    failures.push('package.json [do not override multer; let patched @nestjs/platform-express resolve it]');
+  if (packageJson.dependencies?.['@nestjs/platform-express'] !== '^11.2.8') {
+    failures.push('package.json [@nestjs/platform-express must keep the patched ^11.2.8 floor]');
   }
-  if (packageJson.overrides?.qs !== '6.16.0') {
-    failures.push('package.json [qs override must stay pinned to patched 6.16.0]');
-  }
-
-  if (locked['node_modules/nodemailer']?.version !== '10.0.13') {
-    failures.push('package-lock.json [nodemailer must resolve to patched 10.0.13]');
-  }
-  if (locked['node_modules/multer']?.version !== '2.4.0') {
-    failures.push('package-lock.json [multer must resolve to patched 2.4.0]');
-  }
-  const platformExpress = locked['node_modules/@nestjs/platform-express']?.version;
-  if (!platformExpress || compareSemver(platformExpress, '11.2.6') < 0) {
-    failures.push('package-lock.json [@nestjs/platform-express must resolve to 11.2.6 or newer]');
+  if (packageJson.overrides?.qs !== '6.16.1' || packageJson.overrides?.multer !== '2.5.0') {
+    failures.push('package.json [qs and multer overrides must preserve the patched floors]');
   }
 }
 
