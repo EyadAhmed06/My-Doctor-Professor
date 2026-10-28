@@ -17,6 +17,11 @@
 
 
 /* Student question-bank curriculum builder */
+.question-bank-lecture-links{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:0 0 18px;line-height:1.45}
+.question-bank-lecture-links>a{display:inline-flex;align-items:center;min-width:0;max-width:100%;overflow-wrap:anywhere}
+.question-bank-lecture-links>a:not(:last-child)::after{content:"·";margin-left:6px;color:var(--text-muted);pointer-events:none}
+@media(max-width:760px){.question-bank-lecture-links{gap:6px 10px}.question-bank-lecture-links>a:not(:last-child)::after{margin-left:4px}}
+
 .bundle-question-builder{display:grid;gap:16px}
 .question-builder-intro{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:18px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--surface-soft)}
 .question-builder-intro>div{display:flex;align-items:center;gap:11px}
