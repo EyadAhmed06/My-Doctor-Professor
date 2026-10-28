@@ -260,6 +260,15 @@ export function EssayQuestionImportPage() {
   const publishable=candidates.filter((item)=>item.approved&&item.status!=="INVALID"&&item.model_answer?.trim()&&Number.isFinite(item.marks)&&item.marks>0&&topicFor(item)&&!publishedQuestionIds.has(item.candidate_id)).length;
   const unassignedApproved=candidates.filter((item)=>item.approved&&item.status!=="INVALID"&&item.model_answer?.trim()&&!topicFor(item)&&!publishedQuestionIds.has(item.candidate_id)).length;
   const invalidApproved=candidates.filter(item=>item.approved&&item.status==="INVALID").length;
+  const remainingSelected=candidates.filter(item=>item.approved&&!publishedQuestionIds.has(item.candidate_id));
+  const missingAnswers=remainingSelected.filter(item=>!item.model_answer?.trim()).length;
+  const missingTopics=remainingSelected.filter(item=>!topicFor(item)).length;
+  const invalidSelection=remainingSelected.filter(item=>item.status==="INVALID"||!item.question_text.trim()||!Number.isFinite(item.marks)||item.marks<=0).length;
+  const readinessExplanation=remainingSelected.length===0
+    ?"No unpublished questions selected."
+    :publishable===remainingSelected.length
+      ?"All selected questions have answers and destination topics."
+      :[missingTopics?`${missingTopics} need a topic`:"",missingAnswers?`${missingAnswers} need an answer`:"",invalidSelection?`${invalidSelection} have validation issues`:""].filter(Boolean).join(" · ");
   const publicationPreview = useMemo(() => {
     const grouped = new Map<string, { label: string; count: number; missingTopic: number; invalid: number; topicLabel: string }>();
     for (const item of candidates) {
@@ -384,7 +393,7 @@ export function EssayQuestionImportPage() {
       {reviewSaveError&&<><small>{reviewSaveError}</small><button type="button" className="essay-v3-secondary" onClick={()=>{setReviewSaveError(null);setSaveRetryCount(n=>n+1);}}>Retry saving</button></>}
     </div>}
     {error&&<p className="form-error" role="alert">{error}</p>}
-    {inspection&&stage!=="UPLOAD"&&<><section className="essay-v31-summary" aria-label="Import overview"><span><b>{inspection.summary.cases}</b> cases</span><span><b>{inspection.summary.lectures??0}</b> lectures</span><span><b>{inspection.summary.extracted}</b> questions</span><span><b>{inspection.page_count}</b> pages</span><span><b>{candidates.filter(item=>item.approved).length}</b> selected</span><span className="essay-v31-ready"><b>{publishable}</b> publishable</span><details><summary>Source details</summary><p>{inspection.original_filename}</p><p>{statusCounts.VALID} valid · {statusCounts.NEEDS_REVIEW} need review · {statusCounts.INVALID} invalid</p></details></section>
+    {inspection&&stage!=="UPLOAD"&&<><section className="essay-v31-summary" aria-label="Import overview"><span><b>{inspection.summary.cases}</b> cases</span><span><b>{inspection.summary.lectures??0}</b> lectures</span><span><b>{inspection.summary.extracted}</b> questions</span><span><b>{inspection.page_count}</b> pages</span><span><b>{candidates.filter(item=>item.approved).length}</b> selected</span><span className="essay-v31-ready" title={readinessExplanation}><b>{publishable}</b> publishable</span><span className="essay-v31-reason" role="status">{readinessExplanation}</span><details><summary>Source details</summary><p>{inspection.original_filename}</p><p>{statusCounts.VALID} valid · {statusCounts.NEEDS_REVIEW} need review · {statusCounts.INVALID} invalid</p></details></section>
       {inspection.issues.length>0&&<Panel title="Batch checks">{inspection.issues.map((issue)=><p key={issue.code}>{issue.severity}: {issue.message}</p>)}</Panel>}
       {stage==="REVIEW"&&<EssayHybridWorkspace items={candidates} publishedIds={publishedQuestionIds} onUpdate={update} onGroupStem={updateStem} onGroupApproval={setGroupApproved} position={reviewPosition} onPositionChange={setReviewPosition}/>}
 
@@ -401,7 +410,7 @@ export function EssayQuestionImportPage() {
         onBack={()=>setStage("REVIEW")}
         onContinue={()=>setStage("PUBLISH")}
       />}
-      {stage==="REVIEW"&&<div className="essay-v3-stage-next"><button type="button" className="pp-button" onClick={()=>setStage("ORGANIZE")}>Continue to organize →</button></div>}
+      
       {stage==="PUBLISH"&&<EssayV3Publish
         items={candidates} destination={publishDestination} onDestination={setPublishDestination}
         allowedCaseStudio={user.role==="INSTRUCTOR"} readyCount={publishable}
@@ -415,6 +424,14 @@ export function EssayQuestionImportPage() {
         onPublishCases={()=>void createCaseDrafts(true)}
         onBack={()=>setStage("ORGANIZE")}
         onReturnToReview={()=>setStage("REVIEW")}
-      />}</>}
+      />}
+      <nav className="essay-v32-global-actions" aria-label="Essay import workflow navigation">
+        <span className="essay-v32-progress">{stage==="REVIEW"?"2 / 4 · Review":stage==="ORGANIZE"?"3 / 4 · Organize":"4 / 4 · Publish"} <small>{readinessExplanation}</small></span>
+        <div>
+          {stage==="REVIEW"&&<button type="button" onClick={()=>setStage("ORGANIZE")}>Organize questions →</button>}
+          {stage==="ORGANIZE"&&<><button type="button" className="essay-v3-secondary" onClick={()=>setStage("REVIEW")}>← Review</button><button type="button" onClick={()=>setStage("PUBLISH")}>Review publication →</button></>}
+          {stage==="PUBLISH"&&<><button type="button" className="essay-v3-secondary" onClick={()=>setStage("ORGANIZE")}>← Fix destinations</button><button type="button" className="essay-v3-secondary" onClick={()=>setStage("REVIEW")}>Review questions</button></>}
+        </div>
+      </nav></>}
   </main></ProductShell>;
 }
