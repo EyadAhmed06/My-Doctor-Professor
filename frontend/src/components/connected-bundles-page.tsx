@@ -637,7 +637,7 @@ function BundleTab({ content, tab }: { content: Content; tab: Tab }) {
                 key={week.id}
                 course={course}
                 week={week}
-                initiallyOpen={weekIndex === 0}
+                initiallyOpen={weekIndex === 0 && course.id === content.courses[0]?.id}
               />
             ))}
           </Panel>
