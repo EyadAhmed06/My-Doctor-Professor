@@ -316,6 +316,7 @@ export function ProductShell({ children, search = "Search cases, topics, or conc
   const avatar = <span className="avatar-fallback">{profileImage ? <img src={profileImage} alt="" /> : initials}</span>;
 
   return <div className="product-app">
+    <a className="pp-skip-to-content" href="#workspace-main">{translate("Skip to main content")}</a>
     {user.role === "STUDENT" && <div className="student-content-watermark" aria-hidden="true">
       <span>{user.forensic_code || user.id}</span>
       <span>{user.forensic_code || user.id}</span>
