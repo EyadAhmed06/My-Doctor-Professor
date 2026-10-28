@@ -4,7 +4,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReviewCandidate } from "./essay-import-model";
 import { EssayReviewQuestion } from "./essay-review-question";
 
-const ESTIMATED_HEIGHT = 370;
+const ESTIMATED_HEIGHT = 280;
 const OVERSCAN = 3;
 
 function firstIntersecting(offsets: number[], threshold: number) {
@@ -75,16 +75,34 @@ export function EssayWindowedQuestionList({
     }
     return result;
   }, [items, heights]);
+  const [selectedIndex,setSelectedIndex] = useState(0);
+  const goTo = useCallback((index:number) => {
+    const target=Math.max(0,Math.min(items.length-1,index));
+    setSelectedIndex(target);
+    const node=viewportRef.current;
+    if(node){ node.scrollTop=offsets[target] ?? 0; setScrollTop(node.scrollTop); }
+  },[items.length,offsets]);
   const start = Math.max(0, firstIntersecting(offsets, Math.max(0, scrollTop)) - OVERSCAN);
   const end = Math.min(items.length, firstIntersecting(offsets, scrollTop + viewportHeight) + OVERSCAN + 1);
-  return <div className="essay-v2-windowed-list" ref={viewportRef}
+  return <div className="essay-v2-list-shell">
+    <nav className="essay-v2-question-nav" aria-label="Navigate questions in this section">
+      <button type="button" disabled={selectedIndex===0} onClick={()=>goTo(selectedIndex-1)} aria-label="Previous essay question">← Previous</button>
+      <label>Go to question
+        <select aria-label="Jump to essay question" value={Math.min(selectedIndex,items.length-1)} onChange={event=>goTo(Number(event.target.value))}>
+          {items.map((item,index)=><option value={index} key={item.candidate_id}>Q{item.question_number} · {index+1} of {items.length}</option>)}
+        </select>
+      </label>
+      <button type="button" disabled={selectedIndex>=items.length-1} onClick={()=>goTo(selectedIndex+1)} aria-label="Next essay question">Next →</button>
+    </nav>
+    <div className="essay-v2-windowed-list" ref={viewportRef}
     role="region" aria-label="Scroll through essay questions" tabIndex={0}
-    onScroll={event => setScrollTop(event.currentTarget.scrollTop)}>
+    onScroll={event => {const pos=event.currentTarget.scrollTop;setScrollTop(pos);setSelectedIndex(firstIntersecting(offsets,pos+24));}}>
     <div style={{height: offsets[start]}} aria-hidden="true"/>
     {items.slice(start, end).map(item =>
       <MeasuredQuestion key={item.candidate_id} item={item} published={publishedQuestionIds.has(item.candidate_id)}
         onUpdate={onUpdate} onMeasure={onMeasure}/>)}
     <div style={{height: offsets[items.length] - offsets[end]}} aria-hidden="true"/>
     <div className="sr-only" aria-live="polite">Showing questions {items.length ? start + 1 : 0} through {end} of {items.length}</div>
+    </div>
   </div>;
 }
