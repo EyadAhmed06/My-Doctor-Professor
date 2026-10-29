@@ -282,10 +282,13 @@ export function EssayQuestionImportPage() {
   const statusCounts=useMemo(()=>({ALL:candidates.length,VALID:candidates.filter((item)=>item.status==="VALID").length,NEEDS_REVIEW:candidates.filter((item)=>item.status==="NEEDS_REVIEW").length,INVALID:candidates.filter((item)=>item.status==="INVALID").length}),[candidates]);
   const groupKey=(item:Candidate)=>`${item.section}::${item.case_number}`;
   const topicFor=(item:Candidate)=>groupTopics[groupKey(item)] || globalTopicId;
-  const publishable=candidates.filter((item)=>item.approved&&item.status!=="INVALID"&&item.model_answer?.trim()&&Number.isFinite(item.marks)&&item.marks>0&&topicFor(item)&&!publishedQuestionIds.has(item.candidate_id)).length;
-  const unassignedApproved=candidates.filter((item)=>item.approved&&item.status!=="INVALID"&&item.model_answer?.trim()&&!topicFor(item)&&!publishedQuestionIds.has(item.candidate_id)).length;
-  const invalidApproved=candidates.filter(item=>item.approved&&item.status==="INVALID").length;
-  const remainingSelected=candidates.filter(item=>item.approved&&!publishedQuestionIds.has(item.candidate_id));
+  const destinationFor=(item:Candidate):GroupDestination=>groupDestinations[groupKey(item)]||"QUESTION_BANK";
+  const goesToBank=(item:Candidate)=>destinationFor(item)==="QUESTION_BANK"||destinationFor(item)==="BOTH";
+  const goesToStudio=(item:Candidate)=>destinationFor(item)==="CASE_STUDIO"||destinationFor(item)==="BOTH";
+  const publishable=candidates.filter((item)=>item.approved&&goesToBank(item)&&item.status!=="INVALID"&&item.model_answer?.trim()&&Number.isFinite(item.marks)&&item.marks>0&&topicFor(item)&&!publishedQuestionIds.has(item.candidate_id)).length;
+  const unassignedApproved=candidates.filter((item)=>item.approved&&goesToBank(item)&&item.status!=="INVALID"&&item.model_answer?.trim()&&!topicFor(item)&&!publishedQuestionIds.has(item.candidate_id)).length;
+  const invalidApproved=candidates.filter(item=>item.approved&&goesToBank(item)&&item.status==="INVALID").length;
+  const remainingSelected=candidates.filter(item=>item.approved&&goesToBank(item)&&!publishedQuestionIds.has(item.candidate_id));
   const missingAnswers=remainingSelected.filter(item=>!item.model_answer?.trim()).length;
   const missingTopics=remainingSelected.filter(item=>!topicFor(item)).length;
   const invalidSelection=remainingSelected.filter(item=>item.status==="INVALID"||!item.question_text.trim()||!Number.isFinite(item.marks)||item.marks<=0).length;
@@ -297,7 +300,7 @@ export function EssayQuestionImportPage() {
   const publicationPreview = useMemo(() => {
     const grouped = new Map<string, { label: string; count: number; missingTopic: number; invalid: number; topicLabel: string }>();
     for (const item of candidates) {
-      if (!item.approved || publishedQuestionIds.has(item.candidate_id)) continue;
+      if (!item.approved || !goesToBank(item) || publishedQuestionIds.has(item.candidate_id)) continue;
       const key = `${item.section}::${item.case_number}`;
       const destinationId = groupTopics[key] || globalTopicId;
       const current = grouped.get(key) || { label: item.block_type === "LECTURE" ? item.section : `Case ${item.case_number} · ${item.section}`,
@@ -308,13 +311,13 @@ export function EssayQuestionImportPage() {
       grouped.set(key,current);
     }
     return [...grouped.values()];
-  }, [candidates, publishedQuestionIds, groupTopics, globalTopicId, topics]);
-  const caseDraftGroups=useMemo(()=>{const grouped=new Map<string,ReviewCandidate[]>();for(const item of candidates){if(item.block_type!=="CASE"||!item.approved)continue;const key=`${item.section}::${item.case_number}`;if(!grouped.has(key))grouped.set(key,[]);grouped.get(key)!.push(item);}return [...grouped.entries()]},[candidates]);
+  }, [candidates, publishedQuestionIds, groupTopics, globalTopicId, topics, groupDestinations]);
+  const caseDraftGroups=useMemo(()=>{const grouped=new Map<string,ReviewCandidate[]>();for(const item of candidates){if(!goesToStudio(item)||!item.approved)continue;const key=`${item.section}::${item.case_number}`;if(!grouped.has(key))grouped.set(key,[]);grouped.get(key)!.push(item);}return [...grouped.entries()]},[candidates,groupDestinations]);
   const mappedCaseDraftGroups=caseDraftGroups.filter(([key,items])=>caseWeeks[key] && course?.weeks?.some((week)=>week.id===caseWeeks[key]) && items.every(item=>item.status!=="INVALID"&&Boolean(item.model_answer?.trim())&&item.question_text.trim().length>=8));
 
   async function publish(scopeIds?: string[]){
     if(!inspection||publishing||creatingCases)return;
-    const selected = candidates.filter(item => (scopeIds ? scopeIds.includes(item.candidate_id) : item.approved) && !publishedQuestionIds.has(item.candidate_id));
+    const selected = candidates.filter(item => (scopeIds ? scopeIds.includes(item.candidate_id) : item.approved) && goesToBank(item) && !publishedQuestionIds.has(item.candidate_id));
     if(!selected.length){const message="Select at least one essay question to publish.";setError(message);notify({title:"Nothing to publish",description:message,tone:"info"});return;}
     const blocked = selected.find(item=>item.status==="INVALID"||!item.question_text.trim()||!item.model_answer?.trim()||!topicFor(item)||!Number.isFinite(item.marks)||item.marks<=0);
     if(blocked){const message="Selected essay questions need a valid source answer and an assigned destination topic before publication.";setError(message);notify({title:"Essay publication blocked",description:message,tone:"error"});return;}
@@ -373,7 +376,8 @@ export function EssayQuestionImportPage() {
       for(const [key,items] of mappedCaseDraftGroups){
         const first=items[0];
         const weekId=caseWeeks[key];
-        const dedupKey=JSON.stringify([weekId,first.case_number,first.section||"",first.case_stem.trim()]);
+        const sourceNumber=first.block_type==="LECTURE"?null:first.case_number;
+        const dedupKey=JSON.stringify([weekId,sourceNumber,first.section||"",first.case_stem.trim()]);
         const prior=existing.get(dedupKey);
         if(prior){
           if(publishNow&&!prior.isPublished){ await request(`/essay-cases/${prior.id}`,{method:"PUT",body:{is_published:true}}); publishedExisting++; }
@@ -381,13 +385,13 @@ export function EssayQuestionImportPage() {
           continue;
         }
         await request("/essay-cases",{method:"POST",body:{
-          week_id:weekId,title:`Case ${first.case_number}`,stem:first.case_stem,
-          section:first.section.slice(0,120),source_case_number:first.case_number,
+          week_id:weekId,title:first.block_type==="LECTURE"?first.section.slice(0,200):`Case ${first.case_number}`,stem:first.case_stem||first.section,
+          section:first.section.slice(0,120),...(sourceNumber===null?{}:{source_case_number:sourceNumber}),
           is_published:publishNow,questions:[...items].sort((a,b)=>a.question_number-b.question_number).map((item)=>({
             prompt:item.question_text,model_answer:item.model_answer!.trim(),
           })),
         }});
-        existing.set(dedupKey,{id:"",isPublished:publishNow,weekId,sourceCaseNumber:first.case_number,section:first.section,stem:first.case_stem});created++;
+        existing.set(dedupKey,{id:"",isPublished:publishNow,weekId,sourceCaseNumber:sourceNumber,section:first.section,stem:first.case_stem});created++;
       }
       notify({title:publishNow?"Clinical cases published":"Case Studio drafts created",description:`${created} new cases · ${publishedExisting} existing drafts published · ${skipped} matching cases unchanged.`,tone:"success"});
     }catch(c){
@@ -427,7 +431,8 @@ export function EssayQuestionImportPage() {
 
       {stage==="ORGANIZE"&&<EssayV3Organize
         items={candidates} courses={courses} courseId={courseId} course={course} topics={topics}
-        groupTopics={groupTopics} globalTopicId={globalTopicId} caseWeeks={caseWeeks}
+        groupTopics={groupTopics} globalTopicId={globalTopicId} caseWeeks={caseWeeks} groupDestinations={groupDestinations}
+        onGroupDestination={(id,value)=>setGroupDestinations(old=>({...old,[id]:value}))}
         busy={publishing||creatingCases} destination={publishDestination} allowCaseStudio={user.role==="INSTRUCTOR"} onDestination={setPublishDestination}
         onChooseCourse={id=>void chooseCourse(id)}
         onDefaultTopic={setGlobalTopicId}
@@ -447,7 +452,7 @@ export function EssayQuestionImportPage() {
         validCaseGroups={mappedCaseDraftGroups.length}
         publishedIds={publishedQuestionIds} progress={publishProgress}
         busy={publishing||creatingCases}
-        onPublishQuestions={()=>void publish()}
+        onPublishQuestions={()=>void publish()} groupDestinations={groupDestinations}
         onCreateCases={()=>void createCaseDrafts()}
         onPublishCases={()=>void createCaseDrafts(true)}
         onBack={()=>setStage("ORGANIZE")}
