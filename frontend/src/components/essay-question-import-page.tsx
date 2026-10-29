@@ -102,15 +102,36 @@ export function EssayQuestionImportPage() {
     const timer=window.setTimeout(()=>{
       if(saveInFlight.current)return;
       saveInFlight.current=true;setSavingReview(true);setReviewSaveError(null);
-      void request<{revision:number}>(`/questions/imports/essay/sessions/${sessionId}/review`,{
-        method:"PUT",body:{revision:sessionRevision.current,review},
-      }).then(response=>{
-        sessionRevision.current=response.revision;
-        lastSavedReview.current=serialized;
-        setReviewSavedAt(Date.now());
-      }).catch(c=>{
-        setReviewSaveError(c instanceof Error ? c.message : "Review could not be saved.");
-      }).finally(()=>{saveInFlight.current=false;setSavingReview(false);});
+      void (async()=>{
+        try {
+          // An absent revision is never sent: the backend requires optimistic concurrency.
+          // Recover missing session metadata (e.g. from a partial/older API response)
+          // without discarding local edits or weakening the revision check.
+          if (!Number.isSafeInteger(sessionRevision.current) || sessionRevision.current < 0) {
+            const metadata=await request<{revision:number}>(`/questions/imports/essay/sessions/${sessionId}`);
+            if (!Number.isSafeInteger(metadata.revision) || metadata.revision < 0) {
+              throw new Error("Import session revision is unavailable. Reopen the saved session before publishing.");
+            }
+            sessionRevision.current=metadata.revision;
+          }
+          const response=await request<{revision:number}>(`/questions/imports/essay/sessions/${sessionId}/review`,{
+            method:"PUT",body:{revision:sessionRevision.current,review},
+          });
+          if (!Number.isSafeInteger(response.revision)) {
+            throw new Error("The server did not acknowledge the saved review revision.");
+          }
+          sessionRevision.current=response.revision;
+          lastSavedReview.current=serialized;
+          setReviewSavedAt(Date.now());
+        } catch(c) {
+          const message=c instanceof Error?c.message:"Review could not be saved.";
+          if (/valid review object and revision are required/i.test(message)) {
+            // Refresh the revision only; do not silently overwrite a true 409 conflict.
+            sessionRevision.current=NaN;
+          }
+          setReviewSaveError(message);
+        } finally {saveInFlight.current=false;setSavingReview(false);}
+      })();
     },1800);
     return ()=>window.clearTimeout(timer);
   },[sessionId,inspection,candidates,courseId,groupTopics,caseWeeks,globalTopicId,publishedQuestionIds,request,savingReview,reviewSaveError,saveRetryCount]);
@@ -180,7 +201,7 @@ export function EssayQuestionImportPage() {
     setInspecting(true);setError(null);
     try {
       const result=await fetchSavedSession(id);
-      sessionRevision.current=result.revision;setReviewSaveError(null);setReviewSavedAt(null);
+      sessionRevision.current=Number.isSafeInteger(result.revision)?result.revision:NaN;setReviewSaveError(null);setReviewSavedAt(null);
       lastSavedReview.current="";
       setSessionId(id);
       if(result.review?.courseId) await chooseCourse(result.review.courseId);
@@ -201,7 +222,7 @@ export function EssayQuestionImportPage() {
     if(!(/\.pdf$/i.test(file.name)||json)||!file.size||file.size>(json?2:50)*1024*1024){notify({title:"Unsupported essay file",description:"Choose a non-empty PDF (50 MB), JSON or JSON text (2 MB).",tone:"error"});return}
     setInspecting(true);setError(null);setSessionId(null);setReviewSaveError(null);setReviewSavedAt(null);setInspection(null);setReviewPosition({mode:"REVIEW",groupId:"",questionId:""});resetCandidates([]);setGlobalTopicId("");setGroupTopics({});setCaseWeeks({});setPublishedQuestionIds(new Set());setPublishDestination("QUESTION_BANK");setStage("UPLOAD"); try{const body=new FormData();body.append("file",file);body.append("copyright_confirmed","true");body.append("content_type",standaloneType); const created=await request<{session_id:string}>("/questions/imports/essay/sessions/inspect",{method:"POST",body,signal:AbortSignal.timeout(60000)});
       const result=await fetchSavedSession(created.session_id);
-      setSessionId(created.session_id);sessionRevision.current=result.revision;lastSavedReview.current="";
+      setSessionId(created.session_id);sessionRevision.current=Number.isSafeInteger(result.revision)?result.revision:NaN;lastSavedReview.current="";
       setSavedSessions(previous=>[{session_id:created.session_id,original_filename:result.original_filename,total:result.total},...previous].slice(0,10)); let restored: StoredEssayReview|null = null;
       try { const raw=sessionStorage.getItem(`mdp:essay-review:v2:${user?.id}:${result.file_sha256}`); if(raw) restored=JSON.parse(raw); } catch { /* corrupt or unavailable saved review */ }
       setInspection(result);setStage("REVIEW");
