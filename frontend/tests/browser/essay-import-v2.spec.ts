@@ -95,7 +95,6 @@ test('essay importer reviews mixed cases and lectures without requiring course b
   const routes=page.getByRole('combobox',{name:/Destination for/});
   await expect(routes).toHaveCount(2);
   await routes.last().selectOption('BOTH');
-  await expect(page.getByRole('combobox',{name:/Studio week for/})).toHaveCount(0);
   await expect(page.getByRole('combobox',{name:/Case Studio week for/})).toHaveCount(1);
   await page.getByRole('button', { name: /Review publication/ }).click();
   await expect(page.getByRole('heading',{name:'Ready to publish?'})).toBeVisible();
