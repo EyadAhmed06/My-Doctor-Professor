@@ -157,7 +157,7 @@ test('instructor resumes a previously saved import without re-uploading the PDF'
   await expect(page.getByRole('heading',{name:'Import Essay Questions'})).toBeVisible();
   await page.getByRole('button',{name:/saved-essay.pdf/}).click();
   await expect(page.getByText('Reviewed question from another device.')).toBeVisible();
-  await expect(page.getByRole('checkbox',{name:'Include in publication'})).not.toBeChecked();
+  await expect(page.getByRole('checkbox',{name:'Include',exact:true})).not.toBeChecked();
   await expect(page.getByText(/Review autosave is ready|Changes saved to your account/)).toBeVisible();
 });
 
