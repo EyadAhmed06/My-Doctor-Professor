@@ -13,6 +13,9 @@ class BodyParserProbeController {
 
   @Post('questions/imports/publish')
   publish(@Body() body: { text: string }) { return { length: body.text.length }; }
+
+  @Post('questions/imports/essay/publish')
+  publishEssay(@Body() body: { text: string }) { return { length: body.text.length }; }
 }
 
 describe('Publication body parsing', () => {
@@ -37,5 +40,10 @@ describe('Publication body parsing', () => {
     const text = 'x'.repeat(9 * 1024 * 1024);
     await request(app.getHttpServer()).post('/api/v1/questions/imports/publish').send({ text }).expect(201, { length: text.length });
     await request(app.getHttpServer()).post('/api/v1/auth/login').send({ text: 'x'.repeat(150 * 1024) }).expect(413);
+  });
+
+  it('accepts essay publication JSON above the default 100 KB parser limit', async () => {
+    const text = 'x'.repeat(256 * 1024);
+    await request(app.getHttpServer()).post('/api/v1/questions/imports/essay/publish').send({ text }).expect(201, { length: text.length });
   });
 });
