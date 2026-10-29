@@ -290,9 +290,9 @@ export function EssayQuestionImportPage() {
   async function publish(scopeIds?: string[]){
     if(!inspection||publishing||creatingCases)return;
     const selected = candidates.filter(item => (scopeIds ? scopeIds.includes(item.candidate_id) : item.approved) && !publishedQuestionIds.has(item.candidate_id));
-    if(!selected.length){setError("Select at least one essay question to publish.");return;}
+    if(!selected.length){const message="Select at least one essay question to publish.";setError(message);notify({title:"Nothing to publish",description:message,tone:"info"});return;}
     const blocked = selected.find(item=>item.status==="INVALID"||!item.question_text.trim()||!item.model_answer?.trim()||!topicFor(item)||!Number.isFinite(item.marks)||item.marks<=0);
-    if(blocked){setError("Selected essay questions need a valid source answer and an assigned destination topic before publication.");return;}
+    if(blocked){const message="Selected essay questions need a valid source answer and an assigned destination topic before publication.";setError(message);notify({title:"Essay publication blocked",description:message,tone:"error"});return;}
     if(!window.confirm(`Publish ${selected.length} selected essay question(s) to the Question Bank? Each question will be placed in its assigned topic. Review the destination first.`))return;
     setPublishing(true);setError(null);setPublishProgress({done:0,total:selected.length});
     let processed=0, created=0, reused=0, skipped=0;
@@ -326,7 +326,10 @@ export function EssayQuestionImportPage() {
       }
       notify({title:"Essay question bank updated",description:`${created} created · ${reused} reused · ${skipped} skipped across ${batches.length} batches.`,tone:"success"});
     }catch(c){
-      setError(`${c instanceof Error?c.message:"Unable to publish essay questions."} ${processed} of ${selected.length} questions were submitted successfully. Those selections are marked as published; retry to submit the remaining questions only.`);
+      const reason=c instanceof Error?c.message:"Unable to publish essay questions.";
+      const message=`${reason} ${processed} of ${selected.length} questions were submitted successfully. Those selections are marked as published; retry to submit the remaining questions only.`;
+      setError(message);
+      notify({title:"Essay publication failed",description:message,tone:"error"});
     }
     finally{setPublishing(false);setPublishProgress(null);}
   }
