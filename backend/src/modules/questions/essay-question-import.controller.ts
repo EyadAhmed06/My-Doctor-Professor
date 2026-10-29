@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Put, Query, 
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { UploadedResourceFile } from '../academic/resource-storage.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { DeniedRoles } from '../auth/decorators/denied-roles.decorator';
 import { RateLimit } from '../auth/decorators/rate-limit.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -14,6 +15,7 @@ import { EssayImportSessionsService } from './essay-import-sessions.service';
 
 @Controller('questions/imports/essay')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@DeniedRoles(UserRole.SYSTEM_ADMIN)
 export class EssayQuestionImportController {
   constructor(private readonly imports: EssayQuestionImportService, private readonly sessions: EssayImportSessionsService) {}
 
