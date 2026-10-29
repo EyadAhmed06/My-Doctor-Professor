@@ -22,7 +22,9 @@ type Topic = { id: string; topicName: string };
 type Lecture = { id: string; title: string; topics?: Topic[] };
 type Week = { id: string; weekNumber: number; title: string | null; lectures?: Lecture[] };
 type Course = { id: string; courseCode: string; courseName: string; weeks?: Week[] };
+type GroupDestination = "QUESTION_BANK" | "CASE_STUDIO" | "BOTH" | "SKIP";
 type StoredEssayReview = {
+  groupDestinations?: Record<string, GroupDestination>;
   courseId?: string;
   candidates?: Array<Partial<ReviewCandidate> & { candidate_id: string }>;
   groupTopics?: Record<string,string>;
@@ -68,6 +70,7 @@ export function EssayQuestionImportPage() {
   const [file,setFile]=useState<File|null>(null); const [standaloneType,setStandaloneType]=useState<'LECTURE'|'CASE'>('LECTURE'); const [rights,setRights]=useState(false); const [inspection,setInspection]=useState<Inspection|null>(null); const {items:candidates,setItems:setCandidates,resetItems:resetCandidates}=useEssayReviewHistory<ReviewCandidate>([]);
   const [loading,setLoading]=useState(true); const [inspecting,setInspecting]=useState(false); const [publishing,setPublishing]=useState(false); const [error,setError]=useState<string|null>(null);
   const [globalTopicId,setGlobalTopicId]=useState(""); const [groupTopics,setGroupTopics]=useState<Record<string,string>>({});
+  const [groupDestinations,setGroupDestinations]=useState<Record<string,GroupDestination>>({});
   const [caseWeeks,setCaseWeeks]=useState<Record<string,string>>({}); const [creatingCases,setCreatingCases]=useState(false);
   const [stage,setStage]=useState<"UPLOAD"|"REVIEW"|"ORGANIZE"|"PUBLISH">("UPLOAD");
   const [reviewPosition,setReviewPosition]=useState<EssayReviewPosition>({mode:"REVIEW",groupId:"",questionId:""});
@@ -94,7 +97,7 @@ export function EssayQuestionImportPage() {
       if(Object.keys(change).length>1)changes.push(change);
     }
     const review:StoredEssayReview = {
-      courseId,groupTopics,caseWeeks,globalTopicId,published:[...publishedQuestionIds],
+      courseId,groupTopics,caseWeeks,groupDestinations,globalTopicId,published:[...publishedQuestionIds],
       candidates:changes,
     };
     const serialized=JSON.stringify(review);
@@ -134,7 +137,7 @@ export function EssayQuestionImportPage() {
       })();
     },1800);
     return ()=>window.clearTimeout(timer);
-  },[sessionId,inspection,candidates,courseId,groupTopics,caseWeeks,globalTopicId,publishedQuestionIds,request,savingReview,reviewSaveError,saveRetryCount]);
+  },[sessionId,inspection,candidates,courseId,groupTopics,caseWeeks,groupDestinations,globalTopicId,publishedQuestionIds,request,savingReview,reviewSaveError,saveRetryCount]);
 
   // Store the in-progress review in this tab only. The uploaded source itself
   // is never persisted, and another instructor cannot load this tab's snapshot.
@@ -149,12 +152,12 @@ export function EssayQuestionImportPage() {
           candidate_id: item.candidate_id, approved: item.approved, model_answer: item.model_answer,
           question_text: item.question_text, case_stem: item.case_stem, marks: item.marks, difficulty: item.difficulty,
         })),
-        groupTopics, caseWeeks, globalTopicId, published: [...publishedQuestionIds],
+        groupTopics, caseWeeks, groupDestinations, globalTopicId, published: [...publishedQuestionIds],
       }));
     } catch { /* quota exceeded or storage restricted: imports remain usable in memory */ }
     }, 500);
     return ()=>window.clearTimeout(timer);
-  }, [reviewStorageKey, candidates, courseId, groupTopics, caseWeeks, globalTopicId, publishedQuestionIds]);
+  }, [reviewStorageKey, candidates, courseId, groupTopics, caseWeeks, groupDestinations, globalTopicId, publishedQuestionIds]);
 
 
   const load = useCallback(async()=>{ if(!user||user.role==="STUDENT")return; setLoading(true);
@@ -209,6 +212,7 @@ export function EssayQuestionImportPage() {
       resetCandidates(reviewedCandidates(result,result.review||null));
       setGroupTopics(result.review?.groupTopics||{});
       setCaseWeeks(result.review?.caseWeeks||{});
+      setGroupDestinations(result.review?.groupDestinations||{});
       setGlobalTopicId(result.review?.globalTopicId||"");
       setPublishedQuestionIds(new Set(result.review?.published||[]));
       setStage("REVIEW");setRights(true);
@@ -220,14 +224,14 @@ export function EssayQuestionImportPage() {
   async function inspect(event:FormEvent){event.preventDefault(); if(!file){notify({title:"Choose an essay file",tone:"info"});return} if(!rights){notify({title:"Permission confirmation required",tone:"info"});return}
     const json=/\.(json|txt)$/i.test(file.name);
     if(!(/\.pdf$/i.test(file.name)||json)||!file.size||file.size>(json?2:50)*1024*1024){notify({title:"Unsupported essay file",description:"Choose a non-empty PDF (50 MB), JSON or JSON text (2 MB).",tone:"error"});return}
-    setInspecting(true);setError(null);setSessionId(null);setReviewSaveError(null);setReviewSavedAt(null);setInspection(null);setReviewPosition({mode:"REVIEW",groupId:"",questionId:""});resetCandidates([]);setGlobalTopicId("");setGroupTopics({});setCaseWeeks({});setPublishedQuestionIds(new Set());setPublishDestination("QUESTION_BANK");setStage("UPLOAD"); try{const body=new FormData();body.append("file",file);body.append("copyright_confirmed","true");body.append("content_type",standaloneType); const created=await request<{session_id:string}>("/questions/imports/essay/sessions/inspect",{method:"POST",body,signal:AbortSignal.timeout(60000)});
+    setInspecting(true);setError(null);setSessionId(null);setReviewSaveError(null);setReviewSavedAt(null);setInspection(null);setReviewPosition({mode:"REVIEW",groupId:"",questionId:""});resetCandidates([]);setGlobalTopicId("");setGroupTopics({});setCaseWeeks({});setGroupDestinations({});setPublishedQuestionIds(new Set());setPublishDestination("QUESTION_BANK");setStage("UPLOAD"); try{const body=new FormData();body.append("file",file);body.append("copyright_confirmed","true");body.append("content_type",standaloneType); const created=await request<{session_id:string}>("/questions/imports/essay/sessions/inspect",{method:"POST",body,signal:AbortSignal.timeout(60000)});
       const result=await fetchSavedSession(created.session_id);
       setSessionId(created.session_id);sessionRevision.current=Number.isSafeInteger(result.revision)?result.revision:NaN;lastSavedReview.current="";
       setSavedSessions(previous=>[{session_id:created.session_id,original_filename:result.original_filename,total:result.total},...previous].slice(0,10)); let restored: StoredEssayReview|null = null;
       try { const raw=sessionStorage.getItem(`mdp:essay-review:v2:${user?.id}:${result.file_sha256}`); if(raw) restored=JSON.parse(raw); } catch { /* corrupt or unavailable saved review */ }
       setInspection(result);setStage("REVIEW");
       resetCandidates(reviewedCandidates(result,restored));
-      if(restored && restored.courseId===courseId){setGroupTopics(restored.groupTopics||{});setCaseWeeks(restored.caseWeeks||{});setGlobalTopicId(restored.globalTopicId||"");}
+      if(restored && restored.courseId===courseId){setGroupTopics(restored.groupTopics||{});setCaseWeeks(restored.caseWeeks||{});setGroupDestinations(restored.groupDestinations||{});setGlobalTopicId(restored.globalTopicId||"");}
       if(restored?.published)setPublishedQuestionIds(new Set(restored.published)); notify({title:"Essay file inspected",description:`${result.summary.cases} cases · ${result.summary.lectures ?? 0} lectures · ${result.summary.extracted} essay questions detected.`,tone:"success"});}catch(c){const msg=c instanceof Error?c.message:"Unable to inspect essay PDF.";setError(msg);notify({title:"Essay inspection failed",description:msg,tone:"error"});}finally{setInspecting(false)}}
 
   const update=useCallback((id:string, patch:Partial<ReviewCandidate>)=>{
