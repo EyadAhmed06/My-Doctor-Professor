@@ -105,6 +105,7 @@ jobs:
               "echo 'Starting pinned production release " + sha + "'",
               "sudo /opt/mdp/update-ec2.sh " + sha,
               "sudo docker inspect mdp-backend mdp-frontend --format '{{.Name}} {{.Config.Image}} {{.State.Health.Status}}'",
+              "sudo docker exec mdp-backend sh -lc 'set -eu; command -v pdfinfo; command -v pdftotext; command -v pdftoppm; command -v tesseract; pdfinfo -v 2>&1 | head -n 1; tesseract --version | head -n 1'",
               "echo 'PRODUCTION_RELEASE_SUCCESS " + sha + "'",
           ]
           with open(target, "w") as output:
