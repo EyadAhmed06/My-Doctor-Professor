@@ -364,7 +364,7 @@ export function EssayQuestionImportPage() {
 
   async function createCaseDrafts(publishNow=false){
     if(!inspection||!courseId||!mappedCaseDraftGroups.length||creatingCases||publishing||user?.role!=="INSTRUCTOR")return;
-    if(publishNow&&!window.confirm(`Publish ${mappedCaseDraftGroups.length} selected clinical case(s) to students in their assigned weeks? Existing matching cases will be skipped, not changed.`))return;
+    if(publishNow&&!window.confirm(`Publish ${mappedCaseDraftGroups.length} selected essay practice set(s) to students in their assigned weeks? Existing matching cases will be skipped, not changed.`))return;
     setCreatingCases(true);setError(null);
     let created=0,skipped=0,publishedExisting=0;
     try{
@@ -377,7 +377,8 @@ export function EssayQuestionImportPage() {
         const first=items[0];
         const weekId=caseWeeks[key];
         const sourceNumber=first.block_type==="LECTURE"?null:first.case_number;
-        const dedupKey=JSON.stringify([weekId,sourceNumber,first.section||"",first.case_stem.trim()]);
+        const studioStem=(first.case_stem||first.section).trim();
+        const dedupKey=JSON.stringify([weekId,sourceNumber,first.section||"",studioStem]);
         const prior=existing.get(dedupKey);
         if(prior){
           if(publishNow&&!prior.isPublished){ await request(`/essay-cases/${prior.id}`,{method:"PUT",body:{is_published:true}}); publishedExisting++; }
@@ -385,15 +386,15 @@ export function EssayQuestionImportPage() {
           continue;
         }
         await request("/essay-cases",{method:"POST",body:{
-          week_id:weekId,title:first.block_type==="LECTURE"?first.section.slice(0,200):`Case ${first.case_number}`,stem:first.case_stem||first.section,
+          week_id:weekId,title:first.block_type==="LECTURE"?first.section.slice(0,200):`Case ${first.case_number}`,stem:studioStem,
           section:first.section.slice(0,120),...(sourceNumber===null?{}:{source_case_number:sourceNumber}),
           is_published:publishNow,questions:[...items].sort((a,b)=>a.question_number-b.question_number).map((item)=>({
             prompt:item.question_text,model_answer:item.model_answer!.trim(),
           })),
         }});
-        existing.set(dedupKey,{id:"",isPublished:publishNow,weekId,sourceCaseNumber:sourceNumber,section:first.section,stem:first.case_stem});created++;
+        existing.set(dedupKey,{id:"",isPublished:publishNow,weekId,sourceCaseNumber:sourceNumber,section:first.section,stem:studioStem});created++;
       }
-      notify({title:publishNow?"Clinical cases published":"Case Studio drafts created",description:`${created} new cases · ${publishedExisting} existing drafts published · ${skipped} matching cases unchanged.`,tone:"success"});
+      notify({title:publishNow?"Essay practice sets published":"Studio drafts created",description:`${created} new sets · ${publishedExisting} existing drafts published · ${skipped} matching sets unchanged.`,tone:"success"});
     }catch(c){
       const message=c instanceof Error?c.message:"Unable to create Case Studio drafts.";
       setError(`${message} (${created} case drafts created before the error; retry will skip existing drafts.)`);
