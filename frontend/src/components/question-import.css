@@ -790,10 +790,11 @@
 .essay-v31-summary .essay-v31-reason{white-space:normal;font-size:.82rem;opacity:.85;}
 .essay-v3-organization,.essay-v3-publication{margin-bottom:20px;}
 @media(max-width:700px){
-  .essay-v32-global-actions{left:5px;right:5px;bottom:max(4px,env(safe-area-inset-bottom));padding:9px;border-radius:10px;}
+  /* Reserve the mobile workspace dock; overlapping fixed bars intercept taps. */
+  .essay-v32-global-actions{left:5px;right:5px;bottom:calc(92px + env(safe-area-inset-bottom));padding:9px;border-radius:10px;}
   .essay-v32-progress{font-size:.86rem;}
   .essay-v32-progress small{font-size:.73rem;max-width:36ch;}
   .essay-v32-global-actions button{padding:8px 11px;font-size:.9rem;}
-  .essay-v3-review .essay-v3-question-nav{bottom:112px;}
-  .pp-page:has(.essay-v32-global-actions){padding-bottom:150px;}
+  .essay-v3-review .essay-v3-question-nav{bottom:205px;}
+  .pp-page:has(.essay-v32-global-actions){padding-bottom:255px;}
 }
