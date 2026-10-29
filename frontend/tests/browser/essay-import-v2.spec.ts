@@ -92,10 +92,15 @@ test('essay importer reviews mixed cases and lectures without requiring course b
   await page.getByRole('button', { name: /Organize questions/ }).click();
   await expect(page.getByRole('heading',{name:'Organize your questions'})).toBeVisible();
   await expect(page.getByRole('table')).toContainText('Protein chemistry');
+  const routes=page.getByRole('combobox',{name:/Destination for/});
+  await expect(routes).toHaveCount(2);
+  await routes.last().selectOption('BOTH');
+  await expect(page.getByRole('combobox',{name:/Studio week for/})).toHaveCount(0);
+  await expect(page.getByRole('combobox',{name:/Case Studio week for/})).toHaveCount(1);
   await page.getByRole('button', { name: /Review publication/ }).click();
   await expect(page.getByRole('heading',{name:'Ready to publish?'})).toBeVisible();
   await page.getByRole('button', { name: 'Case Studio', exact:true }).click();
-  await expect(page.getByText(/Clinical cases are saved under their assigned/)).toBeVisible();
+  await expect(page.getByText(/Cases and lecture practice sets are saved under their assigned/)).toBeVisible();
   await page.getByRole('button', { name: 'Question Bank', exact:true }).click();
   await expect(page.getByText(/Individual essay questions are published into/)).toBeVisible();
   await expect(page.getByText(/Publication is blocked/)).toBeVisible();
