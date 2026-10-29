@@ -120,10 +120,17 @@ export function EssayQuestionImportPage() {
           const response=await request<{revision:number}>(`/questions/imports/essay/sessions/${sessionId}/review`,{
             method:"PUT",body:{revision:sessionRevision.current,review},
           });
-          if (!Number.isSafeInteger(response.revision)) {
-            throw new Error("The server did not acknowledge the saved review revision.");
+          if (!Number.isSafeInteger(response?.revision)) {
+            // A response without a revision is not proof of persistence.
+            // Check the authoritative session before acknowledging the save.
+            const verified=await request<{revision:number;review?:StoredEssayReview}>(`/questions/imports/essay/sessions/${sessionId}`);
+            if (!Number.isSafeInteger(verified?.revision) || JSON.stringify(verified.review??{})!==serialized) {
+              throw new Error("The server did not confirm the review was saved. Your edits remain in this tab.");
+            }
+            sessionRevision.current=verified.revision;
+          } else {
+            sessionRevision.current=response.revision;
           }
-          sessionRevision.current=response.revision;
           lastSavedReview.current=serialized;
           setReviewSavedAt(Date.now());
         } catch(c) {
