@@ -51,6 +51,18 @@ function topicsFor(course: Course | null) {
   return (course?.weeks || []).flatMap((week) => (week.lectures || []).flatMap((lecture) => (lecture.topics || []).map((topic) => ({ ...topic, label: `Week ${week.weekNumber} · ${lecture.title} · ${topic.topicName}` }))));
 }
 
+function canonicalReview(value:unknown):string {
+  const normalized=(input:unknown):unknown=>{
+    if(Array.isArray(input))return input.map(normalized);
+    if(input&&typeof input==="object")return Object.fromEntries(
+      Object.entries(input as Record<string,unknown>).sort(([a],[b])=>a.localeCompare(b))
+        .map(([key,entry])=>[key,normalized(entry)])
+    );
+    return input;
+  };
+  return JSON.stringify(normalized(value));
+}
+
 function normalizedSubject(value: string) {
   return value.toLowerCase().replace(/^lecture\\s+\\d+\\s*[:.-]?\\s*/,"").replace(/[^a-z0-9]+/g," ").trim();
 }
@@ -124,7 +136,7 @@ export function EssayQuestionImportPage() {
             // A response without a revision is not proof of persistence.
             // Check the authoritative session before acknowledging the save.
             const verified=await request<{revision:number;review?:StoredEssayReview}>(`/questions/imports/essay/sessions/${sessionId}`);
-            if (!Number.isSafeInteger(verified?.revision) || JSON.stringify(verified.review??{})!==serialized) {
+            if (!Number.isSafeInteger(verified?.revision) || canonicalReview(verified.review??{})!==canonicalReview(review)) {
               throw new Error("The server did not confirm the review was saved. Your edits remain in this tab.");
             }
             sessionRevision.current=verified.revision;
