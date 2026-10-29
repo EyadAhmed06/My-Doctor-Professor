@@ -41,7 +41,7 @@ export class EssayQuestionImportController {
     @CurrentUser() actor: AuthenticatedUser,
   ) {
     const kind = dto.content_type === 'CASE' ? 'CASE' : 'LECTURE';
-    const inspection = /\\.(json|txt)$/i.test(file?.originalname || '')
+    const inspection = /\.(json|txt)$/i.test(file?.originalname || '')
       ? await this.imports.inspectJson(dto.copyright_confirmed, file, kind)
       : await this.imports.inspectPdf(dto.copyright_confirmed, file, kind);
     return this.sessions.create(actor.userId, inspection);
@@ -95,3 +95,4 @@ export class EssayQuestionImportController {
     return this.imports.publish(dto, actor);
   }
 }
+
