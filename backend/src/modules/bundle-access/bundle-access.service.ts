@@ -1,4 +1,3 @@
-import { buildInstructorCourseAccessSql } from './instructor-course-access';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, ObjectLiteral, SelectQueryBuilder } from 'typeorm';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
@@ -23,8 +22,8 @@ export class BundleAccessService {
     if (actor.role === UserRole.SYSTEM_ADMIN) return;
     if (actor.role === UserRole.INSTRUCTOR) {
       const allowed = await this.exists(
-        `SELECT 1 FROM courses course WHERE course.id = $1 AND ${buildInstructorCourseAccessSql('course.id', '$2')}`,
-        [courseId, actor.userId],
+        `SELECT 1 FROM courses course WHERE course.id = $1`,
+        [courseId],
       );
       if (!allowed) throw new NotFoundException('Course not found');
       return;
@@ -41,8 +40,8 @@ export class BundleAccessService {
     if (actor.role === UserRole.INSTRUCTOR) {
       const allowed = await this.exists(
         `SELECT 1 FROM weeks week
-         WHERE week.id = $1 AND ${buildInstructorCourseAccessSql('week.course_id', '$2')}`,
-        [weekId, actor.userId],
+         WHERE week.id = $1`,
+        [weekId],
       );
       if (!allowed) throw new NotFoundException('Week not found');
       return;
@@ -63,8 +62,8 @@ export class BundleAccessService {
       const allowed = await this.exists(
         `SELECT 1 FROM lectures lecture
          JOIN weeks week ON week.id = lecture.week_id
-         WHERE lecture.id = $1 AND ${buildInstructorCourseAccessSql('week.course_id', '$2')}`,
-        [lectureId, actor.userId],
+         WHERE lecture.id = $1`,
+        [lectureId],
       );
       if (!allowed) throw new NotFoundException('Lecture not found');
       return;
