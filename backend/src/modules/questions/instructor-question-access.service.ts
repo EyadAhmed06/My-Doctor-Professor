@@ -1,4 +1,3 @@
-import { buildInstructorCourseAccessSql } from '../bundle-access/instructor-course-access';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository } from 'typeorm';
@@ -20,7 +19,7 @@ export class InstructorQuestionAccessService {
       .leftJoin('week.course', 'course')
       .leftJoinAndSelect('question.questionTags', 'questionTag')
       .leftJoinAndSelect('questionTag.tag', 'tag')
-      .where(buildInstructorCourseAccessSql('course.id', ':instructorId'), { instructorId: actor.userId })
+      .where('course.id IS NOT NULL')
       .orderBy('question.created_at', 'DESC')
       .skip((page - 1) * limit)
       .take(limit);
