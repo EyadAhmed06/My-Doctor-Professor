@@ -9,7 +9,7 @@ import { QuestionQueryDto, SearchQuestionsDto } from './dtos/questions.dto';
 export class InstructorQuestionAccessService {
   constructor(@InjectRepository(Question) private readonly questions: Repository<Question>) {}
 
-  async list(query: QuestionQueryDto, actor: AuthenticatedUser) {
+  async list(query: QuestionQueryDto, _actor: AuthenticatedUser) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const builder = this.questions.createQueryBuilder('question')
