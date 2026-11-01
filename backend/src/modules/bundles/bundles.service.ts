@@ -231,17 +231,11 @@ export class BundlesService {
   }
 
   async managed(actor: AuthenticatedUser) {
-    let bundlesList: Bundle[] = [];
-    if (actor.role === UserRole.SYSTEM_ADMIN) {
-      bundlesList = await this.bundles.find({ order: { createdAt: 'DESC' } });
-    } else {
-      const assignments = await this.bundleInstructors.find({ where: { instructorId: actor.userId } });
-      if (!assignments.length) return [];
-      bundlesList = await this.bundles.createQueryBuilder('bundle')
-        .where('bundle.id IN (:...ids)', { ids: assignments.map((item) => item.bundleId) })
-        .orderBy('bundle.created_at', 'DESC')
-        .getMany();
+    // Instructor role grants visibility across all academic bundles; assignments remain teaching metadata.
+    if (actor.role !== UserRole.INSTRUCTOR && actor.role !== UserRole.SYSTEM_ADMIN) {
+      throw new ForbiddenException('Instructor access required');
     }
+    const bundlesList = await this.bundles.find({ order: { createdAt: 'DESC' } });
     const semesterMap = await this.resolveBundleSemesters(bundlesList.map((b) => b.id), bundlesList);
     return bundlesList.map((bundle) => {
       const semesterNumber = semesterMap.get(bundle.id) ?? (bundle.academicYear ? (bundle.academicYear * 2) - 1 : 1);
@@ -319,8 +313,7 @@ export class BundlesService {
     const semesterMap = await this.resolveBundleSemesters([id], [bundle]);
     const bundleSemester = semesterMap.get(id) ?? (bundle.academicYear ? (bundle.academicYear * 2) - 1 : 1);
 
-    if (actor.role !== UserRole.STUDENT) {
-      await this.assertManager(id, actor);
+    if (actor.role === UserRole.INSTRUCTOR || actor.role === UserRole.SYSTEM_ADMIN) {
       return {
         ...bundle,
         read_only: false,
