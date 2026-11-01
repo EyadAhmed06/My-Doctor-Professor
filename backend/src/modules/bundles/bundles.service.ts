@@ -528,7 +528,9 @@ export class BundlesService {
   }
 
   async management(id: string, actor: AuthenticatedUser) {
-    await this.assertManager(id, actor);
+    if (actor.role !== UserRole.INSTRUCTOR && actor.role !== UserRole.SYSTEM_ADMIN) {
+      throw new ForbiddenException('Instructor access required');
+    }
     const bundle = await this.requireBundle(id);
     const [courseLinks, weekLinks, testLinks, instructorLinks, enrollmentRows, planWeekLinks, planGrantRows, semesterMap] = await Promise.all([
       this.bundleCourses.find({ where: { bundleId: id }, relations: { course: { weeks: true, semester: true } } }),
