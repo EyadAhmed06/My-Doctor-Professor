@@ -1,11 +1,13 @@
-import { ForbiddenException } from '@nestjs/common';
 import { UserRole } from '../users/entities/user.entity';
 import { EssayCasesService } from './essay-cases.service';
 
 describe('EssayCasesService security', () => {
-  it('does not let an instructor claim an unassigned course through a management request', async () => {
-    const query = jest.fn().mockResolvedValue([]);
-    const service = new EssayCasesService({ query } as never);
+  it('lets an instructor access unassigned course curriculum without changing assignments', async () => {
+    const query = jest.fn(async (sql: string) => {
+      if (sql.includes('SELECT 1 FROM courses WHERE id')) return [{ allowed: 1 }];
+      return [];
+    });
+    const service = new EssayCasesService({ query } as never, {} as never);
 
     await expect(service.listCurriculum(
       '11111111-1111-4111-8111-111111111111',
@@ -15,11 +17,10 @@ describe('EssayCasesService security', () => {
         email: 'instructor@example.com',
         role: UserRole.INSTRUCTOR,
       },
-    )).rejects.toBeInstanceOf(ForbiddenException);
+    )).resolves.toEqual(expect.objectContaining({ weeks: [] }));
 
-    expect(query).toHaveBeenCalledTimes(1);
-    expect(String(query.mock.calls[0][0])).toContain('course_instructors');
-    expect(query.mock.calls.some(([sql]) => /INSERT\s+INTO\s+course_instructors/i.test(String(sql)))).toBe(false);
+    expect(query.mock.calls.some(([sql]) => /course_instructors|bundle_instructors/i.test(String(sql)))).toBe(false);
+    expect(query.mock.calls.some(([sql]) => /INSERT\\s+INTO\\s+course_instructors/i.test(String(sql)))).toBe(false);
   });
 
   it('does not select model answers for an unrevealed student attempt', async () => {
@@ -44,7 +45,7 @@ describe('EssayCasesService security', () => {
       }
       return [];
     });
-    const service = new EssayCasesService({ query } as never);
+    const service = new EssayCasesService({ query } as never, {} as never);
 
     const result = await service.getCase(
       'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
