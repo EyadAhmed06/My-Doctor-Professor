@@ -43,17 +43,17 @@ return <section className="essay-v3-organization" aria-label="Organize essay pub
     </>:<>
       <label>Bulk week<select aria-label="Bulk Case Studio week" value={bulkWeek} disabled={!courseId||busy} onChange={e=>setBulkWeek(e.target.value)}><option value="">Choose a week…</option>{(course?.weeks||[]).map(w=><option key={w.id} value={w.id}>Week {w.weekNumber}{w.title?` · ${w.title}`:""}</option>)}</select></label>
       <button type="button" className="essay-v3-secondary" disabled={!bulkWeek||busy} onClick={()=>{
-        // The global Studio tab is a filter for assigning clinical cases.
+        // The Studio tab can route both clinical cases and lecture practice sets.
         // Default routing is QUESTION_BANK, so filtering on existing Studio
         // destinations used to make this button a silent no-op.
         for(const [id,rows] of groups){
-          if(rows[0].block_type!=="CASE"||!rows.some(q=>q.approved))continue;
+          if(!rows.some(q=>q.approved))continue;
           const current=groupDestinations[id]||"QUESTION_BANK";
           if(current==="SKIP")continue;
           onGroupDestination(id,current==="QUESTION_BANK"?"CASE_STUDIO":current);
           onCaseWeek(id,bulkWeek);
         }
-      }}>Apply week to selected clinical cases</button>
+      }}>Apply week to selected sections</button>
     </>}
   </div>
   <p className="essay-v3-instruction">Question Bank accepts essay questions extracted from both lectures and cases, organized by topic. Studio stores complete question sets by week; lecture-based sets use their lecture title rather than being labeled clinical cases. Routing is configured independently for each section.</p>
