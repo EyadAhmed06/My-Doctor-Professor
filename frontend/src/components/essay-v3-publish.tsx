@@ -33,7 +33,12 @@ return <section className="essay-v3-publication" aria-label="Publication review"
     {progress&&<div className="essay-v3-publish-progress" role="status"><label>Publishing {progress.done} of {progress.total} questions</label><progress value={progress.done} max={progress.total}/></div>}
     <div className="essay-v3-publish-actions"><button type="button" disabled={busy||noSelection||bankBlocked||readyCount!==selected.length} onClick={onPublishQuestions}>{busy?"Publishing…":`Publish ${readyCount} questions to Question Bank`}</button></div>
   </>:<>
-    <div className="essay-v3-readiness" role="status"><p>{validCaseGroups} of {caseGroups} Studio sections have a valid week assignment and answers. Other sections will not be submitted.</p></div>
+    <div className="essay-v3-readiness" role="status"><p>{caseGroups===0
+      ? "No sections are routed to Case Studio. Go back to Organize, choose Case Studio or Both for the sections you want, select a destination course and week, then return here."
+      : validCaseGroups===0
+        ? `None of the ${caseGroups} Studio sections are ready. In Organize, assign a valid week and check every selected question has a model answer.`
+        : `${validCaseGroups} of ${caseGroups} Studio sections are ready to create or publish. Sections without valid weeks and answers will not be submitted.`}</p></div>
+    {validCaseGroups===0&&<div className="essay-v3-publish-actions"><button type="button" className="essay-v3-secondary" onClick={onBack} disabled={busy}>Fix Case Studio destinations →</button></div>}
     <div className="essay-v3-publish-actions"><button type="button" disabled={busy||!validCaseGroups} onClick={onCreateCases}>{busy?"Processing…":`Create ${validCaseGroups} draft practice sets`}</button><button type="button" disabled={busy||!validCaseGroups} onClick={onPublishCases}>{busy?"Processing…":`Publish ${validCaseGroups} practice sets to students`}</button></div>
   </>}
 
