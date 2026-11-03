@@ -1,4 +1,3 @@
-import { buildInstructorCourseAccessSql } from '../bundle-access/instructor-course-access';
 import {
   ConflictException,
   ForbiddenException,
@@ -181,11 +180,6 @@ export class AcademicService {
     if (actor.role === UserRole.STUDENT) {
       builder.andWhere('course.is_active = TRUE');
       this.bundleAccess.applyStudentAccessScope(builder, 'course', actor.userId);
-    } else if (actor.role === UserRole.INSTRUCTOR) {
-      builder.andWhere(buildInstructorCourseAccessSql('course.id', ':actorId'), { actorId: actor.userId });
-      if (query.is_active !== undefined) {
-        builder.andWhere('course.is_active = :isActive', { isActive: query.is_active });
-      }
     } else if (query.is_active !== undefined) {
       builder.andWhere('course.is_active = :isActive', {
         isActive: query.is_active,
