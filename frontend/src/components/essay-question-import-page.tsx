@@ -180,7 +180,12 @@ export function EssayQuestionImportPage() {
 
 
   const load = useCallback(async()=>{ if(!user||user.role==="STUDENT")return; setLoading(true);
-    try { setCourses((await request<PageResponse<Course>>("/academic/courses?limit=100")).data); }
+    try {
+      const response=await request<PageResponse<Course>>("/academic/courses?limit=100");
+      const available=Array.isArray(response?.data)?response.data:[];
+      setCourses(available);
+      if(!available.length)setError("No destination courses were returned for this account. Course selection is unavailable; please reload after the instructor access update is deployed.");
+    }
     catch(c) { setError(c instanceof Error?c.message:"Unable to load courses."); }
     try { setSavedSessions(await request<EssaySessionSummary[]>("/questions/imports/essay/sessions")); }
     catch { /* The importer remains usable if saved-session listing is unavailable. */ }
