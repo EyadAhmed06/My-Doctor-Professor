@@ -519,6 +519,25 @@ export function BundleManagementPanel({ bundleId, onChanged, onDeleted }: {
                             <FiCheck /> {translate("Confirm payment")}
                           </button>
                         )}
+                        {row.status === "REVOKED" && (row.paymentStatus === "PAID" || (data.bundle.isFree && row.paymentStatus === "NOT_REQUIRED")) && (
+                          <button
+                            type="button"
+                            className="primary"
+                            disabled={busy}
+                            onClick={() => {
+                              if (!window.confirm(`Restore access for ${row.student.fullName}? Their existing payment confirmation will be preserved.`)) return;
+                              void mutate(
+                                `/bundles/${bundleId}/enrollments/${row.student.id}/restore`,
+                                "POST",
+                                undefined,
+                                "Access restored"
+                              );
+                            }}
+                            title="Restore access without reconfirming payment"
+                          >
+                            <FiRefreshCw /> Restore access
+                          </button>
+                        )}
                         {isActive && (
                           <button
                             type="button"
