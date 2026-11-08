@@ -272,6 +272,16 @@ export class BundlesController {
     return this.bundles.confirmPayment(id, actor, studentId, dto);
   }
 
+  @Post(':bundleId/enrollments/:studentId/restore')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  restore(
+    @Param('bundleId', uuid) id: string,
+    @Param('studentId', uuid) studentId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.bundles.restore(id, actor, studentId);
+  }
+
   @Delete(':bundleId/enrollments/:studentId')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
