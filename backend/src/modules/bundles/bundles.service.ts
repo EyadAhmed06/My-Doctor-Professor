@@ -880,6 +880,32 @@ export class BundlesService {
     return this.enrollments.save(enrollment);
   }
 
+  async restore(id: string, actor: AuthenticatedUser, studentId: string) {
+    await this.assertManager(id, actor);
+    const [bundle, student, enrollment] = await Promise.all([
+      this.requireBundle(id),
+      this.users.findOne({ where: { id: studentId, role: UserRole.STUDENT, status: UserStatus.ACTIVE } }),
+      this.enrollments.findOne({ where: { bundleId: id, studentId } }),
+    ]);
+    if (!student) throw new NotFoundException('Active student not found');
+    if (!enrollment) throw new NotFoundException('Bundle enrollment not found');
+    if (enrollment.status === BundleEnrollmentStatus.ACTIVE) return enrollment;
+    if (enrollment.status !== BundleEnrollmentStatus.REVOKED) {
+      throw new ConflictException('Only revoked enrollments can be restored');
+    }
+    if (bundle.isFree
+      ? enrollment.paymentStatus !== BundlePaymentStatus.NOT_REQUIRED && enrollment.paymentStatus !== BundlePaymentStatus.PAID
+      : enrollment.paymentStatus !== BundlePaymentStatus.PAID) {
+      throw new ConflictException('Payment has not been confirmed. Confirm payment before restoring access.');
+    }
+    if (enrollment.expiresAt && enrollment.expiresAt <= new Date()) {
+      throw new ConflictException('Enrollment has expired. Extend access before restoring it.');
+    }
+    // Restore the original purchase without overwriting paidAt, paymentReference, or its expiration.
+    enrollment.status = BundleEnrollmentStatus.ACTIVE;
+    return this.enrollments.save(enrollment);
+  }
+
   async revoke(id: string, actor: AuthenticatedUser, studentId: string) {
     await this.assertManager(id, actor);
     const enrollment = await this.enrollments.findOne({ where: { bundleId: id, studentId } });
