@@ -686,7 +686,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
           {notes[item.question.id] && <div className="review-explanation"><b>Your saved note</b><p style={{whiteSpace:"pre-wrap"}}>{notes[item.question.id]}</p></div>}
           {(drawings[item.question.id] || []).length > 0 && <div className="review-explanation"><b>Your pen markings</b><svg viewBox="0 0 1000 1000" preserveAspectRatio="none" style={{width:"100%",height:150,background:"var(--pp-surface,#f8f8fa)"}} aria-label="Saved pen markings">
             {(drawings[item.question.id] || []).map((stroke, index) => <polyline key={index} fill="none" stroke={stroke.color || "red"} strokeWidth={3} points={stroke.points.map(point => `${point.x},${point.y}`).join(" ")} />)}
-          </svg></div>
+          </svg></div>}
         </article>;
       })}
       <button className="pp-button" type="button" onClick={() => router.push(exitPath)}>Back</button>
