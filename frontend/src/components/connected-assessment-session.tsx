@@ -425,8 +425,10 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
         }
         setNoteAutoSaveStatus(failed ? "error" : "");
         noteAutoSaveInFlight.current = false;
-        // Recheck edits made while the previous request was in flight.
-        setNoteRetryTick(value => value + 1);
+        // Recheck newer edits, but never loop indefinitely on a network failure.
+        if (!failed && Object.keys(noteDrafts.current).length) {
+          setNoteRetryTick(value => value + 1);
+        }
       })();
     }, 950);
     return () => window.clearTimeout(timer);
