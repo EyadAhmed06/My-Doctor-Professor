@@ -19,6 +19,7 @@ import {
 } from "react-icons/fi";
 import { courseRouteKey, lectureRouteKey, resourceRouteKey } from "@/lib/routes";
 import { useAuth } from "./auth-provider";
+import { PdfResourceAnnotations } from "./pdf-resource-annotations";
 import { EmptyState, ErrorState, PageSkeleton } from "./async-state";
 import { ProductShell, Progress } from "./product-shell";
 import { useUx } from "./ux-provider";
@@ -418,7 +419,10 @@ function ResourcePreviewDrawer({ resource, completed, onToggleComplete, onClose 
       {!available && <div className="external-resource-preview"><FiFileText /><h3>File not uploaded</h3><p>This resource currently contains metadata only. The instructor must upload a real file before it can be previewed, downloaded, or marked complete.</p></div>}
       {!loading && !error && secureUrl && kind === "image" && <img src={secureUrl} alt={resource.resourceName} />}
       {!loading && !error && secureUrl && kind === "video" && <video src={secureUrl} controls preload="metadata" />}
-      {!loading && !error && secureUrl && kind === "pdf" && <iframe src={secureUrl} title={resource.resourceName} />}
+      {!loading && !error && secureUrl && kind === "pdf" && <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100%", overflowY: "auto" }}>
+        <iframe src={secureUrl} title={resource.resourceName} style={{ width: "100%", height: "min(68vh, 780px)", minHeight: 380, flexShrink: 0 }} />
+        <PdfResourceAnnotations key={resource.id} resourceId={resource.id} />
+      </div>}
       {!loading && !error && available && kind === "external" && <div className="external-resource-preview"><FiFileText /><h3>Preview unavailable inside the app</h3><p>This file type must be opened with its original viewer.</p></div>}
     </div>
     <footer><button className={`pp-button secondary ${completed ? "active" : ""}`} type="button" disabled={!available} onClick={onToggleComplete}>{completed ? <FiCheckCircle /> : <FiCheck />} {completed ? "Completed" : available ? "Mark complete" : "File unavailable"}</button>{managed ? <a className="pp-button" href={secureUrl || undefined} download={resource.resourceName} aria-disabled={!secureUrl}><FiDownload /> Download file</a> : external ? <a className="pp-button" href={resource.fileUrl} target="_blank" rel="noopener noreferrer"><FiExternalLink /> Open original</a> : <span className="guide-resource-total">No file to download</span>}</footer>
