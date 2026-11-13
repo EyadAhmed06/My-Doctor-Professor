@@ -301,9 +301,13 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
     void (async () => {
       const state = await request<WorkspaceState>(`/tests/attempts/${attemptId}/workspace-state`);
       if (!active) return;
+      // Restore saved notes for closed attempts as well as open ones.
+      const savedNotes = Object.fromEntries(state.notes.map((item) => [item.question_id, item.note]));
+      noteCommitted.current = savedNotes;
       // Closed attempts are review-only. Their active question endpoint may
       // intentionally reject access, so never request it before checking status.
       if (state.attempt.status !== "IN_PROGRESS") {
+        setNotes(savedNotes);
         const completedReview = await request<Review>(`/tests/attempts/${attemptId}/review`);
         if (!active) return;
         setAttempt(state.attempt);
@@ -316,8 +320,6 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
       setAnswers(Object.fromEntries(state.answers.filter((item) => item.selectedOptionId).map((item) => [item.questionId, item.selectedOptionId!])));
       setConfidence(Object.fromEntries(state.answers.filter((item) => item.confidenceLevel).map((item) => [item.questionId, item.confidenceLevel!])));
       setFlags(state.flagged_question_ids); setHardFlags(state.hard_question_ids || []);
-      const savedNotes = Object.fromEntries(state.notes.map((item) => [item.question_id, item.note]));
-      noteCommitted.current = savedNotes;
       let drafts: Record<string, string> = {};
       try {
         const parsed: unknown = JSON.parse(localStorage.getItem(noteDraftKey) || "{}");
@@ -625,12 +627,26 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
           options: item.question.options.map((option) => ({ id: option.id, explanation: option.explanation })),
         } : null;
         return <article className={`review-answer ${item.answer?.isCorrect === true ? "correct" : item.answer?.isCorrect === false ? "incorrect" : ""}`} key={item.question.id}>
-          <b>{i + 1}{forensicCode ? ` · ${forensicCode}` : ""}. {item.question.questionText}</b>
+          <b>{i + 1}{forensicCode ? ` · ${forensicCode}` : ""}. <HighlightableText
+            text={item.question.questionText}
+            ranges={highlights[item.question.id]?.stem || []}
+            enabled={false}
+            onHighlight={() => {}}
+          /></b>
           <strong>{resultLabel}</strong>
-          {selectedOption && <p><span>Your answer:</span> {selectedOption.optionText}</p>}
+          {selectedOption && <p><span>Your answer:</span> <HighlightableText
+            text={selectedOption.optionText}
+            ranges={highlights[item.question.id]?.options?.[selectedOption.id] || []}
+            enabled={false}
+            onHighlight={() => {}}
+          /></p>}
           {correctOption && item.answer?.isCorrect !== true && <p><span>Correct answer:</span> {correctOption.optionText}</p>}
           <div className="review-explanation"><b>Explanation</b><p>{item.question.explanation || "No explanation has been published for this question."}</p></div>
           {reviewFeedback && <TutorOptionReview feedback={reviewFeedback} options={item.question.options} />}
+          {notes[item.question.id] && <div className="review-explanation"><b>Your saved note</b><p style={{whiteSpace:"pre-wrap"}}>{notes[item.question.id]}</p></div>}
+          {(drawings[item.question.id] || []).length > 0 && <div className="review-explanation"><b>Your pen markings</b><svg viewBox="0 0 1000 1000" preserveAspectRatio="none" style={{width:"100%",height:150,background:"var(--pp-surface,#f8f8fa)"}} aria-label="Saved pen markings">
+            {(drawings[item.question.id] || []).map((stroke, index) => <polyline key={index} fill="none" stroke={stroke.color || "red"} strokeWidth={3} points={stroke.points.map(point => `${point.x},${point.y}`).join(" ")} />)}
+          </svg></div>
         </article>;
       })}
       <button className="pp-button" type="button" onClick={() => router.push(exitPath)}>Back</button>
