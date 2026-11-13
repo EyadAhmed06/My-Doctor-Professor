@@ -26,7 +26,7 @@ export class ResourceAnnotationsService {
     await this.access.assertResourceReadable(resourceId, actor);
     const kind = input?.kind;
     const page = input?.page_number;
-    const body = input?.body?.trim();
+    const body = typeof input?.body === 'string' ? input.body.trim() : undefined;
     if ((kind !== 'NOTE' && kind !== 'HIGHLIGHT')
       || !Number.isSafeInteger(page) || page! < 1 || page! > 10000
       || typeof body !== 'string' || !body.length || body.length > 4000) {
