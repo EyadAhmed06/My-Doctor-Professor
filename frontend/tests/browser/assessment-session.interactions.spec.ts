@@ -310,6 +310,24 @@ test('highlight and pen drawings survive a full page reload via the annotation A
   await expect(page.locator('.exam-pen-layer polyline')).toHaveCount(1);
 });
 
+test('unsaved question notes recover after a refresh and autosave to the account', async ({ page }) => {
+  await installAssessmentMock(page, 'TUTOR');
+  await page.goto(`/mock-exam/session?attempt=${attemptId}&test=${testId}&source=rounds`);
+  const note = page.getByPlaceholder('Write here — notes autosave to your account…');
+  await note.fill('Remember this reasoning even if the tab refreshes.');
+  // Reload before the debounce finishes: the draft must survive locally.
+  await page.reload();
+  await expect(page.getByPlaceholder('Write here — notes autosave to your account…'))
+    .toHaveValue('Remember this reasoning even if the tab refreshes.');
+  await page.waitForResponse(response =>
+    response.url().includes(`/tests/attempts/${attemptId}/notes/${q1}`)
+      && response.request().method() === 'PUT' && response.ok(),
+  );
+  await page.reload();
+  await expect(page.getByPlaceholder('Write here — notes autosave to your account…'))
+    .toHaveValue('Remember this reasoning even if the tab refreshes.');
+});
+
 test('Pen preserves every selected colour while a stroke grows', async ({ page }) => {
   await installAssessmentMock(page, 'TUTOR');
   await page.goto(`/mock-exam/session?attempt=${attemptId}&test=${testId}&source=rounds`);
