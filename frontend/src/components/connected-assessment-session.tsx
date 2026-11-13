@@ -227,6 +227,8 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   const annotationHydrationPending = useRef<string | null>(null);
   const noteCommitted = useRef<Record<string, string>>({});
   const noteDrafts = useRef<Record<string, string>>({});
+  const noteAutoSaveInFlight = useRef(false);
+  const [noteRetryTick, setNoteRetryTick] = useState(0);
   const [notesReady, setNotesReady] = useState(false);
   const [noteAutoSaveStatus, setNoteAutoSaveStatus] = useState<"saving" | "error" | "">("");
   const noteDraftKey = `mdp:assessment-note-drafts:${user?.id || "anonymous"}:${attemptId}`;
@@ -392,11 +394,13 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   // Write unsaved question-note drafts to the server and keep a local recovery copy
   // until the backend confirms each save. This survives refreshes and tab closure.
   useEffect(() => {
-    if (!notesReady || attempt?.status !== "IN_PROGRESS" || savingNoteId) return;
+    if (!notesReady || attempt?.status !== "IN_PROGRESS" || savingNoteId || noteAutoSaveInFlight.current) return;
     const pending = Object.entries(noteDrafts.current)
       .filter(([questionId, value]) => value !== (noteCommitted.current[questionId] || ""));
     if (!pending.length) return;
     const timer = window.setTimeout(() => {
+      if (noteAutoSaveInFlight.current) return;
+      noteAutoSaveInFlight.current = true;
       void (async () => {
         setNoteAutoSaveStatus("saving");
         let failed = false;
@@ -420,10 +424,13 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
           }
         }
         setNoteAutoSaveStatus(failed ? "error" : "");
+        noteAutoSaveInFlight.current = false;
+        // Recheck edits made while the previous request was in flight.
+        setNoteRetryTick(value => value + 1);
       })();
     }, 950);
     return () => window.clearTimeout(timer);
-  }, [notes, notesReady, attempt?.status, savingNoteId, request, attemptId, noteDraftKey]);
+  }, [notes, notesReady, attempt?.status, savingNoteId, request, attemptId, noteDraftKey, noteRetryTick]);
 
   useEffect(() => { setMoreOpen(false); setHighlightMode(false); setStrikeMode(false); setPenMode(false); setEraserMode(null); setSavedNoteId(null); }, [index]);
 
@@ -582,6 +589,37 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
     if (!auto && !window.confirm(`Submit this assessment with ${totalAnswered} of ${items.length} questions answered?`)) return;
     setSubmitting(true); setError(null);
     try {
+      // An exam must not close while the last edits are still only in the browser.
+      // Auto-expiry still proceeds, but its local recovery drafts are retained.
+      if (!auto) {
+        if (annotationInFlight.current || noteAutoSaveInFlight.current) {
+          throw new Error("Notes or highlights are still saving. Try submitting again after saving finishes.");
+        }
+        const snapshot = JSON.stringify({ highlights, struck, drawings });
+        if (annotationHydrationPending.current !== null) {
+          throw new Error("Your highlights are still being restored. Please try again.");
+        }
+        if (serverAnnotationsReady && snapshot !== annotationCommitted.current) {
+          const result = await request<{revision:number}>(`/tests/attempts/${attemptId}/annotations`, {
+            method: "PUT", body: { payload: JSON.parse(snapshot), revision: annotationRevision.current },
+          });
+          annotationRevision.current = result.revision;
+          annotationCommitted.current = snapshot;
+          annotationLatest.current = snapshot;
+          setAnnotationSaveStatus("saved");
+        } else if (!serverAnnotationsReady) {
+          throw new Error("Your annotations could not be loaded. Please retry when the connection is restored.");
+        }
+        for (const [questionId, value] of Object.entries(noteDrafts.current)) {
+          if (value.trim()) await request(`/tests/attempts/${attemptId}/notes/${questionId}`, {
+            method: "PUT", body: { note: value.trim() },
+          });
+          else if (noteCommitted.current[questionId]) await request(`/tests/attempts/${attemptId}/notes/${questionId}`, { method: "DELETE" });
+          noteCommitted.current[questionId] = value.trim();
+          if (noteDrafts.current[questionId] === value) delete noteDrafts.current[questionId];
+        }
+        try { localStorage.setItem(noteDraftKey, JSON.stringify(noteDrafts.current)); } catch { /* best effort */ }
+      }
       await request(`/tests/attempts/${attemptId}/submit`, { method: "POST" });
       setReview(await request<Review>(`/tests/attempts/${attemptId}/review`));
       celebrate({ id: `assessment-complete-${attemptId}`, title: "Practice completed", description: "A complete assessment attempt was submitted and preserved.", points: Math.min(100, Math.max(25, items.length)) });
@@ -591,7 +629,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
       }
       setError(cause instanceof Error ? cause.message : "Unable to submit the assessment.");
     } finally { setSubmitting(false); }
-  }, [answers, attemptId, celebrate, confidence, items, notify, pendingAnswers, request, totalAnswered, tutor]);
+  }, [answers, attemptId, celebrate, confidence, items, notify, pendingAnswers, request, totalAnswered, tutor, highlights, struck, drawings, serverAnnotationsReady, noteDraftKey]);
 
   function endBlock() {
     if (tutor || blockIndex === blockCount - 1) { void finalize(Boolean(expired)); return; }
