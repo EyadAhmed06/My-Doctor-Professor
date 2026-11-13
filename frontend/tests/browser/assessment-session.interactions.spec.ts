@@ -281,6 +281,21 @@ test('Tutor mode supports highlighter, strike-out, flags, notes, labs, and immed
   await expect(page.locator('.exam-question-stem-text mark')).toHaveCount(0);
 });
 
+test('highlight survives refresh before delayed server autosave completes', async ({ page }) => {
+  await installAssessmentMock(page, 'TUTOR');
+  await page.goto(`/mock-exam/session?attempt=${attemptId}&test=${testId}&source=rounds`);
+  await page.getByRole('button', { name: 'Highlighter', exact: true }).click();
+  await highlightFirstWords(page);
+  await expect(page.locator('.exam-question-stem-text mark')).toHaveCount(1);
+  // The browser leaves before the normal 650ms server debounce finishes.
+  // Recovery must not depend on an already completed remote save.
+  await page.reload();
+  await expect(page.locator('.exam-question-stem-text mark')).toHaveCount(1);
+  await expect(page.getByText('Annotations saved')).toBeVisible({ timeout: 10000 });
+  await page.reload();
+  await expect(page.locator('.exam-question-stem-text mark')).toHaveCount(1);
+});
+
 test('highlight and pen drawings survive a full page reload via the annotation API', async ({ page }) => {
   await installAssessmentMock(page, 'TUTOR');
   await page.goto(`/mock-exam/session?attempt=${attemptId}&test=${testId}&source=rounds`);
