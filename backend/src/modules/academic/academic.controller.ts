@@ -25,7 +25,6 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UserRole } from '../users/entities/user.entity';
 import { AcademicAccessService } from './academic-access.service';
-import { ResourceAnnotationsService } from './resource-annotations.service';
 import { AcademicService } from './academic.service';
 import {
   CourseQueryDto,
@@ -53,34 +52,7 @@ export class AcademicController {
   constructor(
     private readonly academic: AcademicService,
     private readonly access: AcademicAccessService,
-    private readonly annotations: ResourceAnnotationsService,
   ) {}
-
-  @Get('resources/:resourceId/annotations')
-  listResourceAnnotations(
-    @Param('resourceId', uuid) resourceId: string,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
-    return this.annotations.list(resourceId, actor);
-  }
-
-  @Post('resources/:resourceId/annotations')
-  createResourceAnnotation(
-    @Param('resourceId', uuid) resourceId: string,
-    @CurrentUser() actor: AuthenticatedUser,
-    @Body() body: { kind?: string; page_number?: number; body?: string },
-  ) {
-    return this.annotations.create(resourceId, actor, body);
-  }
-
-  @Delete('resources/:resourceId/annotations/:annotationId')
-  removeResourceAnnotation(
-    @Param('resourceId', uuid) resourceId: string,
-    @Param('annotationId', uuid) annotationId: string,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
-    return this.annotations.remove(resourceId, annotationId, actor);
-  }
 
   @Post('semesters')
   @Roles(UserRole.SYSTEM_ADMIN)
