@@ -310,7 +310,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
           setStruck(payload.struck || {});
           setDrawings(payload.drawings || {});
         }
-        setAnnotationSaveStatus(Object.keys(payload).length ? "saved" : "");
+        setAnnotationSaveStatus(annotationLocalDirty.current ? "saving" : Object.keys(payload).length ? "saved" : "");
         setServerAnnotationsReady(true);
       } catch {
         // Never overwrite a remote record after a failed initial read.
