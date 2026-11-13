@@ -13,6 +13,7 @@ import { AcademicAccessService } from './academic-access.service';
 import { AcademicController } from './academic.controller';
 import { AcademicService } from './academic.service';
 import { ResourceStorageService } from './resource-storage.service';
+import { ResourceAnnotationsService } from './resource-annotations.service';
 
 @Module({
   imports: [
@@ -29,7 +30,7 @@ import { ResourceStorageService } from './resource-storage.service';
     ]),
   ],
   controllers: [AcademicController],
-  providers: [AcademicService, AcademicAccessService, ResourceStorageService],
+  providers: [AcademicService, AcademicAccessService, ResourceStorageService, ResourceAnnotationsService],
   exports: [AcademicService, AcademicAccessService, ResourceStorageService, TypeOrmModule],
 })
 export class AcademicModule {}
