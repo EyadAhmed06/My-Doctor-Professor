@@ -4,7 +4,7 @@ import { ApiError } from "@/lib/api";
 import { useAuth } from "./auth-provider";
 import { Panel, ProductShell, Progress } from "./product-shell";
 import { TutorOptionReview, type StructuredTutorFeedback } from "./tutor-option-review";
-import { type PointerEvent as ReactPointerEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type PointerEvent as ReactPointerEvent, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   FiArrowLeft,
   FiArrowRight,
@@ -225,6 +225,9 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   const annotationInFlight = useRef(false);
   const annotationLatest = useRef("");
   const annotationHydrationPending = useRef<string | null>(null);
+  const annotationRendered = useRef<string>("");
+  const annotationLocalDirty = useRef(false);
+  const annotationStorageKey = `mdp:assessment-annotations:${user?.id || "anonymous"}:${attemptId}`;
   const noteCommitted = useRef<Record<string, string>>({});
   const noteDrafts = useRef<Record<string, string>>({});
   const noteAutoSaveInFlight = useRef(false);
@@ -246,17 +249,37 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   const activeStroke = useRef<number | null>(null);
 
   useEffect(() => {
+    // Restore the last rendered annotation synchronously from this device.
+    // This recovery copy protects edits made immediately before a refresh,
+    // before the debounced network PUT has had time to finish.
+    let snapshot: { highlights: HighlightState; struck: Record<string, string[]>; drawings: DrawingState } =
+      { highlights: {}, struck: {}, drawings: {} };
+    let dirty = false;
     try {
-      const savedHighlights = JSON.parse(sessionStorage.getItem(`mdp:highlights:${attemptId}`) || "{}") as HighlightState;
-      const savedStrikes = JSON.parse(sessionStorage.getItem(`mdp:strikes:${attemptId}`) || "{}") as Record<string, string[]>;
-      const savedDrawings = JSON.parse(sessionStorage.getItem(`mdp:drawings:${attemptId}`) || "{}") as DrawingState;
-      setHighlights(savedHighlights && typeof savedHighlights === "object" ? savedHighlights : {});
-      setStruck(savedStrikes && typeof savedStrikes === "object" ? savedStrikes : {});
-      setDrawings(savedDrawings && typeof savedDrawings === "object" ? savedDrawings : {});
-    } catch {
-      setHighlights({}); setStruck({}); setDrawings({});
-    } finally { setLocalToolsLoaded(true); }
-  }, [attemptId]);
+      const cached = JSON.parse(localStorage.getItem(annotationStorageKey) || "null");
+      if (cached?.payload && typeof cached.payload === "object") {
+        snapshot = {
+          highlights: cached.payload.highlights || {},
+          struck: cached.payload.struck || {},
+          drawings: cached.payload.drawings || {},
+        };
+        dirty = cached.dirty === true;
+      } else {
+        snapshot = {
+          highlights: JSON.parse(sessionStorage.getItem(`mdp:highlights:${attemptId}`) || "{}"),
+          struck: JSON.parse(sessionStorage.getItem(`mdp:strikes:${attemptId}`) || "{}"),
+          drawings: JSON.parse(sessionStorage.getItem(`mdp:drawings:${attemptId}`) || "{}"),
+        };
+        dirty = Object.keys(snapshot.highlights).length > 0 || Object.keys(snapshot.struck).length > 0 || Object.keys(snapshot.drawings).length > 0;
+      }
+    } catch { /* Missing or corrupt recovery data is treated as empty. */ }
+    annotationLocalDirty.current = dirty;
+    annotationRendered.current = JSON.stringify(snapshot);
+    setHighlights(snapshot.highlights);
+    setStruck(snapshot.struck);
+    setDrawings(snapshot.drawings);
+    setLocalToolsLoaded(true);
+  }, [attemptId, annotationStorageKey]);
 
   useEffect(() => {
     if (!attemptId || !localToolsLoaded) return;
@@ -274,18 +297,18 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
         const payload = result.payload || {};
         // Existing browser annotations are retained for the first migration if
         // the server has no saved annotations yet.
-        if (Object.keys(payload).length) {
-          const hydrated = JSON.stringify({
-            highlights: payload.highlights || {}, struck: payload.struck || {}, drawings: payload.drawings || {},
-          });
+        const hydrated = JSON.stringify({
+          highlights: payload.highlights || {}, struck: payload.struck || {}, drawings: payload.drawings || {},
+        });
+        // A locally edited copy is newer than the last server acknowledgement.
+        // Never replace it with stale remote annotations after a fast refresh.
+        annotationCommitted.current = Object.keys(payload).length ? hydrated : "";
+        if (!annotationLocalDirty.current && Object.keys(payload).length) {
           annotationHydrationPending.current = hydrated;
-          annotationCommitted.current = hydrated;
+          annotationRendered.current = hydrated;
           setHighlights(payload.highlights || {});
           setStruck(payload.struck || {});
           setDrawings(payload.drawings || {});
-        } else {
-          // Keep locally recovered markings until the first successful remote save.
-          annotationCommitted.current = "";
         }
         setAnnotationSaveStatus(Object.keys(payload).length ? "saved" : "");
         setServerAnnotationsReady(true);
@@ -345,14 +368,22 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
     return () => window.clearInterval(timer);
   }, [attempt?.deadline]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!localToolsLoaded) return;
+    const snapshot = JSON.stringify({ highlights, struck, drawings });
+    if (annotationRendered.current === snapshot) return;
+    annotationRendered.current = snapshot;
+    annotationLocalDirty.current = true;
     try {
+      localStorage.setItem(annotationStorageKey, JSON.stringify({
+        payload: { highlights, struck, drawings },
+        dirty: true,
+      }));
       sessionStorage.setItem(`mdp:highlights:${attemptId}`, JSON.stringify(highlights));
       sessionStorage.setItem(`mdp:strikes:${attemptId}`, JSON.stringify(struck));
       sessionStorage.setItem(`mdp:drawings:${attemptId}`, JSON.stringify(drawings));
-    } catch { /* best effort */ }
-  }, [attemptId, drawings, highlights, localToolsLoaded, struck]);
+    } catch { /* Server save remains the source of truth after acknowledgment. */ }
+  }, [attemptId, annotationStorageKey, drawings, highlights, localToolsLoaded, struck]);
 
   useEffect(() => {
     if (!serverAnnotationsReady || !localToolsLoaded || attempt?.status !== "IN_PROGRESS") return;
@@ -379,6 +410,11 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
             });
             annotationRevision.current = result.revision;
             annotationCommitted.current = sent;
+            if (annotationRendered.current === sent) {
+              annotationLocalDirty.current = false;
+              try { localStorage.setItem(annotationStorageKey, JSON.stringify({ payload: JSON.parse(sent), dirty: false })); }
+              catch { /* best effort */ }
+            }
           }
           setAnnotationSaveStatus("saved");
         } catch {
@@ -388,7 +424,7 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
       })();
     }, 650);
     return () => window.clearTimeout(timer);
-  }, [attempt?.status, attemptId, drawings, highlights, localToolsLoaded, request, serverAnnotationsReady, struck]);
+  }, [attempt?.status, attemptId, annotationStorageKey, drawings, highlights, localToolsLoaded, request, serverAnnotationsReady, struck]);
 
 
   // Write unsaved question-note drafts to the server and keep a local recovery copy
