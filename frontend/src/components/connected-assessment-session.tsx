@@ -224,6 +224,12 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   const annotationCommitted = useRef("");
   const annotationInFlight = useRef(false);
   const annotationLatest = useRef("");
+  const annotationHydrationPending = useRef<string | null>(null);
+  const noteCommitted = useRef<Record<string, string>>({});
+  const noteDrafts = useRef<Record<string, string>>({});
+  const [notesReady, setNotesReady] = useState(false);
+  const [noteAutoSaveStatus, setNoteAutoSaveStatus] = useState<"saving" | "error" | "">("");
+  const noteDraftKey = `mdp:assessment-note-drafts:${user?.id || "anonymous"}:${attemptId}`;
 
   const [loading, setLoading] = useState(true);
   const [savingQuestionId, setSavingQuestionId] = useState<string | null>(null);
@@ -254,6 +260,10 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
     if (!attemptId || !localToolsLoaded) return;
     let active = true;
     setServerAnnotationsReady(false);
+    annotationHydrationPending.current = null;
+    annotationCommitted.current = "";
+    annotationLatest.current = "";
+    annotationRevision.current = 0;
     void (async () => {
       try {
         const result = await request<{payload: {highlights?: HighlightState; struck?: Record<string,string[]>; drawings?: DrawingState}; revision:number}>(`/tests/attempts/${attemptId}/annotations`);
@@ -263,20 +273,23 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
         // Existing browser annotations are retained for the first migration if
         // the server has no saved annotations yet.
         if (Object.keys(payload).length) {
+          const hydrated = JSON.stringify({
+            highlights: payload.highlights || {}, struck: payload.struck || {}, drawings: payload.drawings || {},
+          });
+          annotationHydrationPending.current = hydrated;
+          annotationCommitted.current = hydrated;
           setHighlights(payload.highlights || {});
           setStruck(payload.struck || {});
           setDrawings(payload.drawings || {});
-          annotationCommitted.current = JSON.stringify({
-            highlights: payload.highlights || {}, struck: payload.struck || {}, drawings: payload.drawings || {},
-          });
         } else {
+          // Keep locally recovered markings until the first successful remote save.
           annotationCommitted.current = "";
         }
-        setAnnotationSaveStatus("saved");
+        setAnnotationSaveStatus(Object.keys(payload).length ? "saved" : "");
+        setServerAnnotationsReady(true);
       } catch {
+        // Never overwrite a remote record after a failed initial read.
         if (active) setAnnotationSaveStatus("error");
-      } finally {
-        if (active) setServerAnnotationsReady(true);
       }
     })();
     return () => { active = false; };
@@ -302,12 +315,24 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
       setAttempt(state.attempt); setItems(questions);
       setAnswers(Object.fromEntries(state.answers.filter((item) => item.selectedOptionId).map((item) => [item.questionId, item.selectedOptionId!])));
       setConfidence(Object.fromEntries(state.answers.filter((item) => item.confidenceLevel).map((item) => [item.questionId, item.confidenceLevel!])));
-      setFlags(state.flagged_question_ids); setHardFlags(state.hard_question_ids || []); setNotes(Object.fromEntries(state.notes.map((item) => [item.question_id, item.note])));
+      setFlags(state.flagged_question_ids); setHardFlags(state.hard_question_ids || []);
+      const savedNotes = Object.fromEntries(state.notes.map((item) => [item.question_id, item.note]));
+      noteCommitted.current = savedNotes;
+      let drafts: Record<string, string> = {};
+      try {
+        const parsed: unknown = JSON.parse(localStorage.getItem(noteDraftKey) || "{}");
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          drafts = Object.fromEntries(Object.entries(parsed).filter(([, value]) => typeof value === "string")) as Record<string, string>;
+        }
+      } catch { /* Malformed drafts must not block assessment loading. */ }
+      noteDrafts.current = drafts;
+      setNotes({ ...savedNotes, ...drafts });
+      setNotesReady(true);
     })()
       .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "Unable to load this attempt."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [attemptId, testId, request]);
+  }, [attemptId, testId, request, noteDraftKey]);
 
   useEffect(() => {
     if (!attempt?.deadline) { setNow(Date.now()); return; }
@@ -328,6 +353,13 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
   useEffect(() => {
     if (!serverAnnotationsReady || !localToolsLoaded || attempt?.status !== "IN_PROGRESS") return;
     const snapshot = JSON.stringify({ highlights, struck, drawings });
+    if (annotationHydrationPending.current !== null) {
+      // React can render with stale local annotations before the remote payload hydrates.
+      // Do not send that intermediate render back to the server.
+      if (snapshot !== annotationHydrationPending.current) return;
+      annotationHydrationPending.current = null;
+      return;
+    }
     annotationLatest.current = snapshot;
     if (snapshot === annotationCommitted.current) return;
     const timer = window.setTimeout(() => {
@@ -354,6 +386,42 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
     return () => window.clearTimeout(timer);
   }, [attempt?.status, attemptId, drawings, highlights, localToolsLoaded, request, serverAnnotationsReady, struck]);
 
+
+  // Write unsaved question-note drafts to the server and keep a local recovery copy
+  // until the backend confirms each save. This survives refreshes and tab closure.
+  useEffect(() => {
+    if (!notesReady || attempt?.status !== "IN_PROGRESS" || savingNoteId) return;
+    const pending = Object.entries(noteDrafts.current)
+      .filter(([questionId, value]) => value !== (noteCommitted.current[questionId] || ""));
+    if (!pending.length) return;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        setNoteAutoSaveStatus("saving");
+        let failed = false;
+        for (const [questionId, value] of pending) {
+          if (noteDrafts.current[questionId] !== value) continue;
+          try {
+            if (value.trim()) {
+              await request(`/tests/attempts/${attemptId}/notes/${questionId}`, {
+                method: "PUT", body: { note: value.trim() },
+              });
+            } else if (noteCommitted.current[questionId]) {
+              await request(`/tests/attempts/${attemptId}/notes/${questionId}`, { method: "DELETE" });
+            }
+            noteCommitted.current[questionId] = value.trim();
+            if (noteDrafts.current[questionId] === value) {
+              delete noteDrafts.current[questionId];
+              try { localStorage.setItem(noteDraftKey, JSON.stringify(noteDrafts.current)); } catch { /* best effort */ }
+            }
+          } catch {
+            failed = true; // Keep drafts for retry; never show a misleading "saved" state.
+          }
+        }
+        setNoteAutoSaveStatus(failed ? "error" : "");
+      })();
+    }, 950);
+    return () => window.clearTimeout(timer);
+  }, [notes, notesReady, attempt?.status, savingNoteId, request, attemptId, noteDraftKey]);
 
   useEffect(() => { setMoreOpen(false); setHighlightMode(false); setStrikeMode(false); setPenMode(false); setEraserMode(null); setSavedNoteId(null); }, [index]);
 
@@ -480,9 +548,17 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
       if (value) {
         await request(`/tests/attempts/${attemptId}/notes/${questionId}`, { method: "PUT", body: { note: value } });
         setNotes((currentNotes) => ({ ...currentNotes, [questionId]: value }));
+        noteCommitted.current[questionId] = value;
+        if (noteDrafts.current[questionId] === notes[questionId]) {
+          delete noteDrafts.current[questionId];
+          try { localStorage.setItem(noteDraftKey, JSON.stringify(noteDrafts.current)); } catch { /* best effort */ }
+        }
         notify({ title: "Question note saved", description: "Saved to your account for this assessment question.", tone: "success", duration: 2500 });
       } else if (notes[questionId] !== undefined) {
         await request(`/tests/attempts/${attemptId}/notes/${questionId}`, { method: "DELETE" });
+        delete noteCommitted.current[questionId];
+        delete noteDrafts.current[questionId];
+        try { localStorage.setItem(noteDraftKey, JSON.stringify(noteDrafts.current)); } catch { /* best effort */ }
         notify({ title: "Question note removed", tone: "info", duration: 2000 });
       }
       setSavedNoteId(questionId);
@@ -572,7 +648,13 @@ export function ConnectedAssessmentSession({ attemptId, testId, source = "assess
           </div>
           {tutor && feedback[current.question.id] && <div className={`tutor-explanation ${feedback[current.question.id].isCorrect ? "correct" : "incorrect"}`} role="status"><b>{feedback[current.question.id].isCorrect ? "Correct" : "Incorrect"}</b><p>{feedback[current.question.id].explanation || "No explanation has been published for this question."}</p>{feedback[current.question.id].tutor_feedback && <TutorOptionReview feedback={feedback[current.question.id].tutor_feedback!} options={current.question.options} />}</div>}
         </article>
-        <div className="exam-lower-grid exam-lower-grid--notes-only"><section className="exam-scratchpad-card" id="exam-question-notes"><nav><span>Notes</span></nav><div><small>Private question note — saved to your account and tied to this assessment attempt + question.</small><textarea disabled={expired} value={notes[current.question.id] || ""} onChange={(event) => { setSavedNoteId(null); setNotes((value) => ({ ...value, [current.question.id]: event.target.value })); }} placeholder="Save a private note for this question…" /><button type="button" disabled={expired || savingNoteId === current.question.id} onClick={() => void saveNote()}><FiSave /> {savingNoteId === current.question.id ? "Saving…" : savedNoteId === current.question.id ? "Saved" : "Save note"}</button></div></section></div>
+        <div className="exam-lower-grid exam-lower-grid--notes-only"><section className="exam-scratchpad-card" id="exam-question-notes"><nav><span>Notes</span></nav><div><small>Private question note — saved to your account and tied to this assessment attempt + question.</small><textarea disabled={expired || !notesReady} value={notes[current.question.id] || ""} onChange={(event) => {
+            const value = event.target.value;
+            setSavedNoteId(null);
+            noteDrafts.current[current.question.id] = value;
+            try { localStorage.setItem(noteDraftKey, JSON.stringify(noteDrafts.current)); } catch { /* best effort */ }
+            setNotes((previous) => ({ ...previous, [current.question.id]: value }));
+          }} placeholder="Write here — notes autosave to your account…" /><button type="button" disabled={expired || !notesReady || savingNoteId === current.question.id} onClick={() => void saveNote()}><FiSave /> {savingNoteId === current.question.id ? "Saving…" : savedNoteId === current.question.id ? "Saved" : "Save now"}</button>{noteAutoSaveStatus === "saving" && <small role="status">Autosaving notes…</small>}{noteAutoSaveStatus === "error" && <small role="alert">Notes not synced. Your draft is kept on this device; retry saving.</small>}</div></section></div>
         </section>
         <aside className="exam-overview-card"><header><b>Exam Overview</b></header><section className="overview-time"><small>Time remaining</small><strong>{hideTime ? "••:••:••" : clock}</strong><button type="button" onClick={() => setHideTime((value) => !value)}><FiEyeOff /> {hideTime ? "Show" : "Hide"}</button></section><dl><div className="answered"><dt>Answered</dt><dd>{blockAnswered} / {blockItems.length} <small>{progress}%</small></dd></div><div className="normal-flagged"><dt>Flagged</dt><dd>{blockItems.filter((item) => flags.includes(item.question.id)).length}</dd></div><div className="flagged"><dt>Hard questions</dt><dd>{blockItems.filter((item) => hardFlags.includes(item.question.id)).length}</dd></div><div className="unanswered"><dt>Unanswered</dt><dd>{unanswered}</dd></div></dl><section className="overview-pace"><span><small>Your pace</small><b>{pace}</b></span><Progress value={Math.min(100, Math.max(0, progress))} /></section><section className="overview-legend"><b>Question status legend</b><span className="answered">Answered</span><span className="unanswered">Unanswered</span><span className="current">Current question</span><span className="normal-flagged">Flagged</span><span className="flagged">Hard question</span></section><section className="overview-lock"><FiFileText /><p>{tutor ? "Tutor explanations appear after the server confirms each saved answer." : "Explanations are hidden during the exam. You will see detailed explanations after submission."}</p></section></aside>
       </div>
