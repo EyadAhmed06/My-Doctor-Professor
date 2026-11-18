@@ -71,7 +71,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_PRODUCTION_DEPLOY_ROLE_ARN }}
-          aws-region: eu-south-1
+          aws-region: ${{ vars.AWS_PRODUCTION_REGION }}
 
       - name: Validate production target and installed SSM agent
         env:
