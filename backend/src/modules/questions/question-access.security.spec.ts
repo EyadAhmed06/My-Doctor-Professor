@@ -47,7 +47,7 @@ describe('question access security', () => {
     });
   });
 
-  it('scopes instructor question-bank reads to courses assigned to that instructor', async () => {
+  it('allows instructors to list course-linked questions without an assignment', async () => {
     const builder = builderHarness();
     const service = new InstructorQuestionAccessService({
       createQueryBuilder: jest.fn().mockReturnValue(builder),
@@ -60,9 +60,8 @@ describe('question access security', () => {
       role: UserRole.INSTRUCTOR,
     });
 
-    expect(builder.where).toHaveBeenCalledWith(expect.stringContaining('course_instructors assignment'), {
-      instructorId: '33333333-3333-4333-8333-333333333333',
-    });
+    expect(builder.where.mock.calls).toEqual([['course.id IS NOT NULL']]);
+    expect(builder.andWhere).not.toHaveBeenCalled();
   });
 
   it('applies instructor course, lecture, and missing-explanation filters server-side', async () => {
