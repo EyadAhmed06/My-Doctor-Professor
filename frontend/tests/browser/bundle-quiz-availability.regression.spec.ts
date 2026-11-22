@@ -152,7 +152,11 @@ test('Questions uses the same bundle access as the bundle Question Bank', async 
   await expect(page.locator(`a[href*="lecture=${lectureId}"]`)).toBeVisible();
   await expect(page.locator(`a[href*="lecture=${lockedLectureId}"]`)).toHaveCount(0);
 
-  await page.getByRole('link', { name: 'Questions', exact: true }).first().click();
+  const menu = page.getByRole('button', { name: 'Open menu' });
+  if (await menu.isVisible()) await menu.click();
+  const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
+  await navigation.getByRole('link', { name: 'Questions', exact: true }).click();
+  await expect(page).toHaveURL(/\/assessments$/);
   await expect(page.getByRole('combobox', { name: 'Bundle' })).toHaveValue(bundleId);
   const openWeek = page.locator('details').filter({ hasText: 'Foundations' });
   await openWeek.locator('summary').click();

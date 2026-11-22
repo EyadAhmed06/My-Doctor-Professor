@@ -290,21 +290,13 @@ test('resource upload keeps product controls styled on a direct load', async ({ 
   await page.goto('/resources/upload');
   await expect(page.getByRole('heading', { name: 'Resource upload' })).toBeVisible();
 
-  const styles = await page.locator('.resource-upload-layout > .pp-panel').first().evaluate(element => {
-    const panel = getComputedStyle(element);
-    const input = getComputedStyle(document.querySelector('.resource-upload-fields input')!);
-    const button = getComputedStyle(document.querySelector('.resource-upload-form .pp-button')!);
-    return {
-      panelBackground: panel.backgroundColor,
-      panelBorder: panel.borderTopWidth,
-      inputBorder: input.borderTopWidth,
-      buttonDisplay: button.display,
-    };
-  });
-  expect(styles.panelBackground).not.toBe('rgba(0, 0, 0, 0)');
-  expect(styles.panelBorder).not.toBe('0px');
-  expect(styles.inputBorder).not.toBe('0px');
-  expect(['inline-flex', 'flex']).toContain(styles.buttonDisplay);
+  const panel = page.locator('.resource-upload-layout > .pp-panel').first();
+  const input = page.locator('.resource-upload-fields input');
+  const button = page.locator('.resource-upload-form .pp-button');
+  await expect(panel).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(panel).not.toHaveCSS('border-top-width', '0px');
+  await expect(input).not.toHaveCSS('border-top-width', '0px');
+  await expect(button).toHaveCSS('display', /^(inline-flex|flex)$/);
   await expectNoHorizontalOverflow(page);
 });
 
