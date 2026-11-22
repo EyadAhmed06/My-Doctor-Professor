@@ -4,6 +4,10 @@ const frontendOrigin = 'http://127.0.0.1:3001';
 const bundleId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const courseId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const lectureId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+const openTopicId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+const lockedTopicId = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+const lockedLectureId = '11111111-1111-4111-8111-111111111111';
+const pendingBundleId = '22222222-2222-4222-8222-222222222222';
 const student = { id: 'student-1', email: 'student@example.test', full_name: 'Quiz Availability Student', role: 'STUDENT', status: 'ACTIVE', emailVerified: true };
 
 function apiEndpoint(requestUrl: string) {
@@ -13,7 +17,7 @@ function apiEndpoint(requestUrl: string) {
   return index >= 0 ? pathname.slice(index + marker.length) || '/' : pathname;
 }
 
-async function mockBundle(page: Page, mcqCount: number) {
+async function mockBundle(page: Page, mcqCount: number, mixedAccess = false) {
   await page.addInitScript(() => {
     localStorage.removeItem('mdp_access_token');
     sessionStorage.removeItem('mdp_access_token');
@@ -40,7 +44,9 @@ async function mockBundle(page: Page, mcqCount: number) {
     if (endpoint === '/auth/me') return respond(student);
     if (endpoint === '/notifications/unread/count') return respond({ count: 0 });
     if (endpoint === '/catalog/bundles') return respond([]);
-    if (endpoint === '/bundles/mine') return respond([{
+    if (endpoint === '/bundles/mine') return respond([
+      ...(mixedAccess ? [{ id: pendingBundleId, title: 'Pending bundle', accessible: false }] : []),
+      {
       id: bundleId,
       title: 'Clinical Foundations',
       slug: 'clinical-foundations',
@@ -81,14 +87,38 @@ async function mockBundle(page: Page, mcqCount: number) {
             lectureNumber: 1,
             question_count: mcqCount,
             mcq_count: mcqCount,
+            topics: mixedAccess ? [
+              { id: openTopicId, topicName: 'Open section', mcq_count: mcqCount },
+              { id: lockedTopicId, topicName: 'Locked section', mcq_count: 0, isLocked: true },
+            ] : undefined,
             flashcard_deck_count: 0,
             resource_count: 1,
-          }],
+          }, ...(mixedAccess ? [{
+            id: lockedLectureId,
+            title: 'Locked lecture',
+            lectureNumber: 2,
+            isLocked: true,
+            question_count: 0,
+            mcq_count: 0,
+          }] : [])],
         }],
+        locked_weeks: mixedAccess ? [{ week_number: 2 }] : [],
       }],
       past_exams: [],
       totals: { courses: 1, weeks: 1, lectures: 1, questions: mcqCount, flashcard_decks: 0, resources: 1, past_exams: 0 },
     });
+    if (endpoint === '/tests/practice/generate') {
+      return respond({ test: { id: 'test-1' }, attempt: { id: 'attempt-1' }, question_count: mcqCount });
+    }
+    if (mixedAccess && endpoint === '/mcq-practice/catalog') {
+      return respond({ course: { id: courseId }, weeks: [{
+        id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+        weekNumber: 1,
+        title: 'Foundations',
+        isLocked: true,
+        lectures: [],
+      }] });
+    }
     return respond({});
   });
 }
@@ -113,4 +143,38 @@ test('question-bank lecture entry remains available for a small eligible MCQ poo
   await page.goto('/bundles?bundle=clinical-foundations&tab=questions');
   await expect(page.getByRole('heading', { name: 'Bundle Question Bank' })).toBeVisible();
   await expect(page.locator(`a[href*="lecture=${lectureId}"]`)).toBeVisible();
+});
+
+test('Questions uses the same bundle access as the bundle Question Bank', async ({ page }) => {
+  await mockBundle(page, 3, true);
+  await page.goto('/bundles?bundle=clinical-foundations&tab=questions');
+  await expect(page.getByRole('heading', { name: 'Bundle Question Bank' })).toBeVisible();
+  await expect(page.locator(`a[href*="lecture=${lectureId}"]`)).toBeVisible();
+  await expect(page.locator(`a[href*="lecture=${lockedLectureId}"]`)).toHaveCount(0);
+
+  await page.getByRole('link', { name: 'Questions', exact: true }).first().click();
+  await expect(page.getByRole('combobox', { name: 'Bundle' })).toHaveValue(bundleId);
+  const openWeek = page.locator('details').filter({ hasText: 'Foundations' });
+  await openWeek.locator('summary').click();
+  await expect(openWeek.getByRole('checkbox', { name: /Cardiac anatomy/ })).toBeEnabled();
+  await expect(openWeek.getByRole('checkbox', { name: /Locked lecture/ })).toBeDisabled();
+  await expect(openWeek.getByRole('checkbox', { name: /Locked section/ })).toBeDisabled();
+  await openWeek.getByRole('checkbox', { name: 'Select all in this week' }).check();
+
+  const lockedWeek = page.locator('details').filter({ hasText: 'Week 2' });
+  await expect(lockedWeek.locator('summary')).toContainText('Locked');
+  await lockedWeek.locator('summary').click();
+  await expect(lockedWeek.getByRole('checkbox', { name: 'Select all in this week' })).toBeDisabled();
+
+  const submitted = page.waitForRequest(request =>
+    apiEndpoint(request.url()) === '/tests/practice/generate' && request.method() === 'POST',
+  );
+  await page.getByRole('button', { name: 'Generate practice quiz' }).click();
+  expect((await submitted).postDataJSON()).toMatchObject({
+    bundle_id: bundleId,
+    lecture_ids: [lectureId],
+    topic_ids: [openTopicId],
+    question_count: 3,
+  });
+  await expect(page).toHaveURL(/mock-exam\/session\?attempt=attempt-1&test=test-1/);
 });
