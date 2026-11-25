@@ -56,3 +56,44 @@
   .bundle-section-grid button { padding: .7rem; }
   .bundle-section-grid svg { display: none; }
 }
+
+/* Tones distinguish destinations while text and symbols carry the meaning. */
+.bundle-section-grid button { --card-ink: var(--p-teal); gap: .18rem; background: linear-gradient(135deg,color-mix(in srgb,var(--card-ink) 9%,var(--surface)),var(--surface) 75%); }
+.bundle-section-grid [data-section="questions"] { --card-ink: var(--p-violet); }
+.bundle-section-grid [data-section="exams"] { --card-ink: var(--p-orange); }
+.bundle-section-grid [data-section="resources"] { --card-ink: var(--p-muted); }
+.bundle-card-symbol { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: .6rem; }
+.bundle-section-grid .bundle-card-symbol svg { display: block; margin: 0; }
+.bundle-card-symbol svg:first-child { box-sizing: content-box; padding: .55rem; border-radius: .75rem; background: color-mix(in srgb,var(--card-ink) 13%,var(--surface)); color: var(--text); }
+.bundle-card-symbol svg:last-child { width: 1rem; color: var(--muted); }
+.exam-collection, .lecture-collection { min-width: 0; }
+.exam-collection header, .exam-collection footer { display: flex; align-items: center; gap: .5rem; }
+.exam-collection header { justify-content: space-between; margin-bottom: .65rem; }
+.exam-collection h3, .lecture-collection h3 { margin: 0; font-size: 1.35rem; }
+.exam-collection button { cursor: pointer; min-height: 44px; color: var(--text); font: inherit; }
+.exam-tiles { display: grid; grid-template-columns: repeat(auto-fill,minmax(min(100%,15rem),1fr)); gap: .8rem; }
+.exam-preview .exam-tiles { grid-template-columns: 1fr; }
+.student-bundles a.exam-tile { display: grid; justify-items: start; align-content: space-between; gap: 1rem; min-height: 9.5rem; padding: 1.15rem; border: 1px solid var(--bundle-line); border-inline-start: 4px solid var(--p-orange); border-radius: .85rem; color: var(--text); text-decoration: none; background: linear-gradient(110deg,color-mix(in srgb,var(--p-orange) 9%,var(--surface)),var(--surface) 75%); }
+.exam-tile strong { font-size: 1.18rem; line-height: 1.35; overflow-wrap: anywhere; }
+.student-bundles .exam-tile :is(small,span) { display: inline-flex; gap: .5rem; align-items: center; }
+.exam-tile small { color: var(--muted); font-size: .9375rem; }
+.exam-tile span { font-weight: 600; }
+.exam-preview footer { justify-content: end; margin-top: .4rem; }
+.exam-preview footer span { margin-inline-end: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+.exam-preview footer button { width: 44px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--bundle-line); background: var(--surface); }
+.exam-preview button:disabled { opacity: .4; cursor: default; }
+.exam-search { display: flex; align-items: center; gap: .65rem; padding-inline: .85rem; border: 1px solid var(--bundle-line); border-radius: .65rem; margin-bottom: 1rem; }
+.exam-search input { flex: 1; min-width: 0; height: 46px; font: inherit; color: inherit; border: 0; background: transparent; }
+.lecture-collection h3 { min-height: 44px; display: flex; align-items: center; }
+.bundle-preview-grid .lecture-collection a { position: relative; margin-block: .6rem; padding: .9rem; border: 1px solid var(--bundle-line); border-radius: .7rem; background: var(--surface); }
+.lecture-collection a > svg { box-sizing: content-box; padding: .65rem; border-radius: 50%; background: color-mix(in srgb,var(--accent) 12%,var(--surface)); }
+[dir="rtl"] .bundle-direction { scale: -1 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .student-bundles :is(.bundle-section-grid button,.bundle-section-nav button,.exam-tile,.lecture-collection a,.exam-preview footer button) { transition: transform 140ms ease-out, border-color 140ms ease-out, box-shadow 140ms ease-out; }
+  .bundle-view, .exam-preview .exam-tile { animation: bundle-arrive 180ms ease-out; }
+  .student-bundles :is(.bundle-section-grid button,.exam-tile,.lecture-collection a,.exam-preview footer button):active { transform: scale(.985); }
+  @media (hover: hover) {
+    .student-bundles :is(.bundle-section-grid button,.exam-tile,.lecture-collection a):hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 5px 14px color-mix(in srgb,var(--p-bg) 22%,transparent); }
+  }
+}
+@keyframes bundle-arrive { from { opacity: .55; transform: translateY(5px); } to { opacity: 1; transform: none; } }
