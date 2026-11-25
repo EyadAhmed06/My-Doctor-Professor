@@ -158,31 +158,32 @@ export function ConnectedPastExamsPage() {
     <ProductShell search="Search configured exams">
       <main className="pp-page exam-launch-page">
         <header className="exam-launch-heading">
-          <div><small>ASSESSMENT LAUNCHER</small><h1>Mock Exam</h1><p>Configured exams use instructor rules. Generated practice is Tutor-only and can be resumed if an unfinished attempt exists.</p></div>
+          <div><h1>Mock Exams</h1></div>
           <label>Bundle<select value={bundleId} onChange={(event) => setBundleId(event.target.value)}>{bundles.map((bundle) => <option key={bundle.id} value={bundle.id}>{bundle.title}{bundle.read_only ? " · read-only" : ""}</option>)}</select></label>
         </header>
 
         {error && <p className="form-error" role="alert">{error}</p>}
         {loading ? <div className="product-auth-loading">Loading configured exams…</div> : !bundles.length ? <Panel title="No bundle access"><p>You need an active bundle before configured exams can be launched.</p></Panel> : !exams.length ? <Panel title="No configured exams"><p>The instructor has not attached a published exam to this bundle yet.</p></Panel> : (
           <div className="exam-launch-layout">
-            <aside className="exam-launch-list">
-              <header><b>Configured exams & practice history</b><small>{exams.length}</small></header>
-              {exams.map((exam) => (
-                <button type="button" className={exam.id === selectedId ? "active" : ""} key={exam.id} onClick={() => setSelectedId(exam.id)}>
-                  <span><FiFileText /></span>
-                  <div><b>{exam.title}</b><small>{exam.testType === "CUSTOM" ? "PRACTICE · generated Tutor session" : `${exam.testType} · ${exam.durationMinutes ? `${exam.durationMinutes} min timed configuration` : "Tutor only"}`}</small></div>
-                </button>
-              ))}
-            </aside>
+            <label className="exam-switcher">Exam or practice session
+              <select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
+                {["Configured exams", "Practice history"].map((label) => {
+                  const group = exams.filter((exam) => (exam.testType === "CUSTOM") === (label === "Practice history"));
+                  return group.length > 0 && <optgroup key={label} label={label}>
+                    {group.map((exam) => <option key={exam.id} value={exam.id}>{exam.title}</option>)}
+                  </optgroup>;
+                })}
+              </select>
+            </label>
 
             <section className="exam-launch-main">
               {selected ? (
                 <>
                   <section className="exam-launch-hero">
-                    <div><small>{config?.is_final ? "FINAL EXAM" : selected.testType === "CUSTOM" ? "PRACTICE SESSION" : selected.testType}</small><h2>{selected.title}</h2><p>{selected.description || "No description was provided by the instructor."}</p></div>
+                    <div><small>{config?.is_final ? "FINAL EXAM" : selected.testType === "CUSTOM" ? "PRACTICE SESSION" : selected.testType}</small><h2>{selected.title}</h2>{selected.description && <p>{selected.description}</p>}</div>
                     <div className="exam-launch-metrics">
                       <span><FiFileText /><b>{loadingConfig ? "—" : config?.question_count ?? "—"}</b><small>Questions configured</small></span>
-                      <span><FiBookOpen /><b>{loadingConfig ? "—" : config?.mcq_count ?? "—"}</b><small>MCQs</small></span>
+                      {config && config.mcq_count !== config.question_count && <span><FiBookOpen /><b>{config.mcq_count}</b><small>MCQs</small></span>}
                       <span><FiClock /><b>{selected.durationMinutes ? `${selected.durationMinutes}m` : "Untimed"}</b><small>Instructor duration</small></span>
                     </div>
                   </section>
@@ -191,13 +192,13 @@ export function ConnectedPastExamsPage() {
                     <div><small>UNFINISHED ATTEMPT</small><h3>Continue where you stopped</h3><p>This {selected.testType === "CUSTOM" ? "practice session" : "exam"} is already in progress in <b>{activeAttempt.test_mode === "TIMED" ? "Timed" : "Tutor"}</b> mode. Resume opens that exact attempt; it never creates a duplicate.</p></div>
                     <FiPlayCircle />
                   </section> : <section className="exam-mode-picker">
-                    <div className="exam-mode-intro"><small>CHOOSE MODE BEFORE STARTING</small><h3>How do you want to take this exam?</h3><p>Timed mode uses the duration configured by the instructor. Tutor mode is untimed and reveals explanations after each answer.</p></div>
+                    <div className="exam-mode-intro"><h3>Choose your mode</h3></div>
                     <div className="exam-mode-grid">
-                      <button type="button" className={mode === "TUTOR" ? "active" : ""} onClick={() => setMode("TUTOR")}>
-                        <span><FiBookOpen /></span><b>Tutor mode</b><p>Untimed. Answer → explanation → next question.</p>{mode === "TUTOR" && <FiCheck />}
+                      <button type="button" aria-pressed={mode === "TUTOR"} className={mode === "TUTOR" ? "active" : ""} onClick={() => setMode("TUTOR")}>
+                        <span><FiBookOpen /></span><b>Tutor mode</b><p>Untimed, with explanations after each answer.</p>{mode === "TUTOR" && <FiCheck />}
                       </button>
-                      <button type="button" disabled={timedDisabled} className={mode === "TIMED" ? "active" : ""} onClick={() => setMode("TIMED")}>
-                        <span><FiClock /></span><b>Timed mode</b><p>{timedDisabled ? "The instructor did not configure a duration." : `${selected.durationMinutes} minutes, auto-submit when time expires.`}</p>{mode === "TIMED" && !timedDisabled && <FiCheck />}
+                      <button type="button" disabled={timedDisabled} aria-pressed={mode === "TIMED"} className={mode === "TIMED" ? "active" : ""} onClick={() => setMode("TIMED")}>
+                        <span><FiClock /></span><b>Timed mode</b><p>{timedDisabled ? "Timed mode is unavailable for this exam." : `${selected.durationMinutes} minutes, auto-submit when time expires.`}</p>{mode === "TIMED" && !timedDisabled && <FiCheck />}
                       </button>
                     </div>
                   </section>}
