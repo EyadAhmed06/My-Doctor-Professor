@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { PdfTextExtractionService } from './pdf-text-extraction.service';
 import {
   parseCanonicalMcqDocument,
   splitCanonicalSections,
@@ -475,4 +477,21 @@ describe('canonical MCQ parser', () => {
     expect(parsed.expectedQuestionCount).toBe(2);
     expect(parsed.isStructurallyComplete).toBe(true);
   });
+});
+
+// Supply the original PDF privately; repository fixtures need no course content.
+(process.env.MCQ_GRID_FIXTURE ? it : it.skip)('reconciles every printed Week 7 answer with its physical key page', async () => {
+  const pdf = await new PdfTextExtractionService().extract(readFileSync(process.env.MCQ_GRID_FIXTURE!), { deferWeakPageOcr: true });
+  const parsed = parseCanonicalMcqDocument(pdf);
+  const keys: Array<[number, string]> = [[8, "DCBDBABCCDBECADBECABDECABDEACBDECABCBBABCBBC"], [13, "EBDAEBCADEEBCCBACCEABDDCDBCCBCBCBB"], [16, "CDBBBCBBCBCDBBBCA"], [22, "BAAADBBDCBADEBDEDBCCDBEBCEAEEBCDBBCCBEEC"], [27, "CDAECDEBCDBDAEBCCDBEBBABDBBABBCC"], [36, "CAADBCBBBADCBBACCBBBBBBCDDABBCBBBCBCBBBCBCACBBBCCBCBCCBBCC"]];
+  expect(parsed.sections.map(section => section.parsedQuestionCount)).toEqual([44,34,17,40,32,58]);
+  expect(parsed.questions.map(q => [q.answerKeyPage,q.questionNumber,q.correctLabel])).toEqual(
+    keys.flatMap(([page, answers]) => [...answers].map((answer,i) => [page,i+1,answer])));
+  expect(parsed.isStructurallyComplete).toBe(true);
+});
+it('leaves a truncated grid unassigned', () => {
+  const parsed = parseCanonicalMcqDocument(pdfFromPages([
+    'Lecture One: Sample\n1) Which option applies?\n'+fiveOptions('q')+'\nANSWER KEY - Sample\nQ1 Q2\nD'
+  ]));
+  expect(parsed.questions[0].correctLabel).toBeNull();
 });
