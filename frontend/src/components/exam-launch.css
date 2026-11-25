@@ -4,3 +4,15 @@ html[data-theme=light] .exam-launch-list,html[data-theme=light] .exam-launch-her
 @media(max-width:850px){.exam-launch-heading{display:block}.exam-launch-heading label{display:block;width:100%;margin-top:14px}.exam-launch-layout{grid-template-columns:1fr}.exam-launch-list{position:static}.exam-mode-grid{grid-template-columns:1fr}.exam-launch-footer{align-items:stretch;flex-direction:column}.exam-launch-footer .pp-button{width:100%}}
 @media(max-width:560px){.exam-launch-metrics{grid-template-columns:1fr}.final-exam-rule{align-items:flex-start;flex-direction:column}.exam-resume-banner{grid-template-columns:1fr}.exam-resume-banner>svg{display:none}}
 @media(prefers-reduced-motion:reduce){.exam-resume-banner>svg{animation:none}}
+
+.exam-launch-page .exam-launch-layout { display:block; max-width:76rem; margin-inline:auto; }
+.exam-launch-page .exam-launch-heading { max-width:76rem; margin-inline:auto; }
+.exam-switcher { display:grid; gap:.45rem; font-size:1rem; margin-block:1rem; }
+.exam-switcher select { width:100%; max-width:42rem; min-height:46px; padding-inline:.8rem; font:inherit; background:var(--surface); color:var(--text); border:1px solid var(--line); border-radius:.5rem; }
+.exam-launch-page .exam-launch-main :is(.exam-launch-hero,.exam-mode-picker,.exam-launch-footer) { border:0; border-top:1px solid var(--line); background:transparent; border-radius:0; padding:1.2rem 0; box-shadow:none; }
+.exam-launch-page .exam-launch-metrics span { background:transparent; border:0; }
+.exam-launch-page .exam-mode-grid button { min-height:88px; text-align:start; background:transparent; border:1px solid var(--line); border-radius:.5rem; }
+.exam-launch-page .exam-mode-grid button.active { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 8%,transparent); }
+.exam-launch-page .exam-mode-grid button p,.exam-launch-page .exam-launch-footer small { font-size:.95rem; line-height:1.45; }
+.exam-launch-page :is(select,button):focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+@media(max-width:700px){.exam-launch-page .exam-mode-grid {grid-template-columns:1fr}.exam-launch-page .exam-launch-hero {display:grid;gap:.8rem}.exam-launch-page .exam-launch-footer {flex-wrap:wrap}}
