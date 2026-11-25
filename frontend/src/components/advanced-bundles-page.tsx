@@ -27,6 +27,7 @@ import { Panel, ProductShell } from "./product-shell";
 import { useUx } from "./ux-provider";
 import "./product-pages.css";
 import "./bundle-management.css";
+import "./student-bundles.css";
 
 type Bundle = {
   id: string;
@@ -125,6 +126,8 @@ function guideHref(course: Course, lecture: Lecture) {
 export function AdvancedBundlesPage() {
   const { user, request } = useAuth();
   const { notify, startNavigation } = useUx();
+  const { locale } = useLocale();
+  const ar = locale === "ar";
   const manager = user?.role !== "STUDENT";
   const router = useRouter();
   const pathname = usePathname();
@@ -298,6 +301,7 @@ export function AdvancedBundlesPage() {
   useEffect(() => { setTab(requestedTab); }, [requestedTab]);
 
   function open(bundle: Bundle) {
+    setQuery("");
     let remembered: Tab = "overview";
     try { remembered = validTab(localStorage.getItem(`mdp:bundle-tab:${bundle.id}`)); } catch { /* best-effort */ }
     setSelectedBundle(bundle);
@@ -386,7 +390,8 @@ export function AdvancedBundlesPage() {
     return courses.filter((course) => course.semester?.semesterNumber === requestedSemester);
   }, [requestedSemester, selected]);
   const lectures = useMemo(() => scopedCourses.flatMap((course) => course.weeks.flatMap((week) => week.lectures.map((lecture) => ({ course, week, lecture })))), [scopedCourses]);
-  const needle = query.trim().toLowerCase();
+  const showFilter = manager || ["curriculum", "questions", "flashcards", "resources"].includes(tab);
+  const needle = showFilter ? query.trim().toLowerCase() : "";
   const visibleCourses = useMemo(() => {
     if (!needle) return scopedCourses;
     return scopedCourses.map((course) => ({
@@ -405,35 +410,84 @@ export function AdvancedBundlesPage() {
         ? `Showing your academic stage ${requestedStage === 4 ? "4+" : requestedStage} learning access.`
         : "Open enrolled curriculum, questions, exams, flashcards, and resources without losing context.";
 
-  return <ProductShell search="Search bundles, courses, weeks, or lectures"><main className="pp-page bundle-page advanced-bundle-page">
-    <div className="pp-title hero"><div><small className="page-eyebrow">{manager ? "BUNDLE MANAGEMENT" : "YOUR LEARNING ACCESS"}</small><h1>{manager ? "Bundles" : "My Bundles"}</h1><p>{manager ? "Compose courses and weeks, attach assessments, assign people, and control free or paid access from one workspace." : scopeDescription}</p></div><button className="pp-button secondary" onClick={() => void load()}><FiRefreshCw /> Refresh</button></div>
+  const sections = [
+    { key: "curriculum", label: ar ? "المنهج" : "Curriculum", detail: ar ? "أسابيع" : "weeks", singular: ar ? "أسبوع" : "week", icon: FiBookOpen },
+    { key: "questions", label: ar ? "بنك الأسئلة" : "Question Bank", detail: ar ? "أسئلة" : "questions", singular: ar ? "سؤال" : "question", icon: FiMessageCircle },
+    { key: "exams", label: ar ? "الامتحانات" : "End-of-round & Exams", detail: ar ? "امتحانات" : "exams", singular: ar ? "امتحان" : "exam", icon: FiClock },
+    { key: "flashcards", label: ar ? "البطاقات التعليمية" : "Flashcards", detail: ar ? "مجموعات" : "decks", singular: ar ? "مجموعة" : "deck", icon: FiLayers },
+    { key: "resources", label: ar ? "المصادر" : "Resources", detail: ar ? "ملفات" : "files", singular: ar ? "ملف" : "file", icon: FiFileText },
+  ] as const;
+
+  return <ProductShell search="Search bundles, courses, weeks, or lectures"><main className={`pp-page bundle-page advanced-bundle-page ${manager ? "" : "student-bundles"}`}>
+    {!manager ? <header className="student-bundles-bar">
+      <h1>{ar ? "حزمي الدراسية" : "My Bundles"}</h1>
+      {bundles.length > 0 && <label className="bundle-switcher">
+        <span>{ar ? "اختر حزمة" : "Choose bundle"}</span>
+        <select value={selectedBundle?.id ?? ""} onChange={(event) => {
+          const next = bundles.find((bundle) => bundle.id === event.target.value);
+          if (next) open(next);
+        }}>
+          {!selectedBundle && <option value="" disabled>—</option>}
+          {bundles.map((bundle) => <option value={bundle.id} key={bundle.id}>
+            {bundle.title} · {ar ? "الفصل" : "Semester"} {resolveBundleSemester(bundle)}{bundle.accessible === false ? (ar ? " · مغلق" : " · Locked") : ""}
+          </option>)}
+        </select>
+      </label>}
+      <button className="student-refresh" type="button" onClick={() => void load()} aria-label={ar ? "تحديث الحزم" : "Refresh bundles"}><FiRefreshCw /></button>
+    </header> :
+    <div className="pp-title hero"><div><small className="page-eyebrow">{manager ? "BUNDLE MANAGEMENT" : "YOUR LEARNING ACCESS"}</small><h1>{manager ? "Bundles" : "My Bundles"}</h1><p>{manager ? "Compose courses and weeks, attach assessments, assign people, and control free or paid access from one workspace." : scopeDescription}</p></div><button className="pp-button secondary" onClick={() => void load()}><FiRefreshCw /> Refresh</button></div>}
     {error && <ErrorState description={error} onRetry={() => void load()} />}
 
     {manager && <Panel title="Create bundle" className="bundle-create"><form onSubmit={create}><label>Title<input name="title" minLength={3} required /></label><label>Slug<input name="slug" minLength={3} required /></label><label>Semester<select name="semester" defaultValue="3">{[1, 2, 3, 4, 5, 6, 7, 8].map((semester) => <option key={semester} value={semester}>Semester {semester}</option>)}</select></label><label>Description<input name="description" /></label><label>Access<select aria-label="Bundle access type" value={createAccess} onChange={(event) => setCreateAccess(event.target.value as "FREE" | "PAID")}><option value="FREE">FREE</option><option value="PAID">PAID</option></select></label>{createAccess === "PAID" && <><label>Price<input aria-label="Price" name="price" type="number" min="0.01" step="0.01" required /></label><label>Currency<input aria-label="Currency" name="currency" defaultValue="EGP" minLength={3} maxLength={3} required /></label></>}<label>Bundle expiry<input aria-label="Bundle expiry" name="expiry" type="datetime-local" /></label><button className="pp-button" disabled={creating}><FiPlus /> {creating ? "Creating…" : "Create draft"}</button></form></Panel>}
 
-    {loading ? <PageSkeleton variant="workspace" label="Loading bundles" /> : !bundles.length ? <EmptyState title={manager ? "No managed bundles" : studentSemester ? `No enrolled bundles for Semester ${studentSemester}` : requestedStage ? "No enrolled bundles for this academic stage" : "No enrolled bundles"} description={manager ? "Create a draft bundle to begin composing curriculum." : studentSemester ? `No published bundles are currently available for Semester ${studentSemester}.` : requestedStage ? "No published bundles are currently available for this academic stage." : "No published bundles are currently available."} /> : <div className="bundle-workspace">
-      <aside className="bundle-list" aria-label={manager ? "Managed bundles" : "Your bundles"}><h2>{manager ? "Managed bundles" : "My bundles"}</h2>{bundles.map((bundle) => {
+    {loading ? <PageSkeleton variant="workspace" label="Loading bundles" /> : !bundles.length ? <EmptyState title={manager ? "No managed bundles" : studentSemester ? `No enrolled bundles for Semester ${studentSemester}` : requestedStage ? "No enrolled bundles for this academic stage" : "No enrolled bundles"} description={manager ? "Create a draft bundle to begin composing curriculum." : studentSemester ? `No published bundles are currently available for Semester ${studentSemester}.` : requestedStage ? "No published bundles are currently available for this academic stage." : "No published bundles are currently available."} /> : <div className={manager ? "bundle-workspace" : "student-bundle-workspace"}>
+      {manager && <aside className="bundle-list" aria-label={manager ? "Managed bundles" : "Your bundles"}><h2>{manager ? "Managed bundles" : "My bundles"}</h2>{bundles.map((bundle) => {
         const badge = bundleBadge(bundle, visited);
         const accessLabel = !manager
           ? (bundle.accessible === false ? "LOCKED" : "SUBSCRIBED")
           : (bundle.isFree ? "FREE" : `${bundle.priceCurrency} ${Number(bundle.priceAmount || 0).toFixed(2)}`);
         const bundleSem = resolveBundleSemester(bundle);
         return <button className={selectedBundle?.id === bundle.id ? "active" : ""} key={bundle.id} onClick={() => open(bundle)}><span>{!manager && bundle.accessible === false ? <FiLock /> : <FiLayers />}</span><b>{bundle.title}<small>{bundleSem ? `Semester ${bundleSem} · ` : ""}Year {bundle.academicYear}</small>{!manager && <em className={`bundle-status-badge ${badge.className}`}>{accessLabel}</em>}</b>{manager && <em className={`bundle-status-badge ${badge.className}`}>{badge.label}</em>}</button>;
-      })}</aside>
+      })}</aside>}
 
       <section className={`bundle-content ${bundleLoading ? "is-loading" : ""}`} aria-busy={bundleLoading}>
         {!manager && selectedBundle?.accessible === false ? <PaymentLockedBundle bundle={selectedBundle} busy={joining.has(selectedBundle.id)} onSubscribe={() => void enroll(selectedBundle)} /> : selected ? <>
-          <div className="bundle-hero"><div><small>{resolveBundleSemester(selected.bundle) ? `SEMESTER ${resolveBundleSemester(selected.bundle)} · ` : ""}ACADEMIC YEAR {selected.bundle.academicYear} · {selected.bundle.isFree ? "FREE" : `${selected.bundle.priceCurrency} ${Number(selected.bundle.priceAmount || 0).toFixed(2)}`}</small><h1>{selected.bundle.title}</h1><p>{selected.bundle.description || "No description has been added yet."}</p></div><span className={selected.bundle.read_only ? "expired" : "active"}>{selected.bundle.read_only ? <><FiLock /> Read-only</> : <><FiCheckCircle /> Active access</>}</span></div>
+          {!manager ? <header className="student-bundle-heading">
+            <div className="student-bundle-meta">
+              <span>{ar ? "الفصل الدراسي" : "Semester"} {resolveBundleSemester(selected.bundle)}</span>
+              <span>{selected.bundle.isFree ? (ar ? "مجاني" : "Free") : `${selected.bundle.priceCurrency} ${Number(selected.bundle.priceAmount || 0).toFixed(2)}`}</span>
+              <span>{selected.bundle.read_only ? <FiLock /> : <FiCheckCircle />}{selected.bundle.read_only ? (ar ? "للقراءة فقط" : "Read-only") : (ar ? "متاح" : "Active access")}</span>
+            </div>
+            <h2>{selected.bundle.title}</h2>
+            {selected.bundle.description && <p>{selected.bundle.description}</p>}
+          </header> : <div className="bundle-hero"><div><small>{resolveBundleSemester(selected.bundle) ? `SEMESTER ${resolveBundleSemester(selected.bundle)} · ` : ""}ACADEMIC YEAR {selected.bundle.academicYear} · {selected.bundle.isFree ? "FREE" : `${selected.bundle.priceCurrency} ${Number(selected.bundle.priceAmount || 0).toFixed(2)}`}</small><h1>{selected.bundle.title}</h1><p>{selected.bundle.description || "No description has been added yet."}</p></div><span className={selected.bundle.read_only ? "expired" : "active"}>{selected.bundle.read_only ? <><FiLock /> Read-only</> : <><FiCheckCircle /> Active access</>}</span></div>}
           {manager && <BundleManagementPanel bundleId={selected.bundle.id} onChanged={async () => { await load(); await refreshSelectedContent(selected.bundle.id); }} onDeleted={async () => { setSelected(null); setSelectedBundle(null); setUrl(null, "overview"); await load(); }} />}
           {selected.bundle.read_only && <section className="bundle-read-only-reason"><FiLock /><div><b>Browsing remains available</b><p>This enrollment is read-only. You can inspect curriculum and resources, but actions that submit or modify learning work are disabled by the server.</p></div></section>}
-          <nav className="bundle-tabs" aria-label="Bundle sections">{tabs.map((value) => {
+          {!manager ? <nav aria-label={ar ? "أقسام الحزمة" : "Bundle sections"} className={tab === "overview" ? "bundle-section-grid" : "bundle-section-nav"}>
+            {tab !== "overview" && <button type="button" onClick={() => changeTab("overview")}>{ar ? "نظرة عامة" : "Overview"}</button>}
+            {sections.map(({ key, label, detail, singular, icon: Icon }) => <button type="button" key={key} aria-current={tab === key ? "page" : undefined} onClick={() => changeTab(key)}>
+              {tab === "overview" && <Icon aria-hidden="true" />}
+              <strong>{label}</strong>
+              {tab === "overview" && <span>{tabCounts?.[key]} {tabCounts?.[key] === 1 ? singular : detail}</span>}
+            </button>)}
+          </nav> : <nav className="bundle-tabs" aria-label="Bundle sections">{tabs.map((value) => {
             const count = tabCounts?.[value];
             return <button key={value} className={tab === value ? "active" : ""} aria-current={tab === value ? "page" : undefined} onClick={() => changeTab(value)}>{value === "questions" ? "Question Bank" : value === "exams" ? "End-of-round & Exams" : value[0].toUpperCase() + value.slice(1)}{count !== null && count !== undefined ? <small>{count}</small> : null}</button>;
-          })}</nav>
-          <div className="bundle-content-search"><FiSearch /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filter courses, weeks, or lectures" /></div>
+          })}</nav>}
+          {showFilter && <div className="bundle-content-search"><FiSearch /><input aria-label="Filter courses, weeks, or lectures" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filter courses, weeks, or lectures" /></div>}
           {bundleLoading && <div className="bundle-content-overlay"><PageSkeleton variant="cards" label="Loading selected bundle" /></div>}
-          <BundleWorkspaceTab content={selected} tab={tab} courses={visibleCourses} lectures={lectures.filter(({ course, week, lecture }) => !needle || `${course.courseName} ${week.title || ""} ${lecture.title}`.toLowerCase().includes(needle))} openWeeks={openWeeks} setOpenWeeks={setOpenWeeks} setUrl={setUrl} />
-        </> : <EmptyState title="Choose a bundle" description="Select a bundle to open its workspace." />}
+          {!manager && tab === "overview" ? <div className="bundle-preview-grid">
+            {selected.past_exams.length > 0 && <section>
+              <h3>{ar ? "الامتحانات" : "Exams"}</h3>
+              {selected.past_exams.slice(0, 3).map((exam) => <Link key={exam.id} href={`/past-exams?bundle=${encodeURIComponent(selected.bundle.id)}&test=${encodeURIComponent(exam.id)}`}><FiClock /><span>{exam.title}</span></Link>)}
+              {selected.past_exams.length > 3 && <button onClick={() => changeTab("exams")}>{ar ? "عرض كل الامتحانات" : "View all exams"} ({selected.past_exams.length})</button>}
+            </section>}
+            {lectures.some(({ week, lecture }) => !week.isLocked && !lecture.isLocked) && <section>
+              <h3>{ar ? "المحاضرات" : "Lectures"}</h3>
+              {lectures.filter(({ week, lecture }) => !week.isLocked && !lecture.isLocked).slice(0, 3).map(({ course, week, lecture }) => <Link key={lecture.id} href={guideHref(course, lecture)}><FiBookOpen /><span>{lecture.title}<small>{ar ? "الأسبوع" : "Week"} {week.weekNumber} · {course.courseName}</small></span></Link>)}
+            </section>}
+          </div> : <BundleWorkspaceTab content={selected} tab={tab} courses={visibleCourses} lectures={lectures.filter(({ course, week, lecture }) => !needle || `${course.courseName} ${week.title || ""} ${lecture.title}`.toLowerCase().includes(needle))} openWeeks={openWeeks} setOpenWeeks={setOpenWeeks} setUrl={setUrl} />}
+        </> : bundleLoading ? <PageSkeleton variant="cards" label="Loading selected bundle" /> : <EmptyState title="Choose a bundle" description="Select a bundle to open its workspace." />}
       </section>
     </div>}
 
