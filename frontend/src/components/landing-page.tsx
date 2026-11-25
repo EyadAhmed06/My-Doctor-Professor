@@ -87,8 +87,8 @@ export function LandingPage() {
   return <main className="public-home" data-locale={locale}>
     <header className="public-nav">
       <BrandLockup className="public-brand" ariaLabel={t(`${BRAND_NAME} home`, `الصفحة الرئيسية لـ ${BRAND_NAME}`)} />
-      <button className="public-menu" onClick={() => setMenuOpen(!menuOpen)} aria-label={t("Toggle navigation", "فتح أو إغلاق التنقل")}>{menuOpen ? <FiX /> : <FiMenu />}</button>
-      <nav className={menuOpen ? "open" : ""}>
+      <button className="public-menu" aria-expanded={menuOpen} aria-controls="public-navigation" onClick={() => setMenuOpen(!menuOpen)} aria-label={t("Toggle navigation", "فتح أو إغلاق التنقل")}>{menuOpen ? <FiX /> : <FiMenu />}</button>
+      <nav id="public-navigation" onClick={() => setMenuOpen(false)} className={menuOpen ? "open" : ""}>
         <a href="#about">{t("About us", "من نحن")}</a><a href="#goal">{t("Our goal", "هدفنا")}</a><a href="#why-us">{t("Why choose us", "لماذا تختارنا")}</a><a href="#curriculum">{t("Curriculum", "المسار الدراسي")}</a><a href="#features">{t("Features", "المزايا")}</a>
       </nav>
       <div className="public-actions">
@@ -106,13 +106,30 @@ export function LandingPage() {
         <span className="public-eyebrow"><FiBookOpen /> My Doctor &amp; The Professor</span>
         <h1>{locale === "ar" ? <>حكمة الأستاذ.<br />دقة الطبيب.</> : <>The professor’s <em>wisdom.</em><br />The doctor’s <em>precision.</em></>}</h1>
         <p>{t("Reliable medical education, structured around the way students learn, professors examine, and doctors think.", "تعليم طبي موثوق ومنظم حول طريقة تعلم الطلاب، ووضع الأساتذة للاختبارات، وتفكير الأطباء.")}</p>
-        <div className="hero-actions">{user ? <Link className="public-button" href={workspaceHref}>{t("Continue learning", "متابعة التعلم")} {arrow}</Link> : <Link className="public-button" href="/register">{t("Start learning", "ابدأ التعلم")} {arrow}</Link>}<a className="public-button ghost" href="#curriculum">{t("Explore the curriculum", "استكشف المسار الدراسي")}</a></div>
+        <div className="hero-actions">
+          {user && <Link className="public-button" href={workspaceHref}>{t("Continue learning", "متابعة التعلم")} {arrow}</Link>}
+          <a className={user ? "public-button ghost" : "public-button"} href="#curriculum">{t("Choose your semester", "اختر فصلك الدراسي")} {arrow}</a>
+          {!user && !authLoading && <Link className="public-button ghost" href="/register">{t("Create an account", "إنشاء حساب")}</Link>}
+        </div>
         <div className="hero-proof"><span><FiCheckCircle /> {t("Organized by academic year", "منظم حسب السنة الدراسية")}</span><span><FiCheckCircle /> {t("Case-based reasoning", "تفكير قائم على الحالات")}</span><span><FiCheckCircle /> {t("Personal progress", "متابعة تقدمك الشخصي")}</span></div>
       </div>
       <figure className="hero-duo" aria-label={t("The Doctor and The Professor", "الطبيب والأستاذ")}>
         <img className="hero-duo-dark" src="/media/hero-doctor-professor-dark-final-lossless.webp?v=20260829-final-v2" alt={t("The Doctor representing clinical precision and The Professor representing academic wisdom", "الطبيب ممثلًا للدقة السريرية والأستاذ ممثلًا للحكمة الأكاديمية")} />
         <img className="hero-duo-light" src="/media/hero-doctor-professor-light-final.webp?v=20260829-final-v2" alt={t("The Doctor representing clinical precision and The Professor representing academic wisdom", "الطبيب ممثلًا للدقة السريرية والأستاذ ممثلًا للحكمة الأكاديمية")} />
       </figure>
+    </section>
+
+    <section className="public-section curriculum-section" id="curriculum">
+      <div className="section-heading">
+        <h2>{t("Choose your semester", "اختر فصلك الدراسي")}</h2>
+        <p>{user ? t("Select a semester to open its learning bundles.", "اختر فصلًا دراسيًا لعرض حزمه التعليمية.") : t("Select a semester, then sign in to view its learning bundles.", "اختر فصلًا دراسيًا، ثم سجّل الدخول لعرض حزمه التعليمية.")}</p>
+      </div>
+      <div className="year-grid">{years.map((item, index) => <article className="year-card" key={item.year.en}>
+        <div className="year-number">0{index + 1}</div><span>{local(locale, item.focus)}</span><h3>{local(locale, item.year)}</h3><p>{local(locale, item.description)}</p>
+        <div className="semester-links">{item.semesters.map((semester, semesterIndex) => <Link key={semester.en} href={academicHref(index + 1, semesterIndex)}>{local(locale, semester)} {arrow}</Link>)}</div>
+        <ul>{item.topics.map(topic => <li key={topic.en}><FiCheckCircle />{local(locale, topic)}</li>)}</ul>
+        <Link className="year-open" href={academicHref(index + 1)}>{t(`Open ${item.year.en} workspace`, `فتح مساحة ${item.year.ar}`)} {arrow}</Link>
+      </article>)}</div>
     </section>
 
     <section className="public-section story-section" id="about">
@@ -136,15 +153,7 @@ export function LandingPage() {
 
     
 
-    <section className="public-section curriculum-section" id="curriculum">
-      <div className="section-heading"><span>{t("YOUR ACADEMIC JOURNEY", "رحلتك الأكاديمية")}</span><h2>{t("Find your year. Continue your work.", "اختر سنتك الدراسية. وواصل تقدمك.")}</h2><p>{t("Enter the platform through the stage you are studying now, then move between semesters, courses, and learning activities without losing context.", "ادخل المنصة من المرحلة التي تدرسها الآن، ثم انتقل بين الفصول والمقررات وأنشطة التعلم دون فقدان سياقك.")}</p></div>
-      <div className="year-grid">{years.map((item, index) => <article className="year-card" key={item.year.en}>
-        <div className="year-number">0{index + 1}</div><span>{local(locale, item.focus)}</span><h3>{local(locale, item.year)}</h3><p>{local(locale, item.description)}</p>
-        <div className="semester-links">{item.semesters.map((semester, semesterIndex) => <Link key={semester.en} href={academicHref(index + 1, semesterIndex)}>{local(locale, semester)} {arrow}</Link>)}</div>
-        <ul>{item.topics.map(topic => <li key={topic.en}><FiCheckCircle />{local(locale, topic)}</li>)}</ul>
-        <Link className="year-open" href={academicHref(index + 1)}>{t(`Open ${item.year.en} workspace`, `فتح مساحة ${item.year.ar}`)} {arrow}</Link>
-      </article>)}</div>
-    </section>
+
 
     <section className="public-section feature-section" id="features">
       <div className="section-heading narrow"><span>{t("WHY IT STANDS OUT", "لماذا تتميز المنصة")}</span><h2>{t("More than content. A system for learning how to think.", "أكثر من مجرد محتوى. نظام يساعدك على تعلم كيف تفكر.")}</h2><p>{t("The platform connects each learning action to the next, reducing the gap between studying a fact and using it in a clinical decision.", "تربط المنصة كل خطوة تعلم بما يليها، فتقلل الفجوة بين دراسة المعلومة واستخدامها في قرار سريري.")}</p></div>
