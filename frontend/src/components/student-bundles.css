@@ -1,0 +1,197 @@
+/* Student bundle navigation and content share one document scroll. */
+.student-bundles.pp-page {
+  width: 100%;
+  max-width: 88rem;
+  margin-inline: auto;
+  padding: clamp(1rem, 3vw, 2.5rem);
+  --bundle-line: var(--p-line);
+}
+.student-bundles-bar, .student-bundle-meta, .bundle-section-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.student-bundles-bar { padding-bottom: 1rem; border-bottom: 1px solid var(--bundle-line); }
+.student-bundles-bar h1 { margin: 0; margin-inline-end: auto; font-size: clamp(1.45rem, 2.5vw, 2rem); }
+.bundle-switcher { display: flex; gap: .65rem; align-items: center; min-width: 0; font-size: 1rem; }
+.bundle-switcher select, .student-refresh, .bundle-section-nav button, .bundle-section-grid button {
+  border: 1px solid var(--bundle-line); color: var(--text); background: var(--surface);
+  font: inherit; border-radius: .65rem; min-height: 44px; cursor: pointer;
+}
+.bundle-switcher select { max-width: min(36vw, 30rem); padding-inline: .75rem; font-size: 1rem; }
+.student-refresh { width: 44px; display: grid; place-items: center; }
+.student-bundle-heading { padding-block: clamp(1rem, 2.5vw, 2rem); }
+.student-bundle-heading h2 { margin: .45rem 0; font-size: clamp(1.65rem, 3vw, 2.65rem); line-height: 1.15; overflow-wrap: anywhere; }
+.student-bundle-heading p { margin: 0; max-width: 75ch; font-size: 1.0625rem; line-height: 1.55; color: var(--muted); }
+.student-bundle-meta { gap: .5rem 1rem; color: var(--muted); font-size: .9375rem; }
+.student-bundle-meta span { display: inline-flex; gap: .35rem; align-items: center; }
+.student-bundle-meta svg, .bundle-section-grid svg, .bundle-preview-grid a > svg { color: var(--accent); }
+.bundle-section-grid { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); }
+.bundle-section-grid button { display: grid; align-content: start; justify-items: start; text-align: start; padding: 1rem; }
+.bundle-section-grid svg { font-size: 1.35rem; margin-bottom: .7rem; }
+.bundle-section-grid strong, .bundle-preview-grid a { font-size: 1.0625rem; line-height: 1.4; }
+.bundle-section-grid span, .bundle-preview-grid small { color: var(--muted); font-size: .9375rem; }
+.bundle-section-nav { gap: .4rem; padding-block-end: 1rem; }
+.bundle-section-nav button { padding: .5rem .8rem; font-size: 1rem; }
+.bundle-section-nav [aria-current], .bundle-section-nav button:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.student-bundles :is(button, a, select, input):focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.bundle-preview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 1.4rem; margin-top: 1.5rem; }
+.bundle-preview-grid h3 { margin: 0 0 .4rem; font-size: 1.35rem; }
+.bundle-preview-grid a { display: flex; gap: .7rem; align-items: center; min-height: 48px; border-top: 1px solid var(--bundle-line); color: inherit; padding: .65rem .2rem; text-decoration: none; }
+.bundle-preview-grid a:hover span { text-decoration: underline; }
+.bundle-preview-grid small { display: block; }
+.bundle-preview-grid svg { flex: none; }
+.bundle-preview-grid button { background: transparent; border: 0; color: var(--accent); min-height: 44px; cursor: pointer; font: inherit; }
+.student-bundles .bundle-content { min-width: 0; font-size: 1rem; }
+.student-bundles .bundle-content :is(.bundle-row, .advanced-bundle-week, .bundle-question-builder, .bundle-read-only-reason) :is(small, p, label) { font-size: .9375rem; line-height: 1.5; }
+.student-bundles .bundle-content :is(.bundle-row, .advanced-bundle-week) b, .student-bundles .bundle-content-search input { font-size: 1rem; }
+.student-bundles .bundle-expand-actions { flex-wrap: wrap; }
+@media (max-width: 650px) {
+  .student-bundles-bar { display: grid; grid-template-columns: 1fr auto; gap: .7rem; }
+  .student-refresh { grid-area: 1 / 2; }
+  .bundle-switcher { grid-column: 1 / -1; flex-wrap: wrap; }
+  .bundle-switcher select { max-width: 100%; width: 100%; }
+  .bundle-section-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+  .bundle-section-grid button { padding: .7rem; }
+  
+}
+
+/* Each destination is identified by its silhouette and visible label. */
+.bundle-section-grid button {
+  justify-items: center;
+  text-align: center;
+  align-content: start;
+  border: 0;
+  background: transparent;
+  padding: .65rem .4rem;
+  gap: .25rem;
+}
+.student-bundles .study-symbol {
+  display: block;
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto .65rem;
+  color: color-mix(in srgb, var(--text) 82%, var(--accent));
+}
+.bundle-section-grid {
+  padding-block: 1rem;
+  border-block: 1px solid var(--bundle-line);
+}
+.bundle-section-grid strong {
+  font-weight: 600;
+  letter-spacing: -.012em;
+}
+.bundle-section-grid button:is(:hover, :focus-visible) .study-symbol,
+.student-bundles a:is(:hover, :focus-visible) .study-symbol {
+  color: var(--accent);
+}
+.exam-collection, .lecture-collection { min-width: 0; }
+.exam-collection header, .exam-collection footer { display: flex; align-items: center; gap: .5rem; }
+.exam-collection header { justify-content: space-between; margin-bottom: .65rem; }
+.exam-collection h3, .lecture-collection h3 { margin: 0; font-size: 1.35rem; }
+.exam-collection button { cursor: pointer; min-height: 44px; color: var(--text); font: inherit; }
+.exam-tiles { display: grid; grid-template-columns: repeat(auto-fill,minmax(min(100%,15rem),1fr)); gap: .8rem; }
+.exam-preview .exam-tiles { grid-template-columns: 1fr; }
+.student-bundles a.exam-tile, .bundle-preview-grid .lecture-collection a {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  gap: .3rem; padding: .85rem; min-height: 44px; text-align: center;
+  text-decoration: none; border: 0; color: var(--text); background: transparent;
+}
+.student-bundles .bundle-preview-grid .study-symbol { width: 2.5rem; height: 2.5rem; }
+.lecture-collection a span { font-size: 1.18rem; font-weight: 600; }
+.lecture-collection a small { font-weight: 400; }
+.exam-tile strong { font-size: 1.18rem; line-height: 1.35; overflow-wrap: anywhere; }
+.student-bundles .exam-tile :is(small,span) { display: inline-flex; gap: .5rem; align-items: center; }
+.exam-tile small { color: var(--muted); font-size: .9375rem; }
+.exam-tile span { font-weight: 600; }
+.exam-preview footer { justify-content: end; margin-top: .4rem; }
+.exam-preview footer span { margin-inline-end: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+.exam-preview footer button { width: 44px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--bundle-line); background: var(--surface); }
+.exam-preview button:disabled { opacity: .4; cursor: default; }
+.exam-search { display: flex; align-items: center; gap: .65rem; padding-inline: .85rem; border: 1px solid var(--bundle-line); border-radius: .65rem; margin-bottom: 1rem; }
+.exam-search input { flex: 1; min-width: 0; height: 46px; font: inherit; color: inherit; border: 0; background: transparent; }
+.lecture-collection h3 { min-height: 44px; display: flex; align-items: center; }
+[dir="rtl"] .bundle-direction { scale: -1 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .student-bundles :is(.bundle-section-grid button,.bundle-section-nav button,.exam-tile,.lecture-collection a,.exam-preview footer button) { transition: transform 140ms ease-out, border-color 140ms ease-out, box-shadow 140ms ease-out; }
+  .bundle-view, .exam-preview .exam-tile { animation: bundle-arrive 180ms ease-out; }
+  .student-bundles :is(.bundle-section-grid button,.exam-tile,.lecture-collection a,.exam-preview footer button):active { transform: scale(.985); }
+  @media (hover: hover) {
+    .student-bundles :is(.bundle-section-grid button,.exam-tile,.lecture-collection a):hover { transform: translateY(-2px);  }
+  }
+}
+@keyframes bundle-arrive { from { opacity: .55; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+
+@media (hover: hover) {
+  .student-bundles :is(.bundle-section-grid button,.exam-tile,.lecture-collection a):hover :is(strong,span:not(.study-symbol)) { text-decoration: underline; text-underline-offset: .2em; }
+}
+
+.bundle-preview-grid {
+  column-gap: clamp(1.5rem,4vw,4rem);
+  row-gap: 1.5rem;
+}
+.bundle-preview-grid :is(.lecture-collection,.exam-preview) > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  border-bottom: 1px solid var(--bundle-line);
+  margin-bottom: .5rem;
+}
+.bundle-preview-grid header h3 {
+  font-family: var(--font-display);
+  font-size: 1.65rem;
+  font-weight: 500;
+}
+.bundle-preview-grid .exam-preview a.exam-tile {
+  align-items: flex-start;
+  text-align: start;
+  padding: .6rem 0;
+  gap: .45rem;
+}
+.exam-preview .exam-tile strong {
+  font-size: clamp(1.35rem,2.1vw,1.85rem);
+  letter-spacing: -.02em;
+  line-height: 1.2;
+}
+.exam-preview .exam-open { margin-top: .4rem; color: var(--accent); font-size: 1rem; }
+.exam-preview footer { justify-content: flex-start; }
+.exam-preview footer span { margin-inline-end: .4rem; }
+.bundle-preview-grid .lecture-collection a {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  gap: .3rem .8rem;
+  text-align: start;
+  padding: .75rem 0;
+  align-items: center;
+}
+.lecture-collection a + a { border-top: 1px solid var(--bundle-line); }
+.lecture-collection a small, .lecture-collection a strong { grid-column: 1; overflow-wrap: anywhere; }
+.lecture-collection a > svg { grid-column: 2; grid-row: 1 / 3; color: var(--accent); }
+
+/* Working sections below the bundle navigation. */
+.student-bundles .bundle-view:is([data-section="curriculum"],[data-section="flashcards"],[data-section="resources"]) .pp-panel {
+  padding: .5rem 0; border: 0; background: transparent; box-shadow: none;
+}
+.student-bundles .bundle-view:is([data-section="curriculum"],[data-section="questions"],[data-section="flashcards"],[data-section="resources"]) h2 {
+  font: 500 clamp(1.35rem,2vw,1.75rem)/1.25 var(--font-display);
+  margin-block: .5rem 1rem;
+}
+.student-bundles .advanced-bundle-week {
+  border: 0; border-block-start: 1px solid var(--bundle-line); border-radius: 0; background: transparent;
+}
+.student-bundles .advanced-bundle-week > button { min-height: 52px; text-align: start; }
+.student-bundles .advanced-bundle-week.open > div { margin-inline-start: 1rem; border-inline-start: 2px solid var(--accent); }
+.student-bundles .question-curriculum fieldset { min-width: 0; padding: .75rem; margin-block: 1rem; }
+.student-bundles .question-curriculum label { min-height: 44px; }
+.student-bundles .question-curriculum label.checked { box-shadow: inset 0 -2px var(--accent); }
+.student-bundles .bundle-view:is([data-section="flashcards"],[data-section="resources"]) .bundle-row {
+  display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: .85rem; align-items: center;
+  border: 0; border-top: 1px solid var(--bundle-line); border-radius: 0; background: transparent;
+  min-height: 58px; padding: .8rem .25rem; overflow-wrap: anywhere;
+}
+.student-bundles .bundle-row > strong { font-weight: 500; font-variant-numeric: tabular-nums; }
+@media (hover: hover) {
+  .student-bundles :is(.bundle-row,.advanced-bundle-week > button):hover b { text-decoration: underline; text-underline-offset: .2em; }
+}
