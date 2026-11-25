@@ -102,7 +102,7 @@ export function parseCanonicalMcqDocument(
 ): CanonicalParsedQuestionDocument {
   const preparedPages = pdf.pages.map((page) => ({
     page: page.page,
-    text: prepareForParsing(page.text),
+    text: prepareForParsing(normalizeAnswerGrids(page.text)),
   }));
   const combined = preparedPages
     .map((page) => `\n[[MDP_PAGE_${page.page}]]\n${page.text}`)
@@ -111,6 +111,12 @@ export function parseCanonicalMcqDocument(
   const parsingSections = splitCanonicalSections(combined);
   const sectionResults = parsingSections.map((section) => {
     const key = extractAnswerKeyDetailed(section.text);
+    const namedKey = section.text.match(/^\s*answer\s*key\s*[-–—:]\s*(.+)$/im);
+    const identity = (name: string) => name.replace(/^lecture\s+(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s*[:-]\s*/i, '')
+      .normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+    if (section.title && namedKey && !parseAnswerPairs(namedKey[1]).length && identity(section.title) !== identity(namedKey[1])) {
+      key.entries.clear();
+    }
     const questions = parseSectionQuestions(
       section,
       combined,
@@ -522,6 +528,38 @@ function parseOptions(optionArea: string): Array<{ label: string; text: string }
     .filter((option) => Boolean(option.text));
 }
 
+// Poppler layout text preserves table rows. Only interpret them inside an
+// explicit key, and only when every question column has exactly one answer.
+function normalizeAnswerGrids(text: string): string {
+  const lines = text.split(/\r?\n/);
+  let inKey = false;
+  for (let i = 0; i < lines.length; i++) {
+    const row = lines[i].trim();
+    if (ANSWER_KEY_HEADING.test(row)) {
+      inKey = true;
+      continue;
+    }
+    if (!inKey || !row) continue;
+    if (!/^Q\d+(?:\s+Q\d+)*$/i.test(row)) {
+      inKey = false;
+      continue;
+    }
+    let next = i + 1;
+    while (next < lines.length && !lines[next].trim()) next++;
+    const numbers = row.split(/\s+/).map(cell => Number(cell.slice(1)));
+    const labels = (lines[next] || '').trim().toUpperCase().split(/\s+/);
+    if (numbers.length !== labels.length || !labels.every(label => /^[A-E]$/.test(label))
+      || new Set(numbers).size !== numbers.length) {
+      inKey = false;
+      continue;
+    }
+    lines[i] = numbers.map((number, column) => number + ':' + labels[column]).join(' ');
+    lines[next] = '';
+    i = next;
+  }
+  return lines.join('\n');
+}
+
 function prepareForParsing(value: string): string {
   return value
     .replace(/\r\n?/g, '\n')
@@ -576,6 +614,7 @@ function extractAnswerKeyDetailed(value: string): AnswerKeyParseResult {
     }
   }
 
+  for (const number of conflictLabels.keys()) result.delete(number);
   return {
     entries: result,
     conflicts: [...conflictLabels.entries()]
