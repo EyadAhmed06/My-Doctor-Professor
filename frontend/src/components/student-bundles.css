@@ -1,0 +1,58 @@
+/* Student bundle navigation and content share one document scroll. */
+.student-bundles.pp-page {
+  width: 100%;
+  max-width: 88rem;
+  margin-inline: auto;
+  padding: clamp(1rem, 3vw, 2.5rem);
+  --bundle-line: var(--p-line);
+}
+.student-bundles-bar, .student-bundle-meta, .bundle-section-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.student-bundles-bar { padding-bottom: 1rem; border-bottom: 1px solid var(--bundle-line); }
+.student-bundles-bar h1 { margin: 0; margin-inline-end: auto; font-size: clamp(1.45rem, 2.5vw, 2rem); }
+.bundle-switcher { display: flex; gap: .65rem; align-items: center; min-width: 0; font-size: 1rem; }
+.bundle-switcher select, .student-refresh, .bundle-section-nav button, .bundle-section-grid button {
+  border: 1px solid var(--bundle-line); color: var(--text); background: var(--surface);
+  font: inherit; border-radius: .65rem; min-height: 44px; cursor: pointer;
+}
+.bundle-switcher select { max-width: min(36vw, 30rem); padding-inline: .75rem; font-size: 1rem; }
+.student-refresh { width: 44px; display: grid; place-items: center; }
+.student-bundle-heading { padding-block: clamp(1rem, 2.5vw, 2rem); }
+.student-bundle-heading h2 { margin: .45rem 0; font-size: clamp(1.65rem, 3vw, 2.65rem); line-height: 1.15; overflow-wrap: anywhere; }
+.student-bundle-heading p { margin: 0; max-width: 75ch; font-size: 1.0625rem; line-height: 1.55; color: var(--muted); }
+.student-bundle-meta { gap: .5rem 1rem; color: var(--muted); font-size: .9375rem; }
+.student-bundle-meta span { display: inline-flex; gap: .35rem; align-items: center; }
+.student-bundle-meta svg, .bundle-section-grid svg, .bundle-preview-grid a > svg { color: var(--accent); }
+.bundle-section-grid { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); }
+.bundle-section-grid button { display: grid; align-content: start; justify-items: start; text-align: start; padding: 1rem; }
+.bundle-section-grid svg { font-size: 1.35rem; margin-bottom: .7rem; }
+.bundle-section-grid strong, .bundle-preview-grid a { font-size: 1.0625rem; line-height: 1.4; }
+.bundle-section-grid span, .bundle-preview-grid small { color: var(--muted); font-size: .9375rem; }
+.bundle-section-nav { gap: .4rem; padding-block-end: 1rem; }
+.bundle-section-nav button { padding: .5rem .8rem; font-size: 1rem; }
+.bundle-section-nav [aria-current], .bundle-section-grid button:hover, .bundle-section-nav button:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.student-bundles :is(button, a, select, input):focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.bundle-preview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 1.4rem; margin-top: 1.5rem; }
+.bundle-preview-grid h3 { margin: 0 0 .4rem; font-size: 1.35rem; }
+.bundle-preview-grid a { display: flex; gap: .7rem; align-items: center; min-height: 48px; border-top: 1px solid var(--bundle-line); color: inherit; padding: .65rem .2rem; text-decoration: none; }
+.bundle-preview-grid a:hover span { text-decoration: underline; }
+.bundle-preview-grid small { display: block; }
+.bundle-preview-grid svg { flex: none; }
+.bundle-preview-grid button { background: transparent; border: 0; color: var(--accent); min-height: 44px; cursor: pointer; font: inherit; }
+.student-bundles .bundle-content { min-width: 0; font-size: 1rem; }
+.student-bundles .bundle-content :is(.bundle-row, .advanced-bundle-week, .bundle-question-builder, .bundle-read-only-reason) :is(small, p, label) { font-size: .9375rem; line-height: 1.5; }
+.student-bundles .bundle-content :is(.bundle-row, .advanced-bundle-week) b, .student-bundles .bundle-content-search input { font-size: 1rem; }
+.student-bundles .bundle-expand-actions { flex-wrap: wrap; }
+@media (max-width: 650px) {
+  .student-bundles-bar { display: grid; grid-template-columns: 1fr auto; gap: .7rem; }
+  .student-refresh { grid-area: 1 / 2; }
+  .bundle-switcher { grid-column: 1 / -1; flex-wrap: wrap; }
+  .bundle-switcher select { max-width: 100%; width: 100%; }
+  .bundle-section-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+  .bundle-section-grid button { padding: .7rem; }
+  .bundle-section-grid svg { display: none; }
+}
