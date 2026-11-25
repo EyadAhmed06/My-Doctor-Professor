@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { PiBookOpenTextLight, PiBooksLight, PiCardsLight, PiClipboardTextLight, PiFolderOpenLight, PiListChecksLight } from "react-icons/pi";
+import { PiBooksLight, PiCardsLight, PiClipboardTextLight, PiFolderOpenLight, PiListChecksLight } from "react-icons/pi";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -395,6 +395,7 @@ export function AdvancedBundlesPage() {
   }, [requestedSemester, selected]);
   const lectures = useMemo(() => scopedCourses.flatMap((course) => course.weeks.flatMap((week) => week.lectures.map((lecture) => ({ course, week, lecture })))), [scopedCourses]);
   const showFilter = manager || ["curriculum", "questions", "flashcards", "resources"].includes(tab);
+  const accessibleLectures = lectures.filter(({ week, lecture }) => !week.isLocked && !lecture.isLocked);
   const needle = showFilter ? query.trim().toLowerCase() : "";
   const visibleCourses = useMemo(() => {
     if (!needle) return scopedCourses;
@@ -484,9 +485,16 @@ export function AdvancedBundlesPage() {
           {!manager && tab === "exams" ? <StudentExamCollection content={selected} ar={ar} /> :
             !manager && tab === "overview" ? <div className="bundle-preview-grid">
             {selected.past_exams.length > 0 && <StudentExamCollection content={selected} ar={ar} onViewAll={() => changeTab("exams")} />}
-            {lectures.some(({ week, lecture }) => !week.isLocked && !lecture.isLocked) && <section className="lecture-collection">
-              <h3>{ar ? "المحاضرات" : "Lectures"}</h3>
-              {lectures.filter(({ week, lecture }) => !week.isLocked && !lecture.isLocked).slice(0, 3).map(({ course, week, lecture }) => <Link key={lecture.id} href={guideHref(course, lecture)}><PiBookOpenTextLight className="study-symbol" aria-hidden="true" /><span>{lecture.title}<small>{ar ? "الأسبوع" : "Week"} {week.weekNumber} · {course.courseName}</small></span></Link>)}
+            {accessibleLectures.length > 0 && <section className="lecture-collection">
+              <header>
+                <h3>{ar ? "المحاضرات" : "Lectures"}</h3>
+                {accessibleLectures.length > 3 && <button type="button" onClick={() => changeTab("curriculum")}>{ar ? "عرض المنهج" : "View curriculum"}</button>}
+              </header>
+              {accessibleLectures.slice(0, 3).map(({ course, week, lecture }) => <Link key={lecture.id} href={guideHref(course, lecture)}>
+                <small>{ar ? "الأسبوع" : "Week"} {week.weekNumber} · {course.courseName}</small>
+                <strong>{lecture.title}</strong>
+                <FiArrowRight className="bundle-direction" aria-hidden="true" />
+              </Link>)}
             </section>}
           </div> : <BundleWorkspaceTab content={selected} tab={tab} courses={visibleCourses} lectures={lectures.filter(({ course, week, lecture }) => !needle || `${course.courseName} ${week.title || ""} ${lecture.title}`.toLowerCase().includes(needle))} openWeeks={openWeeks} setOpenWeeks={setOpenWeeks} setUrl={setUrl} />}
           </div>
@@ -517,9 +525,10 @@ function StudentExamCollection({ content, ar, onViewAll }: {
     {!onViewAll && exams.length > 0 && <label className="exam-search"><FiSearch aria-hidden="true" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} aria-label={ar ? "بحث في الامتحانات" : "Search exams"} placeholder={ar ? "ابحث باسم الامتحان" : "Search by exam title"} /></label>}
     <div className="exam-tiles">
       {visible.map((exam) => <Link className="exam-tile" key={exam.id} href={`/past-exams?bundle=${encodeURIComponent(content.bundle.id)}&test=${encodeURIComponent(exam.id)}`}>
-        <PiClipboardTextLight className="study-symbol" aria-hidden="true" />
+        {!onViewAll && <PiClipboardTextLight className="study-symbol" aria-hidden="true" />}
         <strong>{exam.title}</strong>
         <small><FiClock aria-hidden="true" />{exam.durationMinutes ? `${exam.durationMinutes} ${ar ? "دقيقة" : "min"}` : (ar ? "بدون مؤقت" : "Untimed")}</small>
+        {onViewAll && <span className="exam-open">{ar ? "فتح الامتحان" : "Open exam"} <FiArrowRight className="bundle-direction" aria-hidden="true" /></span>}
       </Link>)}
     </div>
     {!visible.length && <p role="status">{query ? (ar ? "لا توجد نتائج مطابقة" : "No exams match this search.") : (ar ? "لا توجد امتحانات متاحة" : "No exams available.")}</p>}
