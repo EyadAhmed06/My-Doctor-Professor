@@ -69,20 +69,23 @@
 }
 .student-bundles .study-symbol {
   display: block;
-  width: 4rem;
-  height: 4rem;
-  margin: 0 auto .45rem;
-  color: var(--symbol-color,var(--accent));
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto .65rem;
+  color: color-mix(in srgb, var(--text) 82%, var(--accent));
 }
-.bundle-section-grid [data-section="questions"] { --symbol-color: #ac94fc; }
-.bundle-section-grid [data-section="exams"], .exam-tiles { --symbol-color: #f8b779; }
-.bundle-section-grid [data-section="flashcards"] { --symbol-color: #7fb9f3; }
-.bundle-section-grid [data-section="resources"] { --symbol-color: #a1c6a1; }
-html[data-theme="light"] .student-bundles { --symbol-color: #376b75; }
-html[data-theme="light"] .bundle-section-grid [data-section="questions"] { --symbol-color: #7254b2; }
-html[data-theme="light"] :is(.bundle-section-grid [data-section="exams"],.exam-tiles) { --symbol-color: #975424; }
-html[data-theme="light"] .bundle-section-grid [data-section="flashcards"] { --symbol-color: #366f9e; }
-html[data-theme="light"] .bundle-section-grid [data-section="resources"] { --symbol-color: #47784f; }
+.bundle-section-grid {
+  padding-block: 1rem;
+  border-block: 1px solid var(--bundle-line);
+}
+.bundle-section-grid strong {
+  font-weight: 600;
+  letter-spacing: -.012em;
+}
+.bundle-section-grid button:is(:hover, :focus-visible) .study-symbol,
+.student-bundles a:is(:hover, :focus-visible) .study-symbol {
+  color: var(--accent);
+}
 .exam-collection, .lecture-collection { min-width: 0; }
 .exam-collection header, .exam-collection footer { display: flex; align-items: center; gap: .5rem; }
 .exam-collection header { justify-content: space-between; margin-bottom: .65rem; }
@@ -95,8 +98,8 @@ html[data-theme="light"] .bundle-section-grid [data-section="resources"] { --sym
   gap: .3rem; padding: .85rem; min-height: 44px; text-align: center;
   text-decoration: none; border: 0; color: var(--text); background: transparent;
 }
-.bundle-preview-grid .study-symbol { width: 3.2rem; height: 3.2rem; }
-.lecture-collection a span { font-size: 1.18rem; font-weight: 650; }
+.student-bundles .bundle-preview-grid .study-symbol { width: 2.5rem; height: 2.5rem; }
+.lecture-collection a span { font-size: 1.18rem; font-weight: 600; }
 .lecture-collection a small { font-weight: 400; }
 .exam-tile strong { font-size: 1.18rem; line-height: 1.35; overflow-wrap: anywhere; }
 .student-bundles .exam-tile :is(small,span) { display: inline-flex; gap: .5rem; align-items: center; }
