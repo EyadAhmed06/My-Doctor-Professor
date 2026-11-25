@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PiBookOpenTextDuotone, PiBooksDuotone, PiCardsThreeDuotone, PiExamDuotone, PiFolderOpenDuotone, PiQuestionDuotone } from "react-icons/pi";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -414,11 +415,11 @@ export function AdvancedBundlesPage() {
         : "Open enrolled curriculum, questions, exams, flashcards, and resources without losing context.";
 
   const sections = [
-    { key: "curriculum", label: ar ? "المنهج" : "Curriculum", detail: ar ? "أسابيع" : "weeks", singular: ar ? "أسبوع" : "week", icon: FiBookOpen },
-    { key: "questions", label: ar ? "بنك الأسئلة" : "Question Bank", detail: ar ? "أسئلة" : "questions", singular: ar ? "سؤال" : "question", icon: FiMessageCircle },
-    { key: "exams", label: ar ? "الامتحانات" : "End-of-round & Exams", detail: ar ? "امتحانات" : "exams", singular: ar ? "امتحان" : "exam", icon: FiClock },
-    { key: "flashcards", label: ar ? "البطاقات التعليمية" : "Flashcards", detail: ar ? "مجموعات" : "decks", singular: ar ? "مجموعة" : "deck", icon: FiLayers },
-    { key: "resources", label: ar ? "المصادر" : "Resources", detail: ar ? "ملفات" : "files", singular: ar ? "ملف" : "file", icon: FiFileText },
+    { key: "curriculum", label: ar ? "المنهج" : "Curriculum", detail: ar ? "أسابيع" : "weeks", singular: ar ? "أسبوع" : "week", icon: PiBooksDuotone },
+    { key: "questions", label: ar ? "بنك الأسئلة" : "Question Bank", detail: ar ? "أسئلة" : "questions", singular: ar ? "سؤال" : "question", icon: PiQuestionDuotone },
+    { key: "exams", label: ar ? "الامتحانات" : "End-of-round & Exams", detail: ar ? "امتحانات" : "exams", singular: ar ? "امتحان" : "exam", icon: PiExamDuotone },
+    { key: "flashcards", label: ar ? "البطاقات التعليمية" : "Flashcards", detail: ar ? "مجموعات" : "decks", singular: ar ? "مجموعة" : "deck", icon: PiCardsThreeDuotone },
+    { key: "resources", label: ar ? "المصادر" : "Resources", detail: ar ? "ملفات" : "files", singular: ar ? "ملف" : "file", icon: PiFolderOpenDuotone },
   ] as const;
 
   return <ProductShell search="Search bundles, courses, weeks, or lectures"><main className={`pp-page bundle-page advanced-bundle-page ${manager ? "" : "student-bundles"}`}>
@@ -469,7 +470,7 @@ export function AdvancedBundlesPage() {
           {!manager ? <nav aria-label={ar ? "أقسام الحزمة" : "Bundle sections"} className={tab === "overview" ? "bundle-section-grid" : "bundle-section-nav"}>
             {tab !== "overview" && <button type="button" onClick={() => changeTab("overview")}>{ar ? "نظرة عامة" : "Overview"}</button>}
             {sections.map(({ key, label, detail, singular, icon: Icon }) => <button type="button" key={key} data-section={key} aria-current={tab === key ? "page" : undefined} onClick={() => changeTab(key)}>
-              {tab === "overview" && <div className="bundle-card-symbol"><Icon aria-hidden="true" /><FiArrowRight className="bundle-direction" aria-hidden="true" /></div>}
+              {tab === "overview" && <Icon className="study-symbol" aria-hidden="true" />}
               <strong>{label}</strong>
               {tab === "overview" && <span>{tabCounts?.[key]} {tabCounts?.[key] === 1 ? singular : detail}</span>}
             </button>)}
@@ -485,7 +486,7 @@ export function AdvancedBundlesPage() {
             {selected.past_exams.length > 0 && <StudentExamCollection content={selected} ar={ar} onViewAll={() => changeTab("exams")} />}
             {lectures.some(({ week, lecture }) => !week.isLocked && !lecture.isLocked) && <section className="lecture-collection">
               <h3>{ar ? "المحاضرات" : "Lectures"}</h3>
-              {lectures.filter(({ week, lecture }) => !week.isLocked && !lecture.isLocked).slice(0, 3).map(({ course, week, lecture }) => <Link key={lecture.id} href={guideHref(course, lecture)}><FiBookOpen /><span>{lecture.title}<small>{ar ? "الأسبوع" : "Week"} {week.weekNumber} · {course.courseName}</small></span></Link>)}
+              {lectures.filter(({ week, lecture }) => !week.isLocked && !lecture.isLocked).slice(0, 3).map(({ course, week, lecture }) => <Link key={lecture.id} href={guideHref(course, lecture)}><PiBookOpenTextDuotone className="study-symbol" aria-hidden="true" /><span>{lecture.title}<small>{ar ? "الأسبوع" : "Week"} {week.weekNumber} · {course.courseName}</small></span></Link>)}
             </section>}
           </div> : <BundleWorkspaceTab content={selected} tab={tab} courses={visibleCourses} lectures={lectures.filter(({ course, week, lecture }) => !needle || `${course.courseName} ${week.title || ""} ${lecture.title}`.toLowerCase().includes(needle))} openWeeks={openWeeks} setOpenWeeks={setOpenWeeks} setUrl={setUrl} />}
           </div>
@@ -516,9 +517,9 @@ function StudentExamCollection({ content, ar, onViewAll }: {
     {!onViewAll && exams.length > 0 && <label className="exam-search"><FiSearch aria-hidden="true" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} aria-label={ar ? "بحث في الامتحانات" : "Search exams"} placeholder={ar ? "ابحث باسم الامتحان" : "Search by exam title"} /></label>}
     <div className="exam-tiles">
       {visible.map((exam) => <Link className="exam-tile" key={exam.id} href={`/past-exams?bundle=${encodeURIComponent(content.bundle.id)}&test=${encodeURIComponent(exam.id)}`}>
-        <small><FiClock aria-hidden="true" />{exam.durationMinutes ? `${exam.durationMinutes} ${ar ? "دقيقة" : "min"}` : (ar ? "بدون مؤقت" : "Untimed")}</small>
+        <PiExamDuotone className="study-symbol" aria-hidden="true" />
         <strong>{exam.title}</strong>
-        <span>{ar ? "فتح الامتحان" : "Open exam"} <FiArrowRight className="bundle-direction" aria-hidden="true" /></span>
+        <small><FiClock aria-hidden="true" />{exam.durationMinutes ? `${exam.durationMinutes} ${ar ? "دقيقة" : "min"}` : (ar ? "بدون مؤقت" : "Untimed")}</small>
       </Link>)}
     </div>
     {!visible.length && <p role="status">{query ? (ar ? "لا توجد نتائج مطابقة" : "No exams match this search.") : (ar ? "لا توجد امتحانات متاحة" : "No exams available.")}</p>}
