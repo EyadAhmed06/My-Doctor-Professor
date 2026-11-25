@@ -481,7 +481,7 @@ export function AdvancedBundlesPage() {
           })}</nav>}
           {showFilter && <div className="bundle-content-search"><FiSearch /><input aria-label="Filter courses, weeks, or lectures" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filter courses, weeks, or lectures" /></div>}
           {bundleLoading && <div className="bundle-content-overlay"><PageSkeleton variant="cards" label="Loading selected bundle" /></div>}
-          <div key={manager ? "manager" : `${selected.bundle.id}-${tab}`} className={manager ? undefined : "bundle-view"}>
+          <div key={manager ? "manager" : `${selected.bundle.id}-${tab}`} data-section={manager ? undefined : tab} className={manager ? undefined : "bundle-view"}>
           {!manager && tab === "exams" ? <StudentExamCollection content={selected} ar={ar} /> :
             !manager && tab === "overview" ? <div className="bundle-preview-grid">
             {selected.past_exams.length > 0 && <StudentExamCollection content={selected} ar={ar} onViewAll={() => changeTab("exams")} />}
@@ -876,5 +876,5 @@ function BundleWorkspaceTab({ content, tab, courses, lectures, openWeeks, setOpe
 
   if (tab === "flashcards") { const available = lectures.filter((item) => item.lecture.flashcard_deck_count); return <Panel title="Bundle Flashcards">{available.length ? available.map(({ course, week, lecture }) => <Link className="bundle-row" href={`/flashcards?bundle=${encodeURIComponent(content.bundle.id)}&course=${encodeURIComponent(course.id)}&lecture=${encodeURIComponent(lecture.id)}`} key={lecture.id}><FiLayers /><span><b>{lecture.title}</b><small>Week {week.weekNumber} · open your enrolled review queue</small></span><strong>{lecture.flashcard_deck_count} decks</strong></Link>) : <EmptyState title="No published flashcards in this bundle" description="The curriculum is connected, but no published flashcard deck is currently available in its courses." />}</Panel>; }
 
-  return <Panel title="Bundle Resources">{lectures.filter((item) => item.lecture.resource_count).map(({ course, week, lecture }) => <Link className="bundle-row" href={guideHref(course, lecture)} key={lecture.id}><FiBookOpen /><span><b>{lecture.title}</b><small>Week {week.weekNumber}</small></span><strong>{lecture.resource_count} files</strong></Link>)}</Panel>;
+  return <Panel title="Bundle Resources">{!lectures.some(({ lecture }) => lecture.resource_count > 0) && <p>No resources to display for the current selection.</p>}{lectures.filter((item) => item.lecture.resource_count).map(({ course, week, lecture }) => <Link className="bundle-row" href={guideHref(course, lecture)} key={lecture.id}><FiBookOpen /><span><b>{lecture.title}</b><small>Week {week.weekNumber} · {course.courseName}</small></span><strong>{lecture.resource_count} files</strong></Link>)}</Panel>;
 }
