@@ -1,0 +1,12 @@
+.student-questions .assessment-reference-header {display:flex;align-items:baseline;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.student-questions .question-inventory {color:var(--muted);font-size:1rem}
+.student-questions .question-bank-layout {display:grid;grid-template-columns:minmax(0, 1.8fr) minmax(18rem,1fr);align-items:start;gap:clamp(1rem,3vw,3rem)}
+.student-questions .academic-filter,.student-questions .quiz-builder {min-width:0;padding:1.25rem;border:0;border-top:1px solid var(--line);background:transparent;box-shadow:none;border-radius:0}
+.student-questions .filter-title span {font:500 1.5rem var(--font-display);letter-spacing:normal;text-transform:none}
+.student-questions :is(.academic-filter,.quiz-builder) :is(label,select,button,summary) {font-size:1rem;line-height:1.45}
+.student-questions :is(.academic-filter,.quiz-builder) :is(select,summary) {min-height:44px}
+.student-questions .academic-week {border-radius:0;background:transparent;border:0;border-top:1px solid var(--line)}
+.student-questions .academic-week summary :is(b,small,em) {font-size:1rem}
+.student-questions .academic-week[open] {border-inline-start:2px solid var(--accent)}
+.student-questions .assessment-tabs button {min-height:44px;font-size:1rem}
+@media(max-width:760px){.student-questions .question-bank-layout {grid-template-columns:minmax(0,1fr)}.student-questions .academic-filter,.student-questions .quiz-builder {padding:.8rem .25rem}.student-questions .assessment-tabs {flex-wrap:wrap}}
