@@ -290,7 +290,7 @@ function recalculateCandidate(candidate: Candidate): Candidate {
     issues.push({ code: "DUPLICATE_OPTIONS", severity: "ERROR", message: "Two or more choices have identical text. Correct them before approval." });
   }
   const correctCount = candidate.options.filter((option) => option.is_correct).length;
-  if (correctCount === 0) issues.push({ code: "NO_CORRECT_OPTION", severity: "ERROR", message: "Select the single correct answer." });
+  if (correctCount === 0) issues.push({ code: "NO_CORRECT_OPTION", severity: "WARNING", message: "Select the single correct answer." });
   if (correctCount > 1) issues.push({ code: "MULTIPLE_CORRECT_OPTIONS", severity: "ERROR", message: "Only one option can be correct." });
   if (candidate.explanation && !isExplanationValid(candidate.explanation)) {
     issues.push({ code: "INVALID_QUESTION_EXPLANATION", severity: "ERROR", message: `Question explanation must be at most ${EXPLANATION_MAX_SENTENCES} sentences and ${EXPLANATION_MAX_LENGTH} characters.` });
