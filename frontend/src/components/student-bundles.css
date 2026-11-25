@@ -169,3 +169,29 @@
 .lecture-collection a + a { border-top: 1px solid var(--bundle-line); }
 .lecture-collection a small, .lecture-collection a strong { grid-column: 1; overflow-wrap: anywhere; }
 .lecture-collection a > svg { grid-column: 2; grid-row: 1 / 3; color: var(--accent); }
+
+/* Working sections below the bundle navigation. */
+.student-bundles .bundle-view:is([data-section="curriculum"],[data-section="flashcards"],[data-section="resources"]) .pp-panel {
+  padding: .5rem 0; border: 0; background: transparent; box-shadow: none;
+}
+.student-bundles .bundle-view:is([data-section="curriculum"],[data-section="questions"],[data-section="flashcards"],[data-section="resources"]) h2 {
+  font: 500 clamp(1.35rem,2vw,1.75rem)/1.25 var(--font-display);
+  margin-block: .5rem 1rem;
+}
+.student-bundles .advanced-bundle-week {
+  border: 0; border-block-start: 1px solid var(--bundle-line); border-radius: 0; background: transparent;
+}
+.student-bundles .advanced-bundle-week > button { min-height: 52px; text-align: start; }
+.student-bundles .advanced-bundle-week.open > div { margin-inline-start: 1rem; border-inline-start: 2px solid var(--accent); }
+.student-bundles .question-curriculum fieldset { min-width: 0; padding: .75rem; margin-block: 1rem; }
+.student-bundles .question-curriculum label { min-height: 44px; }
+.student-bundles .question-curriculum label.checked { box-shadow: inset 0 -2px var(--accent); }
+.student-bundles .bundle-view:is([data-section="flashcards"],[data-section="resources"]) .bundle-row {
+  display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: .85rem; align-items: center;
+  border: 0; border-top: 1px solid var(--bundle-line); border-radius: 0; background: transparent;
+  min-height: 58px; padding: .8rem .25rem; overflow-wrap: anywhere;
+}
+.student-bundles .bundle-row > strong { font-weight: 500; font-variant-numeric: tabular-nums; }
+@media (hover: hover) {
+  .student-bundles :is(.bundle-row,.advanced-bundle-week > button):hover b { text-decoration: underline; text-underline-offset: .2em; }
+}
