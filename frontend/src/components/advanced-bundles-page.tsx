@@ -4,6 +4,9 @@ import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  FiArrowRight,
+  FiChevronLeft,
+  FiChevronRight,
   FiBookOpen,
   FiCheckCircle,
   FiChevronDown,
@@ -465,8 +468,8 @@ export function AdvancedBundlesPage() {
           {selected.bundle.read_only && <section className="bundle-read-only-reason"><FiLock /><div><b>Browsing remains available</b><p>This enrollment is read-only. You can inspect curriculum and resources, but actions that submit or modify learning work are disabled by the server.</p></div></section>}
           {!manager ? <nav aria-label={ar ? "أقسام الحزمة" : "Bundle sections"} className={tab === "overview" ? "bundle-section-grid" : "bundle-section-nav"}>
             {tab !== "overview" && <button type="button" onClick={() => changeTab("overview")}>{ar ? "نظرة عامة" : "Overview"}</button>}
-            {sections.map(({ key, label, detail, singular, icon: Icon }) => <button type="button" key={key} aria-current={tab === key ? "page" : undefined} onClick={() => changeTab(key)}>
-              {tab === "overview" && <Icon aria-hidden="true" />}
+            {sections.map(({ key, label, detail, singular, icon: Icon }) => <button type="button" key={key} data-section={key} aria-current={tab === key ? "page" : undefined} onClick={() => changeTab(key)}>
+              {tab === "overview" && <div className="bundle-card-symbol"><Icon aria-hidden="true" /><FiArrowRight className="bundle-direction" aria-hidden="true" /></div>}
               <strong>{label}</strong>
               {tab === "overview" && <span>{tabCounts?.[key]} {tabCounts?.[key] === 1 ? singular : detail}</span>}
             </button>)}
@@ -476,22 +479,55 @@ export function AdvancedBundlesPage() {
           })}</nav>}
           {showFilter && <div className="bundle-content-search"><FiSearch /><input aria-label="Filter courses, weeks, or lectures" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filter courses, weeks, or lectures" /></div>}
           {bundleLoading && <div className="bundle-content-overlay"><PageSkeleton variant="cards" label="Loading selected bundle" /></div>}
-          {!manager && tab === "overview" ? <div className="bundle-preview-grid">
-            {selected.past_exams.length > 0 && <section>
-              <h3>{ar ? "الامتحانات" : "Exams"}</h3>
-              {selected.past_exams.slice(0, 3).map((exam) => <Link key={exam.id} href={`/past-exams?bundle=${encodeURIComponent(selected.bundle.id)}&test=${encodeURIComponent(exam.id)}`}><FiClock /><span>{exam.title}</span></Link>)}
-              {selected.past_exams.length > 3 && <button onClick={() => changeTab("exams")}>{ar ? "عرض كل الامتحانات" : "View all exams"} ({selected.past_exams.length})</button>}
-            </section>}
-            {lectures.some(({ week, lecture }) => !week.isLocked && !lecture.isLocked) && <section>
+          <div key={manager ? "manager" : `${selected.bundle.id}-${tab}`} className={manager ? undefined : "bundle-view"}>
+          {!manager && tab === "exams" ? <StudentExamCollection content={selected} ar={ar} /> :
+            !manager && tab === "overview" ? <div className="bundle-preview-grid">
+            {selected.past_exams.length > 0 && <StudentExamCollection content={selected} ar={ar} onViewAll={() => changeTab("exams")} />}
+            {lectures.some(({ week, lecture }) => !week.isLocked && !lecture.isLocked) && <section className="lecture-collection">
               <h3>{ar ? "المحاضرات" : "Lectures"}</h3>
               {lectures.filter(({ week, lecture }) => !week.isLocked && !lecture.isLocked).slice(0, 3).map(({ course, week, lecture }) => <Link key={lecture.id} href={guideHref(course, lecture)}><FiBookOpen /><span>{lecture.title}<small>{ar ? "الأسبوع" : "Week"} {week.weekNumber} · {course.courseName}</small></span></Link>)}
             </section>}
           </div> : <BundleWorkspaceTab content={selected} tab={tab} courses={visibleCourses} lectures={lectures.filter(({ course, week, lecture }) => !needle || `${course.courseName} ${week.title || ""} ${lecture.title}`.toLowerCase().includes(needle))} openWeeks={openWeeks} setOpenWeeks={setOpenWeeks} setUrl={setUrl} />}
+          </div>
         </> : bundleLoading ? <PageSkeleton variant="cards" label="Loading selected bundle" /> : <EmptyState title="Choose a bundle" description="Select a bundle to open its workspace." />}
       </section>
     </div>}
 
   </main></ProductShell>;
+}
+
+function StudentExamCollection({ content, ar, onViewAll }: {
+  content: Content;
+  ar: boolean;
+  onViewAll?: () => void;
+}) {
+  const [index, setIndex] = useState(0);
+  const [query, setQuery] = useState("");
+  const exams = content.past_exams;
+  const current = Math.min(index, Math.max(0, exams.length - 1));
+  const visible = onViewAll ? exams.slice(current, current + 1)
+    : exams.filter((exam) => exam.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
+
+  return <section className={onViewAll ? "exam-collection exam-preview" : "exam-collection exam-library"}>
+    <header>
+      <h3>{onViewAll ? (ar ? "الامتحانات" : "Exams") : (ar ? "امتحانات نهاية الدورة والحزمة" : "End-of-round & Bundle Exams")}</h3>
+      {onViewAll && <button type="button" onClick={onViewAll}>{ar ? "عرض الكل" : "View all exams"} ({exams.length})</button>}
+    </header>
+    {!onViewAll && exams.length > 0 && <label className="exam-search"><FiSearch aria-hidden="true" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} aria-label={ar ? "بحث في الامتحانات" : "Search exams"} placeholder={ar ? "ابحث باسم الامتحان" : "Search by exam title"} /></label>}
+    <div className="exam-tiles">
+      {visible.map((exam) => <Link className="exam-tile" key={exam.id} href={`/past-exams?bundle=${encodeURIComponent(content.bundle.id)}&test=${encodeURIComponent(exam.id)}`}>
+        <small><FiClock aria-hidden="true" />{exam.durationMinutes ? `${exam.durationMinutes} ${ar ? "دقيقة" : "min"}` : (ar ? "بدون مؤقت" : "Untimed")}</small>
+        <strong>{exam.title}</strong>
+        <span>{ar ? "فتح الامتحان" : "Open exam"} <FiArrowRight className="bundle-direction" aria-hidden="true" /></span>
+      </Link>)}
+    </div>
+    {!visible.length && <p role="status">{query ? (ar ? "لا توجد نتائج مطابقة" : "No exams match this search.") : (ar ? "لا توجد امتحانات متاحة" : "No exams available.")}</p>}
+    {onViewAll && exams.length > 1 && <footer>
+      <span aria-live="polite" aria-atomic="true">{current + 1} / {exams.length}</span>
+      <button type="button" aria-label={ar ? "الامتحان السابق" : "Previous exam"} disabled={current === 0} onClick={() => setIndex(current - 1)}><FiChevronLeft className="bundle-direction" /></button>
+      <button type="button" aria-label={ar ? "الامتحان التالي" : "Next exam"} disabled={current === exams.length - 1} onClick={() => setIndex(current + 1)}><FiChevronRight className="bundle-direction" /></button>
+    </footer>}
+  </section>;
 }
 
 function BundleQuestionBank({ content, courses }: { content: Content; courses: Course[] }) {
