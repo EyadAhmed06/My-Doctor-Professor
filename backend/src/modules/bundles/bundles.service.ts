@@ -373,6 +373,7 @@ export class BundlesService {
       }),
       this.bundleWeeks.find({
         where: { bundleId: id },
+        withDeleted: true, // Archived selections still constrain the bundle to its explicit scope.
         relations: { week: { lectures: true } },
         order: { week: { displayOrder: 'ASC' } },
       }),
@@ -394,7 +395,7 @@ export class BundlesService {
           COUNT(DISTINCT resource.id)::int AS resource_count
         FROM bundle_courses bundle_course
         JOIN courses course ON course.id = bundle_course.course_id
-        JOIN weeks week ON week.course_id = course.id
+        JOIN weeks week ON week.course_id = course.id AND week.archived_at IS NULL
         JOIN lectures lecture ON lecture.week_id = week.id
         LEFT JOIN topics topic ON topic.lecture_id = lecture.id
         LEFT JOIN questions question ON question.topic_id = topic.id AND question.is_active = TRUE AND topic.is_locked = FALSE
@@ -404,7 +405,7 @@ export class BundlesService {
             OR (deck.lecture_id IS NULL AND lecture.id = (
               SELECT first_lecture.id FROM weeks first_week
               JOIN lectures first_lecture ON first_lecture.week_id=first_week.id
-              WHERE first_week.course_id=course.id
+              WHERE first_week.course_id=course.id AND first_week.archived_at IS NULL
               ORDER BY first_week.display_order,first_week.week_number,first_lecture.display_order,first_lecture.lecture_number
               LIMIT 1
             ))
@@ -430,13 +431,13 @@ export class BundlesService {
           )::int AS mcq_count
         FROM topics topic
         JOIN lectures lecture ON lecture.id = topic.lecture_id
-        JOIN weeks week ON week.id = lecture.week_id
+        JOIN weeks week ON week.id = lecture.week_id AND week.archived_at IS NULL
         JOIN bundle_courses link ON link.course_id = week.course_id AND link.bundle_id = $1
         LEFT JOIN questions question ON question.topic_id = topic.id
         GROUP BY topic.id
         ORDER BY topic.display_order, topic.topic_name`, [id]),
     ]);
-    const weekLinks = visibleWeekIds ? weekLinksAll.filter((item) => visibleWeekIds.has(item.weekId)) : weekLinksAll;
+    const weekLinks = weekLinksAll.filter((item) => !item.week.archivedAt && (!visibleWeekIds || visibleWeekIds.has(item.weekId)));
     const stats = new Map((lectureStats as Array<{
       id: string;
       question_count: number;
