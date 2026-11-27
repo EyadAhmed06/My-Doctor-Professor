@@ -378,6 +378,11 @@ export class AcademicService {
     return saved;
   }
 
+  async archiveWeek(id: string, actor: AuthenticatedUser): Promise<void> {
+    await this.assertWeekManager(id, actor);
+    await this.weeks.softDelete(id);
+  }
+
   async deleteWeek(id: string, actor: AuthenticatedUser, includeContent = false): Promise<void> {
     await this.assertWeekManager(id, actor);
     const week = await this.weeks.findOne({

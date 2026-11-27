@@ -565,7 +565,7 @@ async function main() {
           const weekNumber = lectureIndex + 1;
           const [week] = await manager.query(
             `INSERT INTO weeks(id,course_id,week_number,title,description,display_order) VALUES($1,$2,$3,$4,$5,$3)
-             ON CONFLICT(course_id,week_number) DO UPDATE SET title=EXCLUDED.title,description=EXCLUDED.description,
+             ON CONFLICT(course_id,week_number) WHERE archived_at IS NULL DO UPDATE SET title=EXCLUDED.title,description=EXCLUDED.description,
                display_order=EXCLUDED.display_order,updated_at=CURRENT_TIMESTAMP RETURNING id`,
             [
               uuid(`week:${course.code}:${weekNumber}`),

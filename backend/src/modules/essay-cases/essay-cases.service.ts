@@ -36,7 +36,7 @@ export class EssayCasesService {
         /* security-audit-reviewed: parameterized-or-allowlisted-fragments */SELECT w.id AS week_id,w.week_number,w.title AS week_title,c.id,c.title,c.stem,c.section,c.source_case_number,c.is_published,c.display_order,
       COALESCE(json_agg(json_build_object('id',q.id,'prompt',q.prompt,'display_order',q.display_order) ORDER BY q.display_order) FILTER (WHERE q.id IS NOT NULL),'[]') AS questions
       FROM weeks w LEFT JOIN essay_cases c ON c.week_id=w.id ${actor.role === UserRole.STUDENT ? 'AND c.is_published=TRUE' : ''}
-      LEFT JOIN essay_case_questions q ON q.case_id=c.id WHERE w.course_id=$1
+      LEFT JOIN essay_case_questions q ON q.case_id=c.id WHERE w.course_id=$1 AND w.archived_at IS NULL
       GROUP BY w.id,w.week_number,w.title,c.id ORDER BY w.week_number,c.display_order,c.created_at`, [courseId]);
     const weeks = new Map<string, any>();
     for (const row of rows) {
@@ -91,10 +91,10 @@ export class EssayCasesService {
   }
   async reorder(dto: ReorderEssayCasesDto, actor: AuthenticatedUser) {
     await this.assertCourseAccess(dto.course_id, actor, true);
-    const weeks: Row[] = await this.db.query(`SELECT id FROM weeks WHERE course_id=$1`, [dto.course_id]);
+    const weeks: Row[] = await this.db.query(`SELECT id FROM weeks WHERE course_id=$1 AND archived_at IS NULL`, [dto.course_id]);
     const validWeeks = new Set(weeks.map((week) => week.id));
     const cases: Row[] = await this.db.query(
-      `SELECT c.id FROM essay_cases c JOIN weeks w ON w.id=c.week_id WHERE w.course_id=$1`,
+      `SELECT c.id FROM essay_cases c JOIN weeks w ON w.id=c.week_id WHERE w.course_id=$1 AND w.archived_at IS NULL`,
       [dto.course_id],
     );
     const validCases = new Set(cases.map((item) => item.id));
@@ -142,7 +142,7 @@ export class EssayCasesService {
 
   private async insertCase(m:EntityManager,dto:any,userId:string){ const row=(await m.query(`INSERT INTO essay_cases(week_id,title,stem,section,source_case_number,is_published,created_by,display_order) VALUES($1,$2,$3,$4,$5,$6,$7,(SELECT COALESCE(MAX(display_order),0)+1 FROM essay_cases WHERE week_id=$1)) RETURNING id`,[dto.week_id,dto.title.trim(),dto.stem.trim(),dto.section?.trim()||null,dto.source_case_number||null,dto.is_published??false,userId]))[0]; for(let i=0;i<dto.questions.length;i++) await m.query(`INSERT INTO essay_case_questions(case_id,prompt,model_answer,display_order) VALUES($1,$2,$3,$4)`,[row.id,dto.questions[i].prompt.trim(),dto.questions[i].model_answer.trim(),i+1]); return row.id; }
   private async requireCase(id:string){ const row=(await this.db.query(`SELECT c.*,w.course_id FROM essay_cases c JOIN weeks w ON w.id=c.week_id WHERE c.id=$1`,[id]))[0]; if(!row) throw new NotFoundException('Essay case not found'); return row; }
-  private async courseForWeek(id:string){ const row=(await this.db.query(`SELECT course_id FROM weeks WHERE id=$1`,[id]))[0]; if(!row) throw new NotFoundException('Week not found'); return row.course_id; }
+  private async courseForWeek(id:string){ const row=(await this.db.query(`SELECT course_id FROM weeks WHERE id=$1 AND archived_at IS NULL`,[id]))[0]; if(!row) throw new NotFoundException('Week not found'); return row.course_id; }
   private async assertCourseAccess(courseId: string, actor: AuthenticatedUser, manage: boolean) {
     if (actor.role === UserRole.SYSTEM_ADMIN) return;
     if (actor.role === UserRole.INSTRUCTOR) {

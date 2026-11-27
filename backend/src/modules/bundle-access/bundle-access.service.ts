@@ -40,7 +40,7 @@ export class BundleAccessService {
     if (actor.role === UserRole.INSTRUCTOR) {
       const allowed = await this.exists(
         `SELECT 1 FROM weeks week
-         WHERE week.id = $1`,
+         WHERE week.id = $1 AND week.archived_at IS NULL`,
         [weekId],
       );
       if (!allowed) throw new NotFoundException('Week not found');
@@ -49,7 +49,7 @@ export class BundleAccessService {
     const allowed = await this.exists(
       `SELECT 1 FROM weeks week
        JOIN courses course ON course.id = week.course_id
-       WHERE week.id = $1 AND course.is_active = TRUE
+       WHERE week.id = $1 AND week.archived_at IS NULL AND course.is_active = TRUE
          AND ${buildWeekAccessExistsSql('$1', '$2', 'course', 'week')}`,
       [weekId, actor.userId],
     );
@@ -61,7 +61,7 @@ export class BundleAccessService {
     if (actor.role === UserRole.INSTRUCTOR) {
       const allowed = await this.exists(
         `SELECT 1 FROM lectures lecture
-         JOIN weeks week ON week.id = lecture.week_id
+         JOIN weeks week ON week.id = lecture.week_id AND week.archived_at IS NULL
          WHERE lecture.id = $1`,
         [lectureId],
       );
@@ -70,7 +70,7 @@ export class BundleAccessService {
     }
     const allowed = await this.exists(
       `SELECT 1 FROM lectures lecture
-       JOIN weeks week ON week.id = lecture.week_id
+       JOIN weeks week ON week.id = lecture.week_id AND week.archived_at IS NULL
        JOIN courses course ON course.id = week.course_id
        WHERE lecture.id = $1 AND lecture.is_published = TRUE AND course.is_active = TRUE
          AND ${buildLectureAccessExistsSql('$1', '$2')}`,
@@ -114,7 +114,7 @@ export class BundleAccessService {
       JOIN bundle_courses bundle_course ON bundle_course.course_id = course.id
       JOIN bundles bundle ON bundle.id = bundle_course.bundle_id
       JOIN bundle_enrollments enrollment ON enrollment.bundle_id = bundle.id AND enrollment.student_id = $2
-      WHERE week.course_id = $1
+      WHERE week.course_id = $1 AND week.archived_at IS NULL
         AND course.is_active = TRUE
         AND ${buildActiveEnrollmentSql('enrollment', 'bundle')}
         AND ${buildBundleWeekFallbackSql('bundle', 'week.id', 'course.id')}
@@ -128,7 +128,7 @@ export class BundleAccessService {
       FROM bundles bundle
       INNER JOIN bundle_enrollments enrollment ON enrollment.bundle_id = bundle.id AND enrollment.student_id = $2
       INNER JOIN bundle_courses bundle_course ON bundle_course.bundle_id = bundle.id
-      INNER JOIN weeks week ON week.course_id = bundle_course.course_id
+      INNER JOIN weeks week ON week.course_id = bundle_course.course_id AND week.archived_at IS NULL
       INNER JOIN lectures lecture ON lecture.week_id = week.id
       WHERE bundle.id = $1
         AND ($3::uuid IS NULL OR bundle_course.course_id = $3::uuid)
