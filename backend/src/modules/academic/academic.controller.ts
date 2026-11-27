@@ -199,6 +199,13 @@ export class AcademicController {
     return this.academic.updateWeek(id, dto, user);
   }
 
+  @Post('weeks/:weekId/archive')
+  @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  archiveWeek(@Param('weekId', uuid) id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.academic.archiveWeek(id, user);
+  }
+
   @Delete('weeks/:weekId')
   @Roles(UserRole.INSTRUCTOR, UserRole.SYSTEM_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
